@@ -27,8 +27,17 @@ jobs:
       # её наличие как «PR-контекст есть» — тогда негативные тесты
       # (SKIPPED без PR-контекста, tests/test_gate_runner.py) получают
       # FAIL вместо SKIPPED. Локально переменной нет — тесты зеленые.
+      # Проект-тонкий клиент: tests/ появляется только когда qa_automation
+      # напишет первые approved-кейсы (контракт 6). До этого pytest некого
+      # гонять — exit 4/5 на пустом проекте. Пропуск только пока каталога нет;
+      # как только tests/ существует, ворота работают в полную силу.
       - name: Run tests
-        run: env -u GITHUB_EVENT_PATH python -m pytest tests/ -q
+        run: |
+          if [ -d tests ]; then
+            env -u GITHUB_EVENT_PATH python -m pytest tests/ -q
+          else
+            echo "tests/ ещё нет (продуктовый регресс не создан) — пропуск"
+          fi
 
       # pm_bounds_check (J9/J10) НЕ в CI: требует реестра сессий
       # (~/.hermes/state/active_sessions.json), которого на раннере нет —
