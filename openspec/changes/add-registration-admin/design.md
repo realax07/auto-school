@@ -59,8 +59,13 @@ admin-login → POST /api/admin/login, токен в sessionStorage, редир�
 /admin-dashboard → GET /api/admin/users         (X-Admin-Token)
                  → GET /api/admin/users/export.csv (X-Admin-Token)
   → require_admin: заголовок есть? токен в реестре? не истек?
-  → users: SELECT ... ORDER BY created_at DESC → {count, users:[...]}
-  → csv: BOM + ';', колонки ФИО;Email;Телефон;Роль;Дата регистрации, Content-Disposition attachment
+  → users: SELECT ... ORDER BY created_at DESC, id DESC → {count, users:[...]}
+  → csv: BOM + ';', колонки ФИО;Email;Телефон;Роль;Дата регистрации,
+         Content-Disposition attachment;
+         санитизация ячеек: значение из пользовательских полей, начинающееся
+         с `=`, `+`, `-`, `@`, получает префикс `'` (CSV-инъекция, решение ПМ
+         2026-10-08); Дата регистрации — пересчет UTC→локаль перед
+         форматированием DD.MM.YYYY
   → 401 → JS: редирект /admin-login
 ```
 
@@ -83,6 +88,12 @@ admin-login → POST /api/admin/login, токен в sessionStorage, редир�
 Порядок валидации регистрации (детерминированный, «первая ошибка»):
 обязательность всех 7 полей → формат email → телефон ≥ 10 цифр →
 длина пароля ≥ 8 → совпадение подтверждения → уникальность email (SELECT).
+
+Валидация обязательности — в хендлере, не в Pydantic (MAJ-1, решение ПМ):
+поля модели объявляются с дефолтами (`str = ""`), отсутствующий ключ JSON
+обрабатывается хендлером как пустое поле и возвращает контрактный
+`422 {ok:false, error:"<поле-ру>: <причина>"}`, а не дефолтный
+Pydantic-ответ `{detail:[...]}`.
 
 ## Решения по НФТ
 
