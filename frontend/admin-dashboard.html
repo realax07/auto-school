@@ -69,10 +69,14 @@ function loadUsers(){
     .then(function(data){
       tb.innerHTML='';
       data.users.forEach(function(u){
+        // fix review-001-code blocker: stored XSS — только textContent, без innerHTML с данными
         var tr=document.createElement('tr');
         var date=(u.created_at||'').split(' ')[0].split('-');
         var dateStr=date.length===3?date[2]+'.'+date[1]+'.'+date[0]:u.created_at;
-        tr.innerHTML='<td>'+u.fio+'</td><td>'+u.email+'</td><td>'+u.phone+'</td><td><span class="badge">Ученик</span></td><td>'+dateStr+'</td>';
+        function td(text){var c=document.createElement('td');c.textContent=text;return c;}
+        tr.appendChild(td(u.fio));tr.appendChild(td(u.email));tr.appendChild(td(u.phone));
+        var badge=document.createElement('td');var sp=document.createElement('span');sp.className='badge';sp.textContent='Ученик';badge.appendChild(sp);tr.appendChild(badge);
+        tr.appendChild(td(dateStr));
         tb.appendChild(tr);
       });
       document.getElementById('count').textContent='Записей: '+data.count;
