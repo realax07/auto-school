@@ -6,20 +6,20 @@ sdd.md, раздел «Трассировка». Детальные контра
 
 ## 1. Каркас проекта и слой БД
 
-- [ ] 1.1 [P] Scaffold: структура backend/ (app.py, config.py, db.py,
+- [x] 1.1 [P] Scaffold: структура backend/ (app.py, config.py, db.py,
       __init__.py), requirements.txt (fastapi, uvicorn, bcrypt; dev:
       pytest, httpx), .gitignore (data/, .env), .env.example (ADMIN_USER,
       ADMIN_PASSWORD_HASH + инструкция генерации bcrypt-хэша).
       Готовность: `python3 -c "import app"` не падает; .env.example описывает
       все переменные (NFR-3). FR: — (инфраструктура для FR-1…FR-8).
-- [ ] 1.2 [P] db.py: get_conn() (SQLite data/app.db, WAL, row_factory=Row),
+- [x] 1.2 [P] db.py: get_conn() (SQLite data/app.db, WAL, row_factory=Row),
       init_db() (схема users из sdd.md, CREATE TABLE IF NOT EXISTS).
       Готовность: тест создает БД во временном пути, таблица users имеет все
       колонки схемы; все запросы параметризованы (NFR-2). FR: FR-1, FR-3.
 
 ## 2. Домен registration
 
-- [ ] 2.1 POST /api/register: модель запроса (7 полей, все со значениями по
+- [x] 2.1 POST /api/register: модель запроса (7 полей, все со значениями по
       умолчанию `str = ""` — обязательность НЕ через Pydantic-required,
       а в хендлере: отсутствующий ключ JSON обрабатывается как пустое поле,
       чтобы вернуться контрактный 422, а не Pydantic `{detail:[...]}`),
@@ -37,7 +37,7 @@ sdd.md, раздел «Трассировка». Детальные контра
 
 ## 3. Домен admin
 
-- [ ] 3.1 [P] POST /api/admin/login: сверка с config (ADMIN_USER +
+- [x] 3.1 [P] POST /api/admin/login: сверка с config (ADMIN_USER +
       bcrypt.checkpw против ADMIN_PASSWORD_HASH), выдача
       secrets.token_urlsafe(32), реестр {token: expires} TTL 12ч,
       зависимость require_admin (заголовок X-Admin-Token).
@@ -45,12 +45,12 @@ sdd.md, раздел «Трассировка». Детальные контра
       Готовность: тесты — успешный вход, неверный пароль/логин → 401 без
       токена; админ-API без токена / с поддельным / с истекшим → 401.
       FR: FR-5, FR-8.
-- [ ] 3.2 GET /api/admin/users: SELECT всех пользователей ORDER BY
+- [x] 3.2 GET /api/admin/users: SELECT всех пользователей ORDER BY
       created_at DESC; fio = surname + name + patronymic через пробел.
       Ответ: 200 {count, users:[{id, fio, email, phone, created_at}]}.
       Готовность: тест — два пользователя, свежий первым, count совпадает,
       доступ только с валидным токеном. FR: FR-6, FR-8.
-- [ ] 3.3 GET /api/admin/users/export.csv: CSV UTF-8 с BOM, разделитель «;»,
+- [x] 3.3 GET /api/admin/users/export.csv: CSV UTF-8 с BOM, разделитель «;»,
       колонки ФИО;Email;Телефон;Роль;Дата регистрации, роль «Ученик»,
       Content-Disposition attachment. CSV-санитизация (MAJ-2, решение ПМ
       2026-10-08): значение ячейки из пользовательских полей (ФИО, email,
@@ -66,7 +66,7 @@ sdd.md, раздел «Трассировка». Детальные контра
 
 ## 4. Фронтенд и статика
 
-- [ ] 4.1 Перенос макетов: frontend/ = копии design/mocks дословно
+- [x] 4.1 Перенос макетов: frontend/ = копии design/mocks дословно
       (index.html, registered.html, admin-login.html, admin-dashboard.html);
       wiring по дизайну: модалка регистрации + поля Пароль/Подтверждение,
       fetch → редирект /registered или показ ошибки под формой;
@@ -76,7 +76,7 @@ sdd.md, раздел «Трассировка». Детальные контра
       текстовки модулей побайтово совпадают с макетами, кроме двух
       добавленных полей пароля и сообщений об ошибках (FR-9, решение дизайна).
       FR: FR-4, FR-9.
-- [ ] 4.2 app.py: сборка create_app() (роутеры 2.1, 3.1–3.3, init_db через
+- [x] 4.2 app.py: сборка create_app() (роутеры 2.1, 3.1–3.3, init_db через
       lifespan), маршруты статики (/, /registered, /admin-login,
       /admin-dashboard), GET /api/health → 200 {ok:true}.
       Готовность: тесты статики + health; ручной сценарий приемки дизайна
