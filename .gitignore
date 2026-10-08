@@ -218,3 +218,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- Auto School: данные сервиса и секреты (NFR-3, NFR-5) ---
+data/
+.env
+

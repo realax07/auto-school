@@ -1,0 +1,103 @@
+<!doctype html>
+<!-- Админка: дашборд с сайдбаром (заглушка). Раздел «Пользователи»: таблица + выгрузка CSV. Данные демо, в базе не хранятся -->
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>СберАвтошкола — Админка · Пользователи</title><style>
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#020b13;color:#f7fbfa;font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.app{display:grid;grid-template-columns:250px 1fr;min-height:100svh}
+aside{padding:26px 18px;border-right:1px solid rgba(217,239,238,.14);background:rgba(10,20,26,.6)}
+.logo{display:flex;align-items:center;gap:10px;font-size:19px;font-weight:650;letter-spacing:-.8px;margin:0 10px 30px}.logo em{font-style:normal;color:#55ed9c}
+.check{width:30px;height:30px;display:grid;place-items:center;border:3px solid #49ec9a;border-radius:50%;color:#58efa3;font-size:18px;transform:rotate(-8deg)}
+.nav{display:flex;flex-direction:column;gap:4px}
+.nav button{display:flex;align-items:center;gap:12px;padding:13px 16px;border:0;border-radius:12px;background:none;color:#b9c8cc;font-size:14px;text-align:left;cursor:pointer}
+.nav button:hover{background:rgba(73,236,154,.07);color:#e8f5f3}
+.nav button.active{background:rgba(73,236,154,.13);color:#5cf0a4}
+.nav .soon{opacity:.45}
+.side-foot{margin-top:auto;padding:0 10px;font-size:12px;color:#7d939a}
+main{padding:34px 40px;display:flex;flex-direction:column;min-width:0}
+.top{display:flex;align-items:center;gap:16px;margin-bottom:26px}
+.top h1{margin:0;font-size:26px;font-weight:550;letter-spacing:-.02em}
+.spacer{flex:1}
+.logout{padding:9px 22px;border:1px solid rgba(238,249,249,.3);border-radius:999px;background:none;color:#cfdede;font-size:13px;cursor:pointer}
+.logout:hover{border-color:#49ec9a}
+.toolbar{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.count{font-size:13px;color:#8ea4a8}
+.btn-export{margin-left:auto;padding:10px 24px;border:0;border-radius:999px;background:linear-gradient(95deg,#3fe58f,#2bd47e);color:#04241a;font-size:14px;font-weight:550;cursor:pointer}
+.btn-export:hover{filter:brightness(1.06)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{padding:12px 14px;text-align:left;color:#8ea4a8;font-weight:500;border-bottom:1px solid rgba(217,239,238,.16)}
+td{padding:13px 14px;border-bottom:1px solid rgba(217,239,238,.07);color:#dcebe9}
+tr:hover td{background:rgba(73,236,154,.04)}
+.badge{padding:3px 12px;border-radius:999px;font-size:12px;background:rgba(73,236,154,.14);color:#5cf0a4}
+.empty{display:none;padding:60px 0;text-align:center;color:#7d939a;font-size:14px}
+@media(max-width:860px){.app{grid-template-columns:1fr}aside{display:none}main{padding:20px}}
+</style></head><body>
+<div class="app">
+<aside>
+  <div class="logo"><span class="check">✓</span><span><em>Сбер</em>Автошкола</span></div>
+  <nav class="nav">
+    <button class="active">◉ Пользователи</button>
+    <button class="soon" onclick="soon()" title="Появится в следующем спринте">▦ Отношения</button>
+    <button class="soon" onclick="soon()" title="Появится в следующем спринте">⌗ Расписания</button>
+    <button class="soon" onclick="soon()" title="Появится в следующем спринте">₽ Платежи</button>
+    <button class="soon" onclick="soon()" title="Появится в следующем спринте">✎ Настройки</button>
+  </nav>
+  <div class="side-foot">Спринт-0 · заглушка</div>
+</aside>
+<main>
+  <div class="top"><h1>Пользователи</h1><div class="spacer"></div><span style="font-size:13px;color:#8ea4a8">admin</span><button class="logout" onclick="sessionStorage.removeItem('admin_token');location.href='/admin-login'">Выйти</button></div>
+  <div class="toolbar">
+    <span class="count" id="count"></span>
+    <button class="btn-export" onclick="exportCsv()">↓ Выгрузить CSV</button>
+  </div>
+  <table>
+    <thead><tr><th>ФИО</th><th>Email</th><th>Телефон</th><th>Роль</th><th>Дата регистрации</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <div class="empty" id="empty">Записей пока нет</div>
+</main>
+</div>
+<script>
+// Реальные данные из API (задача 4.1, дизайн 2026-10-08)
+var TOKEN=sessionStorage.getItem('admin_token');
+if(!TOKEN){location.href='/admin-login';}
+var tb=document.getElementById('rows');
+function loadUsers(){
+  fetch('/api/admin/users',{headers:{'X-Admin-Token':TOKEN}})
+    .then(function(r){
+      if(r.status===401){location.href='/admin-login';throw new Error('unauthorized');}
+      return r.json();
+    })
+    .then(function(data){
+      tb.innerHTML='';
+      data.users.forEach(function(u){
+        // fix review-001-code blocker: stored XSS — только textContent, без innerHTML с данными
+        var tr=document.createElement('tr');
+        var date=(u.created_at||'').split(' ')[0].split('-');
+        var dateStr=date.length===3?date[2]+'.'+date[1]+'.'+date[0]:u.created_at;
+        function td(text){var c=document.createElement('td');c.textContent=text;return c;}
+        tr.appendChild(td(u.fio));tr.appendChild(td(u.email));tr.appendChild(td(u.phone));
+        var badge=document.createElement('td');var sp=document.createElement('span');sp.className='badge';sp.textContent='Ученик';badge.appendChild(sp);tr.appendChild(badge);
+        tr.appendChild(td(dateStr));
+        tb.appendChild(tr);
+      });
+      document.getElementById('count').textContent='Записей: '+data.count;
+      document.getElementById('empty').style.display=data.count?'none':'block';
+    })
+    .catch(function(e){if(e.message!=='unauthorized')throw e;});
+}
+function exportCsv(){
+  fetch('/api/admin/users/export.csv',{headers:{'X-Admin-Token':TOKEN}})
+    .then(function(r){
+      if(r.status===401){location.href='/admin-login';throw new Error('unauthorized');}
+      return r.blob();
+    })
+    .then(function(blob){
+      var a=document.createElement('a');
+      a.href=URL.createObjectURL(new Blob([blob],{type:'text/csv;charset=utf-8'}));
+      a.download='users.csv';a.click();
+    })
+    .catch(function(e){if(e.message!=='unauthorized')throw e;});
+}
+loadUsers();
+function soon(){alert('Заглушка: раздел появится в следующем спринте');}
+</script>
+</body></html>

@@ -1,0 +1,117 @@
+<!doctype html>
+<!-- Auto School — лендинг (ученики). Спринт-0: фронт-заглушки.
+     Текстовки — ДОСЛОВНО по референсу Заказчика (вкл. бренд Сбер — заменю по команде).
+     Интерактив: «Войти»/«Зарегистрироваться» → модалки (design/mocks),
+     футер-кнопка → заглушка лендинга учителей, ассистент → Hermes (позже). -->
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>СберАвтошкола — Права без лишнего пути</title><style>
+@media (min-width:901px){.hero{min-height:943px!important;height:max(943px,100svh)!important}.frame{min-height:943px!important}}
+:root{--w:#f7fbfa;--l:rgba(217,239,238,.18);--acc:#49ec9a;--acc2:#55ed9c}*{box-sizing:border-box}html,body{margin:0;min-width:320px;background:#020b13;color:var(--w);font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}button{font:inherit;color:inherit;cursor:pointer}.hero{position:relative;min-height:100svh;height:max(760px,100svh);overflow:hidden;background:radial-gradient(1200px 700px at 78% 30%,rgba(20,90,60,.5),transparent 60%),radial-gradient(900px 600px at 20% 85%,rgba(12,60,80,.45),transparent 55%),#020b13}.road{position:absolute;inset:0;overflow:hidden}.road:before{content:"";position:absolute;left:55%;top:-10%;width:340px;height:130%;background:linear-gradient(100deg,transparent,rgba(85,237,156,.05) 45%,rgba(160,240,210,.1) 50%,rgba(85,237,156,.05) 55%,transparent);transform:rotate(18deg);filter:blur(2px)}.road:after{content:"";position:absolute;left:58%;top:-10%;width:6px;height:130%;background:repeating-linear-gradient(0deg,rgba(231,255,243,.32) 0 44px,transparent 44px 96px);transform:rotate(18deg);opacity:.5}.hero:after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(0,8,13,.4),transparent 48%),linear-gradient(0deg,rgba(0,9,15,.3),transparent 32%)}.frame{position:relative;z-index:1;max-width:1460px;height:100%;margin:auto;padding:34px 0 27px}header{height:45px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center}.brand{display:flex;align-items:center;gap:10px;font-size:29px;font-weight:650;letter-spacing:-1.3px}.brand em{font-style:normal;color:var(--acc2)}.check{width:40px;height:40px;display:grid;place-items:center;border:4px solid var(--acc);border-radius:50%;color:#58efa3;font-size:28px;line-height:1;font-weight:500;transform:rotate(-8deg)}nav{display:flex;gap:52px}nav a{font-size:15px;color:#eff7f5;text-decoration:none;cursor:pointer}.auth{display:flex;gap:14px;justify-self:end;margin-left:auto;grid-column:3;justify-content:flex-end}
+.login{padding:11px 36px;border:1px solid rgba(238,249,249,.48);border-radius:999px;background:rgba(4,12,17,.28);font-size:15px;transition:border-color .15s}.login:hover{border-color:var(--acc)}
+.login.solid{background:linear-gradient(95deg,#3fe58f,#2bd47e);border-color:transparent;color:#04241a;font-weight:550}.login.solid:hover{border-color:transparent;filter:brightness(1.06)}
+.intro{position:absolute;top:163px;left:0;width:720px}.eyebrow{font-size:13px;letter-spacing:.2em;color:#b5bec2;margin-bottom:22px}.intro h1{max-width:680px;margin:0;font-size:94px;line-height:.83;font-weight:500;letter-spacing:-.064em}.intro h1 span{display:block;margin-top:12px;background:linear-gradient(95deg,#c3f7d2 2%,#aeefff 43%,#51ea9d 87%);background-clip:text;-webkit-background-clip:text;color:transparent}.intro p{margin:25px 0 0;font-size:24px;line-height:1.48;letter-spacing:.06em;color:#eef1f0}.steps{position:absolute;right:10px;top:117px;width:490px;height:385px}.step{position:absolute;right:0;width:224px;height:63px;display:flex;align-items:center;gap:17px;padding:0 17px;border:1px solid rgba(221,249,245,.22);border-radius:20px;background:linear-gradient(105deg,rgba(11,23,31,.79),rgba(99,141,127,.37));box-shadow:inset 0 1px 0 rgba(255,255,255,.09),0 15px 32px rgba(0,0,0,.17);backdrop-filter:blur(13px)}.step svg{width:29px;height:29px;stroke:#f4fbfa;fill:none;stroke-width:1.8}.step b{font-size:16px;font-weight:500}.step small{margin-left:auto;font-size:14px;color:#cedad7}.s4{top:0}.s3{top:94px;right:25px;width:250px}.s2{top:198px;right:122px;width:280px}.s1{top:296px;right:190px;width:286px}.assistant{position:absolute;left:106px;bottom:190px;width:1238px;min-height:263px;padding:20px 22px 17px;border:1px solid rgba(234,255,249,.17);border-radius:38px;background:linear-gradient(112deg,rgba(211,237,239,.27),rgba(52,105,105,.39) 54%,rgba(65,194,130,.34));box-shadow:inset 0 1px 1px rgba(255,255,255,.19),0 23px 55px rgba(0,0,0,.22);backdrop-filter:blur(20px)}.ai-head{display:flex;align-items:center;gap:17px;margin:0 13px 16px}.avatar{width:55px;height:55px;border-radius:50%;background:radial-gradient(circle,#ecfff4 0 15%,#4af196 17% 31%,#06754d 33% 47%,#27ec8c 49% 59%,rgba(24,176,105,.2) 61%);box-shadow:0 0 22px rgba(59,255,147,.53)}.ai-head b{font-size:18px;font-weight:500}.ai-head span{display:block;margin-top:4px;color:#b2c2c6;font-size:14px}.prompt{height:77px;display:flex;align-items:center;padding:0 13px 0 29px;border:1px solid rgba(236,252,250,.23);border-radius:40px;background:rgba(23,45,53,.63);color:#c1cbd0;font-size:20px}.send{margin-left:auto;width:56px;height:56px;border:0;border-radius:50%;background:#eaf3ef;color:#17333a;font-size:35px;font-weight:200;line-height:1}.quick{display:flex;gap:14px;margin-top:16px}.quick button{height:63px;display:flex;align-items:center;gap:15px;padding:0 20px;border:1px solid rgba(227,247,245,.18);border-radius:34px;background:rgba(4,19,32,.44);font-size:14px;line-height:1.25;text-align:left;transition:border-color .15s}.quick button:hover{border-color:rgba(85,237,156,.55)}.quick button:nth-child(1){width:218px}.quick button:nth-child(2){width:165px}.quick button:nth-child(3){width:185px}.quick button:nth-child(4){width:205px}.quick button:nth-child(5){width:284px}footer{position:absolute;left:0;right:0;bottom:27px;display:grid;grid-template-columns:1fr 1fr 1.08fr 180px;gap:35px;padding-top:27px;border-top:1px solid var(--l)}.feature{display:grid;grid-template-columns:62px 1fr;gap:18px}.feature-icon{width:57px;height:57px;display:grid;place-items:center;border-radius:16px;background:rgba(13,35,49,.72);color:#46eb98;font-size:27px}.feature b{font-size:16px;line-height:1.25;font-weight:500}.feature p{margin:8px 0 0;color:#93a4ac;font-size:14px;line-height:1.38}.tagline{padding-left:48px;border-left:1px solid rgba(217,239,238,.2);font-size:16px;line-height:1.25}.tagline b{font-weight:500}.arrow{display:block;margin-top:10px;font-size:32px;font-weight:200}
+/* модалки (утверждённые мокапы design/mocks) */
+.overlay{position:fixed;inset:0;z-index:50;display:none;place-items:center;background:rgba(1,7,11,.62);backdrop-filter:blur(6px)}.overlay.open{display:grid}.modal{width:min(440px,calc(100vw - 32px));padding:36px 34px 30px;border:1px solid rgba(234,255,249,.16);border-radius:28px;background:linear-gradient(150deg,rgba(16,30,38,.96),rgba(9,22,28,.97));box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 30px 70px rgba(0,0,0,.55)}.modal.wide{width:min(480px,calc(100vw - 32px))}.modal h2{margin:0 0 6px;font-size:30px;font-weight:550;letter-spacing:-.02em}.modal .sub{margin:0 0 24px;font-size:14px;color:#a9bcc0}.field{margin-bottom:14px}.field label{display:block;font-size:13px;color:#b7c6ca;margin-bottom:7px}.field input{width:100%;height:52px;padding:0 18px;border:1px solid rgba(230,250,248,.2);border-radius:16px;background:rgba(10,26,33,.7);color:#f2faf9;font-size:16px;outline:none}.field input:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(73,236,154,.14)}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.hint{font-size:12px;color:#7d939a;margin-top:5px}.actions{display:flex;gap:12px;margin-top:22px}.btn{flex:1;height:54px;border:0;border-radius:999px;font-size:16px;font-weight:550;cursor:pointer}.btn-primary{background:linear-gradient(95deg,#3fe58f,#2bd47e);color:#04241a}.btn-ghost{background:transparent;border:1px solid rgba(230,250,248,.28);color:#e8f5f3}.alt{margin:20px 0 0;text-align:center;font-size:14px;color:#a9bcc0}.alt button{background:none;border:0;color:var(--acc2);font-size:14px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+@media(max-width:1500px){.frame{margin:0 6.5%}.assistant{left:7%;width:86%}.brand{font-size:25px}.intro h1{font-size:clamp(66px,6.25vw,94px)}}@media(max-width:900px){.hero{height:auto;min-height:1250px}.road:before,.road:after{left:70%}.frame{height:1250px;margin:0;padding:24px}.brand{font-size:21px}.check{width:31px;height:31px;font-size:21px;border-width:3px}nav{display:none}.auth{gap:8px}.login{padding:9px 23px}.intro{top:136px;left:24px;width:calc(100% - 48px)}.intro h1{font-size:55px}.intro p{font-size:17px;max-width:420px}.steps{top:430px;right:-72px;transform:scale(.83);transform-origin:top right}.assistant{left:24px;bottom:224px;width:calc(100% - 48px);padding:17px;border-radius:26px}.quick{overflow-x:auto}.quick button{flex:0 0 auto!important}.prompt{font-size:15px;height:61px}.send{width:45px;height:45px}.ai-head{margin-bottom:11px}.feature{grid-template-columns:1fr}.feature-icon{display:none}footer{left:24px;right:24px;bottom:20px;grid-template-columns:1fr 1fr;gap:15px;padding-top:15px}.feature b{font-size:13px}.feature p{font-size:11px}.tagline{padding-left:15px;font-size:13px}.arrow{font-size:22px;margin-top:3px}}
+</style></head><body>
+<main class="hero"><div class="road"></div><div class="frame">
+<header>
+  <div class="brand"><span class="check">✓</span><span><em>Сбер</em>Автошкола</span></div>
+  <nav><a>О программе</a><a>Тарифы</a><a>Вопросы</a></nav>
+  <div class="auth"><button class="login" data-open="register">Зарегистрироваться</button><button class="login solid" data-open="login">Войти</button></div>
+</header>
+<section class="intro">
+  <div class="eyebrow">СОВРЕМЕННАЯ АВТОШКОЛА ОТ СБЕРА</div>
+  <h1>Права —<span>без лишнего пути.</span></h1>
+  <p>Весь путь — от первого занятия<br>до экзамена — в одном месте.</p>
+</section>
+<section class="steps">
+  <div class="step s4">✓ <b>Права</b><small>04</small></div>
+  <div class="step s3">▧ <b>Экзамен</b><small>03</small></div>
+  <div class="step s2">◉ <b>Практика</b><small>02</small></div>
+  <div class="step s1">◇ <b>Теория</b><small>01</small></div>
+</section>
+<section class="assistant">
+  <div class="ai-head"><div class="avatar"></div><div><b>Гига ГАИшник</b><span>Твой AI-помощник в обучении и на дороге</span></div></div>
+  <div class="prompt"><span>Спроси что угодно про обучение, экзамен или ПДД...</span><button class="send" id="ai-open" title="Открыть чат ассистента">↑</button></div>
+  <div class="quick">
+    <button>▢ <span>Хочу выучиться<br>на права</span></button>
+    <button>☷ <span>Выбрать<br>тариф</span></button>
+    <button>₽ <span>Сколько<br>это стоит?</span></button>
+    <button>♧ <span>Готов ли я<br>к экзамену?</span></button>
+    <button>▢ <span>Разобрать<br>нестандартную ситуацию</span></button>
+  </div>
+</section>
+<footer>
+  <div class="feature"><div class="feature-icon">⌁</div><div><b>AI-тренер<br>и Гига ГАИшник</b><p>Разбор ситуаций, тренировка<br>к экзамену, персональные советы</p></div></div>
+  <div class="feature"><div class="feature-icon">▣</div><div><b>Проверенные<br>инструкторы</b><p>С рейтингами, отзывами<br>и прозрачным расписанием</p></div></div>
+  <div class="feature"><div class="feature-icon">♢</div><div><b>Вся экосистема Сбера</b><p>Медсправка, страхование,<br>авто и сервисы — в одном месте</p></div></div>
+  <div class="tagline">Больше, чем<br>автошкола.<br><b>Это — Сбер.</b><button class="arrow" style="background:none;border:0;padding:0;color:inherit;text-align:left" id="to-teachers" title="Лендинг для водителей-учителей">→</button></div>
+</footer>
+</div></main>
+
+<!-- Модалка: Вход (утвержденный мокап) -->
+<div class="overlay" id="m-login"><div class="modal" role="dialog" aria-label="Вход">
+  <h2>Вход</h2><p class="sub">Войдите в личный кабинет</p>
+  <div class="field"><label>Логин</label><input type="text" placeholder="email или телефон"></div>
+  <div class="field"><label>Пароль</label><input type="password" placeholder="••••••••"></div>
+  <div class="actions"><button class="btn btn-primary" onclick="alert('Заглушка: бэкенд не подключен')">Войти</button><button class="btn btn-ghost" data-close>Отмена</button></div>
+  <p class="alt">Нет аккаунта? <button id="to-register">Зарегистрироваться</button></p>
+</div></div>
+
+<!-- Модалка: Регистрация (утвержденный мокап) -->
+<div class="overlay" id="m-register"><div class="modal wide" role="dialog" aria-label="Регистрация">
+  <h2>Регистрация</h2><p class="sub">Создайте аккаунт ученика</p>
+  <div class="row">
+    <div class="field"><label>Фамилия</label><input type="text" id="reg-surname" placeholder="Иванов"></div>
+    <div class="field"><label>Имя</label><input type="text" id="reg-name" placeholder="Иван"></div>
+  </div>
+  <div class="field"><label>Отчество</label><input type="text" id="reg-patronymic" placeholder="Иванович"></div>
+  <div class="field"><label>Email</label><input type="email" id="reg-email" placeholder="you@example.com"></div>
+  <div class="field"><label>Телефон</label><input type="tel" id="reg-phone" placeholder="+7 (___) ___-__-__"><div class="hint">Используем для связи по расписанию и экзаменам</div></div>
+  <div class="row">
+    <div class="field"><label>Пароль</label><input type="password" id="reg-password" placeholder="••••••••"></div>
+    <div class="field"><label>Подтверждение</label><input type="password" id="reg-password-confirm" placeholder="••••••••"></div>
+  </div>
+  <p class="err" id="reg-error" style="display:none;margin:14px 0 0;font-size:13px;color:#ff9c9c;"></p>
+  <div class="actions"><button class="btn btn-primary" id="reg-submit">Зарегистрироваться</button><button class="btn btn-ghost" data-close>Отмена</button></div>
+</div></div>
+
+<script>
+(function(){
+  var open=function(id){document.getElementById(id).classList.add('open')};
+  var closeAll=function(){document.querySelectorAll('.overlay').forEach(function(o){o.classList.remove('open')})};
+  document.querySelectorAll('[data-open="login"]').forEach(function(b){b.addEventListener('click',function(){closeAll();open('m-login')})});
+  document.querySelectorAll('[data-open="register"]').forEach(function(b){b.addEventListener('click',function(){closeAll();open('m-register')})});
+  document.getElementById('to-register').addEventListener('click',function(){closeAll();open('m-register')});
+  document.querySelectorAll('[data-close]').forEach(function(b){b.addEventListener('click',closeAll)});
+  document.querySelectorAll('.overlay').forEach(function(o){o.addEventListener('click',function(e){if(e.target===o)closeAll()})});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')closeAll()});
+  // Регистрация: fetch POST /api/register (дизайн 2026-10-08)
+  document.getElementById('reg-submit').addEventListener('click',function(){
+    var err=document.getElementById('reg-error');
+    err.style.display='none';
+    var payload={
+      surname:document.getElementById('reg-surname').value.trim(),
+      name:document.getElementById('reg-name').value.trim(),
+      patronymic:document.getElementById('reg-patronymic').value.trim(),
+      email:document.getElementById('reg-email').value.trim(),
+      phone:document.getElementById('reg-phone').value.trim(),
+      password:document.getElementById('reg-password').value,
+      password_confirm:document.getElementById('reg-password-confirm').value
+    };
+    fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+      .then(function(r){return r.json().then(function(d){return {status:r.status,data:d}})})
+      .then(function(res){
+        if(res.status===200&&res.data.ok){location.href='/registered';}
+        else{err.textContent=(res.data&&res.data.error)||'Ошибка регистрации';err.style.display='block';}
+      })
+      .catch(function(){err.textContent='Ошибка сети';err.style.display='block';});
+  });
+  // ассистент и футер-переход — заглушки спринта-0
+  var stub=function(msg){return function(){alert(msg)}};
+  document.getElementById('ai-open').addEventListener('click',stub('Заглушка: чат ассистента (Hermes) будет подключен позже'));
+  document.querySelectorAll('.quick button').forEach(function(b){b.addEventListener('click',stub('Заглушка: сценарии ассистента будут подключены позже'))});
+  document.getElementById('to-teachers').addEventListener('click',stub('Заглушка: лендинг для водителей-учителей — следующая страница'));
+})();
+</script>
+</body></html>
