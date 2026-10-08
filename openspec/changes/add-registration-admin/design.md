@@ -1,0 +1,97 @@
+# Design: add-registration-admin
+
+Утвержденный дизайн Заказчика: docs/superpowers/specs/2026-10-08-registration-admin-design.md.
+Здесь — декомпозиция на компоненты, потоки и обработка ошибок. Детальные
+контракты API и схема БД — в `sdd.md` (источник контрактов).
+
+## Компоненты
+
+```
+Браузер
+  │  статика (/, /registered, /admin-login, /admin-dashboard)
+  │  fetch JSON API
+  ▼
+FastAPI-сервис (uvicorn, single-worker)
+  ├── app.py      — сборка приложения: роутеры, статика, /api/health, init_db на старте
+  ├── config.py   — чтение окружения: ADMIN_USER, ADMIN_PASSWORD_HASH, SECRET (из .env)
+  ├── db.py       — SQLite: get_conn (WAL, Row), init_db (схема users)
+  ├── register.py — роутер POST /api/register: валидация → bcrypt → INSERT
+  └── admin.py    — роутеры /api/admin/login, /api/admin/users, /api/admin/users/export.csv;
+                    in-memory реестр токенов {token: expires}, зависимость require_admin
+  ▼
+SQLite data/app.db (WAL) — таблица users (хранение, без логики — паттерн 5)
+```
+
+Фронтенд — статика из утвержденных макетов design/mocks, отдается тем же
+сервисом. Wiring (единственные изменения против макетов, предписанные
+дизайном): модалка регистрации получает поля Пароль/Подтверждение и fetch на
+/api/register (ok → редирект /registered, ошибка → текст под формой);
+admin-login → POST /api/admin/login, токен в sessionStorage, редирект на
+дашборд; дашборд → GET /api/admin/users с заголовком токена, кнопка CSV —
+выгрузка blob'ом. Текстовки макетов — дословно (FR-9).
+
+## Потоки
+
+### Поток 1: регистрация ученика (FR-1…FR-4, FR-9)
+
+```
+Лендинг → модалка → POST /api/register
+  → валидация (порядок фиксирован, см. «Обработка ошибок»)
+  → INSERT в users (email UNIQUE как вторая линия защиты)
+  → 200 {ok: true} → JS: location.href = '/registered'
+```
+
+Отклонение → 422 {ok: false, error} → текст под формой, записи нет.
+
+### Поток 2: вход администратора (FR-5, FR-8)
+
+```
+/admin-login → POST /api/admin/login
+  → сверка login == ADMIN_USER И bcrypt.checkpw(password, ADMIN_PASSWORD_HASH)
+  → ok:  токен = secrets.token_urlsafe(32), реестр {token: now + 12ч} → 200 {ok: true, token}
+         → JS: sessionStorage, редирект /admin-dashboard
+  → fail: 401 {ok: false}
+```
+
+### Поток 3: данные админки (FR-6, FR-7, FR-8)
+
+```
+/admin-dashboard → GET /api/admin/users         (X-Admin-Token)
+                 → GET /api/admin/users/export.csv (X-Admin-Token)
+  → require_admin: заголовок есть? токен в реестре? не истек?
+  → users: SELECT ... ORDER BY created_at DESC → {count, users:[...]}
+  → csv: BOM + ';', колонки ФИО;Email;Телефон;Роль;Дата регистрации, Content-Disposition attachment
+  → 401 → JS: редирект /admin-login
+```
+
+### Поток 4: конфигурация (NFR-3)
+
+.env (в .gitignore) читается config.py; в репозитории — .env.example с
+инструкцией генерации bcrypt-хэша. Отсутствие ADMIN_PASSWORD_HASH в
+окружении → явная ошибка при старте/использовании, не «тихий» дефолт.
+
+## Обработка ошибок
+
+| Ситуация | Ответ/поведение | Требование |
+|---|---|---|
+| Незаполненное поле / плохой email / короткий пароль / несовпадение подтверждения / занятый email | 422 `{ok:false, error:"<поле>: <причина>"}` — первая ошибка в порядке проверок; запись не создается | FR-2 |
+| Неверные учетные данные админа | 401 `{ok:false}`, токен не выдается | FR-5 |
+| Админ-API без/с неверным/с истекшим токеном | 401, данных нет | FR-8 |
+| Внутренняя ошибка сервиса | 500 `{ok:false, error:"Внутренняя ошибка"}`; детали — в лог, не клиенту | — |
+| Health-проба | 200 `{ok:true}` всегда (живость сервиса) | — |
+
+Порядок валидации регистрации (детерминированный, «первая ошибка»):
+обязательность всех 7 полей → формат email → телефон ≥ 10 цифр →
+длина пароля ≥ 8 → совпадение подтверждения → уникальность email (SELECT).
+
+## Решения по НФТ
+
+- NFR-1 (≤ 500 мс): SQLite локальный файл, bcrypt cost 12 ~250 мс на хэш — бюджет соблюдается; контроль — тестом времени ответа.
+- NFR-2 (параметризованный SQL): db-слой принимает только `?`-плейсхолдеры; ревью-чеклист — запрет конкатенации строк SQL.
+- NFR-3 (секреты в .env): .env в .gitignore, .env.example в репозитории, data/app.db в .gitignore.
+
+## Сознательные ограничения (задокументированы дизайном)
+
+- Токен админа в памяти: теряется при рестарте (пере-вход), single-worker.
+- CSV-роль у всех «Ученик» (инструкторы — следующий спринт).
+- Без кабинетов, инструкторов, восстановления пароля, email-подтверждения, refresh-токенов, nginx/контейнеров/деплоя.
