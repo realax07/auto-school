@@ -59,6 +59,16 @@ ROLE_ZONE_POLICY: dict[str, tuple[str, ...]] = {
         "tests/**",
         "test-model/bugs/*",
         "feature/*",
+        # Решение ПМ 2026-10-08 (полномочие Заказчика «Реши как лучше»):
+        # проектная структура спека спринта-0 — backend/ + frontend/ вместо
+        # эталонного src/**; scaffold-файлы в корне. Эталон (~/ai-factory)
+        # не тронут; рассинхрон — осознанный, ловится flow_check WARNING.
+        "backend/**",
+        "frontend/**",
+        "requirements.txt",
+        ".env.example",
+        ".gitignore",
+        "data/**",
     ),
     "code_reviewer": (
         "code-reviews/*/review-*.md",
