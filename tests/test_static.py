@@ -1,4 +1,5 @@
 """TC-REG-016…TC-REG-018, TC-NFR-003 — статика, health, макеты, секреты
+# Change: add-registration-admin
 (задача 4.2, sdd.md §2, §3.5–§3.6).
 
 GET /, /registered, /admin-login, /admin-dashboard → 200;

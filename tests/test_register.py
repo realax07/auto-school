@@ -1,4 +1,5 @@
 """TC-REG-001…TC-REG-015, TC-NFR-001…TC-NFR-002 — POST /api/register
+# Change: add-registration-admin
 (задача 2.1, sdd.md §3.1).
 
 Контракт: 200 {ok:true}; 422 {ok:false, error:"<поле-ру>: <причина>"} —

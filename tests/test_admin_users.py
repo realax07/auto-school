@@ -1,4 +1,5 @@
 """TC-ADM-005…TC-ADM-012 — GET /api/admin/users и
+# Change: add-registration-admin
 GET /api/admin/users/export.csv (задачи 3.2, 3.3; sdd.md §3.3, §3.4;
 MIN-3 тай-брейк, MIN-4 UTC→локаль, MAJ-2 CSV-санитизация)."""
 import sqlite3

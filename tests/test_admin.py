@@ -1,4 +1,5 @@
 """TC-ADM-001…TC-ADM-004, TC-ADM-013…TC-ADM-017 — POST /api/admin/login
+# Change: add-registration-admin
 и механизм токена (задача 3.1, sdd.md §3.2, §3.5).
 
 200 {ok:true, token: secrets.token_urlsafe(32)}; 401 {ok:false} — без

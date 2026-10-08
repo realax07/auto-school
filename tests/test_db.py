@@ -1,4 +1,5 @@
 """TC-REG-001, TC-REG-012, TC-NFR-002 — слой БД (задача 1.2, sdd.md §4).
+# Change: add-registration-admin
 
 БД создается во временном пути (AUTOSCHOOL_DB_PATH); схема users — все
 колонки из sdd.md; SQL — только параметризованный (NFR-2).
