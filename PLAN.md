@@ -33,12 +33,13 @@
 | 0.1 | Мокапы всех страниц утверждены | [x] |
 | 0.2 | Спека: docs/superpowers/specs/2026-10-08-registration-admin-design.md | [x] |
 | 0.3 | План: docs/superpowers/plans/2026-10-08-registration-admin.md | [x] |
-| 0.3a | Architect: ревью change-пакета + architecture/map.md (живой документ, дополняется) | [ ] |
+| 0.3a | Architect: ревью change-пакета + architecture/map.md (живой документ, дополняется) | [x] review-001 доработка (MAJ-1/2) → СА fixes → review-002 approve; ADR-001 |
 | 0.3b | Design check: мокапы vs реализация после dev (design_validator) | [ ] |
-| 0.4 | Backend: регистрация + SQLite | [ ] |
-| 0.5 | Backend: админ-логин (.env) + список + CSV | [ ] |
-| 0.6 | Frontend: связка макетов с API (пароль+подтверждение в форме) | [ ] |
+| 0.4 | Backend: регистрация + SQLite | [x] dev-сабагент, 58 passed |
+| 0.5 | Backend: админ-логин (.env) + список + CSV | [x] XSS-blocker найден ревью и закрыт |
+| 0.6 | Frontend: связка макетов с API (пароль+подтверждение в форме) | [x] |
 | 0.7 | Приемка: pytest + ручной сценарий + PR | [ ] |
+| 0.8 | QA-контур: чеклист 38 CHK → 38 кейсов (approved) → автотесты TC-трассировка 58 passed | [x] |
 
 ## Релизы
 
