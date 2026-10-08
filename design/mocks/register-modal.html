@@ -1,0 +1,48 @@
+<!doctype html>
+<!-- Мокап 2/2: модальное окно «Регистрация» (открывается из «Входа») — auto-school -->
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Auto School — модалка «Регистрация» (мокап)</title><style>
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#020b13;color:#f7fbfa;font-family:Inter,ui-sans-serif,-apple-system,"Segoe UI",sans-serif}
+.hero{position:relative;min-height:100svh;background:#020b13 url('https://images.unsplash.com/photo-1470770903676-69b98201ea1c?w=1600&q=60') center/cover no-repeat}
+.hero:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,8,13,.45),rgba(0,9,15,.35))}
+.frame{position:relative;z-index:1;max-width:1100px;margin:auto;padding:34px 24px}
+header{height:45px;display:flex;align-items:center;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:10px;font-size:24px;font-weight:650;letter-spacing:-1px}.brand em{font-style:normal;color:#55ed9c}
+.check{width:34px;height:34px;display:grid;place-items:center;border:3px solid #49ec9a;border-radius:50%;color:#58efa3;font-size:22px;transform:rotate(-8deg)}
+.demo-note{font-size:13px;color:#9db3b6;max-width:520px;line-height:1.5;margin:60px 0 0}
+.overlay{position:fixed;inset:0;z-index:10;display:grid;place-items:center;background:rgba(1,7,11,.62);backdrop-filter:blur(6px)}
+.modal{width:min(480px,calc(100vw - 32px));padding:36px 34px 30px;border:1px solid rgba(234,255,249,.16);border-radius:28px;background:linear-gradient(150deg,rgba(16,30,38,.94),rgba(9,22,28,.96));box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 30px 70px rgba(0,0,0,.55)}
+.modal h2{margin:0 0 6px;font-size:30px;font-weight:550;letter-spacing:-.02em}
+.modal .sub{margin:0 0 24px;font-size:14px;color:#a9bcc0}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:13px;color:#b7c6ca;margin-bottom:7px}
+.field input{width:100%;height:52px;padding:0 18px;border:1px solid rgba(230,250,248,.2);border-radius:16px;background:rgba(10,26,33,.7);color:#f2faf9;font-size:16px;outline:none}
+.field input:focus{border-color:#49ec9a;box-shadow:0 0 0 3px rgba(73,236,154,.14)}
+.hint{font-size:12px;color:#7d939a;margin-top:5px}
+.actions{display:flex;gap:12px;margin-top:22px}
+.btn{flex:1;height:54px;border:0;border-radius:999px;font-size:16px;font-weight:550;cursor:pointer}
+.btn-primary{background:linear-gradient(95deg,#3fe58f,#2bd47e);color:#04241a}
+.btn-ghost{background:transparent;border:1px solid rgba(230,250,248,.28);color:#e8f5f3}
+</style></head><body>
+<div class="hero"><div class="frame">
+<header><div class="brand"><span class="check">✓</span><span><em>Auto</em>School</span></div></header>
+<p class="demo-note">Статичный мокап модального окна «Регистрация» (открывается из «Входа» кнопкой «Зарегистрироваться»). Поля: телефон, email, ФИО раздельно. Данные никуда не отправляются.</p>
+</div></div>
+<div class="overlay">
+  <div class="modal" role="dialog" aria-label="Регистрация">
+    <h2>Регистрация</h2>
+    <p class="sub">Создайте аккаунт ученика</p>
+    <div class="row">
+      <div class="field"><label>Фамилия</label><input type="text" placeholder="Иванов"></div>
+      <div class="field"><label>Имя</label><input type="text" placeholder="Иван"></div>
+    </div>
+    <div class="field"><label>Отчество</label><input type="text" placeholder="Иванович"></div>
+    <div class="field"><label>Email</label><input type="email" placeholder="you@example.com"></div>
+    <div class="field"><label>Телефон</label><input type="tel" placeholder="+7 (___) ___-__-__"><div class="hint">Используем для связи по расписанию и экзаменам</div></div>
+    <div class="actions">
+      <button class="btn btn-primary">Зарегистрироваться</button>
+      <button class="btn btn-ghost">Отмена</button>
+    </div>
+  </div>
+</div>
+</body></html>
