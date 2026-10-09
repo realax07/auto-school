@@ -41,7 +41,7 @@ sdd.md, раздел «Трассировка (Спринт 1)». Детальн
 
 ## 2. Домен cabinet (фронтенд и статика)
 
-- [ ] 2.1 [P] frontend/cabinet.html — перенос design/mocks/cabinet-student.html
+- [x] 2.1 [P] frontend/cabinet.html — перенос design/mocks/cabinet-student.html
       дословно (тексты, стили, структура — FR-9); wiring (единственные
       отличия от мокапа): GET /api/auth/me с X-Session-Token из sessionStorage —
       401 → редирект на страницу входа (FR-7), 200 → подстановка ФИО
