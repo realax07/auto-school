@@ -52,8 +52,8 @@
 | # | Задача | Статус |
 |---|---|---|
 | 1.1 | Мокап кабинета ученика утвержден | [x] |
-| 1.2 | Change-пакет add-auth-cabinet (СА) | [ ] |
-| 1.3 | Архитектор: ревью + карта + ADR (auth-сервис) | [ ] |
+| 1.2 | Change-пакет add-auth-cabinet (СА) | [x] accepted + rework MAJ-1/2/3 |
+| 1.3 | Архитектор: ревью + карта + ADR (auth-сервис) | [x] approved-with-notes; ADR-002; TLS-ротация (PR#22) |
 | 1.4 | Dev: auth-сервис (login, session), users table refactored | [ ] |
 | 1.5 | Dev: кабинет ученика (/cabinet) с чат-баром и плитками | [ ] |
 | 1.6 | Код-ревью | [ ] |
