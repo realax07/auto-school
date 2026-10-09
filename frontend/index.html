@@ -52,9 +52,10 @@
 <!-- Модалка: Вход (утвержденный мокап) -->
 <div class="overlay" id="m-login"><div class="modal" role="dialog" aria-label="Вход">
   <h2>Вход</h2><p class="sub">Войдите в личный кабинет</p>
-  <div class="field"><label>Логин</label><input type="text" placeholder="email или телефон"></div>
-  <div class="field"><label>Пароль</label><input type="password" placeholder="••••••••"></div>
-  <div class="actions"><button class="btn btn-primary" onclick="alert('Заглушка: бэкенд не подключен')">Войти</button><button class="btn btn-ghost" data-close>Отмена</button></div>
+  <div class="field"><label>Логин</label><input type="text" id="login-email" placeholder="email или телефон"></div>
+  <div class="field"><label>Пароль</label><input type="password" id="login-password" placeholder="••••••••"></div>
+  <p class="err" id="login-error" style="display:none;margin:14px 0 0;font-size:13px;color:#ff9c9c;"></p>
+  <div class="actions"><button class="btn btn-primary" id="login-submit">Войти</button><button class="btn btn-ghost" data-close>Отмена</button></div>
   <p class="alt">Нет аккаунта? <button id="to-register">Зарегистрироваться</button></p>
 </div></div>
 
@@ -104,6 +105,25 @@
       .then(function(res){
         if(res.status===200&&res.data.ok){location.href='/registered';}
         else{err.textContent=(res.data&&res.data.error)||'Ошибка регистрации';err.style.display='block';}
+      })
+      .catch(function(){err.textContent='Ошибка сети';err.style.display='block';});
+  });
+  // Вход: fetch POST /api/auth/login → sessionStorage['session_token'] → /cabinet (sdd §10.1)
+  document.getElementById('login-submit').addEventListener('click',function(){
+    var err=document.getElementById('login-error');
+    err.style.display='none';
+    var payload={
+      email:document.getElementById('login-email').value.trim(),
+      password:document.getElementById('login-password').value
+    };
+    fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+      .then(function(r){return r.json().then(function(d){return {status:r.status,data:d}})})
+      .then(function(res){
+        if(res.status===200&&res.data.ok&&res.data.token){
+          sessionStorage.setItem('session_token',res.data.token);
+          location.href='/cabinet';
+        }
+        else{err.textContent=(res.data&&res.data.error)||'Неверный email или пароль';err.style.display='block';}
       })
       .catch(function(){err.textContent='Ошибка сети';err.style.display='block';});
   });
