@@ -64,7 +64,7 @@ sdd.md, раздел «Трассировка (Спринт 1)». Детальн
 
 ## 3. Сборка
 
-- [ ] 3.1 app.py: подключить роутер auth (из 1.1) в create_app(); маршрут
+- [x] 3.1 app.py: подключить роутер auth (из 1.1) в create_app(); маршрут
       /cabinet → frontend/cabinet.html (рядом с /admin-dashboard и др.).
       app.py — единственная точка правки существующего кода; register.py,
       admin.py, db.py, config.py не меняются.
