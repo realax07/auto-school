@@ -7,7 +7,7 @@ sdd.md, раздел «Трассировка (Спринт 1)». Детальн
 
 ## 1. Домен auth (backend/auth.py)
 
-- [ ] 1.1 [P] backend/auth.py — модуль авторизации (отдельный от register.py,
+- [x] 1.1 [P] backend/auth.py — модуль авторизации (отдельный от register.py,
       ограничение ТЗ): POST /api/auth/login (SELECT по email через
       параметризованный запрос, bcrypt.checkpw против password_hash,
       единое сообщение об отказе для всех причин — неверный email / неверный
