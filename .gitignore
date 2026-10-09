@@ -223,3 +223,8 @@ __marimo__/
 data/
 .env
 
+
+# TLS secrets: в git НЕ хранить (ротация 2026-10-08, решение Заказчика — вариант А)
+deploy/tls/*.pem
+deploy/tls/*.key
+deploy/tls/*.crt
