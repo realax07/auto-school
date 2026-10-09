@@ -1,0 +1,16 @@
+[Unit]
+Description=Auto School API (FastAPI, sprint-0)
+After=network.target
+
+[Service]
+Type=simple
+User=hermes-bot
+WorkingDirectory=/home/hermes-bot/auto-school
+EnvironmentFile=/home/hermes-bot/auto-school/.env
+Environment=AUTOSCHOOL_DB_PATH=/home/hermes-bot/auto-school/data/app.db
+ExecStart=/home/hermes-bot/.hermes/tools/python-3.14.7+20260901-linux-x64/bin/python3 -m uvicorn backend.app:app --host 127.0.0.1 --port 8390
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
