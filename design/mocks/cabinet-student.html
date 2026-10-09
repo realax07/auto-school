@@ -1,0 +1,89 @@
+<!doctype html>
+<!-- Мокап: Личный кабинет ученика (Спринт 1). Стиль референса, чат-бар как на лендинге.
+     Плитки-сервисы — заглушки (визуал). Кнопка выхода -> admin/учетка сессии. -->
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>СберАвтошкола — Кабинет ученика (мокап)</title><style>
+*{box-sizing:border-box}html,body{margin:0;min-width:320px;background:#020b13;color:#f7fbfa;font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}button{font:inherit;color:inherit;cursor:pointer}
+.hero{position:relative;min-height:100svh;overflow:hidden;background:radial-gradient(1100px 600px at 80% 10%,rgba(20,90,60,.4),transparent 55%),radial-gradient(800px 500px at 10% 90%,rgba(12,60,80,.35),transparent 55%),#020b13}
+.frame{position:relative;z-index:1;max-width:1300px;margin:auto;padding:30px 24px 40px}
+header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;height:45px;margin-bottom:8px}
+.brand{display:flex;align-items:center;gap:10px;font-size:26px;font-weight:650;letter-spacing:-1.2px}.brand em{font-style:normal;color:#55ed9c}
+.check{width:36px;height:36px;display:grid;place-items:center;border:4px solid #49ec9a;border-radius:50%;color:#58efa3;font-size:24px;font-weight:500;transform:rotate(-8deg)}
+.crumb{font-size:14px;color:#b5bec2;justify-self:center}
+.user{justify-self:end;display:flex;align-items:center;gap:14px}
+.uname{font-size:14px;color:#dcebe9}
+.logout{padding:9px 24px;border:1px solid rgba(238,249,249,.4);border-radius:999px;background:rgba(4,12,17,.28);font-size:14px}
+.logout:hover{border-color:#49ec9a}
+.greet{margin:34px 0 6px;font-size:13px;letter-spacing:.2em;color:#b5bec2}
+.greet b{display:block;margin-top:10px;font-size:38px;font-weight:550;letter-spacing:-.02em;color:#f7fbfa}
+/* чат-бар как на лендинге */
+.assistant{margin:28px 0 34px;padding:20px 22px 17px;border:1px solid rgba(234,255,249,.17);border-radius:38px;background:linear-gradient(112deg,rgba(211,237,239,.27),rgba(52,105,105,.39) 54%,rgba(65,194,130,.34));box-shadow:inset 0 1px 1px rgba(255,255,255,.19),0 23px 55px rgba(0,0,0,.22);backdrop-filter:blur(20px)}
+.ai-head{display:flex;align-items:center;gap:17px;margin:0 13px 16px}
+.avatar{width:55px;height:55px;border-radius:50%;background:radial-gradient(circle,#ecfff4 0 15%,#4af196 17% 31%,#06754d 33% 47%,#27ec8c 49% 59%,rgba(24,176,105,.2) 61%);box-shadow:0 0 22px rgba(59,255,147,.53)}
+.ai-head b{font-size:18px;font-weight:500}
+.ai-head span{display:block;margin-top:4px;color:#b2c2c6;font-size:14px}
+.prompt{height:70px;display:flex;align-items:center;padding:0 13px 0 29px;border:1px solid rgba(236,252,250,.23);border-radius:40px;background:rgba(23,45,53,.63);color:#c1cbd0;font-size:19px}
+.send{margin-left:auto;width:52px;height:52px;border:0;border-radius:50%;background:#eaf3ef;color:#17333a;font-size:32px;font-weight:200;line-height:1}
+.quick{display:flex;gap:14px;margin-top:16px}
+.quick button{height:56px;display:flex;align-items:center;gap:12px;padding:0 18px;border:1px solid rgba(227,247,245,.18);border-radius:34px;background:rgba(4,19,32,.44);font-size:13px;line-height:1.25;text-align:left}
+.quick button:hover{border-color:rgba(85,237,156,.55)}
+/* плитки сервисов */
+.services-title{font-size:13px;letter-spacing:.2em;color:#b5bec2;margin:0 0 18px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:22px}
+.tile{position:relative;min-height:210px;padding:26px 26px 22px;border:1px solid rgba(221,249,245,.18);border-radius:26px;background:linear-gradient(150deg,rgba(16,30,38,.85),rgba(9,22,28,.92));box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 18px 40px rgba(0,0,0,.3);text-align:left;transition:transform .15s,border-color .15s;cursor:pointer}
+.tile:hover{transform:translateY(-4px);border-color:rgba(85,237,156,.5)}
+.tile-icon{width:64px;height:64px;display:grid;place-items:center;border-radius:18px;background:rgba(73,236,154,.12);border:1px solid rgba(73,236,154,.3);color:#46eb98;font-size:30px;margin-bottom:18px}
+.tile b{display:block;font-size:21px;font-weight:550;letter-spacing:-.01em}
+.tile p{margin:10px 0 0;color:#93a4ac;font-size:14px;line-height:1.45}
+.tile .go{position:absolute;right:24px;bottom:20px;font-size:22px;color:#55ed9c;font-weight:200}
+.soon{position:absolute;right:22px;top:22px;font-size:11px;letter-spacing:.1em;color:#7d939a;border:1px solid rgba(125,147,154,.35);border-radius:999px;padding:4px 12px}
+footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.12);display:flex;justify-content:space-between;font-size:13px;color:#7d939a}
+@media(max-width:760px){header{grid-template-columns:1fr auto}.crumb{display:none}.greet b{font-size:28px}.prompt{font-size:15px;height:60px}.quick{overflow-x:auto}.quick button{flex:0 0 auto}}
+</style></head><body>
+<div class="hero"><div class="frame">
+<header>
+  <div class="brand"><span class="check">✓</span><span><em>Сбер</em>Автошкола</span></div>
+  <div class="crumb">Личный кабинет · Ученик</div>
+  <div class="user"><span class="uname">Иван Иванов</span><button class="logout">Выйти</button></div>
+</header>
+
+<div class="greet">ЛИЧНЫЙ КАБИНЕТ<b>Добро пожаловать, Иван!</b></div>
+
+<!-- чат-бар (как на главной) -->
+<section class="assistant">
+  <div class="ai-head"><div class="avatar"></div><div><b>Гига ГАИшник</b><span>Твой AI-помощник в обучении и на дороге</span></div></div>
+  <div class="prompt"><span>Спроси что угодно про обучение, экзамен или ПДД...</span><button class="send" title="Открыть чат с AI">↑</button></div>
+  <div class="quick">
+    <button>▢ <span>Когда экзамен?</span></button>
+    <button>☷ <span>Мой прогресс</span></button>
+    <button>♧ <span>Готов ли я<br>к экзамену?</span></button>
+  </div>
+</section>
+
+<p class="services-title">СЕРВИСЫ</p>
+<div class="tiles">
+  <button class="tile"><span class="soon">СКОРО</span>
+    <div class="tile-icon">◈</div><b>Обучение ПДД</b>
+    <p>Теория по блокам, тренировочные вопросы и разбор ошибок перед экзаменом.</p>
+    <span class="go">→</span>
+  </button>
+  <button class="tile"><span class="soon">СКОРО</span>
+    <div class="tile-icon">◉</div><b>Онлайн экзамен</b>
+    <p>Пробный экзамен в формате ГИБДД: 20 вопросов, те же правила оценки.</p>
+    <span class="go">→</span>
+  </button>
+  <button class="tile"><span class="soon">СКОРО</span>
+    <div class="tile-icon">▤</div><b>Найти водителя</b>
+    <p>Подбор инструктора: рейтинги, отзывы и свободные окна расписания.</p>
+    <span class="go">→</span>
+  </button>
+</div>
+
+<footer><span>СберАвтошкола · кабинет ученика</span><span>Спринт 1 · визуал</span></footer>
+</div></div>
+<script>
+// заглушки спринта-1: плитки и чат не подключены
+document.querySelectorAll('.tile,.quick button,.send,.logout').forEach(function(b){
+  b.addEventListener('click',function(){alert('Заглушка: сервис появится в следующем спринте');});
+});
+</script>
+</body></html>
