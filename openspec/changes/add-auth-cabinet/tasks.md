@@ -7,7 +7,7 @@ sdd.md, раздел «Трассировка (Спринт 1)». Детальн
 
 ## 1. Домен auth (backend/auth.py)
 
-- [ ] 1.1 [P] backend/auth.py — модуль авторизации (отдельный от register.py,
+- [x] 1.1 [P] backend/auth.py — модуль авторизации (отдельный от register.py,
       ограничение ТЗ): POST /api/auth/login (SELECT по email через
       параметризованный запрос, bcrypt.checkpw против password_hash,
       единое сообщение об отказе для всех причин — неверный email / неверный
@@ -41,7 +41,7 @@ sdd.md, раздел «Трассировка (Спринт 1)». Детальн
 
 ## 2. Домен cabinet (фронтенд и статика)
 
-- [ ] 2.1 [P] frontend/cabinet.html — перенос design/mocks/cabinet-student.html
+- [x] 2.1 [P] frontend/cabinet.html — перенос design/mocks/cabinet-student.html
       дословно (тексты, стили, структура — FR-9); wiring (единственные
       отличия от мокапа): GET /api/auth/me с X-Session-Token из sessionStorage —
       401 → редирект на страницу входа (FR-7), 200 → подстановка ФИО
@@ -54,7 +54,7 @@ sdd.md, раздел «Трассировка (Спринт 1)». Детальн
       подстановки ФИО, logout-редиректа покрыты.
       FR: FR-4, FR-5, FR-6, FR-7, FR-8, FR-9.
 
-- [ ] 2.2 Модалка входа на лендинге (frontend/index.html): wiring
+- [x] 2.2 Модалка входа на лендинге (frontend/index.html): wiring
       утвержденной модалки «Вход» (m-login) — сабмит → POST /api/auth/login;
       ok → токен в sessionStorage, редирект /cabinet; 401 → единое сообщение
       об ошибке под формой (без деталей причины); тексты модалки — дословно.
@@ -64,7 +64,7 @@ sdd.md, раздел «Трассировка (Спринт 1)». Детальн
 
 ## 3. Сборка
 
-- [ ] 3.1 app.py: подключить роутер auth (из 1.1) в create_app(); маршрут
+- [x] 3.1 app.py: подключить роутер auth (из 1.1) в create_app(); маршрут
       /cabinet → frontend/cabinet.html (рядом с /admin-dashboard и др.).
       app.py — единственная точка правки существующего кода; register.py,
       admin.py, db.py, config.py не меняются.
@@ -74,7 +74,7 @@ sdd.md, раздел «Трассировка (Спринт 1)». Детальн
 
 ## 4. Приемка
 
-- [ ] 4.1 Полный прогон: `pytest tests/` зеленый (включая регресс Спринта 0);
+- [x] 4.1 Полный прогон: `pytest tests/` зеленый (включая регресс Спринта 0);
       замер времени POST /api/auth/login ≤ 500 мс (NFR-1); grep-проверка
       параметризованного SQL в auth.py (NFR-2); токены/пароли не в репозитории
       и логах (NFR-3); `openspec validate --all --strict` зеленый;
@@ -92,3 +92,13 @@ sdd.md, раздел «Трассировка (Спринт 1)». Детальн
   конфликтов нет.
 - 3.1 — собирает 1.1 и 2.1 (последняя точка правки существующего app.py).
 - 4.1 — последняя (полный прогон + валидации).
+
+## Приемка 4.1 — зафиксирована ПМ (2026-10-09)
+
+- pytest tests/: 97 passed (вкл. регресс Спринта 0, интеграционные, QA-автоматизация)
+- NFR-1: POST /api/auth/login avg 334 ms ≤ 500 ms — PASS (3 прогона: 334/333/336)
+- NFR-2: параметризованный SQL, 0 конкатенаций в backend/auth.py — PASS
+- NFR-3: лог-вызовы в backend/auth.py отсутствуют, токены/пароли не логируются — PASS
+- openspec validate --all --strict: 2 passed, 0 failed — PASS
+- flow_check: OK — PASS
+- Code review: 4× approve (minor не блокируют); Design check: approve

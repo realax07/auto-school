@@ -13,6 +13,7 @@ from fastapi.responses import FileResponse, JSONResponse
 
 import backend.db as db
 from backend.admin import router as admin_router
+from backend.auth import router as auth_router
 from backend.register import router as register_router
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -23,6 +24,7 @@ _PAGE_ROUTES = {
     "/registered": "registered.html",
     "/admin-login": "admin-login.html",
     "/admin-dashboard": "admin-dashboard.html",
+    "/cabinet": "cabinet.html",
 }
 
 
@@ -36,6 +38,7 @@ def create_app() -> FastAPI:
     app = FastAPI(title="Auto School API", lifespan=lifespan)
     app.include_router(register_router)
     app.include_router(admin_router)
+    app.include_router(auth_router)
 
     @app.get("/api/health")
     def health():
