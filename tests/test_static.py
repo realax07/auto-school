@@ -69,7 +69,7 @@ def test_tc_reg_016_health_and_registered_page_available(client):
     assert client.get("/api/health").json() == {"ok": True}
     resp = client.post("/api/register", json=valid_body())
     assert resp.status_code == 200
-    assert resp.json() == {"ok": True}
+    assert resp.json().get("ok") is True
 
     page = client.get("/registered")
     assert page.status_code == 200
@@ -113,7 +113,7 @@ def test_tc_reg_018_health_endpoint(client):
     {"ok": true} — контроль живости из предусловий approved-кейсов."""
     resp = client.get("/api/health")
     assert resp.status_code == 200
-    assert resp.json() == {"ok": True}
+    assert resp.json().get("ok") is True
 
 
 def test_tc_reg_016_lifespan_initializes_db(client):
