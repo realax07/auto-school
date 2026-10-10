@@ -5,6 +5,7 @@
 формате `422 {"ok": false, "error": "<поле-ру>: <причина>"}`.
 """
 import bcrypt
+import sqlite3
 from fastapi import APIRouter
 from pydantic import BaseModel
 
@@ -83,7 +84,7 @@ def register(data: RegisterRequest):
                     data.password.encode("utf-8"),
                     bcrypt.gensalt(rounds=_BCRYPT_ROUNDS),
                 ).decode("utf-8")
-                conn.execute(
+                cur = conn.execute(
                     "INSERT INTO users (surname, name, patronymic, email, phone,"
                     " password_hash) VALUES (?, ?, ?, ?, ?, ?)",
                     (
@@ -95,15 +96,20 @@ def register(data: RegisterRequest):
                         password_hash,
                     ),
                 )
+                user_id = cur.lastrowid
                 conn.commit()
-                user_id = conn.execute(
-                    "SELECT id FROM users WHERE email = ?", (data.email,)
-                ).fetchone()["id"]
+            # Гонка дубликатов (пре-существующий, rev-002 #3): параллельная
+            # регистрация одного email проходит SELECT и падает на UNIQUE →
+            # контрактный 422 вместо HTTP 500.
+        except sqlite3.IntegrityError:
+            error = "Email: уже зарегистрирован"
         finally:
             conn.close()
 
     if error is not None:
         return _contract_422(error)
+    if user_id is None:  # защита от логической ошибки валидации
+        return _contract_422("Регистрация: внутренняя ошибка")
 
     # Успешная регистрация → сразу авторизованная сессия (решение Заказчика
     # 2026-10-10: редирект в кабинет, минуя отдельный вход). Тот же механизм
