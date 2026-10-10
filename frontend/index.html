@@ -103,7 +103,10 @@
     fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
       .then(function(r){return r.json().then(function(d){return {status:r.status,data:d}})})
       .then(function(res){
-        if(res.status===200&&res.data.ok){location.href='/registered';}
+        if(res.status===200&&res.data.ok&&res.data.token){
+          sessionStorage.setItem('session_token',res.data.token);
+          location.href='/cabinet';
+        }
         else{err.textContent=(res.data&&res.data.error)||'Ошибка регистрации';err.style.display='block';}
       })
       .catch(function(){err.textContent='Ошибка сети';err.style.display='block';});

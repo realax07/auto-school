@@ -68,6 +68,7 @@ def _validate(data: RegisterRequest) -> str | None:
 @router.post("/api/register")
 def register(data: RegisterRequest):
     error = _validate(data)
+    user_id = None
     if error is None:
         # уникальность email — последняя проверка (SELECT), вторая линия — UNIQUE в БД
         conn = db.get_conn()
@@ -95,13 +96,22 @@ def register(data: RegisterRequest):
                     ),
                 )
                 conn.commit()
+                user_id = conn.execute(
+                    "SELECT id FROM users WHERE email = ?", (data.email,)
+                ).fetchone()["id"]
         finally:
             conn.close()
 
     if error is not None:
         return _contract_422(error)
 
-    return {"ok": True}
+    # Успешная регистрация → сразу авторизованная сессия (решение Заказчика
+    # 2026-10-10: редирект в кабинет, минуя отдельный вход). Тот же механизм
+    # сессий, что в auth.login (TTL 12ч).
+    from backend.auth import _session_issue
+
+    token = _session_issue(user_id)
+    return {"ok": True, "token": token}
 
 
 def _contract_422(message: str):

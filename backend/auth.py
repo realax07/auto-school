@@ -197,6 +197,14 @@ def login(data: LoginRequest, request: Request):
     return {"ok": True, "token": token}
 
 
+def _session_issue(user_id: int) -> str:
+    """Выдача сессии для только что созданной учетной записи (register.py).
+    Тот же реестр и TTL, что у login — единый механизм (sdd §10.1)."""
+    token = secrets.token_urlsafe(32)
+    _sessions[token] = (time.time() + _TOKEN_TTL_SECONDS, user_id)
+    return token
+
+
 @router.post("/api/auth/logout")
 def logout(x_session_token: str | None = Header(default=None, alias="X-Session-Token")):
     """Аннулирование токена (§10.2). Проверка — как require_session, но

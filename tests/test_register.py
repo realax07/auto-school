@@ -47,7 +47,7 @@ def test_tc_reg_001_health_then_register_success(client):
 
     resp = register(client)
     assert resp.status_code == 200
-    assert resp.json() == {"ok": True}
+    assert resp.json().get("ok") is True
 
     row = fetch_user("petrova@example.com")
     assert row is not None
@@ -243,7 +243,7 @@ def test_tc_reg_008_no_record_created_on_any_rejection(client):
 
     ok = register(client)
     assert ok.status_code == 200
-    assert ok.json() == {"ok": True}
+    assert ok.json().get("ok") is True
     assert count_users() == 1
 
 
@@ -283,7 +283,7 @@ def test_tc_reg_010_password_exactly_8_chars_accepted(client):
     """
     resp = register(client, password="Qwerty12", password_confirm="Qwerty12")
     assert resp.status_code == 200
-    assert resp.json() == {"ok": True}
+    assert resp.json().get("ok") is True
     assert count_users() == 1
     row = fetch_user("petrova@example.com")
     assert row["password_hash"] and row["password_hash"] != "Qwerty12"
