@@ -104,7 +104,8 @@
       .then(function(r){return r.json().then(function(d){return {status:r.status,data:d}})})
       .then(function(res){
         if(res.status===200&&res.data.ok&&res.data.token){
-          sessionStorage.setItem('session_token',res.data.token);
+          try{sessionStorage.setItem('session_token',res.data.token);}
+          catch(e){err.textContent='Не удалось сохранить сессию';err.style.display='block';return;}
           location.href='/cabinet';
         }
         else{err.textContent=(res.data&&res.data.error)||'Ошибка регистрации';err.style.display='block';}
