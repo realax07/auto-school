@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#081117">
+<title>СберАвтошкола — кабинет инструктора</title>
+<style>
+/* Визуальный референс — design/mocks/dashboard-instructor.html (сайдбар/шапка),
+   но функциональные элементы dashboard (stats/расписание/занятия/операции) —
+   вне объема (задача 4.4): одна страница-заглушка «Кабинет скоро». */
+:root{--bg:#081117;--line:#ffffff18;--text:#f3f7f8;--muted:#98a9b3;--green:#59e99b;--green2:#17b96a}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 70% 0%,#123b2c55,transparent 35%),#081117;color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}button{font:inherit;cursor:pointer}
+.app{min-height:100vh;display:grid;grid-template-columns:236px 1fr}
+.sidebar{padding:25px 17px;border-right:1px solid #ffffff12;background:#071016b8;display:flex;flex-direction:column;gap:28px}
+.brand{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:700;letter-spacing:-.04em;padding:0 8px}
+.check{width:31px;height:31px;flex:none;display:grid;place-items:center;border:3px solid var(--green);border-radius:50%;color:var(--green);font-size:19px;line-height:1;font-weight:500;transform:rotate(-8deg)}
+.brand small{display:block;font-size:9px;color:#80919b;letter-spacing:.12em;text-transform:uppercase;margin-top:3px}
+main{padding:28px clamp(20px,3vw,44px) 45px;max-width:1600px;width:100%;margin:auto;display:flex;flex-direction:column}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:32px}
+.crumb{font-size:11px;color:#7e909a;margin-bottom:7px}
+.topbar h1{font-size:28px;letter-spacing:-.05em;font-weight:600;margin:0}
+.user{display:flex;align-items:center;gap:10px;padding-left:4px}
+.avatar{width:37px;height:37px;border-radius:12px;background:linear-gradient(145deg,#315744,#14261e);display:grid;place-items:center;color:#a0f2bd;font-size:12px;font-weight:700}
+.user b{font-size:12px;display:block}
+.user small{display:block;color:#80929c;font-size:10px;margin-top:4px}
+.stub-card{margin:auto;max-width:560px;width:100%;border:1px solid var(--line);border-radius:19px;background:linear-gradient(145deg,rgba(28,43,52,.78),rgba(15,25,32,.78));box-shadow:inset 0 1px #ffffff08;padding:40px 36px 32px;text-align:center}
+.stub-icon{width:64px;height:64px;margin:0 auto 20px;display:grid;place-items:center;border-radius:50%;border:1px solid #2d8d5566;background:#143322;color:#7deaa5;font-size:28px}
+.kicker{font-size:10px;color:#79eaa5;text-transform:uppercase;letter-spacing:.17em}
+.stub-card h2{font-size:30px;letter-spacing:-.055em;font-weight:550;margin:12px 0 10px}
+.stub-card p{font-size:13px;color:#98a8b1;line-height:1.7;margin:0 auto;max-width:380px}
+.stub-actions{margin-top:26px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;border-radius:12px;padding:12px 18px;font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;color:inherit}
+.btn.primary{border:1px solid #2f8d55;background:#173a28;color:#9bf3b9}
+.btn.ghost{border:1px solid #ffffff18;background:#ffffff06;color:#b9c7ce}
+footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content:space-between;gap:15px}
+@media(max-width:720px){.app{display:block}.sidebar{padding:13px 16px;border-right:0;border-bottom:1px solid #ffffff12}.user b,.user small{display:none}.topbar{margin-bottom:20px}.topbar h1{font-size:23px}.stub-card{padding:26px 20px 24px}footer{flex-direction:column}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="sidebar">
+  <div class="brand"><div class="check">✓</div><div>СберАвтошкола<small>Кабинет инструктора</small></div></div>
+</aside>
+<main>
+  <div class="topbar"><div><div class="crumb">Рабочее пространство</div><h1>Кабинет инструктора</h1></div><div class="user"><div class="avatar" id="avatar">ИИ</div><div><b id="uname">—</b><small>Инструктор</small></div></div></div>
+  <section class="stub-card">
+    <div class="stub-icon">◔</div>
+    <div class="kicker">Скоро</div>
+    <h2>Кабинет скоро</h2>
+    <p>Рабочее пространство инструктора — расписание, ученики и доходы — появится здесь в следующем обновлении. Данные заявки сохранены, вход выполняется по email и паролю анкеты.</p>
+    <div class="stub-actions"><a class="btn primary" href="/">На главную</a></div>
+  </section>
+  <footer><span>СберАвтошкола · Кабинет инструктора</span><span>Заглушка · функциональные разделы появятся позже</span></footer>
+</main>
+</div>
+<script>
+(function(){
+  // Wiring (задача 4.4, sdd §15.6): защита сессией как /cabinet —
+  // GET /api/auth/me (X-Session-Token из sessionStorage['session_token']),
+  // 401/нет токена -> редирект на вход (на главную, к модалке m-login).
+  var TOKEN_KEY = 'session_token';
+  var token = null;
+  try { token = sessionStorage.getItem(TOKEN_KEY); } catch (e) {}
+  function toLogin() {
+    try { sessionStorage.removeItem(TOKEN_KEY); } catch (e) {}
+    location.href = '/';
+  }
+  function initials(fio) {
+    var parts = String(fio || '').trim().split(/\s+/).filter(Boolean);
+    return parts.slice(0, 2).map(function (p) { return p[0].toUpperCase(); }).join('') || 'ИИ';
+  }
+  if (!token) {
+    toLogin();
+  } else {
+    fetch('/api/auth/me', { headers: { 'X-Session-Token': token } })
+      .then(function (r) {
+        return r.json().then(function (d) { return { status: r.status, data: d }; });
+      })
+      .then(function (res) {
+        if (res.status === 401 || !res.data || !res.data.ok) { toLogin(); return; }
+        var u = res.data.user || {};
+        var fio = [u.surname, u.name, u.patronymic].filter(Boolean).join(' ');
+        document.getElementById('uname').textContent = fio || 'Инструктор';
+        document.getElementById('avatar').textContent = initials(fio);
+      })
+      .catch(function () { /* сеть: остаемся на странице */ });
+  }
+})();
+</script>
+</body></html>
