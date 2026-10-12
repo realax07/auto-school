@@ -1,0 +1,32 @@
+# TC-NFR-002 — NFR-3: пароль/хэш/причина не утекают в логи, ответы и репозиторий
+
+- ID кейса: TC-NFR-002
+- ID чеклиста: CHK-51
+- Источник: CHK-51 → NFR-3 (сквозное); sdd §17 (пароль — только в теле apply и памяти bcrypt; password_hash не выдается API и не логируется; reason — только после верного пароля)
+- Тип: НФТ
+- Приоритет: Must
+- Статус: automated (частично) — tests/test_instructors_apply.py::test_apply_no_password_in_logs_or_response (пароль не в ответе/логах apply) + tests/test_instructor_admin.py::test_list_without_hash_key (хэш не в ответе API) + tests/test_auth_route.py::test_login_wrong_password_against_application_401 (reason не выдается без верного пароля); .env-механика (файл в .gitignore, git-статус) — manual (git check). До утверждения кейсов (rule 6)
+
+## GIVEN / WHEN / THEN
+- GIVEN анкета отправлена с паролем P; заявки модерировались; выполнены входы
+- WHEN инспектируются ответы API, журналы сервиса и репозиторий
+- THEN открытый пароль существует только в теле запроса анкеты и памяти хэширования — отсутствует в логах и репозитории; password_hash не выдается API (кроме хранения) и не попадает в логи; reason отказа выдается только после верного пароля; .env-механика не изменена, .env в .gitignore
+
+## Предусловия
+- Сервис собран; TestClient с перехватом логов (caplog); чистая БД в tmp; git-репозиторий чистый для проверки .env.
+
+## Шаги
+1. POST /api/instructors/apply (P = «Qwerty123») с перехватом логов → ответ и логи не содержат P.
+2. GET /api/admin/instructor-applications (админ-токен) → password_hash отсутствует в ответе; логи не содержат ни P, ни значений bcrypt-хэшей.
+3. Логин-пробы: неверный пароль против deny-заявки → 401 без reason; верный пароль → 200 с reason. Сравнить.
+4. git status / git check-ignore .env; убедиться .env не в индексе, .gitignore содержит .env; механизм env (ADMIN_USER, ADMIN_PASSWORD_HASH, SECRET) не изменен.
+5. Поиск P по трекаемым файлам репозитория (git grep).
+
+## Ожидаемый результат
+1–2. P и хэши отсутствуют в ответах и логах.
+3. reason выдается только в ответе 200 после верного пароля (в 401 его нет).
+4. .env в .gitignore, механизм env Спринта 0 не изменен.
+5. git grep «Qwerty123» в новых модулях/логах — отсутствует (кроме тестовых данных тестов).
+
+## Тестовые данные
+P = «Qwerty123» (apply), instr@example.com; админ admin / admin-pass-2026; deny-комментарий C «Не подтверждена квалификация».
