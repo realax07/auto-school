@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS instructor_applications (
   surname TEXT NOT NULL,          -- из поля ФИО анкеты (разбор: фамилия/имя/отчество)
   name TEXT NOT NULL,
   patronymic TEXT NOT NULL,
-  email TEXT NOT NULL,
+  email TEXT NOT NULL UNIQUE,     -- вторая линия защиты apply (см. ниже)
   phone TEXT NOT NULL,
   address TEXT NOT NULL,          -- адрес фактического проживания
   work_format TEXT NOT NULL,      -- 'own' | 'sber'
@@ -61,10 +61,18 @@ CREATE TABLE IF NOT EXISTS instructor_applications (
 - Схема задается в db.py (_SCHEMA, CREATE/ALTER с проверкой существования —
   миграция idempotent для существующих баз Спринтов 0–1).
 - users.email остается UNIQUE — вторая линия защиты после SELECT-проверки
-  (та же механика register.py).
-- Пароль открытым видом не хранится нигде (FR-11.1, NFR-3); в API заявок
-  пароль/подтверждение не возвращаются никогда, password_hash возвращается
-  только админ-API (FR-14).
+  (та же механика register.py). Аналогично instructor_applications.email
+  UNIQUE: INSERT заявки перехватывает sqlite3.IntegrityError и возвращает ту
+  же контрактную 422 «Email: уже зарегистрирован» (симметрично
+  register.py:104). Это закрывает гонку параллельных сабмитов одной анкеты
+  (uvicorn single-worker исполняет sync-хендлеры в threadpool): оба проходят
+  SELECT до чужого INSERT, но UNIQUE допускает ровно одну заявку на email.
+- Пароль открытым видом не хранится нигде (FR-11.1, NFR-3); в API
+  пароль/подтверждение не возвращаются никогда. password_hash хранится в
+  заявке (FR-11.1, FR-14) и переносится в users при approve, но НЕ выдается
+  ни одним API: GET /api/admin/instructor-applications отвечает без
+  password_hash, UI админки его не рендерит, ответ не логируется
+  (решение Заказчика 2026-10-12-hash-not-rendered).
 - Роль в users: 'student' (дефолт) / 'instructor' (ставится при approve).
   Существующая регистрация учеников не меняется (дефолт покрывает).
 
@@ -78,12 +86,17 @@ CREATE TABLE IF NOT EXISTS instructor_applications (
   хендлерная валидация (формат Спринта 0, 422 {"ok": false, "error": "<поле-ру>: …"}),
   порядок — первая ошибка:
     обязательные поля (по макету со звездочкой + пароль + подтверждение)
+    → согласие на обработку персональных данных (чекбокс обязателен —
+      звездочка макета, FR-11; без него 422 «Согласие: поле обязательно»)
     → формат email → телефон ≥ 10 цифр → пароль ≥ 8 → совпадение подтверждения
     → license_date: при заполнении — валидная дата
     → email не существует в users (SELECT)
     → email не существует в instructor_applications (SELECT, см. proposal)
   ok: bcrypt.hashpw(password, gensalt(rounds=12)) → INSERT instructor_applications
-      (status='waiting', password_hash=хэш; открытый пароль не сохраняется)
+      (status='waiting', password_hash=хэш; открытый пароль не сохраняется);
+      IntegrityError от UNIQUE instructor_applications.email (гонка параллельных
+      сабмитов) → та же контрактная 422 «Email: уже зарегистрирован»
+      (вторая линия защиты, механика register.py:104)
       → 200 {"ok": true} → фронт: редирект /instructors/pending
 ```
 
@@ -94,14 +107,26 @@ CREATE TABLE IF NOT EXISTS instructor_applications (
 
 ```
 Админка (существующий вход POST /api/admin/login, X-Admin-Token)
-  → GET /api/admin/instructor-applications — все заявки, данные анкеты +
-    password_hash (FR-14), сортировка created_at DESC, id DESC
+  → GET /api/admin/instructor-applications — все заявки, данные анкеты,
+    сортировка created_at DESC, id DESC. Хранится в заявке (FR-11.1/FR-14),
+    но в ответе НЕ возвращается: password_hash в списке/карточке отсутствует,
+    UI админки его не рендерит, ответ GET не логируется
+    (решение Заказчика 2026-10-12-hash-not-rendered).
   → клик по строке → «Одобрить»/«Отклонить»:
-  approve: INSERT INTO users (…, email, password_hash из заявки, role='instructor')
-           [lastrowid — research.md §3]; UPDATE status='approved'
-           Гонки: users.email UNIQUE; повторный approve отсечен статусом
+  approve: одна транзакция (commit один, симметрично register.py):
+           INSERT INTO users (…, email, password_hash из заявки, role='instructor')
+           [lastrowid — research.md §3] + UPDATE status='approved'; при падении
+           между INSERT и UPDATE осталась бы waiting-заявка с существующим
+           пользователем и повторный approve давал бы 409 — транзакция
+           исключает рассинхрон.
+           Гонки: users.email UNIQUE → sqlite3.IntegrityError → 409
+           «Email: уже зарегистрирован»; повторный approve отсечен статусом
            approved (кнопка скрыта + проверка статуса на бэкенде).
-  deny:    комментарий обязателен (пустой → 422 "<поле-ру>: поле обязательно",
+  deny:    guard статуса — только waiting, иначе 409 (симметрично approve):
+           approved → 409 «Заявка уже одобрена» (рассинхрон с записью users
+           исключен), deny → 409 «Заявка уже отклонена» (повтор не меняет
+           сохраненную причину).
+           Комментарий обязателен (пустой → 422 "<поле-ру>: поле обязательно",
            кнопка подтверждения неактивна без текста); UPDATE status='deny',
            review_comment=комментарий
 ```
@@ -147,15 +172,24 @@ sessionStorage на время показа; прямой открытие ст�
   dashboard-макета — он вне объема).
 ```
 
+Осознанное решение (техдолг за пределами объема): роль серверно НЕ
+проверяется — роутинг по role только на фронте (§15.5), /api/auth/me
+(§10.3) ключ role не возвращает, поэтому сессия ученика проходит 401-проверку
+и на /instructor/cabinet-stub. Для заглушки без данных — приемлемо. При
+реальном кабинете инструктора — обязательная серверная проверка роли
+(require_session + role) и ключ role в /api/auth/me (зафиксировать в
+architecture/map.md как техдолг).
+
 ## Обработка ошибок
 
 | Ситуация | Ответ/поведение | Требование |
 |---|---|---|
-| Анкета: пустое обязательное поле / неверный email / телефон < 10 цифр / пароль < 8 / несовпадение подтверждения | 422 `{"ok": false, "error": "<поле-ру>: <причина>"}` (первая ошибка, хендлерная валидация) | FR-11 |
-| Анкета: email уже в users ИЛИ уже в заявках | 422 `{"ok": false, "error": "Email: уже зарегистрирован"}` — единое сообщение | FR-16 |
+| Анкета: пустое обязательное поле / нет согласия / неверный email / телефон < 10 цифр / пароль < 8 / несовпадение подтверждения | 422 `{"ok": false, "error": "<поле-ру>: <причина>"}` (первая ошибка, хендлерная валидация) | FR-11 |
+| Анкета: email уже в users ИЛИ уже в заявках (SELECT или IntegrityError от UNIQUE при гонке) | 422 `{"ok": false, "error": "Email: уже зарегистрирован"}` — единое сообщение | FR-16 |
 | Модерация: нет/неверный/истекший X-Admin-Token | 401 `{"ok": false}` | FR-14 |
 | deny без комментария | 422 `{"ok": false, "error": "Комментарий: поле обязательно"}`; кнопка неактивна | FR-15 |
 | approve уже approved | 409 `{"ok": false, "error": "Заявка уже одобрена"}` | FR-16 |
+| deny не-waiting (approved или deny) | 409 `{"ok": false, "error": "Заявка уже одобрена"}` / `{"ok": false, "error": "Заявка уже отклонена"}` — guard статуса, симметрично approve | FR-15, FR-16 |
 | login: нет пользователя и нет заявки / неверный пароль пользователя | 401 единое сообщение (анти-брутфорс — без изменений) | FR-13 |
 | cabinet-stub без сессии | редирект на вход | FR-13 |
 

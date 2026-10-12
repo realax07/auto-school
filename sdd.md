@@ -331,13 +331,16 @@ AUTH_FAIL_MESSAGE (§10.1), без изменений.
   `{fio: string, phone: string, email: string, address: string,
   work_format: string ("own"|"sber"), plate: string, license_number: string,
   license_date: string, license_category: string, experience: string,
-  password: string, password_confirm: string}`
+  password: string, password_confirm: string, consent: boolean}`
   (ФИО анкеты — одним полем; разбор на surname/name/patronymic — задача 1.1;
-  фронт шлет ФИО одной строкой как в макете.)
+  фронт шлет ФИО одной строкой как в макете. consent — обязательный чекбокс
+  согласия на обработку персональных данных, звездочка макета — FR-11.)
 - Порядок проверок (возвращается первая; формат как §3.1):
   1) обязательные поля (отмеченные звездочкой макета + пароль + подтверждение):
      fio, phone, email, address, license_number, license_category, password,
      password_confirm, work_format;
+  1a) consent == true (чекбокс обязателен по макету, FR-11; иначе 422
+     «Согласие: поле обязательно»);
   2) формат email (как §3.1);
   3) телефон ≥ 10 цифр;
   4) пароль ≥ 8 символов;
@@ -348,6 +351,12 @@ AUTH_FAIL_MESSAGE (§10.1), без изменений.
   9) email отсутствует в instructor_applications (SELECT) — единое сообщение
      «Email: уже зарегистрирован» на обоих шагах 8–9 (FR-16, допущение
      proposal: дубликат заявки на тот же email тоже отклоняется).
+- Вторая линия защиты (шаги 8–9 не атомарны, uvicorn single-worker исполняет
+  sync-хендлеры в threadpool — два параллельных сабмита одного email проходят
+  SELECT до чужого INSERT): INSERT перехватывает sqlite3.IntegrityError от
+  UNIQUE instructor_applications.email и возвращает ту же контрактную
+  `422 {"ok": false, "error": "Email: уже зарегистрирован"}` — симметрично
+  register.py:104 (механика users). Итог: ровно одна заявка на email.
 - Ответы:
   - `200` → `{"ok": true}` — заявка создана (status='waiting')
   - `422` → `{"ok": false, "error": "<поле-ру>: <причина>"}` — заявка НЕ создана
@@ -365,36 +374,50 @@ AUTH_FAIL_MESSAGE (§10.1), без изменений.
     "address": string, "work_format": string, "plate": string,
     "license_number": string, "license_date": string,
     "license_category": string, "experience": string,
-    "password_hash": string, "status": string, "review_comment": string,
+    "status": string, "review_comment": string,
     "created_at": string}]}`
   - `401` → `{"ok": false}`
-- password_hash включен в ответ ТОЛЬКО здесь (FR-14: таблица с данными
-  анкеты, включая хэш). Сортировка `created_at DESC, id DESC` (как §3.3).
+- password_hash в ответ НЕ входит: ключ в списке/карточке заявки отсутствует
+  (решение Заказчика 2026-10-12-hash-not-rendered — минимизация поверхности
+  возражения архитектора по FR-14). Хэш ХРАНИТСЯ в заявке (FR-11.1: перенос
+  в users при approve без повторного хэширования), но не выдается API:
+  UI админки его не рендерит, ответ GET не логируется (NFR-3). Сортировка
+  `created_at DESC, id DESC` (как §3.3).
 
 ### 15.3 POST /api/admin/instructor-applications/{id}/approve
 
 - Заголовок: `X-Admin-Token` (§3.5).
-- Поведение: заявка в статусе waiting → INSERT INTO users (surname, name,
-  patronymic, email, phone, password_hash — значение ИЗ ЗАЯВКИ, без
-  повторного хэширования, FR-11.1; role='instructor'), user_id =
+- Поведение: заявка в статусе waiting → ОДНА транзакция (commit один,
+  симметрично register.py; исключает waiting-заявку с существующим
+  пользователем при падении между INSERT и UPDATE — иначе повторный approve
+  давал бы 409 и операцию нельзя было бы завершить): INSERT INTO users
+  (surname, name, patronymic, email, phone, password_hash — значение ИЗ
+  ЗАЯВКИ, без повторного хэширования, FR-11.1; role='instructor'), user_id =
   cursor.lastrowid; UPDATE заявки → status='approved'.
 - Ответы:
   - `200` → `{"ok": true, "user_id": <int>}`
   - `409` → `{"ok": false, "error": "Заявка уже одобрена"}` — статус не waiting
   - `409` → `{"ok": false, "error": "Email: уже зарегистрирован"}` — гонка
     дубля email (sqlite3.IntegrityError от UNIQUE users.email)
+  - `404` → `{"ok": false, "error": "Заявка не найдена"}`
   - `401` → `{"ok": false}` — нет валидного админ-токена
 
 ### 15.4 POST /api/admin/instructor-applications/{id}/deny
 
 - Заголовок: `X-Admin-Token` (§3.5).
 - Request body: `{"comment": string}`.
+- Guard статуса (симметрично §15.3): операция — только над заявкой waiting;
+  approved → 409 `{"ok": false, "error": "Заявка уже одобрена"}` (иначе
+  прямой POST с валидным токеном отклонял бы approved-заявку при живой
+  записи users role='instructor' — рассинхрон); deny → 409 `{"ok": false,
+  "error": "Заявка уже отклонена"}` (повтор не меняет сохраненную причину).
 - Проверка: comment непуст (пустое/отсутствующее → 422
   `{"ok": false, "error": "Комментарий: поле обязательно"}`, FR-15).
 - Поведение: UPDATE заявки → status='deny', review_comment=comment.
 - Ответы:
   - `200` → `{"ok": true}`
   - `422` → `{"ok": false, "error": "Комментарий: поле обязательно"}`
+  - `409` → `{"ok": false, "error": "Заявка уже одобрена" | "Заявка уже отклонена"}` — guard статуса
   - `404` → `{"ok": false, "error": "Заявка не найдена"}`
   - `401` → `{"ok": false}`
 
@@ -461,7 +484,7 @@ CREATE TABLE IF NOT EXISTS instructor_applications (
   surname TEXT NOT NULL,
   name TEXT NOT NULL,
   patronymic TEXT NOT NULL,
-  email TEXT NOT NULL,
+  email TEXT NOT NULL UNIQUE,             -- вторая линия защиты apply (FR-16)
   phone TEXT NOT NULL,
   address TEXT NOT NULL,
   work_format TEXT NOT NULL,              -- 'own' | 'sber'
@@ -479,8 +502,16 @@ CREATE TABLE IF NOT EXISTS instructor_applications (
 
 - users (§4) + role: 'student' (дефолт) | 'instructor' (ставится approve).
   users.email остается UNIQUE — вторая линия защиты (§4, FR-16).
+- instructor_applications.email — UNIQUE: вторая линия защиты apply, симметрично
+  users (MAJ-1 ревью): SELECT-проверки §15.1 (шаги 8–9) не атомарны, INSERT
+  перехватывает sqlite3.IntegrityError и возвращает ту же 422
+  «Email: уже зарегистрирован»; гонка параллельных сабмитов дает ровно одну
+  заявку на email (детерминированный вход §15.5 — SELECT по email).
 - approve копирует в users: surname, name, patronymic, email, phone из
   заявки + password_hash как есть + role='instructor' (FR-16, FR-11.1).
+- password_hash хранится в instructor_applications (FR-11.1), но НЕ выдается
+  API (§15.2): UI админки не рендерит, ответ GET не логируется (решение
+  Заказчика 2026-10-12-hash-not-rendered, NFR-3).
 - В БД только хранение, без логики (паттерн 5 map.md).
 
 ## 17. Решения по НФТ (Спринт 2, часть 1)
@@ -488,7 +519,7 @@ CREATE TABLE IF NOT EXISTS instructor_applications (
 | NFR | Решение | Контроль |
 |---|---|---|
 | NFR-2: параметризованный SQL | Все новые запросы (§15.1–15.4, §15.5 SELECT заявок) — `?`-плейсхолдеры через db-слой | Тест + ревью новых модулей |
-| NFR-3: пароли/секреты не в логах и репо | Открытый пароль — только в теле запроса apply и памяти bcrypt-хэширования; password_hash выдается только админ-API (§15.2); лог-вызовы в новых модулях не пишут учетные данные | Тест логов + проверка git-статуса |
+| NFR-3: пароли/секреты не в логах и репо | Открытый пароль — только в теле запроса apply и памяти bcrypt-хэширования; password_hash хранится в заявке (FR-11.1/FR-14), но НЕ выдается API (§15.2 — без ключа password_hash), UI админки не рендерит, ответ GET заявок не логируется (решение Заказчика 2026-10-12-hash-not-rendered); лог-вызовы в новых модулях не пишут учетные данные | Тест логов + проверка git-статуса |
 | NFR-4: состав instructor_applications | Полные данные анкеты + status(waiting/approved/deny) + review_comment + created_at (§16) | Тест схемы |
 
 ## 18. Трассировка (Спринт 2, часть 1)

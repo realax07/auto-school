@@ -12,35 +12,44 @@ sdd.md, раздел «Спринт 2, часть 1».
       (хендлерная валидация как register.py, MAJ-1); поля: fio (или
       surname/name/patronymic — по разбору ФИО), phone, email, address,
       work_format ('own'|'sber'), plate, license_number, license_date,
-      license_category, experience, password, password_confirm. Порядок
-      проверок (первая ошибка): обязательные поля (по макету со звездочкой +
-      пароль + подтверждение) → формат email → телефон ≥ 10 цифр → пароль
-      ≥ 8 → совпадение подтверждения → plate обязателен при work_format='own'
+      license_category, experience, password, password_confirm, consent
+      (обязательный чекбокс согласия, MIN-2). Порядок проверок (первая
+      ошибка): обязательные поля (по макету со звездочкой + пароль +
+      подтверждение) → consent == true (иначе 422 «Согласие: поле
+      обязательно») → формат email → телефон ≥ 10 цифр → пароль ≥ 8 →
+      совпадение подтверждения → plate обязателен при work_format='own'
       → license_date при заполнении — валидная дата → email отсутствует в
       users (SELECT) → email отсутствует в instructor_applications (SELECT,
       допущение proposal). Формат ошибок — 422 {"ok": false, "error":
       "<поле-ру>: <причина>"}, единое "Email: уже зарегистрирован" для
       занятого email. Успех: bcrypt.hashpw(password, gensalt(rounds=12))
       (cost ≥ 12, FR-11.1; открытый пароль не сохраняется и не логируется),
-      INSERT instructor_applications (status='waiting', password_hash=хэш),
-      200 {"ok": true}. Разбор ФИО анкеты на фамилию/имя/отчество — деталь
-      реализации задачи (макет хранит ФИО одним полем; users требует три).
-      Готовность: тесты — успешная отправка создает заявку waiting со всеми
-      полями и хэшем (пароль P в записи и логах отсутствует); каждый вариант
-      валидации дает контрактную 422; занятый email (users и заявки) —
-      единое сообщение; файл ВУ на сервер не передается.
+      INSERT instructor_applications (status='waiting', password_hash=хэш);
+      sqlite3.IntegrityError от UNIQUE instructor_applications.email → та же
+      контрактная 422 "Email: уже зарегистрирован" (вторая линия защиты,
+      MAJ-1, механика register.py:104), 200 {"ok": true}. Разбор ФИО анкеты
+      на фамилию/имя/отчество — деталь реализации задачи (макет хранит ФИО
+      одним полем; users требует три). Готовность: тесты — успешная отправка
+      создает заявку waiting со всеми полями и хэшем (пароль P в записи и
+      логах отсутствует); каждый вариант валидации дает контрактную 422;
+      занятый email (users и заявки) — единое сообщение; гонка: два apply
+      одного email параллельно → ровно одна заявка, второй получает 422
+      (MAJ-1); анкета без consent → 422 (MIN-2); файл ВУ на сервер не
+      передается.
       FR: FR-11, FR-11.1, FR-12, FR-16 (email-проверка). NFR: NFR-2, NFR-3.
 
 - [ ] 1.2 [P] backend/db.py — схема: CREATE TABLE instructor_applications
-      (полный состав полей — design.md) + ALTER TABLE users ADD COLUMN
+      (полный состав полей — design.md; email TEXT NOT NULL UNIQUE — вторая
+      линия защиты apply, MAJ-1) + ALTER TABLE users ADD COLUMN
       role TEXT NOT NULL DEFAULT 'student' (idempotent: проверка
       существования колонки/таблицы — существующие базы Спринтов 0–1
       поднимаются без пересоздания; ученики остаются student).
       Готовность: тесты — init_db на пустой и на унаследованной базе;
       дефолт role='student' у существующих записей; UNIQUE users.email
-      сохранен.
-      FR: FR-16 (UNIQUE email), NFR-4. Зависит от: — (можно параллельно
-      с 1.1: контракт таблицы зафиксирован в design.md).
+      сохранен; UNIQUE instructor_applications.email работает: второй INSERT
+      того же email → sqlite3.IntegrityError (MAJ-1).
+      FR: FR-16 (UNIQUE email — users и заявки), NFR-4. Зависит от: —
+      (можно параллельно с 1.1: контракт таблицы зафиксирован в design.md).
 
 ## 2. Домен admin-moderation (backend/instructor_admin.py)
 
@@ -48,24 +57,33 @@ sdd.md, раздел «Спринт 2, часть 1».
       (X-Admin-Token, require_admin как admin.py; 401 {"ok": false} без
       валидного токена):
       GET /api/admin/instructor-applications — все заявки со всеми данными
-      анкеты, включая password_hash (FR-14), сортировка created_at DESC,
-      id DESC; ответ {"count": N, "applications": [...]}.
+      анкеты, БЕЗ password_hash (ключ в ответе отсутствует — решение
+      Заказчика 2026-10-12-hash-not-rendered, MIN-5; хэш хранится в заявке,
+      но не выдается API), сортировка created_at DESC, id DESC; ответ
+      {"count": N, "applications": [...]}.
       POST /api/admin/instructor-applications/{id}/approve — только заявка в
       статусе waiting (иначе 409 {"ok": false, "error": "Заявка уже
-      одобрена"}); INSERT INTO users (surname, name, patronymic, email,
-      phone, password_hash ИЗ ЗАЯВКИ — без повторного хэширования, FR-11.1;
-      role='instructor'), user_id = cur.lastrowid (research.md §3); гонка
-      дубля email — обработка sqlite3.IntegrityError как 409 (users.email
-      UNIQUE, FR-16); UPDATE статус → approved.
-      POST /api/admin/instructor-applications/{id}/deny — комментарий
+      одобрена"}); ОДНА транзакция (MIN-3): INSERT INTO users (surname, name,
+      patronymic, email, phone, password_hash ИЗ ЗАЯВКИ — без повторного
+      хэширования, FR-11.1; role='instructor'), user_id = cur.lastrowid
+      (research.md §3) + UPDATE статус → approved, commit один (симметрично
+      register.py); гонка дубля email — обработка sqlite3.IntegrityError как
+      409 (users.email UNIQUE, FR-16).
+      POST /api/admin/instructor-applications/{id}/deny — guard статуса
+      (MIN-1, симметрично approve): только waiting, approved → 409 «Заявка
+      уже одобрена», deny → 409 «Заявка уже отклонена»; комментарий
       обязателен: пустой/отсутствующий → 422 {"ok": false, "error":
       "Комментарий: поле обязательно"} (FR-15); UPDATE статус → deny,
       review_comment = комментарий.
-      Готовность: тесты — список заявок с хэшами (только с админ-токеном);
-      approve создает пользователя users с тем же хэшем и role='instructor',
-      статус → approved, повторный approve → 409; вход одобренного с паролем
-      анкеты успешен; deny без комментария → 422, с комментарием → deny +
-      сохраненная причина; все три эндпоинта без токена → 401.
+      Готовность: тесты — список заявок без password_hash (ключ отсутствует
+      в ответе; только с админ-токеном); approve создает пользователя users
+      с тем же хэшем и role='instructor', статус → approved, повторный
+      approve → 409; падение между INSERT и UPDATE не оставляет
+      waiting-заявку с пользователем (транзакция, MIN-3); вход одобренного
+      с паролем анкеты успешен; deny без комментария → 422, с комментарием →
+      deny + сохраненная причина; deny approved-заявки → 409 и запись users
+      не меняется (MIN-1); повторный deny → 409, причина не меняется;
+      все три эндпоинта без токена → 401.
       FR: FR-14, FR-15, FR-16. NFR: NFR-2, NFR-3.
       Зависит от: 1.2 (таблица).
 
@@ -109,14 +127,17 @@ sdd.md, раздел «Спринт 2, часть 1».
 
 - [ ] 4.2 [P] frontend/instructor-apply.html — анкета: перенос
       design/mocks/registration-instructor.html дословно; wiring: сабмит →
-      POST /api/instructors/apply (поля по контракту sdd.md §15.1); 422 →
+      POST /api/instructors/apply (поля по контракту sdd.md §15.1, включая
+      consent — обязательный чекбокс согласия, MIN-2; без него кнопка
+      неактивна/422); 422 →
       сообщение об ошибке под формой (текст из ответа); ok → редирект
       /instructors/pending (FR-12). Поведение мокапа сохраняется: госномер
       активен только при «свой автомобиль»; файл ВУ — только визуал, на
       сервер не отправляется (не входит в тело запроса).
       Готовность: тесты — GET /instructors/apply → 200, тексты совпадают
       с мокапом; успешный сабмит уводит на /instructors/pending; ошибка
-      валидации показывается; тело запроса не содержит файла.
+      валидации показывается; сабмит без чекбокса согласия не выполняется;
+      тело запроса не содержит файла.
       FR: FR-11, FR-12.
 
 - [ ] 4.3 [P] frontend/instructor-pending.html + frontend/instructor-rejected.html —
@@ -171,8 +192,11 @@ sdd.md, раздел «Спринт 2, часть 1».
 - [ ] 6.1 Полный прогон: `pytest tests/` зеленый (включая регресс
       Спринтов 0–1); NFR-2 — grep-проверка параметризованного SQL в новых
       модулях (0 конкатенаций); NFR-3 — открытый пароль и подтверждение
-      отсутствуют в логах/репозитории; password_hash выдается только
-      админ-API; NFR-4 — состав полей instructor_applications по design.md;
+      отсутствуют в логах/репозитории; password_hash НЕ выдается API:
+      ответ GET /api/admin/instructor-applications без ключа password_hash,
+      UI админки его не рендерит, ответ GET не логируется (MIN-5, решение
+      Заказчика 2026-10-12-hash-not-rendered); NFR-4 — состав полей
+      instructor_applications по design.md (email UNIQUE);
       `openspec validate --all --strict` зеленый; `python3
       scripts/flow_check.py .` OK; design check — tone экранов
       waiting/rejected (FR-17).
