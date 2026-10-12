@@ -5,7 +5,7 @@
 - Источник: CHK-50 → NFR-2 (сквозное); sdd §17 (все новые запросы §15.1–15.4, §15.5 — ?-плейсхолдеры через db-слой)
 - Тип: НФТ
 - Приоритет: Must
-- Статус: automated (динамическая проба) — tests/test_instructors_apply.py::test_apply_validation_contract_422 (email с метасимволами обрабатывается валидатором как «неверный формат» → 422) + единая проверка login test_auth_route.py::test_login_unknown_credentials_unified_401; инспекция исходников (только ?-плейсхолдеры, 0 конкатенаций в INSERT заявки, SELECT заявок, UPDATE статусов, INSERT users при approve) — manual/toBeAutomated (статическая инспекция backend/instructors.py, backend/instructor_admin.py, ветки auth.py)
+- Статус: automated (динамическая проба) — tests/test_instructors_apply.py::test_apply_validation_contract_422 (параметризация включает SQL-инъекцию-пробу `' OR 1=1 --` → «Email: неверный формат» → 422; добавлено по rev-001-cases TC-NFR-001) + единая проверка login test_auth_route.py::test_login_unknown_credentials_unified_401 и test_qa_sprint1.py (login-инъекция, эталон Спринта 1); инспекция исходников (только ?-плейсхолдеры, 0 конкатенаций в INSERT заявки, SELECT заявок, UPDATE статусов, INSERT users при approve) — manual/toBeAutomated (статическая инспекция backend/instructors.py, backend/instructor_admin.py, ветки auth.py)
 
 ## GIVEN / WHEN / THEN
 - GIVEN сервис собран; новые модули (instructors.py, instructor_admin.py, новые ветки auth.py)

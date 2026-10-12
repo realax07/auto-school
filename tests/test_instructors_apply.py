@@ -165,6 +165,9 @@ def test_apply_integrityerror_second_line_of_defense(api_client):
         ({"consent": False}, "Согласие: поле обязательно"),
         ({"email": "not-an-email"}, "Email: неверный формат"),
         ({"email": "a@b"}, "Email: неверный формат"),
+        # SQL-инъекция-проба (TC-NFR-001, rev-001-cases): метасимволы без @
+        # отсекаются валидатором формата; SQL не выполняется
+        ({"email": "' OR 1=1 --"}, "Email: неверный формат"),
         ({"phone": "+7 123 456"}, "Телефон: укажите не менее 10 цифр"),
         ({"password": "short", "password_confirm": "short"},
          "Пароль: не менее 8 символов"),
