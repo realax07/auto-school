@@ -19,13 +19,14 @@
 | 9 | Языковой зонинг | Агентский слой (промпты, контракты, шаблоны, ворота) — EN; артефакты для человека и **сам сервис (UI/тексты/домен)** — RU (решение 2026-10-06, CONSTITUTION VIII) | Экономия ~41% токенов на промптах; сервис русскоязычный |
 | 10 | Спринт-0 контур (CAD-001) | **FastAPI-сервис + статика тем же сервисом, SQLite WAL, bcrypt (cost 12), in-memory admin-токен, секреты в .env** — ADR-001 | Допущения не проверены на проде: bcrypt ~250 мс на целевой машине (контроль — тест замера), WAL покрывает конкурентность спринта-0, single-worker обязателен для in-memory токенов |
 | 11 | Спринт-1 контур (CAD-002) | **Авторизация — отдельный модуль backend/auth.py (роуты /api/auth/*), одна таблица users (email UNIQUE + bcrypt), in-memory сессии {token: (expires, user_id)} TTL 12 ч, вход email-only** — ADR-002 | Тот же single-worker-инвариант (сессии учеников тоже в памяти); нет анти-брутфорса на публичном /api/auth/login — принятый техдолг; «отдельный сервис» = отдельная граница модуля, выделение в процесс — опция Релиза 1 |
+| 12 | Спринт-2 контур, часть 1 (CAD-003) | **Поток инструктора: заявка (instructor_applications, bcrypt-хэш пароля в заявке) → модерация админом (approve переносит хэш в users) → вход через общий /api/auth/login; роли — флаг role в users ('student'/'instructor')** — ADR-003 | bcrypt-хэш хранится и в заявке, и в users (две копии до архивации заявок — решение Заказчика FR-11.1/FR-14); login при отсутствующей записи users делает bcrypt-проверку против хэша заявки (второй bcrypt-вызов в худшем пути); single-worker-инвариант без изменений |
 
 Паттерны 1, 2, 4 в спринте-0 не задействованы: nginx/TLS, gateway,
 контейнеры/оркестрация **отложены Заказчиком** (решение 2026-10-06 — все три
 вопроса решаются параллельно с первым этапом, когда поступит первое ТЗ на
 сервис). Это отложенные, НЕ решенные вопросы (см. «Долг / открытые вопросы»).
 
-## Компоненты (спринт-0 контур + спринт-1 инкремент: auth и /cabinet)
+## Компоненты (спринт-0 контур + спринт-1 auth//cabinet + спринт-2 поток инструктора)
 
 ```
 Клиент (браузер)
@@ -34,7 +35,8 @@
 FastAPI-сервис (uvicorn, single-worker)          ← единственная точка входа
    ├── app.py      — create_app(): роутеры, статика, /api/health, init_db (lifespan)
    ├── config.py   — окружение: ADMIN_USER, ADMIN_PASSWORD_HASH, SECRET (из .env)
-   ├── db.py       — SQLite data/app.db (WAL, Row), init_db(): таблица users
+   ├── db.py       — SQLite data/app.db (WAL, Row), init_db(): таблицы users,
+   │                 instructor_applications; миграция users.role (idempotent)
    ├── register.py — POST /api/register (валидация → bcrypt → INSERT)
    ├── admin.py    — POST /api/admin/login; GET /api/admin/users[.csv]; require_admin
    │                 (in-memory реестр токенов {token: expires}, TTL 12 ч)
@@ -42,15 +44,27 @@ FastAPI-сервис (uvicorn, single-worker)          ← единственн�
    │                 + bcrypt.checkpw, единое сообщение отказа), POST /api/auth/logout,
    │                 GET /api/auth/me; require_session; in-memory реестр
    │                 {token: (expires, user_id)}, TTL 12 ч; учетные данные —
-   │                 таблица users Спринта 0 (схема без изменений)
+   │                 таблица users; СПРИНТ-2 (ADR-003): ответ login дополняется
+   │                 route/reason — роутинг по role (cabinet/student-cabinet)
+   │                 и по статусу заявки без выдачи сессии (pending/rejected)
+   ├── instructors.py     — СПРИНТ-2 (ADR-003): POST /api/instructors/apply
+   │                        (публичная анкета: валидация → bcrypt → INSERT заявки)
+   ├── instructor_admin.py — СПРИНТ-2 (ADR-003): GET /api/admin/instructor-applications;
+   │                        POST …/{id}/approve (INSERT users из заявки, перенос
+   │                        хэша, role='instructor') и …/{id}/deny (обязательный
+   │                        комментарий); require_admin
    └── frontend/   — статика из design/mocks (/, /registered, /admin-login,
                      /admin-dashboard) + спринт-1: /cabinet → cabinet.html
                      (модалка «Вход» m-login на /, wiring: X-Session-Token
-                     в sessionStorage, 401 → редирект на вход) — отдается
+                     в sessionStorage, 401 → редирект на вход)
+                     + спринт-2: /instructors (лендинг), /instructors/apply
+                     (анкета), /instructors/pending, /instructors/rejected,
+                     /instructor/cabinet-stub (сессия как /cabinet) — отдается
                      тем же сервисом (ADR-001)
    ▼
 SQLite data/app.db (WAL, в .gitignore) — только хранение (паттерн 5);
-учетные данные учеников — та же таблица users (ADR-002), сессии — НЕ в БД
+учетные данные — таблица users (email UNIQUE + role), заявки инструкторов —
+instructor_applications (email UNIQUE, password_hash, status), сессии — НЕ в БД
 ```
 
 При Релизе 1 сервис встает за Nginx + Gateway (паттерны 1, 2); статика может
@@ -62,6 +76,7 @@ SQLite data/app.db (WAL, в .gitignore) — только хранение (па�
 |---|---|---|
 | [001-add-registration-admin-stack](adr/001-add-registration-admin-stack.md) | Стек и контур спринта-0: FastAPI+SQLite WAL+bcrypt, статика тем же сервисом, in-memory admin-токен, .env-секреты | Принято (Заказчик, 2026-10-08) |
 | [002-auth-service](adr/002-auth-service.md) | Авторизация учеников (Спринт 1): отдельный модуль-сервис backend/auth.py, одна таблица users (bcrypt), in-memory сессии TTL 12 ч, email-only логин (телефон — атрибут) | Принято (Заказчик, 2026-10-09; допущения подтверждены — 2294a4a) |
+| [003-instructor-flow](adr/003-instructor-flow.md) | Поток инструктора (Спринт 2, часть 1): bcrypt-хэш пароля хранится в заявке, approve переносит его в users без повторного хэширования, вход — общий /api/auth/login, роли — флаг role в users | Принято (Заказчик, 2026-10-12; ревью — arch-review add-instructor-flow, changes-required: MAJ-1 UNIQUE email заявок) |
 
 ## Долг / открытые вопросы
 
@@ -91,3 +106,24 @@ SQLite data/app.db (WAL, в .gitignore) — только хранение (па�
   MIN-1 arch-review) — обязательность подтверждается тестом на этапе реализации.
 - /cabinet — статика: разметка доставляется всем, данные защищены через API
   (401 от /api/auth/me → редирект) — осознанный паттерн статики без сборки.
+
+## Техдолг спринта-2, часть 1 (принят осознанно, ADR-003 + arch-review add-instructor-flow)
+
+- bcrypt-хэш пароля в двух местах (заявка + users), хэш обработанных заявок
+  не обнуляется (уснувший credential-материал) — решение Заказчика FR-11.1/FR-14;
+  password_hash заявок выдается только админ-API, в UI не рендерится как
+  обычное поле, в логи не пишется (MIN-5 arch-review).
+- Роутинг ученик/инструктор — по role из ответа login на фронте; серверной
+  проверки роли на /instructor/cabinet-stub нет (сессия есть — заглушка
+  открывается, данных нет). При реальном кабинете инструктора — обязательная
+  серверная проверка role (require_session + role) и role в /api/auth/me
+  (MIN-4 arch-review).
+- deny без статусного guard на бэкенде (approved → deny через прямой API-вызов
+  с админ-токеном возможен, рассинхрон с users) — MIN-1 arch-review.
+- Статусные экраны /instructors/pending, /instructors/rejected —
+  статика без защиты; причина отказа доставляется в ответе login и хранится
+  в sessionStorage (повторное открытие после закрытия вкладки — повторный
+  вход), тот же компромисс, что у /cabinet.
+- deny-ветка login при нескольких заявках на один email недетерминирована —
+  предотвращается UNIQUE instructor_applications.email (MAJ-1 arch-review,
+  закрыть до разработки).

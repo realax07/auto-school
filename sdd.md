@@ -303,3 +303,247 @@ password_hash. Сессии — только в памяти процесса (�
 Водители (вторая учетка — «Пока не трогай водил»), реальные сервисы за
 плитками и работающий чат, восстановление/смена пароля, email-подтверждение,
 refresh-токены, вход по телефону.
+
+---
+
+# SDD (дополнение): Поток инструктора (Спринт 2, часть 1)
+
+> Системный дизайн change `add-instructor-flow`. Источник решений —
+> requirements-instructor-flow.md (УТВЕРЖДЕН, FR-10…FR-17 + FR-11.1,
+> NFR-2…NFR-4), research.md и design.md пакета
+> openspec/changes/add-instructor-flow/, мокапы design/mocks/
+> landing-instructors.html, registration-instructor.html,
+> dashboard-instructor.html (последний — вне объема, сохранен). Механики
+> Спринтов 0–1 переиспользуются без изменения: регистрация (§3.1),
+> админ-контур (§3.2–3.5), auth/сессии (§9–10). Спринты 0–1 не меняются.
+
+## 15. API-контракты (Спринт 2, часть 1)
+
+Общие правила §3 и §10 действуют: Content-Type JSON; ошибки
+`{"ok": false, "error": "<сообщение>"}`; 401 тело — `{"ok": false}`;
+хендлерная валидация (дефолты `str = ""` в моделях, первая ошибка в формате
+`"<поле-ру>: <причина>"`, 422). Единое сообщение об отказе входа —
+AUTH_FAIL_MESSAGE (§10.1), без изменений.
+
+### 15.1 POST /api/instructors/apply (публичный)
+
+- Request body (JSON):
+  `{fio: string, phone: string, email: string, address: string,
+  work_format: string ("own"|"sber"), plate: string, license_number: string,
+  license_date: string, license_category: string, experience: string,
+  password: string, password_confirm: string, consent: boolean}`
+  (ФИО анкеты — одним полем; разбор на surname/name/patronymic — задача 1.1;
+  фронт шлет ФИО одной строкой как в макете. consent — обязательный чекбокс
+  согласия на обработку персональных данных, звездочка макета — FR-11.)
+- Порядок проверок (возвращается первая; формат как §3.1):
+  1) обязательные поля (отмеченные звездочкой макета + пароль + подтверждение):
+     fio, phone, email, address, license_number, license_category, password,
+     password_confirm, work_format;
+  1a) consent == true (чекбокс обязателен по макету, FR-11; иначе 422
+     «Согласие: поле обязательно»);
+  2) формат email (как §3.1);
+  3) телефон ≥ 10 цифр;
+  4) пароль ≥ 8 символов;
+  5) password == password_confirm;
+  6) plate непуст при work_format='own' (поле макета «если свой»);
+  7) license_date при заполнении — валидная дата (YYYY-MM-DD);
+  8) email отсутствует в users (SELECT);
+  9) email отсутствует в instructor_applications (SELECT) — единое сообщение
+     «Email: уже зарегистрирован» на обоих шагах 8–9 (FR-16, допущение
+     proposal: дубликат заявки на тот же email тоже отклоняется).
+- Вторая линия защиты (шаги 8–9 не атомарны, uvicorn single-worker исполняет
+  sync-хендлеры в threadpool — два параллельных сабмита одного email проходят
+  SELECT до чужого INSERT): INSERT перехватывает sqlite3.IntegrityError от
+  UNIQUE instructor_applications.email и возвращает ту же контрактную
+  `422 {"ok": false, "error": "Email: уже зарегистрирован"}` — симметрично
+  register.py:104 (механика users). Итог: ровно одна заявка на email.
+- Ответы:
+  - `200` → `{"ok": true}` — заявка создана (status='waiting')
+  - `422` → `{"ok": false, "error": "<поле-ру>: <причина>"}` — заявка НЕ создана
+- Хранение: password → bcrypt-хэш cost 12 в instructor_applications.password_hash;
+  открытый пароль не сохраняется и не логируется (FR-11.1, NFR-3). Файл ВУ
+  в контракте отсутствует (не загружается).
+- NFR-2: оба SELECT и INSERT — параметризованные (`?`).
+
+### 15.2 GET /api/admin/instructor-applications
+
+- Заголовок: `X-Admin-Token: <token>` (механизм §3.5, без изменений).
+- Ответы:
+  - `200` → `{"count": N, "applications": [{"id": int, "surname": string,
+    "name": string, "patronymic": string, "email": string, "phone": string,
+    "address": string, "work_format": string, "plate": string,
+    "license_number": string, "license_date": string,
+    "license_category": string, "experience": string,
+    "status": string, "review_comment": string,
+    "created_at": string}]}`
+  - `401` → `{"ok": false}`
+- password_hash в ответ НЕ входит: ключ в списке/карточке заявки отсутствует
+  (решение Заказчика 2026-10-12-hash-not-rendered — минимизация поверхности
+  возражения архитектора по FR-14). Хэш ХРАНИТСЯ в заявке (FR-11.1: перенос
+  в users при approve без повторного хэширования), но не выдается API:
+  UI админки его не рендерит, ответ GET не логируется (NFR-3). Сортировка
+  `created_at DESC, id DESC` (как §3.3).
+
+### 15.3 POST /api/admin/instructor-applications/{id}/approve
+
+- Заголовок: `X-Admin-Token` (§3.5).
+- Поведение: заявка в статусе waiting → ОДНА транзакция (commit один,
+  симметрично register.py; исключает waiting-заявку с существующим
+  пользователем при падении между INSERT и UPDATE — иначе повторный approve
+  давал бы 409 и операцию нельзя было бы завершить): INSERT INTO users
+  (surname, name, patronymic, email, phone, password_hash — значение ИЗ
+  ЗАЯВКИ, без повторного хэширования, FR-11.1; role='instructor'), user_id =
+  cursor.lastrowid; UPDATE заявки → status='approved'.
+- Ответы:
+  - `200` → `{"ok": true, "user_id": <int>}`
+  - `409` → `{"ok": false, "error": "Заявка уже одобрена"}` — статус не waiting
+  - `409` → `{"ok": false, "error": "Email: уже зарегистрирован"}` — гонка
+    дубля email (sqlite3.IntegrityError от UNIQUE users.email)
+  - `404` → `{"ok": false, "error": "Заявка не найдена"}`
+  - `401` → `{"ok": false}` — нет валидного админ-токена
+
+### 15.4 POST /api/admin/instructor-applications/{id}/deny
+
+- Заголовок: `X-Admin-Token` (§3.5).
+- Request body: `{"comment": string}`.
+- Guard статуса (симметрично §15.3): операция — только над заявкой waiting;
+  approved → 409 `{"ok": false, "error": "Заявка уже одобрена"}` (иначе
+  прямой POST с валидным токеном отклонял бы approved-заявку при живой
+  записи users role='instructor' — рассинхрон); deny → 409 `{"ok": false,
+  "error": "Заявка уже отклонена"}` (повтор не меняет сохраненную причину).
+- Проверка: comment непуст (пустое/отсутствующее → 422
+  `{"ok": false, "error": "Комментарий: поле обязательно"}`, FR-15).
+- Поведение: UPDATE заявки → status='deny', review_comment=comment.
+- Ответы:
+  - `200` → `{"ok": true}`
+  - `422` → `{"ok": false, "error": "Комментарий: поле обязательно"}`
+  - `409` → `{"ok": false, "error": "Заявка уже одобрена" | "Заявка уже отклонена"}` — guard статуса
+  - `404` → `{"ok": false, "error": "Заявка не найдена"}`
+  - `401` → `{"ok": false}`
+
+### 15.5 POST /api/auth/login — дополнение ответа (роутинг по статусу, FR-13)
+
+Механизм §10.1 без изменений (валидация, bcrypt.checkpw, единое сообщение,
+анти-брутфорс, TTL). Дополняется определение маршрута после входа:
+
+- Успешная проверка против users:
+  - `role='instructor'` → `200 {"ok": true, "token": "…", "route": "cabinet"}`
+    (фронт → /instructor/cabinet-stub; сессия выдается как §10.1)
+  - `role='student'` → `200 {"ok": true, "token": "…",
+    "route": "student-cabinet"}` (фронт → /cabinet; регресс Спринта 1)
+- Записи users НЕТ, но пароль совпал с password_hash заявки
+  (SELECT instructor_applications по email; bcrypt-проверка против хэша
+  заявки; фиктивная проверка при отсутствующей заявке — та же схема тайминга,
+  что §10.1):
+  - `status='waiting'` → `200 {"ok": true, "route": "pending"}` — БЕЗ токена
+    (сессию выдавать нечего; FR-13: экран ожидания)
+  - `status='deny'` → `200 {"ok": true, "route": "rejected",
+    "reason": "<review_comment>"}` — БЕЗ токена (FR-13: экран отказа с
+    причиной)
+  - заявки нет → `401` единое сообщение (как §10.1)
+- Неудачные попытки (против users и против заявок) учитываются анти-брутфорсом
+  единообразно (учет по IP, R-BF1…R-BF4 — без изменений).
+- Обратная совместимость: добавляется только ключ route/reason — существующий
+  фронт Спринта 1 при отсутствии ключа продолжает вести на /cabinet (ключ
+  route для учеников все равно приходит; behavior contract учеников не
+  меняется).
+
+### 15.6 Статика Спринта 2, часть 1
+
+- `/instructors` → `frontend/instructors.html` (мокап
+  landing-instructors.html дословно; wiring: CTA → /instructors/apply; FR-10).
+- `/instructors/apply` → `frontend/instructor-apply.html` (мокап
+  registration-instructor.html дословно; wiring: POST /api/instructors/apply;
+  ok → /instructors/pending; 422 → сообщение; файл ВУ не отправляется; FR-11).
+- `/instructors/pending` → `frontend/instructor-pending.html` («заявка на
+  рассмотрении»; после сабмита анкеты И после waiting-входа; FR-12, FR-13).
+- `/instructors/rejected` → `frontend/instructor-rejected.html` (причина —
+  из ответа логина, sessionStorage; FR-13, FR-17: тон по мокапам, тексты
+  согласуются при реализации — design check).
+- `/instructor/cabinet-stub` → `frontend/instructor-cabinet-stub.html`
+  (заглушка «кабинет скоро»; защита сессией как /cabinet: GET
+  /api/auth/me, 401 → редирект на вход; FR-13). Функциональные элементы
+  dashboard-макета отсутствуют (вне объема).
+- Вход инструктора — существующая модалка m-login на `/`: сабмит →
+  POST /api/auth/login; ok → разбор route (§15.5) и редирект; 401 → единое
+  сообщение (без изменений).
+
+## 16. Модель данных (Спринт 2, часть 1)
+
+SQLite data/app.db (WAL), только параметризованные запросы (NFR-2). Схема —
+в db.py (_SCHEMA), миграция idempotent (CREATE IF NOT EXISTS; ALTER с
+проверкой существования колонки — унаследованные базы Спринтов 0–1
+поднимаются без пересоздания).
+
+```sql
+-- users: + колонка роли (additive; дефолт покрывает существующих учеников)
+-- ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'student';
+
+CREATE TABLE IF NOT EXISTS instructor_applications (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  surname TEXT NOT NULL,
+  name TEXT NOT NULL,
+  patronymic TEXT NOT NULL,
+  email TEXT NOT NULL UNIQUE,             -- вторая линия защиты apply (FR-16)
+  phone TEXT NOT NULL,
+  address TEXT NOT NULL,
+  work_format TEXT NOT NULL,              -- 'own' | 'sber'
+  plate TEXT NOT NULL DEFAULT '',
+  license_number TEXT NOT NULL,
+  license_date TEXT NOT NULL DEFAULT '',
+  license_category TEXT NOT NULL,
+  experience TEXT NOT NULL DEFAULT '',
+  password_hash TEXT NOT NULL,            -- bcrypt cost 12 (FR-11.1)
+  status TEXT NOT NULL DEFAULT 'waiting', -- waiting | approved | deny (NFR-4)
+  review_comment TEXT NOT NULL DEFAULT '',-- причина отказа (FR-15)
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+```
+
+- users (§4) + role: 'student' (дефолт) | 'instructor' (ставится approve).
+  users.email остается UNIQUE — вторая линия защиты (§4, FR-16).
+- instructor_applications.email — UNIQUE: вторая линия защиты apply, симметрично
+  users (MAJ-1 ревью): SELECT-проверки §15.1 (шаги 8–9) не атомарны, INSERT
+  перехватывает sqlite3.IntegrityError и возвращает ту же 422
+  «Email: уже зарегистрирован»; гонка параллельных сабмитов дает ровно одну
+  заявку на email (детерминированный вход §15.5 — SELECT по email).
+- approve копирует в users: surname, name, patronymic, email, phone из
+  заявки + password_hash как есть + role='instructor' (FR-16, FR-11.1).
+- password_hash хранится в instructor_applications (FR-11.1), но НЕ выдается
+  API (§15.2): UI админки не рендерит, ответ GET не логируется (решение
+  Заказчика 2026-10-12-hash-not-rendered, NFR-3).
+- В БД только хранение, без логики (паттерн 5 map.md).
+
+## 17. Решения по НФТ (Спринт 2, часть 1)
+
+| NFR | Решение | Контроль |
+|---|---|---|
+| NFR-2: параметризованный SQL | Все новые запросы (§15.1–15.4, §15.5 SELECT заявок) — `?`-плейсхолдеры через db-слой | Тест + ревью новых модулей |
+| NFR-3: пароли/секреты не в логах и репо | Открытый пароль — только в теле запроса apply и памяти bcrypt-хэширования; password_hash хранится в заявке (FR-11.1/FR-14), но НЕ выдается API (§15.2 — без ключа password_hash), UI админки не рендерит, ответ GET заявок не логируется (решение Заказчика 2026-10-12-hash-not-rendered); лог-вызовы в новых модулях не пишут учетные данные | Тест логов + проверка git-статуса |
+| NFR-4: состав instructor_applications | Полные данные анкеты + status(waiting/approved/deny) + review_comment + created_at (§16) | Тест схемы |
+
+## 18. Трассировка (Спринт 2, часть 1)
+
+| Требование | Requirement (домен) | Задача (tasks.md) |
+|---|---|---|
+| FR-10 | instructor-application / Лендинг инструкторов по прямой ссылке | 4.1, 5.1 |
+| FR-11 | instructor-application / Анкета заявки инструктора + instructor-application / Данные ВУ-файла не сохраняются | 1.1, 4.2 |
+| FR-11.1 | instructor-application / Хранение пароля заявки только в виде bcrypt-хэша | 1.1, 2.1 |
+| FR-12 | instructor-application / Сохранение заявки со статусом waiting | 1.1, 4.2, 4.3 |
+| FR-13 | instructor-auth / Вход инструктора через общий механизм авторизации + instructor-auth / Роутинг после входа по статусу + instructor-auth / Заглушка кабинета инструктора | 3.1, 4.3, 4.4, 4.5 |
+| FR-14 | admin-moderation / Раздел заявок инструкторов в админке | 2.1 |
+| FR-15 | admin-moderation / Отклонение заявки с обязательным комментарием | 2.1 |
+| FR-16 | admin-moderation / Одобрение заявки создает пользователя + admin-moderation / Созданный пользователь получает роль инструктора | 1.1 (email-проверка), 1.2, 2.1 |
+| FR-17 | instructor-auth / Роутинг (экран отказа) + instructor-application / Сохранение заявки (экран ожидания); тон — design check | 4.3, 6.1 |
+| NFR-2 | (сквозное) | 1.1, 2.1, 3.1, 6.1 |
+| NFR-3 | (сквозное) | 1.1, 2.1, 3.1, 6.1 |
+| NFR-4 | (сквозное) | 1.2, 6.1 |
+
+Правило полноты: нет Requirement без источника в ТЗ; нет Must-требования
+без Requirement (контракт 2/7).
+
+## 19. Вне спринта 2, часть 1 (зафиксировано)
+
+Кабинет инструктора (dashboard-instructor.html — следующий объем), загрузка
+файла ВУ, вход водителей через футер лендинга, поток водителей, восстановление/
+смена пароля, email/SMS-уведомления о статусе заявки.
