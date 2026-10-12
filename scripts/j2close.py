@@ -14,7 +14,11 @@ data, err = sc.registry_load(sc.Path(REG))
 assert not err, err
 sessions = data.get("sessions", [])
 if active is None and sessions:
-    active = sessions[-1]["delegation_id"]
+    last = sessions[-1]
+    # активной считается последняя ТОЛЬКО если реально активна;
+    # finished/returned последняя — тоже под закрытие
+    if last.get("status") in ("running", "reserved"):
+        active = last["delegation_id"]
 n = 0
 for i, s in enumerate(sessions):
     if s["delegation_id"] == active:
