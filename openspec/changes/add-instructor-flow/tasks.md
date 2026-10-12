@@ -89,7 +89,7 @@ sdd.md, раздел «Спринт 2, часть 1».
 
 ## 3. Домен instructor-auth (backend/auth.py — расширение)
 
-- [ ] 3.1 backend/auth.py — роутинг входа по статусу (FR-13): механизм
+- [x] 3.1 backend/auth.py — роутинг входа по статусу (FR-13): механизм
       login без изменений (bcrypt.checkpw, единое сообщение, анти-брутфорс,
       фиктивная проверка). Добавка: после проверки пароля против users
       (успех) ответ дополняется {"route": "cabinet"} для role='instructor'
@@ -174,7 +174,7 @@ sdd.md, раздел «Спринт 2, часть 1».
 
 ## 5. Сборка
 
-- [ ] 5.1 app.py: подключить роутеры instructors (1.1) и instructor_admin
+- [x] 5.1 app.py: подключить роутеры instructors (1.1) и instructor_admin
       (2.1) в create_app(); маршруты статики: /instructors (4.1),
       /instructors/apply (4.2), /instructors/pending +
       /instructors/rejected (4.3), /instructor/cabinet-stub (4.4) — рядом
