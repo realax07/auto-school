@@ -113,7 +113,7 @@ sdd.md, раздел «Спринт 2, часть 1».
 
 ## 4. Статика и фронтенд
 
-- [ ] 4.1 [P] frontend/instructors.html — лендинг инструкторов: перенос
+- [x] 4.1 [P] frontend/instructors.html — лендинг инструкторов: перенос
       design/mocks/landing-instructors.html дословно (тексты, стили,
       структура); wiring (единственные отличия от мокапа): кнопки CTA
       («Стать инструктором», карточки форматов, нижний CTA) → редирект на
@@ -125,7 +125,7 @@ sdd.md, раздел «Спринт 2, часть 1».
       мокапом (кроме wiring), CTA ведут на /instructors/apply.
       FR: FR-10.
 
-- [ ] 4.2 [P] frontend/instructor-apply.html — анкета: перенос
+- [x] 4.2 [P] frontend/instructor-apply.html — анкета: перенос
       design/mocks/registration-instructor.html дословно; wiring: сабмит →
       POST /api/instructors/apply (поля по контракту sdd.md §15.1, включая
       consent — обязательный чекбокс согласия, MIN-2; без него кнопка
@@ -140,7 +140,7 @@ sdd.md, раздел «Спринт 2, часть 1».
       тело запроса не содержит файла.
       FR: FR-11, FR-12.
 
-- [ ] 4.3 [P] frontend/instructor-pending.html + frontend/instructor-rejected.html —
+- [x] 4.3 [P] frontend/instructor-pending.html + frontend/instructor-rejected.html —
       экраны ожидания и отказа в тоне мокапов Заказчика (тексты согласуются
       при реализации; проверка — design check, FR-17): pending — «заявка на
       рассмотрении»; rejected — показ причины из ответа логина
@@ -151,7 +151,7 @@ sdd.md, раздел «Спринт 2, часть 1».
       после сабмита анкеты; сценарий показа причины C после deny-входа.
       FR: FR-12, FR-13, FR-17.
 
-- [ ] 4.4 [P] frontend/instructor-cabinet-stub.html — заглушка «кабинет
+- [x] 4.4 [P] frontend/instructor-cabinet-stub.html — заглушка «кабинет
       скоро» (БЕЗ функциональных элементов dashboard-макета — он вне
       объема): JS читает токен из sessionStorage, GET /api/auth/me
       (X-Session-Token) → 401 → редирект на вход; 200 → показ заглушки.
