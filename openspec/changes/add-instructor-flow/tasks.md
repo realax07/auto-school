@@ -7,7 +7,7 @@ sdd.md, раздел «Спринт 2, часть 1».
 
 ## 1. Домен instructor-application (backend/instructors.py)
 
-- [ ] 1.1 [P] backend/instructors.py — POST /api/instructors/apply
+- [x] 1.1 [P] backend/instructors.py — POST /api/instructors/apply
       (публичный, без авторизации): Pydantic-модель с дефолтами `str = ""`
       (хендлерная валидация как register.py, MAJ-1); поля: fio (или
       surname/name/patronymic — по разбору ФИО), phone, email, address,
@@ -38,7 +38,7 @@ sdd.md, раздел «Спринт 2, часть 1».
       передается.
       FR: FR-11, FR-11.1, FR-12, FR-16 (email-проверка). NFR: NFR-2, NFR-3.
 
-- [ ] 1.2 [P] backend/db.py — схема: CREATE TABLE instructor_applications
+- [x] 1.2 [P] backend/db.py — схема: CREATE TABLE instructor_applications
       (полный состав полей — design.md; email TEXT NOT NULL UNIQUE — вторая
       линия защиты apply, MAJ-1) + ALTER TABLE users ADD COLUMN
       role TEXT NOT NULL DEFAULT 'student' (idempotent: проверка
