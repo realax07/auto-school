@@ -84,3 +84,20 @@ def test_tc_auth_landing_page_served_with_wiring(client):
     assert "fetch('/api/auth/login'" in resp.text
     assert "sessionStorage.setItem('session_token'" in resp.text
     assert "location.href='/cabinet'" in resp.text
+
+
+def test_login_route_mapping_wiring():
+    """MAJ-1 rev-002-2.2: route-маппинг вне token-guard — все 4 ветви §15.5
+    достижимы; rejected-причина сохраняется для instructor-rejected.html."""
+    html = INDEX.read_text(encoding="utf-8")
+    # все 4 ветви маппинга
+    assert "route==='cabinet'" in html and "/instructor/dashboard" in html
+    assert "route==='pending'" in html and "/instructors/pending" in html
+    assert "route==='rejected'" in html and "/instructors/rejected" in html
+    assert "route||'student-cabinet'" in html or "else{location.href='/cabinet'" in html
+    # reason пишется в sessionStorage до редиректа на rejected
+    assert "instructor_rejected_reason" in html
+    # route-разбор стоит ДО безусловного token-guard: порядок if(route...) после res.data.ok
+    idx_ok = html.find("res.status===200&&res.data.ok")
+    idx_route = html.find("route==='cabinet'")
+    assert 0 < idx_ok < idx_route

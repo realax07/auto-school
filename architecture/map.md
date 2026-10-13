@@ -20,13 +20,14 @@
 | 10 | Спринт-0 контур (CAD-001) | **FastAPI-сервис + статика тем же сервисом, SQLite WAL, bcrypt (cost 12), in-memory admin-токен, секреты в .env** — ADR-001 | Допущения не проверены на проде: bcrypt ~250 мс на целевой машине (контроль — тест замера), WAL покрывает конкурентность спринта-0, single-worker обязателен для in-memory токенов |
 | 11 | Спринт-1 контур (CAD-002) | **Авторизация — отдельный модуль backend/auth.py (роуты /api/auth/*), одна таблица users (email UNIQUE + bcrypt), in-memory сессии {token: (expires, user_id)} TTL 12 ч, вход email-only** — ADR-002 | Тот же single-worker-инвариант (сессии учеников тоже в памяти); нет анти-брутфорса на публичном /api/auth/login — принятый техдолг; «отдельный сервис» = отдельная граница модуля, выделение в процесс — опция Релиза 1 |
 | 12 | Спринт-2 контур, часть 1 (CAD-003) | **Поток инструктора: заявка (instructor_applications, bcrypt-хэш пароля в заявке) → модерация админом (approve переносит хэш в users) → вход через общий /api/auth/login; роли — флаг role в users ('student'/'instructor')** — ADR-003 | bcrypt-хэш хранится и в заявке, и в users (две копии до архивации заявок — решение Заказчика FR-11.1/FR-14); login при отсутствующей записи users делает bcrypt-проверку против хэша заявки (второй bcrypt-вызов в худшем пути); single-worker-инвариант без изменений |
+| 13 | Спринт-2 контур, часть 2 (add-instructor-cabinet, arch-review approved-with-notes) | **Кабинет инструктора — демо-визуал по утвержденному макету; доступ — через новый защищенный эндпоинт GET /api/instructor/me (require_session + серверная проверка role='instructor', 403 при иной роли); содержимое — статика макета, из данных только ФИО/инициалы учетки; схема БД и существующие контракты не меняются** | Реального расписания/доходов/учеников нет — все цифры кабинета фиктивны (макет «Все данные вымышлены»); страница (HTML) по-прежнему доставляется всем — защита на уровне API + клиентский редирект (паттерн статики без сборки, спринт-1) |
 
 Паттерны 1, 2, 4 в спринте-0 не задействованы: nginx/TLS, gateway,
 контейнеры/оркестрация **отложены Заказчиком** (решение 2026-10-06 — все три
 вопроса решаются параллельно с первым этапом, когда поступит первое ТЗ на
 сервис). Это отложенные, НЕ решенные вопросы (см. «Долг / открытые вопросы»).
 
-## Компоненты (спринт-0 контур + спринт-1 auth//cabinet + спринт-2 поток инструктора)
+## Компоненты (спринт-0 контур + спринт-1 auth//cabinet + спринт-2 поток инструктора + спринт-2.2 кабинет инструктора)
 
 ```
 Клиент (браузер)
@@ -53,13 +54,24 @@ FastAPI-сервис (uvicorn, single-worker)          ← единственн�
    │                        POST …/{id}/approve (INSERT users из заявки, перенос
    │                        хэша, role='instructor') и …/{id}/deny (обязательный
    │                        комментарий); require_admin
+   ├── instructor_dashboard.py — СПРИНТ-2.2 (add-instructor-cabinet):
+   │                        GET /api/instructor/me — require_session + SELECT
+   │                        users по id + role='instructor' (403 при иной
+   │                        роли) → {id, surname, name, patronymic, email};
+   │                        серверная проверка роли кабинета (закрывает
+   │                        техдолг 2.1)
    └── frontend/   — статика из design/mocks (/, /registered, /admin-login,
                      /admin-dashboard) + спринт-1: /cabinet → cabinet.html
                      (модалка «Вход» m-login на /, wiring: X-Session-Token
                      в sessionStorage, 401 → редирект на вход)
                      + спринт-2: /instructors (лендинг), /instructors/apply
                      (анкета), /instructors/pending, /instructors/rejected,
-                     /instructor/cabinet-stub (сессия как /cabinet) — отдается
+                     /instructor/cabinet-stub (сессия как /cabinet)
+                     + спринт-2.2: /instructor/dashboard →
+                     instructor-dashboard.html (кабинет по макету, демо-данные;
+                     wiring: GET /api/instructor/me до отрисовки — 401/403 →
+                     редирект на `/`; route='cabinet' логина ведет сюда,
+                     было /instructor/cabinet-stub) — отдается
                      тем же сервисом (ADR-001)
    ▼
 SQLite data/app.db (WAL, в .gitignore) — только хранение (паттерн 5);
@@ -117,7 +129,10 @@ instructor_applications (email UNIQUE, password_hash, status), сессии — 
   проверки роли на /instructor/cabinet-stub нет (сессия есть — заглушка
   открывается, данных нет). При реальном кабинете инструктора — обязательная
   серверная проверка role (require_session + role) и role в /api/auth/me
-  (MIN-4 arch-review).
+  (MIN-4 arch-review). **Закрыто в 2.2 (add-instructor-cabinet): серверная
+  проверка роли реализована эндпоинтом GET /api/instructor/me; ключ role в
+  /api/auth/me признан избыточным — фронт различает роли по 403 от
+  /api/instructor/me (см. arch-review add-instructor-cabinet §1.1).**
 - deny без статусного guard на бэкенде (approved → deny через прямой API-вызов
   с админ-токеном возможен, рассинхрон с users) — MIN-1 arch-review.
 - Статусные экраны /instructors/pending, /instructors/rejected —
@@ -127,3 +142,26 @@ instructor_applications (email UNIQUE, password_hash, status), сессии — 
 - deny-ветка login при нескольких заявках на один email недетерминирована —
   предотвращается UNIQUE instructor_applications.email (MAJ-1 arch-review,
   закрыть до разработки).
+
+## Техдолг спринта-2, часть 2 (принят осознанно, add-instructor-cabinet + arch-review)
+
+- /instructor/dashboard — статика без серверной защиты страницы: HTML
+  доставляется всем, доступ контролируется на уровне API (GET
+  /api/instructor/me — 401/403 → клиентский редирект на `/` до отрисовки);
+  в разметке только демо-данные — тот же паттерн статики без сборки, что
+  /cabinet (спринт-1).
+- Демо-данные в статике кабинета: при будущих реальных объемах
+  (расписание/доходы/ученики) весь демо-контент и пометки «демо» подлежат
+  замене — контент лежит в HTML вперемешку с каркасом (наследие
+  «дословность макета», FR-19).
+- Двойной неймсейс API: /api/instructors/* (анкета, мн. число) и
+  /api/instructor/me (кабинет, ед. число) — правило выбора префикса
+  зафиксировать до следующих эндпоинтов кабинета (MIN-3 arch-review
+  add-instructor-cabinet).
+- /instructor/cabinet-stub остается страницей при недостижимости из флоу
+  (route='cabinet' ведет на /instructor/dashboard) — удалить вместе с
+  архивацией instructor-auth или оставить как техническую страницу
+  (решение при архивации спринта 2.1).
+- Главное демо-вид «Мой день» без пометки «демо» при реальном ФИО в шапке —
+  MIN-1 arch-review add-instructor-cabinet (пометка или явное решение
+  Заказчика — до/в задаче 2.1).
