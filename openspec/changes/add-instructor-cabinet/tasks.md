@@ -58,7 +58,7 @@ sdd.md, раздел «Спринт 2, часть 2» (§20–25).
 
 ## 3. Сборка
 
-- [ ] 3.1 app.py: маршрут статики /instructor/dashboard →
+- [x] 3.1 app.py: маршрут статики /instructor/dashboard →
       frontend/instructor-dashboard.html (рядом с /instructor/cabinet-stub);
       include роутера instructor_dashboard (1.1). Другие существующие модули
       (auth.py, instructors.py, instructor_admin.py, register.py, admin.py,
