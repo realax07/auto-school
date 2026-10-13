@@ -28,20 +28,18 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
 <div class="app">
 <aside class="sidebar">
   <div class="brand"><div class="check">✓</div><div>СберАвтошкола<small>Кабинет инструктора</small></div></div>
-  <div class="nav-label">Разделы</div>
+  <div class="nav-label">Рабочее пространство</div>
   <nav class="nav">
-    <button class="active" data-tab="Мой день"><span class="ico">▦</span>Мой день</button>
-    <button data-tab="Расписание"><span class="ico">◷</span>Расписание<small class="demo-tag">демо</small></button>
+    <button class="active" data-tab="Мой день"><span class="ico">⌂</span>Мой день</button>
+    <button data-tab="Расписание"><span class="ico">▦</span>Расписание<small class="demo-tag">демо</small></button>
     <button data-tab="Мои ученики"><span class="ico">♧</span>Мои ученики<small class="demo-tag">демо</small></button>
     <button data-tab="Доходы и выплаты"><span class="ico">₽</span>Доходы и выплаты<small class="demo-tag">демо</small></button>
     <button data-tab="Мой автомобиль"><span class="ico">▰</span>Мой автомобиль<small class="demo-tag">демо</small></button>
-    <button data-tab="Материалы и обучение"><span class="ico">≡</span>Материалы и обучение<small class="demo-tag">демо</small></button>
-    <button data-tab="Профиль и документы"><span class="ico">✎</span>Профиль и документы<small class="demo-tag">демо</small></button>
-    <button class="side-logout" data-tab="__logout__"><span class="ico">⎋</span>Выход</button>
+    <button data-tab="Материалы и обучение"><span class="ico">◈</span>Материалы и обучение<small class="demo-tag">демо</small></button>
+    <button data-tab="Профиль и документы"><span class="ico">⚙</span>Профиль и документы<small class="demo-tag">демо</small></button>
+    <button data-tab="__logout__"><span class="ico">⎋</span>Выход</button>
   </nav>
-  <div class="side-bottom"><button onclick="logout()">Выйти из кабинета</button></div>
-
-  <div id="profile-panel" style="display:none;padding:14px;border:1px solid #ffffff13;border-radius:15px;background:#ffffff04;margin-top:14px"><strong style="font-size:12px">Профиль и документы</strong><p style="font-size:11px;color:#8d9da6;line-height:1.5;margin:7px 0 12px">Раздел «демо» — реальные документы подключаются позже.</p><button style="width:100%;background:#143222;border:1px solid #2e6a47;color:#a2f5bf;border-radius:10px;padding:10px;font-size:11px" onclick="logout()">Выйти</button></div>
+  <div class="side-bottom"><strong>Нужна помощь?</strong><p>Поддержка инструкторов поможет разобраться с расписанием, выплатами и подключением.</p><button onclick="toast('Раздел поддержки — демонстрационный макет')">Связаться с поддержкой ↗</button></div>
 
 <main>
   <div class="topbar"><div><div class="crumb">Рабочее пространство / <span id="crumb">Мой день</span></div><h1 id="page-title">Мой день</h1></div><div class="top-actions"><div class="date-chip">◷ &nbsp; Пн, 12 октября 2026</div><button class="icon-btn" onclick="toast('Новых уведомлений нет')">♧</button><div class="user"><div class="avatar">МС</div><div><b>Михаил Самойлов</b><small>Инструктор · Категория B</small></div></div></div></div>
