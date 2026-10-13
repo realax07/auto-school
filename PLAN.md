@@ -81,3 +81,25 @@
 | # | Дата | Роль | Задача | Статус |
 |---|---|---|---|---|
 | — | — | — | — | — |
+
+
+### Спринт 2 — ЧАСТЬ 1 ЗАКРЫТА (2026-10-12): поток инструктора (PR#34)
+
+**Объем:** лендинг /instructors (прямая ссылка) → анкета (пароль, bcrypt)
+→ заявка waiting → модерация в админке (approve → users + role='instructor';
+deny → обязательный комментарий) → экраны pending/rejected/cabinet-stub.
+Вход инструктора — общий /api/auth/login с route-роутингом (ADR-003).
+
+| Задача | Статус |
+|---|---|
+| СА: пакет add-instructor-flow | [x] accepted + rework |
+| Архитектор: ревью + ADR-003 | [x] approved-with-notes |
+| Dev: backend (1.1/1.2/2.1), frontend (4.1–4.4), сборка (3.1/5.1) | [x] |
+| Код-ревью 9× | [x] approve |
+| QA: чеклист, 52 кейса (52/52 approved), автоматизация | [x] |
+| Design check | [x] approve-with-notes |
+| Приемка 6.1 | [x] 189 passed, apply 369ms |
+| PR + merge | [x] PR#34 |
+
+**Следующий объем (часть 2):** кабинет инструктора по макету
+dashboard-instructor.html (расписание, ученики, доходы).
