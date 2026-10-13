@@ -14,6 +14,7 @@ from fastapi.responses import FileResponse, JSONResponse
 import backend.db as db
 from backend.admin import router as admin_router
 from backend.auth import router as auth_router
+from backend.dashboard import router as dashboard_router
 from backend.instructor_admin import router as instructor_admin_router
 from backend.instructors import router as instructors_router
 from backend.register import router as register_router
@@ -33,6 +34,9 @@ _PAGE_ROUTES = {
     "/instructors/pending": "instructor-pending.html",
     "/instructors/rejected": "instructor-rejected.html",
     "/instructor/cabinet-stub": "instructor-cabinet-stub.html",
+    # Спринт 2, часть 2 (задача 3.1, change add-instructor-cabinet):
+    # кабинет инструктора рядом с заглушкой
+    "/instructor/dashboard": "instructor-dashboard.html",
 }
 
 
@@ -50,6 +54,8 @@ def create_app() -> FastAPI:
     # Спринт 2, часть 1 (задача 5.1): заявки и модерация
     app.include_router(instructors_router)
     app.include_router(instructor_admin_router)
+    # Спринт 2, часть 2 (задача 3.1): данные кабинета инструктора
+    app.include_router(dashboard_router)
 
     @app.get("/api/health")
     def health():
