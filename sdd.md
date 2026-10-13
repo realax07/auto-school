@@ -565,18 +565,36 @@ CREATE TABLE IF NOT EXISTS instructor_applications (
 Общие правила §3/§10 действуют: Content-Type JSON; 401 тело —
 `{"ok": false}`.
 
-### 20.1 GET /api/instructor/me
+### 20.1 GET /api/instructor/dashboard
 
-- Заголовок: `X-Session-Token: <token>` (механика require_session, §10.3).
+> Синхронизировано с реализацией (коммит 018baae, review-001-3.1 MAJ-1,
+> арбитраж ПМ: реализация функционально корректна и безопасна; контракты
+> приведены к коду). Модуль — `backend/dashboard.py`.
+
+- Заголовок: `X-Session-Token: <token>` (механика require_session, §10.3;
+  в реализации — auth._session_user_id, то же поведение 401; переход на
+  публичный helper — доработка MIN-1 review-001-3.1).
 - Порядок проверок:
-  1) сессия отсутствует / неверна / истекла → `401 {"ok": false}`;
+  1) сессия отсутствует / неверна / истекла / аннулирована →
+     `401 {"ok": false}`;
   2) SELECT users по user_id сессии (`?`-плейсхолдер) — записи нет →
      `401 {"ok": false}` (вырожденный случай);
   3) `role != 'instructor'` → `403 {"ok": false}` (сессия валидна, роль не
      та — FR-18; distinct от 401 «нет сессии»);
-  4) ok → `200 {"ok": true, "user": {"id": int, "surname": string,
-     "name": string, "patronymic": string, "email": string}}` — состав как
-     §10.3.
+  4) ok → `200 {"ok": true, "instructor": {"surname": string,
+     "name": string, "patronymic": string, "email": string}, "demo": true,
+     "stats": [...], "schedule": {...}, "appointments": [...],
+     "next_lesson": {...}, "vehicle": {...}, "operations": [...]}`.
+- Ключ пользователя — `instructor` (не `user`); поля `id` в ответе нет —
+  уникальный идентификатор учетки для кабинета — email (состав полей —
+  как §10.3 без id; FR-20).
+- `demo: true` + демо-данные макета константами модуля (_DEMO_STATS,
+  _DEMO_SCHEDULE, _DEMO_APPOINTMENTS, _DEMO_NEXT_LESSON, _DEMO_VEHICLE,
+  _DEMO_OPERATIONS): содержимое кабинета — демонстрационное («Все данные
+  вымышлены», FR-19/FR-21); фронт рендерит статику мокапа и читает из
+  ответа `instructor.*`, демо-блоки — полезная нагрузка будущих объемов.
+  Реальные данные БД кабинету не выдаются (design.md, «Сознательные
+  ограничения»).
 - Назначение: единая точка данных + серверной проверки роли кабинета
   (FR-18, FR-20). Закрывает техдолг design.md add-instructor-flow (поток 4:
   «при реальном кабинете — обязательная серверная проверка роли
@@ -600,7 +618,7 @@ CREATE TABLE IF NOT EXISTS instructor_applications (
   │  fetch JSON API (X-Session-Token)
   ▼
 FastAPI (uvicorn, single-worker)
-  instructor_dashboard.py — НОВЫЙ: GET /api/instructor/me (§20.1)
+  dashboard.py          — НОВЫЙ: GET /api/instructor/dashboard (§20.1)
   app.py                — + маршрут /instructor/dashboard, + include роутера
                           (единственная правка существующего бэка)
   auth.py, instructors.py, instructor_admin.py, register.py, admin.py,
@@ -612,7 +630,8 @@ SQLite data/app.db (WAL) — users (§4 + role §16): схема НЕ меняе
 ## 22. Статика Спринта 2, часть 2
 
 - `/instructor/dashboard` → `frontend/instructor-dashboard.html` (мокап
-  dashboard-instructor.html дословно; wiring: GET /api/instructor/me до
+  dashboard-instructor.html дословно; wiring: GET /api/instructor/dashboard
+  до
   отрисовки — 401/403 → редирект `/` (к модалке входа); ФИО шапки =
   «{surname} {name} {patronymic}», инициалы аватара — первые буквы фамилии
   и имени (FR-20); сайдбар достраивается nav-кнопками по перечню FR-19 на
@@ -632,14 +651,14 @@ SQLite data/app.db (WAL) — users (§4 + role §16): схема НЕ меняе
 
 Без изменений: users (§4 + role §16) достаточна. Новый SQL домена — один
 параметризованный SELECT users по id (§20.1, NFR-2). Демо-данные кабинета —
-статика фронта, в БД не хранятся.
+константы модуля backend/dashboard.py (§20.1), в БД не хранятся.
 
 ## 24. Решения по НФТ (Спринт 2, часть 2)
 
 | NFR | Решение | Контроль |
 |---|---|---|
-| NFR-2: параметризованный SQL | Единственный новый запрос (§20.1 SELECT по id) — `?`-плейсхолдер через db-слой | Тест + grep-ревью нового модуля |
-| NFR-3: токены/секреты не в логах | Токен — sessionStorage + память процесса (как Спринт 1); /api/instructor/me не логирует заголовки и ответ; .env-механика §5 без изменений | Тест логов + проверка git-статуса |
+| NFR-2: параметризованный SQL | Единственный новый запрос (§20.1 SELECT по id) — `?`-плейсхолдер через db-слой | Тест + grep-ревью backend/dashboard.py |
+| NFR-3: токены/секреты не в логах | Токен — sessionStorage + память процесса (как Спринт 1); /api/instructor/dashboard не логирует заголовки и ответ; .env-механика §5 без изменений | Тест логов + проверка git-статуса |
 
 ## 25. Трассировка (Спринт 2, часть 2)
 

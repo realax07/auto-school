@@ -14,9 +14,9 @@ TTL 12 ч; /api/auth/me §10.3; route-механика §15.5; фронт — se
   │  fetch JSON API (X-Session-Token)
   ▼
 FastAPI (uvicorn, single-worker)
-  ├── instructor_dashboard.py — НОВЫЙ модуль (домен instructor-dashboard):
-  │                            GET /api/instructor/me (require_session +
-  │                            role='instructor' → 401/доступ запрещен)
+  ├── dashboard.py — НОВЫЙ модуль (домен instructor-dashboard):
+  │                 GET /api/instructor/dashboard (сессия +
+  │                 role='instructor' → 401/доступ запрещен)
   ├── auth.py, instructors.py, instructor_admin.py, register.py,
   │   admin.py, db.py, config.py — БЕЗ ИЗМЕНЕНИЙ
   ├── app.py                — РАСШИРЕНИЕ: маршрут статики /instructor/dashboard
@@ -30,7 +30,7 @@ SQLite data/app.db (WAL) — users (§4 + role §16): схема НЕ меняе
 - `frontend/instructor-dashboard.html` — перенос design/mocks/
   dashboard-instructor.html дословно (тексты, структура, стили ключевых
   блоков) + wiring. Единственные отличия от мокапа (wiring):
-  - ФИО в шапке и инициалы аватара — из ответа /api/instructor/me
+  - ФИО в шапке и инициалы аватара — из ответа /api/instructor/dashboard
     (демо-«Михаил Самойлов»/«МС» заменяются данными учетки; FR-20);
   - сайдбар достраивается nav-кнопками разделов по перечню FR-19
     («Мой день, Расписание, Мои ученики, Доходы и выплаты, Мой автомобиль,
@@ -42,35 +42,45 @@ SQLite data/app.db (WAL) — users (§4 + role §16): схема НЕ меняе
     «демо» (FR-21); футер макета «Все данные вымышлены» сохраняется;
   - кнопка выхода: элемент в разделе «Профиль и документы» + прямая кнопка
     в сайдбаре (FR-22 допускает оба пути);
-  - при 401/запрете от /api/instructor/me — редирект на `/` (модалка входа).
+  - при 401/запрете от /api/instructor/dashboard — редирект на `/`
+    (модалка входа).
 - Демо-строка «Инструктор · Категория B» — остается как в макете (в users нет
   категории ВУ; данные заявки кабинету не выдаются; допущение proposal).
 
 ## Доступ и проверка роли (FR-18)
 
-- Эндпоинт данных кабинета — GET /api/instructor/me
-  (backend/instructor_dashboard.py):
-  1) require_session (X-Session-Token; 401 {ok:false} при отсутствии/
-     неверном/истекшем токене — как §10.3);
+> Синхронизировано с реализацией (коммит 018baae, review-001-3.1 MAJ-1,
+> арбитраж ПМ: контракты приведены к коду).
+
+- Эндпоинт данных кабинета — GET /api/instructor/dashboard
+  (backend/dashboard.py):
+  1) проверка сессии (X-Session-Token; 401 {ok:false} при отсутствии/
+     неверном/истекшем/аннулированном токене — механика auth.py, тело
+     {ok:false} как у auth.logout/me; публичный helper — доработка MIN-1
+     review-001-3.1);
   2) SELECT users по user_id сессии; записи нет → 401;
   3) role != 'instructor' → отказ в доступе (403 {ok:false} — сессия
      валидна, роль не та; distinct от 401 «нет сессии»);
-  4) ok → {ok:true, user:{id, surname, name, patronymic, email}} — состав
-     как §10.3.
-- Фронт: до отрисовки вызывает /api/instructor/me; 401/403 → редирект на `/`.
-  Тем самым страница /instructor/dashboard недоступна без инструкторской
-  сессии (FR-18: редирект на главную, к модалке входа) — сценарий «сессия
-  ученика» дает 403 и тот же редирект.
+  4) ok → {ok:true, instructor:{surname, name, patronymic, email},
+     demo:true, stats, schedule, appointments, next_lesson, vehicle,
+     operations} — демо-данные макета константами модуля; поле id в ответе
+     отсутствует (уникальный идентификатор учетки — email; состав
+     пользовательских полей — как §10.3 без id; FR-20).
+- Фронт: до отрисовки вызывает /api/instructor/dashboard; 401/403 → редирект
+  на `/`. Тем самым страница /instructor/dashboard недоступна без
+  инструкторской сессии (FR-18: редирект на главную, к модалке входа) —
+  сценарий «сессия ученика» дает 403 и тот же редирект.
 - Техдолг заглушки (design.md add-instructor-flow, поток 4: «при реальном
   кабинете — обязательная серверная проверка роли») закрывается этим
   эндпоинтом; пометка в architecture/map.md — задача реализации (5.2).
 
 ## Данные и роутинг (FR-20, wiring)
 
-- ФИО: GET /api/instructor/me возвращает surname/name/patronymic записи
-  users по сессии (механика §10.3 без изменений); фронт собирает
-  uname = «{surname} {name} {patronymic}», инициалы аватара — первые буквы
-  фамилии и имени.
+- ФИО: GET /api/instructor/dashboard возвращает surname/name/patronymic
+  записи users по сессии (механика §10.3 без id, ключ `instructor`); фронт
+  собирает uname = «{surname} {name} {patronymic}», инициалы аватара —
+  первые буквы фамилии и имени (guard на короткие поля — MIN-4
+  review-001-3.1).
 - Роутинг после входа: контракт /api/auth/login (§15.5) не меняется
   (route='cabinet' для role='instructor'). Меняется только назначение на
   фронте: frontend/index.html (модалка m-login) — route 'cabinet' → редирект
@@ -87,8 +97,8 @@ SQLite data/app.db (WAL) — users (§4 + role §16): схема НЕ меняе
 
 | Ситуация | Ответ/поведение | Требование |
 |---|---|---|
-| /api/instructor/me без/с неверным/истекшим токеном | 401 {"ok": false} → редирект на `/` | FR-18 |
-| /api/instructor/me с сессией role != 'instructor' | 403 {"ok": false} → редирект на `/` | FR-18 |
+| /api/instructor/dashboard без/с неверным/истекшим токеном | 401 {"ok": false} → редирект на `/` | FR-18 |
+| /api/instructor/dashboard с сессией role != 'instructor' | 403 {"ok": false} → редирект на `/` | FR-18 |
 | Запись users по сессии отсутствует (вырожденный случай) | 401 {"ok": false} | FR-18 |
 | Выход при валидном токене | 200 {"ok": true}, токен аннулирован; фронт очищает sessionStorage, редирект `/` | FR-22 |
 
@@ -98,7 +108,7 @@ SQLite data/app.db (WAL) — users (§4 + role §16): схема НЕ меняе
   id (`?`-плейсхолдер, механика auth.py); конкатенация запрещена.
 - NFR-3 (секреты не в логах): токен — sessionStorage + память процесса
   (как Спринт 1); эндпоинт кабинета не логирует заголовки; ФИО — не секрет,
-  но ответ не логируется (симметрично /me).
+  но ответ не логируется.
 
 ## Сознательные ограничения (задокументированы)
 
