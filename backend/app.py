@@ -14,6 +14,8 @@ from fastapi.responses import FileResponse, JSONResponse
 import backend.db as db
 from backend.admin import router as admin_router
 from backend.auth import router as auth_router
+from backend.instructor_admin import router as instructor_admin_router
+from backend.instructors import router as instructors_router
 from backend.register import router as register_router
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -25,6 +27,12 @@ _PAGE_ROUTES = {
     "/admin-login": "admin-login.html",
     "/admin-dashboard": "admin-dashboard.html",
     "/cabinet": "cabinet.html",
+    # Спринт 2, часть 1 (задача 5.1, sdd.md §15.6): рядом с /cabinet
+    "/instructors": "instructors.html",
+    "/instructors/apply": "instructor-apply.html",
+    "/instructors/pending": "instructor-pending.html",
+    "/instructors/rejected": "instructor-rejected.html",
+    "/instructor/cabinet-stub": "instructor-cabinet-stub.html",
 }
 
 
@@ -39,6 +47,9 @@ def create_app() -> FastAPI:
     app.include_router(register_router)
     app.include_router(admin_router)
     app.include_router(auth_router)
+    # Спринт 2, часть 1 (задача 5.1): заявки и модерация
+    app.include_router(instructors_router)
+    app.include_router(instructor_admin_router)
 
     @app.get("/api/health")
     def health():

@@ -7,7 +7,7 @@ sdd.md, раздел «Спринт 2, часть 1».
 
 ## 1. Домен instructor-application (backend/instructors.py)
 
-- [ ] 1.1 [P] backend/instructors.py — POST /api/instructors/apply
+- [x] 1.1 [P] backend/instructors.py — POST /api/instructors/apply
       (публичный, без авторизации): Pydantic-модель с дефолтами `str = ""`
       (хендлерная валидация как register.py, MAJ-1); поля: fio (или
       surname/name/patronymic — по разбору ФИО), phone, email, address,
@@ -38,7 +38,7 @@ sdd.md, раздел «Спринт 2, часть 1».
       передается.
       FR: FR-11, FR-11.1, FR-12, FR-16 (email-проверка). NFR: NFR-2, NFR-3.
 
-- [ ] 1.2 [P] backend/db.py — схема: CREATE TABLE instructor_applications
+- [x] 1.2 [P] backend/db.py — схема: CREATE TABLE instructor_applications
       (полный состав полей — design.md; email TEXT NOT NULL UNIQUE — вторая
       линия защиты apply, MAJ-1) + ALTER TABLE users ADD COLUMN
       role TEXT NOT NULL DEFAULT 'student' (idempotent: проверка
@@ -89,7 +89,7 @@ sdd.md, раздел «Спринт 2, часть 1».
 
 ## 3. Домен instructor-auth (backend/auth.py — расширение)
 
-- [ ] 3.1 backend/auth.py — роутинг входа по статусу (FR-13): механизм
+- [x] 3.1 backend/auth.py — роутинг входа по статусу (FR-13): механизм
       login без изменений (bcrypt.checkpw, единое сообщение, анти-брутфорс,
       фиктивная проверка). Добавка: после проверки пароля против users
       (успех) ответ дополняется {"route": "cabinet"} для role='instructor'
@@ -113,7 +113,7 @@ sdd.md, раздел «Спринт 2, часть 1».
 
 ## 4. Статика и фронтенд
 
-- [ ] 4.1 [P] frontend/instructors.html — лендинг инструкторов: перенос
+- [x] 4.1 [P] frontend/instructors.html — лендинг инструкторов: перенос
       design/mocks/landing-instructors.html дословно (тексты, стили,
       структура); wiring (единственные отличия от мокапа): кнопки CTA
       («Стать инструктором», карточки форматов, нижний CTA) → редирект на
@@ -125,7 +125,7 @@ sdd.md, раздел «Спринт 2, часть 1».
       мокапом (кроме wiring), CTA ведут на /instructors/apply.
       FR: FR-10.
 
-- [ ] 4.2 [P] frontend/instructor-apply.html — анкета: перенос
+- [x] 4.2 [P] frontend/instructor-apply.html — анкета: перенос
       design/mocks/registration-instructor.html дословно; wiring: сабмит →
       POST /api/instructors/apply (поля по контракту sdd.md §15.1, включая
       consent — обязательный чекбокс согласия, MIN-2; без него кнопка
@@ -140,7 +140,7 @@ sdd.md, раздел «Спринт 2, часть 1».
       тело запроса не содержит файла.
       FR: FR-11, FR-12.
 
-- [ ] 4.3 [P] frontend/instructor-pending.html + frontend/instructor-rejected.html —
+- [x] 4.3 [P] frontend/instructor-pending.html + frontend/instructor-rejected.html —
       экраны ожидания и отказа в тоне мокапов Заказчика (тексты согласуются
       при реализации; проверка — design check, FR-17): pending — «заявка на
       рассмотрении»; rejected — показ причины из ответа логина
@@ -151,7 +151,7 @@ sdd.md, раздел «Спринт 2, часть 1».
       после сабмита анкеты; сценарий показа причины C после deny-входа.
       FR: FR-12, FR-13, FR-17.
 
-- [ ] 4.4 [P] frontend/instructor-cabinet-stub.html — заглушка «кабинет
+- [x] 4.4 [P] frontend/instructor-cabinet-stub.html — заглушка «кабинет
       скоро» (БЕЗ функциональных элементов dashboard-макета — он вне
       объема): JS читает токен из sessionStorage, GET /api/auth/me
       (X-Session-Token) → 401 → редирект на вход; 200 → показ заглушки.
@@ -174,7 +174,7 @@ sdd.md, раздел «Спринт 2, часть 1».
 
 ## 5. Сборка
 
-- [ ] 5.1 app.py: подключить роутеры instructors (1.1) и instructor_admin
+- [x] 5.1 app.py: подключить роутеры instructors (1.1) и instructor_admin
       (2.1) в create_app(); маршруты статики: /instructors (4.1),
       /instructors/apply (4.2), /instructors/pending +
       /instructors/rejected (4.3), /instructor/cabinet-stub (4.4) — рядом
@@ -189,7 +189,7 @@ sdd.md, раздел «Спринт 2, часть 1».
 
 ## 6. Приемка
 
-- [ ] 6.1 Полный прогон: `pytest tests/` зеленый (включая регресс
+- [x] 6.1 Полный прогон: `pytest tests/` зеленый (включая регресс
       Спринтов 0–1); NFR-2 — grep-проверка параметризованного SQL в новых
       модулях (0 конкатенаций); NFR-3 — открытый пароль и подтверждение
       отсутствуют в логах/репозитории; password_hash НЕ выдается API:
@@ -213,3 +213,11 @@ sdd.md, раздел «Спринт 2, часть 1».
   frontend/index.html (модалка m-login).
 - 5.1 — собирает все (последняя точка правки существующего app.py).
 - 6.1 — последняя (полный прогон + валидации + design check).
+
+## Приемка 6.1 — зафиксирована ПМ (2026-10-12)
+
+- pytest tests/: 189 passed (вкл. регресс Спринтов 0–1, все домены потока инструктора)
+- apply avg 369 ms ≤ 500 ms — PASS (3 прогона: 418/350/339)
+- password_hash: только хранение (3 упоминания — INSERT/SELECT/перенос), не в ответах/логах — PASS
+- openspec validate --all --strict: 3 passed, 0 failed — PASS
+- flow_check: OK; code-review 9× approve; design check approve-with-notes; QA 52/52 approved

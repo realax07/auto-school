@@ -169,14 +169,57 @@ def login(data: LoginRequest, request: Request):
     conn = db.get_conn()
     try:
         row = conn.execute(
-            "SELECT id, password_hash FROM users WHERE email = ?", (data.email,)
+            "SELECT id, password_hash, role FROM users WHERE email = ?",
+            (data.email,),
         ).fetchone()
     finally:
         conn.close()
 
     if row is None:
-        # отсутствующая запись: фиктивная bcrypt-проверка (тайминг) + учет
-        bcrypt.checkpw(data.password.encode("utf-8"), _DUMMY_HASH)
+        # Записи users нет: заявка инструктора (§15.5) — параметризованный
+        # SELECT по email (последняя по created_at DESC на случай дублей).
+        conn = db.get_conn()
+        try:
+            app_row = conn.execute(
+                "SELECT status, review_comment, password_hash FROM instructor_applications WHERE email = ? ORDER BY created_at DESC, id DESC",
+                (data.email,),
+            ).fetchone()
+        finally:
+            conn.close()
+
+        if app_row is None:
+            # заявки нет: фиктивная bcrypt-проверка (тайминг) + единый 401
+            bcrypt.checkpw(data.password.encode("utf-8"), _DUMMY_HASH)
+            _record_failure(ip, now)
+            return _login_fail()
+
+        try:
+            password_ok = bcrypt.checkpw(
+                data.password.encode("utf-8"),
+                app_row["password_hash"].encode("utf-8"),
+            )
+        except ValueError:
+            password_ok = False
+        if not password_ok:
+            # неудачная попытка против заявки — единый учет по IP (§15.5)
+            _record_failure(ip, now)
+            return _login_fail()
+
+        if app_row["status"] == "waiting":
+            # waiting: сессия НЕ выдается — выдавать нечего (FR-13)
+            _reset_failures(ip)
+            return {"ok": True, "route": "pending"}
+        if app_row["status"] == "deny":
+            # deny: экран отказа с причиной, сессия НЕ выдается (FR-13)
+            _reset_failures(ip)
+            return {
+                "ok": True,
+                "route": "rejected",
+                "reason": app_row["review_comment"],
+            }
+
+        # статус вне контракта (аппрув без записи users — вырожденный случай):
+        # единый отказ, учет анти-брутфорса
         _record_failure(ip, now)
         return _login_fail()
 
@@ -194,7 +237,9 @@ def login(data: LoginRequest, request: Request):
     _reset_failures(ip)  # R-BF3: сброс счетчика при успехе
     token = secrets.token_urlsafe(32)
     _sessions[token] = (time.time() + _TOKEN_TTL_SECONDS, row["id"])
-    return {"ok": True, "token": token}
+    # §15.5: route по role (FR-13); ключи token/route в одном ответе
+    route = "cabinet" if row["role"] == "instructor" else "student-cabinet"
+    return {"ok": True, "token": token, "route": route}
 
 
 def _session_issue(user_id: int) -> str:

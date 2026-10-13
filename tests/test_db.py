@@ -20,6 +20,7 @@ EXPECTED_COLUMNS = {
     "email": "TEXT",
     "phone": "TEXT",
     "password_hash": "TEXT",
+    "role": "TEXT",
     "created_at": "TEXT",
 }
 
@@ -122,11 +123,210 @@ def test_tc_reg_001_init_db_idempotent(tmp_db):
     names = [
         r[0]
         for r in conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='users'"
+            "SELECT name FROM sqlite_master WHERE type='table' AND name IN"
+            " ('users', 'instructor_applications')"
         ).fetchall()
     ]
     conn.close()
-    assert names == ["users"]
+    assert sorted(names) == ["instructor_applications", "users"]
+
+
+# --- add-instructor-flow, задача 1.2 (sdd.md §16) ---
+
+
+@pytest.fixture()
+def legacy_db(tmp_path, monkeypatch):
+    """Унаследованная база Спринтов 0–1: только users БЕЗ role,
+    с существующей записью ученика."""
+    path = tmp_path / "legacy.db"
+    monkeypatch.setenv("AUTOSCHOOL_DB_PATH", str(path))
+    conn = sqlite3.connect(str(path))
+    conn.executescript(
+        """
+        CREATE TABLE users (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          surname TEXT NOT NULL,
+          name TEXT NOT NULL,
+          patronymic TEXT NOT NULL,
+          email TEXT NOT NULL UNIQUE,
+          phone TEXT NOT NULL,
+          password_hash TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        INSERT INTO users (surname, name, patronymic, email, phone, password_hash)
+        VALUES ('Иванов', 'Иван', 'Иванович', 'legacy@example.com', '+79001234567', 'x' * 60);
+        """
+    )
+    conn.commit()
+    conn.close()
+    yield path
+
+
+APPLICATION_COLUMNS = {
+    "id": "INTEGER",
+    "surname": "TEXT",
+    "name": "TEXT",
+    "patronymic": "TEXT",
+    "email": "TEXT",
+    "phone": "TEXT",
+    "address": "TEXT",
+    "work_format": "TEXT",
+    "plate": "TEXT",
+    "license_number": "TEXT",
+    "license_date": "TEXT",
+    "license_category": "TEXT",
+    "experience": "TEXT",
+    "password_hash": "TEXT",
+    "status": "TEXT",
+    "review_comment": "TEXT",
+    "created_at": "TEXT",
+}
+
+
+def _columns(path, table):
+    conn = sqlite3.connect(str(path))
+    rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
+    conn.close()
+    return {name: ctype for (_, name, ctype, *_rest) in rows}
+
+
+def test_s2_instructor_applications_table_schema(tmp_db):
+    """1.2: instructor_applications — ровно колонки из design.md / sdd §16
+    (email UNIQUE проверяется отдельным тестом)."""
+    assert _columns(tmp_db, "instructor_applications") == APPLICATION_COLUMNS
+
+
+def test_s2_users_role_column_added_on_empty_db(tmp_db):
+    """1.2: init_db на пустой базе — users получает role TEXT NOT NULL
+    DEFAULT 'student'; новая запись без role — student."""
+    columns = _columns(tmp_db, "users")
+    assert columns["role"] == "TEXT"
+    conn = sqlite3.connect(str(tmp_db))
+    conn.execute(
+        "INSERT INTO users (surname, name, patronymic, email, phone, password_hash)"
+        " VALUES ('А', 'Б', 'В', 'new@example.com', '+79001234567', 'x' * 60)"
+    )
+    conn.commit()
+    role = conn.execute(
+        "SELECT role FROM users WHERE email = 'new@example.com'"
+    ).fetchone()[0]
+    conn.close()
+    assert role == "student"
+
+
+def test_s2_users_role_migration_on_legacy_db(legacy_db):
+    """1.2: init_db на унаследованной базе (Спринты 0–1, users без role)
+    поднимается без пересоздания: колонка role добавлена, существующая
+    запись остается учеником (role='student')."""
+    db.init_db()
+    columns = _columns(legacy_db, "users")
+    assert columns["role"] == "TEXT"
+    conn = sqlite3.connect(str(legacy_db))
+    row = conn.execute(
+        "SELECT surname, role FROM users WHERE email = 'legacy@example.com'"
+    ).fetchone()
+    conn.close()
+    assert row == ("Иванов", "student")
+
+
+def test_s2_role_migration_idempotent(tmp_db):
+    """1.2: повторный init_db не падает и не плодит колонки role."""
+    db.init_db()
+    db.init_db()
+    roles = [
+        name
+        for (_, name, *_rest) in sqlite3.connect(str(tmp_db))
+        .execute("PRAGMA table_info(users)")
+        .fetchall()
+        if name == "role"
+    ]
+    assert roles == ["role"]
+
+
+def test_s2_users_email_unique_preserved(tmp_db):
+    """1.2: UNIQUE users.email сохранен после миграции (FR-16)."""
+    conn = db.get_conn()
+    params = ("Иванов", "Иван", "Иванович", "a@b.ru", "+79001234567", "x" * 60)
+    conn.execute(
+        "INSERT INTO users (surname, name, patronymic, email, phone, password_hash)"
+        " VALUES (?, ?, ?, ?, ?, ?)",
+        params,
+    )
+    conn.commit()
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute(
+            "INSERT INTO users (surname, name, patronymic, email, phone, password_hash)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            params,
+        )
+    conn.close()
+
+
+def test_s2_instructor_applications_email_unique(tmp_db):
+    """1.2 (MAJ-1): UNIQUE instructor_applications.email — вторая линия
+    защиты apply: второй INSERT того же email → sqlite3.IntegrityError."""
+    conn = db.get_conn()
+    row = (
+        "Иванов",
+        "Иван",
+        "Иванович",
+        "dup@example.com",
+        "+79001234567",
+        "Москва, Тверская 1",
+        "own",
+        "А123АА 777",
+        "1234 567890",
+        "2020-05-01",
+        "B",
+        "хэш",
+    )
+    conn.execute(
+        "INSERT INTO instructor_applications (surname, name, patronymic, email,"
+        " phone, address, work_format, plate, license_number, license_date,"
+        " license_category, password_hash)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        row,
+    )
+    conn.commit()
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute(
+            "INSERT INTO instructor_applications (surname, name, patronymic, email,"
+            " phone, address, work_format, plate, license_number, license_date,"
+            " license_category, password_hash)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            row,
+        )
+    conn.close()
+
+
+def test_s2_instructor_applications_defaults(tmp_db):
+    """1.2: дефолты новой таблицы — status='waiting', review_comment='',
+    created_at = UTC-момент (±60 с)."""
+    conn = db.get_conn()
+    conn.execute(
+        "INSERT INTO instructor_applications (surname, name, patronymic, email,"
+        " phone, address, work_format, plate, license_number, license_date,"
+        " license_category, password_hash)"
+        " VALUES ('А', 'Б', 'В', 'def@example.com', '+79001234567', 'Москва',"
+        " 'sber', '', '1234 567890', '', 'B', 'хэш')"
+    )
+    conn.commit()
+    row = conn.execute(
+        "SELECT status, review_comment, created_at FROM instructor_applications"
+        " WHERE email = 'def@example.com'"
+    ).fetchone()
+    conn.close()
+    assert row["status"] == "waiting"
+    assert row["review_comment"] == ""
+    import re
+    from datetime import datetime, timezone
+
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}", row["created_at"])
+    parsed = datetime.strptime(row["created_at"], "%Y-%m-%d %H:%M:%S").replace(
+        tzinfo=timezone.utc
+    )
+    delta = abs((datetime.now(timezone.utc) - parsed).total_seconds())
+    assert delta < 60
 
 
 def test_tc_nfr_002_no_sql_concatenation_in_db_module():

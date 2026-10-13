@@ -1,0 +1,27 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#071015"><title>Заявка отклонена — СберАвтошкола</title><style>
+:root{--bg:#071015;--text:#f3f7f8;--muted:#a4b2ba;--green:#62eba0;--line:#ffffff20}*{box-sizing:border-box}body{margin:0;color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:radial-gradient(ellipse at 80% 30%,#0e754b30,transparent 34%),radial-gradient(ellipse at 10% 0%,#31596b26,transparent 32%),#071015;min-height:100vh}body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.13;background:linear-gradient(#ffffff08 1px,transparent 1px),linear-gradient(90deg,#ffffff08 1px,transparent 1px);background-size:52px 52px;mask-image:linear-gradient(#000,transparent 80%)}.wrap{width:min(1180px,calc(100% - 48px));margin:auto}header{height:82px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #ffffff12}.brand{display:flex;align-items:center;gap:10px;font-size:21px;font-weight:650;letter-spacing:-.04em}.check{width:31px;height:31px;flex:none;display:grid;place-items:center;border:3px solid var(--green);border-radius:50%;color:var(--green);font-size:20px;line-height:1;font-weight:500;transform:rotate(-8deg)}.brand b{color:var(--green)}.back{color:#bdc8ce;font-size:13px;text-decoration:none}.status-screen{display:grid;place-items:center;padding:70px 0 90px}.card{width:min(560px,100%);border:1px solid #ffffff23;background:linear-gradient(140deg,#1b2b34dc,#101c24e8 60%,#122d23d9);backdrop-filter:blur(22px);border-radius:25px;padding:40px 38px 34px;box-shadow:0 24px 70px #0005,inset 0 1px #ffffff0b;text-align:center}.icon{width:64px;height:64px;margin:0 auto 20px;display:grid;place-items:center;border-radius:50%;border:1px solid #ffffff1b;background:#ffffff06;color:#75e9a4;font-size:28px}.kicker{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:#82edaf}.card h1{font-size:clamp(26px,3vw,34px);letter-spacing:-.05em;line-height:1.08;font-weight:600;margin:14px 0 12px}.card p{font-size:13px;color:#a8b7bf;line-height:1.7;margin:0 auto;max-width:400px}.reason{margin:24px auto 6px;max-width:400px;text-align:left;border:1px solid #ffffff16;background:#ffffff05;border-radius:16px;padding:17px;color:#9eacb5;font-size:12px;line-height:1.6}.reason b{display:block;color:#eaf4ef;font-size:11px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px}.reason p{margin:0;max-width:none;color:#d5e1e0;font-size:12px}.actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:26px}.btn{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:12px;padding:14px 19px;font-size:12px;font-weight:700;cursor:pointer;text-decoration:none;color:inherit}.btn.primary{background:linear-gradient(120deg,#5aee9e,#19b96a);color:#062116;box-shadow:0 8px 25px #20c86d20}.btn.ghost{background:transparent;border:1px solid #ffffff24;color:#eaf1f3}footer{border-top:1px solid #ffffff12;padding:22px 0 28px;color:#74858e;font-size:10px}.foot{display:flex;justify-content:space-between;gap:15px}@media(max-width:560px){.wrap{width:calc(100% - 30px)}header{height:70px}.brand{font-size:17px}.check{width:27px;height:27px;font-size:17px;border-width:3px}.back{font-size:11px}.status-screen{padding:44px 0 60px}.card{padding:26px 20px 24px;border-radius:20px}.foot{flex-direction:column}}
+</style></head><body>
+<header class="wrap"><a class="brand" href="/instructors"><span class="check">✓</span><span><b>Сбер</b>Автошкола</span></a><a class="back" href="/instructors">← Вернуться на лендинг</a></header>
+<main class="wrap status-screen"><section class="card">
+<div class="icon">⌁</div>
+<div class="kicker">Заявка инструктора</div>
+<h1>Заявка отклонена</h1>
+<p>К сожалению, заявку не удалось одобрить. Ты можешь подать заявку повторно, когда устранишь причину отказа.</p>
+<div class="reason" id="reason-block" style="display:none"><b>Причина отказа</b><p id="reason-text"></p></div>
+<div class="actions"><a class="btn primary" href="/">На главную</a><a class="btn ghost" href="/instructors">О лендинге для инструкторов</a></div>
+</section></main>
+<footer><div class="wrap foot"><span>© СберАвтошкола · Концепция экрана регистрации</span><span>Защита персональных данных должна быть настроена до запуска</span></div></footer>
+<script>
+// Экран отказа (задача 4.3, FR-17/FR-13): причина — из ответа логина (sdd §15.5,
+// ключ reason, ключ sessionStorage 'instructor_rejected_reason' — пишет модалка
+// входа при route=rejected, задача 4.5). Статус при загрузке НЕ проверяется.
+// Пусто/нет ключа — экран без персональной причины (чужую не раскрываем, design).
+try {
+  var reason = sessionStorage.getItem('instructor_rejected_reason');
+  if (reason) {
+    document.getElementById('reason-text').textContent = reason;
+    document.getElementById('reason-block').style.display = '';
+  }
+} catch (e) { /* sessionStorage недоступен — без причины */ }
+</script>
+</body></html>
