@@ -2,7 +2,7 @@
 
 # Code Review (повторное): задача 2.2 change add-instructor-cabinet — wiring модалки входа (route-редирект)
 
-## Вердикт: return
+## Вердикт: approve (реворк 0048069; исходный вердикт по 863f575 был возвратным — снят, см. «Реворк (0048069)»)
 
 | Параметр | Значение |
 |---|---|
@@ -60,3 +60,44 @@ instructor-dashboard) покрывает только scenario route='cabinet' �
 change add-instructor-flow. Если ПМ выберет вариант (б) MAJ-1 — это дефект
 описания задачи, эскалируется отдельно; он не снимает MAJ-2 (тесты «Готовности»
 нужны в любом из вариантов).
+
+## Реворк (0048069)
+
+Реворк-дифф: 0048069 (feature/s2c-dashboard, HEAD, дерево чистое) — frontend/index.html (+5/−3), tests/test_login_modal.py (+17). Проверено чтением диффа, кода (frontend/index.html:115–133, backend/auth.py:200–260) и прогонами на этом SHA. Вариант (а) MAJ-1 утвержден ПМ и реализован.
+
+| Замечание | Вердикт |
+|---|---|
+| MAJ-1 | ЗАКРЫТО |
+| MAJ-2 | ЗАКРЫТО |
+| MIN-1 | ЗАКРЫТО |
+
+### MAJ-1 — ЗАКРЫТО (approve, вариант (а))
+
+- route-разбор вынесен из-под token-guard: условие смягчено до `res.status===200&&res.data.ok` (index.html:126), token-set стал опциональным (`if(res.data.token)`, :127), маппинг — цепочка if/else по всем четырем ветвям §15.5 (:129–132). Достижимость pending/rejected сверена с контрактом бэкенда: auth.py:219–227 возвращает `{ok:true, route:'pending'}` / `{ok:true, route:'rejected', reason}` без токена — теперь обе ветви реально выполняются.
+- rejected-причина пишется до редиректа: `sessionStorage.setItem('instructor_rejected_reason', res.data.reason||'')` (index.html:132) — ключ читается instructor-rejected.html:20, разрыв устранен. Пустой fallback (`||''`) согласован с дефолтным текстом страницы отказа.
+- Сценарий «cabinet → /instructor/dashboard» не изменен; регресс ученика (student-cabinet → /cabinet, fallback) сохранен (:133); сессия по-прежнему пишется до редиректа.
+- Примечание из прошлого ревью снято за нерелевантностью: выбран вариант (а), мертвых ветвей больше нет, эскалация формулировки tasks.md не требуется.
+
+### MAJ-2 — ЗАКРЫТО (approve)
+
+- Добавлен test_login_route_mapping_wiring (tests/test_login_modal.py:89–103): фрагменты всех четырех ветвей маппинга, факт записи `instructor_rejected_reason` и позиционный контроль `0 < idx_ok < idx_route` (route-разбор после `res.data.ok`, т.е. вне token-guard) — рекомендация закрыта полностью, включая pending/rejected-фрагменты и запись reason.
+- Фрагмент `location.href='/cabinet'` (теперь :84) корректен: после реворка он и правда в login-обработчике (fallback-ветвь), а не только в регистрационном, — актуализация, которую требовало замечание.
+- Тест выполнялся: `pytest tests/test_login_modal.py tests/test_auth_route.py tests/test_instructor_dashboard.py tests/test_instructor_pages.py` → 40 passed на 0048069 (было 39).
+
+### MIN-1 — ЗАКРЫТО (approve)
+
+- Комментарий (index.html:115–116) актуализирован: «Вход: POST /api/auth/login → route (§15.5): cabinet → /instructor/dashboard, student-cabinet → /cabinet, pending → /instructors/pending, rejected → /instructors/rejected» — соответствует контракту §15.5 и фактическому коду.
+
+### Верификация на SHA 0048069 (реворк-прогоны)
+
+- `pytest tests/` (полный, на 0048069) → **202 passed**, 0 failed (128s; flaky-тест NFR-1 из rev-002-4.1 зеленый в обоих прогонах). Внимание: запись «201 passed» в tasks.md:143 относится к прогону до реворк-коммита; фактический счетчик на этом SHA — 202 (в 0048069 добавлен 1 тест). Существенности не имеет (запись стала консервативнее факта), но при следующей актуализации «Приемки» число стоит синхронизировать.
+- `pytest tests/test_login_modal.py …` (профиль 2.2) → 40 passed.
+- Воспроизводимость исходного MAJ-1/MAJ-2 rev-002-4.1 подтверждена на 863f575 (worktree): 200 passed + 1 failed (тот же flaky timing-тест) — диагнозы прошлого ревью верны, снимаются настоящим approve.
+
+## Итоговый вердикт: approve
+
+Все три замечания (MAJ-1, MAJ-2, MIN-1) закрыты в 0048069 ровно по выбранному
+ПМ варианту (а), без расширения объема и без регресса. Вердикт действителен для
+SHA 0048069 (и потомков без изменений в затронутых файлах). Оставшаяся ошибка
+flow_check (J10 по 2.2/4.1) — та самая, что зафиксирована в rev-002-4.1 —
+снимается этим approve.
