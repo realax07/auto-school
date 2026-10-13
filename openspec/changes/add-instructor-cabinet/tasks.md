@@ -59,7 +59,7 @@ sdd.md, раздел «Спринт 2, часть 2» (§20–25).
       logout-вызов, чистит sessionStorage и уводит на `/`.
       FR: FR-18, FR-19, FR-20, FR-21, FR-22.
 
-- [ ] 2.2 [P] frontend/index.html — wiring модалки входа (m-login):
+- [x] 2.2 [P] frontend/index.html — wiring модалки входа (m-login):
       route 'cabinet' из ответа /api/auth/login ведет на
       /instructor/dashboard (было /instructor/cabinet-stub); остальные
       маршруты (student-cabinet → /cabinet, pending → /instructors/pending,
@@ -83,7 +83,7 @@ sdd.md, раздел «Спринт 2, часть 2» (§20–25).
 
 ## 4. Приемка
 
-- [ ] 4.1 Полный прогон: `pytest tests/` зеленый (включая регресс
+- [x] 4.1 Полный прогон: `pytest tests/` зеленый (включая регресс
       Спринтов 0–2.1); NFR-2 — grep-проверка параметризованного SQL в новом
       модуле (0 конкатенаций); NFR-3 — токены/заголовки не в логах;
       `openspec validate --all --strict` зеленый; `python3
@@ -136,3 +136,10 @@ sdd.md, раздел «Спринт 2, часть 2» (§20–25).
 - 4.1 — последняя (полный прогон + валидации + design check).
 - 5.1–5.4 — независимые доработки по MIN-1…MIN-4 review-001-3.1; не
   блокируют 4.1, но рекомендованы к закрытию до review-002.
+
+
+## Приемка — зафиксирована ПМ (2026-10-13)
+
+- pytest tests/: 201 passed (вкл. регресс Спринтов 0–1 и потока инструктора 2.1)
+- openspec validate --all --strict: 4 passed
+- flow_check: OK; code-review approve (review-002); design check approve-with-notes; QA 18/18 approved
