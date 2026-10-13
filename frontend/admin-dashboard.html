@@ -34,7 +34,8 @@ tr:hover td{background:rgba(73,236,154,.04)}
 <aside>
   <div class="logo"><span class="check">✓</span><span><em>Сбер</em>Автошкола</span></div>
   <nav class="nav">
-    <button class="active">◉ Пользователи</button>
+    <button class="active" onclick="showSection('users',this)">◉ Пользователи</button>
+    <button onclick="showSection('applications',this)">⧉ Заявки инструкторов</button>
     <button class="soon" onclick="soon()" title="Появится в следующем спринте">▦ Отношения</button>
     <button class="soon" onclick="soon()" title="Появится в следующем спринте">⌗ Расписания</button>
     <button class="soon" onclick="soon()" title="Появится в следующем спринте">₽ Платежи</button>
@@ -53,6 +54,24 @@ tr:hover td{background:rgba(73,236,154,.04)}
     <tbody id="rows"></tbody>
   </table>
   <div class="empty" id="empty">Записей пока нет</div>
+
+  <div id="sec-applications" style="display:none">
+    <div class="top"><h1>Заявки инструкторов</h1><div class="spacer"></div></div>
+    <div class="toolbar"><span class="count" id="app-count"></span></div>
+    <table>
+      <thead><tr><th>ФИО</th><th>Email</th><th>Телефон</th><th>Формат</th><th>ВУ</th><th>Стаж</th><th>Статус</th><th>Действия</th></tr></thead>
+      <tbody id="app-rows"></tbody>
+    </table>
+    <div class="empty" id="app-empty">Заявок пока нет</div>
+    <div id="deny-box" style="display:none;margin-top:14px">
+      <label style="display:block;font-size:12px;color:#9eabb4;margin-bottom:7px">Причина отказа (обязательно):</label>
+      <textarea id="deny-comment" rows="3" style="width:100%;max-width:520px;background:#0a1117;border:1px solid #ffffff1c;color:#f1f5f6;border-radius:10px;padding:10px;font:inherit;font-size:13px"></textarea>
+      <div style="margin-top:10px;display:flex;gap:10px">
+        <button class="btn-export" onclick="submitDeny()">Отклонить</button>
+        <button class="btn-export" onclick="cancelDeny()">Отмена</button>
+      </div>
+    </div>
+  </div>
 </main>
 </div>
 <script>
@@ -99,5 +118,76 @@ function exportCsv(){
 }
 loadUsers();
 function soon(){alert('Заглушка: раздел появится в следующем спринте');}
+
+// --- Раздел «Заявки инструкторов» (change add-instructor-cabinet, правка Заказчика 2026-10-14) ---
+var DENY_ID=null;
+function showSection(name, btn){
+  document.querySelectorAll('.nav button').forEach(function(b){b.classList.remove('active');});
+  if(btn)btn.classList.add('active');
+  document.querySelector('table').style.display=name==='users'?'':'none';
+  document.getElementById('empty').style.display=name==='users'?'':'none';
+  document.querySelector('.toolbar').style.display=name==='users'?'':'none';
+  document.getElementById('sec-applications').style.display=name==='applications'?'block':'none';
+  if(name==='applications')loadApplications();
+}
+function loadApplications(){
+  fetch('/api/admin/instructor-applications',{headers:{'X-Admin-Token':TOKEN}})
+    .then(function(r){
+      if(r.status===401){location.href='/admin-login';throw new Error('unauthorized');}
+      return r.json();
+    })
+    .then(function(data){
+      var tb=document.getElementById('app-rows');
+      tb.innerHTML='';
+      document.getElementById('app-count').textContent='Заявок: '+data.count;
+      document.getElementById('app-empty').style.display=data.count?'none':'block';
+      data.applications.forEach(function(a){
+        var tr=document.createElement('tr');
+        function td(text){var c=document.createElement('td');c.textContent=text||'—';return c;}
+        tr.appendChild(td(a.fio));tr.appendChild(td(a.email));tr.appendChild(td(a.phone));
+        tr.appendChild(td(a.work_format==='own'?'Свой автомобиль':'Авто Сбера'));
+        tr.appendChild(td(a.license_number));tr.appendChild(td(a.experience));
+        var st=document.createElement('td');var sp=document.createElement('span');sp.className='badge';
+        sp.textContent=a.status==='waiting'?'На рассмотрении':a.status==='approved'?'Одобрена':'Отклонена';
+        st.appendChild(sp);tr.appendChild(st);
+        var act=document.createElement('td');
+        if(a.status==='waiting'){
+          var ok=document.createElement('button');ok.className='btn-export';ok.textContent='Одобрить';
+          ok.onclick=function(){approve(a.id);};
+          var no=document.createElement('button');no.className='btn-export';no.textContent='Отклонить';
+          no.style.marginLeft='8px';no.onclick=function(){showDeny(a.id);};
+          act.appendChild(ok);act.appendChild(no);
+        }else{act.textContent='—';}
+        tr.appendChild(act);
+        // клик по строке — детали (раскрытие)
+        tr.style.cursor='pointer';
+        tr.appendChild; // noop
+        tb.appendChild(tr);
+      });
+    }).catch(function(e){if(e.message!=='unauthorized')console.error(e);});
+}
+function approve(id){
+  if(!confirm('Одобрить заявку? Будет создана учетная запись инструктора.'))return;
+  fetch('/api/admin/instructor-applications/'+id+'/approve',{method:'POST',headers:{'X-Admin-Token':TOKEN}})
+    .then(function(r){return r.json().then(function(d){return {status:r.status,data:d};});})
+    .then(function(res){
+      if(res.status===200&&res.data.ok){loadApplications();}
+      else{alert((res.data&&res.data.error)||'Ошибка');}
+    });
+}
+function showDeny(id){DENY_ID=id;document.getElementById('deny-box').style.display='block';document.getElementById('deny-comment').value='';}
+function cancelDeny(){DENY_ID=null;document.getElementById('deny-box').style.display='none';}
+function submitDeny(){
+  var comment=document.getElementById('deny-comment').value.trim();
+  if(!comment){alert('Причина отказа обязательна');return;}
+  fetch('/api/admin/instructor-applications/'+DENY_ID+'/deny',{
+    method:'POST',headers:{'X-Admin-Token':TOKEN,'Content-Type':'application/json'},
+    body:JSON.stringify({comment:comment})})
+    .then(function(r){return r.json().then(function(d){return {status:r.status,data:d};});})
+    .then(function(res){
+      if(res.status===200&&res.data.ok){cancelDeny();loadApplications();}
+      else{alert((res.data&&res.data.error)||'Ошибка');}
+    });
+}
 </script>
 </body></html>
