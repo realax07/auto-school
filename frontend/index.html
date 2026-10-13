@@ -112,7 +112,8 @@
       })
       .catch(function(){err.textContent='Ошибка сети';err.style.display='block';});
   });
-  // Вход: fetch POST /api/auth/login → sessionStorage['session_token'] → /cabinet (sdd §10.1)
+  // Вход: POST /api/auth/login → route (§15.5): cabinet → /instructor/dashboard,
+  // student-cabinet → /cabinet, pending → /instructors/pending, rejected → /instructors/rejected
   document.getElementById('login-submit').addEventListener('click',function(){
     var err=document.getElementById('login-error');
     err.style.display='none';
@@ -123,10 +124,13 @@
     fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
       .then(function(r){return r.json().then(function(d){return {status:r.status,data:d}})})
       .then(function(res){
-        if(res.status===200&&res.data.ok&&res.data.token){
-          sessionStorage.setItem('session_token',res.data.token);
+        if(res.status===200&&res.data.ok){
+          if(res.data.token){try{sessionStorage.setItem('session_token',res.data.token);}catch(e){}}
           var route=res.data.route||'student-cabinet';
-          location.href=route==='cabinet'?'/instructor/dashboard':route==='pending'?'/instructors/pending':route==='rejected'?'/instructors/rejected':'/cabinet';
+          if(route==='cabinet'){location.href='/instructor/dashboard';}
+          else if(route==='pending'){location.href='/instructors/pending';}
+          else if(route==='rejected'){try{sessionStorage.setItem('instructor_rejected_reason',res.data.reason||'');}catch(e){}location.href='/instructors/rejected';}
+          else{location.href='/cabinet';}
         }
         else{err.textContent=(res.data&&res.data.error)||'Неверный email или пароль';err.style.display='block';}
       })
