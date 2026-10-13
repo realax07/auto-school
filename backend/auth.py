@@ -94,6 +94,14 @@ def _session_user_id(token: str | None) -> int | None:
     return user_id
 
 
+def session_user_id(token: str | None) -> int | None:
+    """Публичный helper проверки сессии для других модулей (dashboard.py):
+    обертка над _session_user_id — контрактное тело 401 {\"ok\": false}
+    без обращения к приватному символу (review-001-3.1 MIN-1). Семантика
+    та же: ленивая чистка истекших, None на неверном токене (§10.3)."""
+    return _session_user_id(token)
+
+
 def require_session(
     x_session_token: str | None = Header(default=None, alias="X-Session-Token"),
 ) -> int:

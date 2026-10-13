@@ -39,7 +39,7 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
     <button data-tab="Профиль и документы"><span class="ico">✎</span>Профиль и документы<small class="demo-tag">демо</small></button>
     <button class="side-logout" data-tab="__logout__"><span class="ico">⎋</span>Выход</button>
   </nav>
-  <div class="side-bottom"><strong>Демо-кабинет</strong><p>Все данные вымышлены — реальное содержимое разделов появится позже.</p><button onclick="logout()">Выйти из кабинета</button></div>
+  <div class="side-bottom"><button onclick="logout()">Выйти из кабинета</button></div>
 
   <div id="profile-panel" style="display:none;padding:14px;border:1px solid #ffffff13;border-radius:15px;background:#ffffff04;margin-top:14px"><strong style="font-size:12px">Профиль и документы</strong><p style="font-size:11px;color:#8d9da6;line-height:1.5;margin:7px 0 12px">Раздел «демо» — реальные документы подключаются позже.</p><button style="width:100%;background:#143222;border:1px solid #2e6a47;color:#a2f5bf;border-radius:10px;padding:10px;font-size:11px" onclick="logout()">Выйти</button></div>
 
@@ -128,7 +128,7 @@ fetch('/api/instructor/dashboard',{headers:{'X-Session-Token':token}})
     var i=res.data.instructor||{};
     var fio=[i.surname,i.name,i.patronymic].filter(Boolean).join(' ');
     document.querySelector('.user b').textContent=fio;
-    var initials=((i.surname||' ').trim()[0]+(i.name||' ').trim()[0]).toUpperCase();
+    var initials=[(i.surname||'').trim()[0],(i.name||'').trim()[0]].filter(Boolean).join('').toUpperCase();
     document.querySelector('.avatar').textContent=initials;
   })
   .catch(function(){toLogin()});

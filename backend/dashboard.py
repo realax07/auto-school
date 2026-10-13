@@ -110,9 +110,10 @@ def instructor_dashboard(
 ):
     """Данные кабинета инструктора (§20.1): сессия → SELECT users по id →
     проверка role='instructor' → демо-данные макета + ФИО."""
-    # Проверка сессии — та же механика, что require_session, но контрактное
+    # Проверка сессии — публичный helper auth.session_user_id (обертка над
+    # _session_user_id, MIN-1): механика require_session, но контрактное
     # тело {"ok": false} вместо {"detail": ...} (паттерн auth.logout/me).
-    user_id = auth._session_user_id(x_session_token)
+    user_id = auth.session_user_id(x_session_token)
     if user_id is None:
         return _unauthorized()
 

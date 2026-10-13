@@ -29,10 +29,12 @@ TC-FR18D-001…TC-FR18D-009 (до утверждения кейсов QA-цик�
 approve → login (по паттерну test_auth_route.py).
 """
 import sqlite3
+import time
 from pathlib import Path
 
 import pytest
 
+import backend.auth as auth
 from conftest import admin_headers, db_path, register
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -102,6 +104,22 @@ def test_dashboard_401_invalid_token(client):
     resp = client.get(DASH, headers=_headers("not-a-real-token"))
     assert resp.status_code == 401
     assert resp.json() == {"ok": False}
+
+
+def test_dashboard_401_expired_session_ttl(client, instructor, monkeypatch):
+    """Сценарий «Сессия истекла (TTL 12 ч)» (TC-FR18D-002, MIN-3):
+    запись с истекшим expires кладется в auth._sessions напрямую — 401
+    {"ok": false}, ленивая чистка удаляет запись (без sleep)."""
+    monkeypatch.setitem(
+        auth._sessions, instructor["token"], (time.time() - 1, 1)
+    )
+    assert instructor["token"] in auth._sessions
+
+    resp = client.get(DASH, headers=_headers(instructor["token"]))
+    assert resp.status_code == 401
+    assert resp.json() == {"ok": False}
+    # ленивая чистка: истекшая запись вычищена при проверке
+    assert instructor["token"] not in auth._sessions
 
 
 def test_dashboard_401_after_logout(client, instructor):

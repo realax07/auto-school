@@ -100,26 +100,26 @@ sdd.md, раздел «Спринт 2, часть 2» (§20–25).
 > (verdict: return; MIN-замечания не блокируют, рекомендовано закрыть MIN-1
 > и MIN-2). После доработки — повторное ревью review-002 по новому SHA.
 
-- [ ] 5.1 [P] MIN-1 (backend/dashboard.py, backend/auth.py): эндпоинт
+- [x] 5.1 [P] MIN-1 (backend/dashboard.py, backend/auth.py): эндпоинт
       кабинета использует приватный auth._session_user_id ради контрактного
       тела {"ok": false} (обход require_session). Expose-нуть в auth.py
       переиспользуемый публичный helper (например, session_user_id() или
       require_session_contract()), dashboard.py — использовать его. Семантика
       401 не меняется (ленивая чистка истекших, None на неверном токене).
       FR: FR-18. Зависит от: —.
-- [ ] 5.2 [P] MIN-2 (frontend/instructor-dashboard.html:42): блок сайдбара
+- [x] 5.2 [P] MIN-2 (frontend/instructor-dashboard.html:42): блок сайдбара
       «Демо-кабинет» (side-bottom) — контент не из мокапа и не в перечне
       wiring-отличий design.md (их ровно пять). Либо зафиксировать блок в
       design.md как шестое wiring-отличие, либо оставить прямую кнопку выхода
       (FR-22) без нового сопроводительного текста.
       FR: FR-19 (ключевые блоки не затронуты). Зависит от: —.
-- [ ] 5.3 [P] MIN-3 (tests/test_instructor_dashboard.py): сценарий «Сессия
+- [x] 5.3 [P] MIN-3 (tests/test_instructor_dashboard.py): сценарий «Сессия
       истекла (TTL 12 ч)» не покрыт отдельным тестом (TC-FR18D-002 проверяет
       401 только на неверном токене). Добавить тест, кладущий запись с
       истекшим expires в auth._sessions напрямую, либо явно записать в «не
       проверено» приемки 4.1. Поведение идентично (ленивая чистка) — риск
       низкий. FR: FR-18. Зависит от: —.
-- [ ] 5.4 [P] MIN-4 (frontend/instructor-dashboard.html, wiring-скрипт):
+- [x] 5.4 [P] MIN-4 (frontend/instructor-dashboard.html, wiring-скрипт):
       инициалы аватара без guard на короткие поля — при пустом surname/name
       после trim [0] даст undefined (артефакт вплоть до «NAN»). Случай
       вырожденный (поля NOT NULL, register требует patronymic), но добавить
