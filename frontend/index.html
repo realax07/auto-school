@@ -125,7 +125,8 @@
       .then(function(res){
         if(res.status===200&&res.data.ok&&res.data.token){
           sessionStorage.setItem('session_token',res.data.token);
-          location.href='/cabinet';
+          var route=res.data.route||'student-cabinet';
+          location.href=route==='cabinet'?'/instructor/dashboard':route==='pending'?'/instructors/pending':route==='rejected'?'/instructors/rejected':'/cabinet';
         }
         else{err.textContent=(res.data&&res.data.error)||'Неверный email или пароль';err.style.display='block';}
       })
