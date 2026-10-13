@@ -49,7 +49,7 @@ def test_instructors_landing_texts_verbatim():
     mockup = (MOCKS / "landing-instructors.html").read_text(encoding="utf-8")
     fragments = [
         "<title>СберАвтошкола — для инструкторов</title>",
-        '<span>СберАвтошкола<small>Платформа для инструкторов</small></span>',
+        '<span><b style="color:var(--green);font-weight:650">Сбер</b>Автошкола<small>Платформа для инструкторов</small></span>',
         "Учи водить.<br><span>Меняй подход.</span>",
         "Подключайся к СберАвтошколе, работай с учениками и управляй занятиями в удобном цифровом формате. Выбирай, на каком автомобиле работать.",
         "Понятный процесс подключения · Цифровые инструменты · Прозрачные условия",
