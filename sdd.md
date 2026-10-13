@@ -547,3 +547,117 @@ CREATE TABLE IF NOT EXISTS instructor_applications (
 Кабинет инструктора (dashboard-instructor.html — следующий объем), загрузка
 файла ВУ, вход водителей через футер лендинга, поток водителей, восстановление/
 смена пароля, email/SMS-уведомления о статусе заявки.
+
+---
+
+# SDD (дополнение): Кабинет инструктора (Спринт 2, часть 2)
+
+> Системный дизайн change `add-instructor-cabinet`. Источник решений —
+> requirements-instructor-cabinet.md (УТВЕРЖДЕН, FR-18…FR-22, NFR-2/3),
+> research.md и design.md пакета openspec/changes/add-instructor-cabinet/,
+> утвержденный макет design/mocks/dashboard-instructor.html. Механики
+> Спринтов 0–2.1 переиспользуются без изменения: сессии/require_session (§9),
+> /api/auth/me (§10.3), logout (§10.2), route-механика (§15.5). Спринты 0–2.1
+> не меняются (контракты не затронуты; схема БД не меняется).
+
+## 20. API-контракты (Спринт 2, часть 2)
+
+Общие правила §3/§10 действуют: Content-Type JSON; 401 тело —
+`{"ok": false}`.
+
+### 20.1 GET /api/instructor/me
+
+- Заголовок: `X-Session-Token: <token>` (механика require_session, §10.3).
+- Порядок проверок:
+  1) сессия отсутствует / неверна / истекла → `401 {"ok": false}`;
+  2) SELECT users по user_id сессии (`?`-плейсхолдер) — записи нет →
+     `401 {"ok": false}` (вырожденный случай);
+  3) `role != 'instructor'` → `403 {"ok": false}` (сессия валидна, роль не
+     та — FR-18; distinct от 401 «нет сессии»);
+  4) ok → `200 {"ok": true, "user": {"id": int, "surname": string,
+     "name": string, "patronymic": string, "email": string}}` — состав как
+     §10.3.
+- Назначение: единая точка данных + серверной проверки роли кабинета
+  (FR-18, FR-20). Закрывает техдолг design.md add-instructor-flow (поток 4:
+  «при реальном кабинете — обязательная серверная проверка роли
+  (require_session + role)»).
+- Контракт /api/auth/me (§10.3) НЕ меняется (без ключа role — нет регресса
+  Спринтов 1–2.1).
+
+### 20.2 Существующие контракты — без изменений
+
+- POST /api/auth/login (§15.5): route='cabinet' для role='instructor' —
+  как есть. Меняется только фронт-назначение (§22): route 'cabinet' →
+  /instructor/dashboard.
+- POST /api/auth/logout (§10.2): без изменений; фронт кабинета использует
+  как есть (FR-22).
+
+## 21. Компоненты (Спринт 2, часть 2)
+
+```
+Браузер
+  │  статика: /instructor/dashboard
+  │  fetch JSON API (X-Session-Token)
+  ▼
+FastAPI (uvicorn, single-worker)
+  instructor_dashboard.py — НОВЫЙ: GET /api/instructor/me (§20.1)
+  app.py                — + маршрут /instructor/dashboard, + include роутера
+                          (единственная правка существующего бэка)
+  auth.py, instructors.py, instructor_admin.py, register.py, admin.py,
+  db.py, config.py — БЕЗ ИЗМЕНЕНИЙ
+  ▼
+SQLite data/app.db (WAL) — users (§4 + role §16): схема НЕ меняется
+```
+
+## 22. Статика Спринта 2, часть 2
+
+- `/instructor/dashboard` → `frontend/instructor-dashboard.html` (мокап
+  dashboard-instructor.html дословно; wiring: GET /api/instructor/me до
+  отрисовки — 401/403 → редирект `/` (к модалке входа); ФИО шапки =
+  «{surname} {name} {patronymic}», инициалы аватара — первые буквы фамилии
+  и имени (FR-20); сайдбар достраивается nav-кнопками по перечню FR-19 на
+  готовых .nav-стилях и navTo мокапа (допущение proposal: в исходном HTML
+  кнопки отсутствуют, стили/механика заданы); у разделов (кроме «Мой день»)
+  пометка «демо» (FR-21); выход — элемент в «Профиль и документы» + прямая
+  кнопка → POST /api/auth/logout → очистка sessionStorage → редирект `/`
+  (FR-22); интерактив мокапа сохраняется; демо-строка «Инструктор ·
+  Категория B» не подменяется (допущение proposal)).
+- `frontend/index.html` — модалка входа: route 'cabinet' →
+  /instructor/dashboard (было /instructor/cabinet-stub); остальные маршруты
+  и тексты — без изменений.
+- `/instructor/cabinet-stub` — остается страницей (спека instructor-auth
+  Спринта 2.1 в силе).
+
+## 23. Модель данных (Спринт 2, часть 2)
+
+Без изменений: users (§4 + role §16) достаточна. Новый SQL домена — один
+параметризованный SELECT users по id (§20.1, NFR-2). Демо-данные кабинета —
+статика фронта, в БД не хранятся.
+
+## 24. Решения по НФТ (Спринт 2, часть 2)
+
+| NFR | Решение | Контроль |
+|---|---|---|
+| NFR-2: параметризованный SQL | Единственный новый запрос (§20.1 SELECT по id) — `?`-плейсхолдер через db-слой | Тест + grep-ревью нового модуля |
+| NFR-3: токены/секреты не в логах | Токен — sessionStorage + память процесса (как Спринт 1); /api/instructor/me не логирует заголовки и ответ; .env-механика §5 без изменений | Тест логов + проверка git-статуса |
+
+## 25. Трассировка (Спринт 2, часть 2)
+
+| Требование | Requirement (домен) | Задача (tasks.md) |
+|---|---|---|
+| FR-18 | instructor-dashboard / Доступ к кабинету инструктора | 1.1, 2.1, 3.1 |
+| FR-19 | instructor-dashboard / Соответствие утвержденному макету кабинета | 2.1, 4.1 (design check) |
+| FR-20 | instructor-dashboard / ФИО инструктора из учетной записи | 1.1, 2.1 |
+| FR-21 | instructor-dashboard / Разделы сайдбара — визуальное переключение на демо-данных | 2.1, 4.1 (design check) |
+| FR-22 | instructor-dashboard / Выход из кабинета | 2.1 |
+| NFR-2 | (сквозное) | 1.1, 4.1 |
+| NFR-3 | (сквозное) | 1.1, 4.1 |
+
+Правило полноты: нет Requirement без источника в ТЗ; нет Must-требования
+без Requirement (контракт 2/7).
+
+## 26. Вне спринта 2, часть 2 (зафиксировано)
+
+Реальное расписание, доходы/выплаты, ученики, материалы, автомобиль,
+профиль-документы (разделы — демо-заглушки, FR-21), загрузка файлов,
+реальная категория ВУ в шапке, refresh-токены, multi-worker сессии.
