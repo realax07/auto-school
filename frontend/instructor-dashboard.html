@@ -40,10 +40,11 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
     <button data-tab="__logout__"><span class="ico">⎋</span>Выход</button>
   </nav>
   <div class="side-bottom"><strong>Нужна помощь?</strong><p>Поддержка инструкторов поможет разобраться с расписанием, выплатами и подключением.</p><button onclick="toast('Раздел поддержки — демонстрационный макет')">Связаться с поддержкой ↗</button></div>
+</aside>
 
 <main>
-  <div class="topbar"><div><div class="crumb">Рабочее пространство / <span id="crumb">Мой день</span></div><h1 id="page-title">Мой день</h1></div><div class="top-actions"><div class="date-chip">◷ &nbsp; Пн, 12 октября 2026</div><button class="icon-btn" onclick="toast('Новых уведомлений нет')">♧</button><div class="user"><div class="avatar">МС</div><div><b>Михаил Самойлов</b><small>Инструктор · Категория B</small></div></div></div></div>
-  <div class="hello"><div><div class="kicker">Понедельник · 12 октября</div><h2>Добрый день, Михаил</h2><p>Вот что у тебя сегодня. Всё под контролем.</p></div><div class="online"><i></i> Профиль активен</div></div>
+  <div class="topbar"><div><div class="crumb">Рабочее пространство / <span id="crumb">Мой день</span></div><h1 id="page-title">Мой день</h1></div><div class="top-actions"><div class="date-chip">◷ &nbsp; Пн, 12 октября 2026</div><button class="icon-btn" onclick="toast('Новых уведомлений нет')">♧</button><div class="user"><div class="avatar" id="avatar">—</div><div><b id="user-fio">…</b><small>Инструктор</small></div></div><button class="icon-btn" onclick="logout()" title="Выйти">⎋</button></div></div>
+  <div class="hello"><div><div class="kicker">Понедельник · 12 октября</div><h2 id="hello-name">Добрый день, Михаил</h2><p>Вот что у тебя сегодня. Всё под контролем.</p></div><div class="online"><i></i> Профиль активен</div></div>
   <section class="stats">
     <article class="card stat"><div class="stat-head">Заработано за месяц <span class="stat-icon">₽</span></div><div class="value">84 600 <small>₽</small></div><div class="stat-foot"><span class="trend">↗ +12%</span> <span>к прошлому месяцу</span></div></article>
     <article class="card stat"><div class="stat-head">Отработано часов <span class="stat-icon">◷</span></div><div class="value">62 <small>ч</small></div><div class="stat-foot"><span class="trend neutral">из 80 ч</span><span>план на месяц</span></div></article>
@@ -101,6 +102,17 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
 </div>
 <div class="toast" id="toast"></div>
 <script>
+// FR-20: ФИО из учетной записи; приветствие по имени (правка Заказчика 2026-10-14)
+fetch('/api/auth/me',{headers:{'X-Session-Token':sessionStorage.getItem('session_token')||''}})
+  .then(function(r){if(!r.ok){location.href='/';return;}return r.json();})
+  .then(function(d){if(!d||!d.ok){return;}
+    var u=d.user||{};
+    var fio=[u.surname,u.name,u.patronymic].filter(Boolean).join(' ');
+    document.getElementById('user-fio').textContent=fio||'Инструктор';
+    var ini=((u.surname||'')[0]||'')+((u.name||'')[0]||'');
+    document.getElementById('avatar').textContent=ini||'—';
+    if(u.name){document.getElementById('hello-name').textContent='Добрый день, '+u.name;}
+  }).catch(function(){location.href='/';});
 let weekShift=0;
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>t.classList.remove('show'),2600)}
 function navTo(name){if(name==='__logout__'){logout();return}if(name==='Профиль и документы'){document.getElementById('profile-panel').style.display='block'}else{document.getElementById('profile-panel').style.display='none'}document.getElementById('page-title').textContent=name;document.getElementById('crumb').textContent=name;document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));if(name!=='Мой день')toast('Раздел «'+name+'» — демо-данные, следующий экран в концепции кабинета')}
