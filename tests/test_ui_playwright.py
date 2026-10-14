@@ -33,7 +33,8 @@ def page(browser):
 
 @instructors_only
 def test_landing_instructors_brand_and_cta(page):
-    """Лендинг: логотип «Сбер» зелёным, кнопки в шапке рядом, без hero-«Войти»."""
+    """TC-UI-001 (change add-instructor-cabinet): лендинг — логотип «Сбер»
+    зелёным, кнопки шапки рядом, hero-«Войти» отсутствует."""
     page.goto(f"{BASE}/instructors")
     assert page.locator(".brand b").inner_text() == "Сбер"
     color = page.locator(".brand b").evaluate("el => getComputedStyle(el).color")
@@ -48,7 +49,9 @@ def test_landing_instructors_brand_and_cta(page):
 
 @instructors_only
 def test_apply_page_fio_three_fields(page):
-    """Анкета: логотип 1в1, ФИО — три поля, иконка загрузки по центру."""
+    """TC-UI-002 (change add-instructor-cabinet): анкета — логотип 1в1
+    с лендингом (без подчеркивания), ФИО — три поля, иконка загрузки
+    по центру фрейма."""
     page.goto(f"{BASE}/instructors/apply")
     # бренд: «Сбер» без подчеркивания, зелёный
     b = page.locator(".brand b")
@@ -66,7 +69,8 @@ def test_apply_page_fio_three_fields(page):
 
 @instructors_only
 def test_login_modal_centered_and_cancel_returns(page):
-    """Войти → модалка по центру; Отмена возвращает на лендинг инструкторов."""
+    """TC-UI-003 (change add-instructor-cabinet): «Войти» → модалка входа
+    по центру экрана; Отмена возвращает на лендинг инструкторов."""
     page.goto(f"{BASE}/instructors")
     page.locator('.header-cta[data-open-login]').click()
     page.goto(f"{BASE}/")
