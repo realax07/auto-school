@@ -52,7 +52,9 @@ def _clean_bruteforce_state():
 def _apply(client, email="instr@example.com", password="Instr1234", **overrides):
     """Валидная анкета инструктора через реальный эндпоинт 1.1."""
     body = {
-        "fio": "Инструкторов Тест Отчествович",
+        "surname": "Инструкторов",
+        "name": "Тест",
+        "patronymic": "Отчествович",
         "phone": "+7 (911) 222-33-44",
         "email": email,
         "address": "г. Тест, ул. Полевая, 1",
