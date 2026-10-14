@@ -65,7 +65,9 @@ def _apply_body(email, password="Instr1234", **overrides):
     """Тело анкеты (набор test_auth_route._apply) без отправки — для
     прямых POST и таймингов."""
     body = {
-        "fio": "Инструкторов Тест Отчествович",
+        "surname": "Инструкторов",
+        "name": "Тест",
+        "patronymic": "Отчествович",
         "phone": "+7 (911) 222-33-44",
         "email": email,
         "address": "г. Тест, ул. Полевая, 1",
@@ -126,8 +128,8 @@ def _approve(client, email="instr@example.com"):
     [
         # шаг 1: обязательное поле раньше согласия и формата email
         (
-            {"fio": "", "email": "broken", "consent": False},
-            "ФИО: поле обязательно",
+            {"surname": "", "email": "broken", "consent": False},
+            "Фамилия: поле обязательно",
         ),
         # шаг 2 уже automated (test_apply_order_consent_checked_before_email_format)
         # шаг 3: формат email раньше длины телефона

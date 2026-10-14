@@ -30,7 +30,10 @@ PASSWORD = "Qwerty123"
 def valid_application(**overrides):
     """Базовый валидный набор анкеты (sdd §15.1)."""
     body = {
-        "fio": "Иванов Иван Иванович",
+        # правка Заказчика 2026-10-14: ФИО — три отдельных поля
+        "surname": "Иванов",
+        "name": "Иван",
+        "patronymic": "Иванович",
         "phone": "+7 (912) 345-67-89",
         "email": "instructor@example.com",
         "address": "Москва, Тверская 1, кв. 2",
@@ -152,7 +155,9 @@ def test_apply_integrityerror_second_line_of_defense(api_client):
 @pytest.mark.parametrize(
     "overrides, expected_error",
     [
-        ({"fio": ""}, "ФИО: поле обязательно"),
+        ({"surname": ""}, "Фамилия: поле обязательно"),
+        ({"name": ""}, "Имя: поле обязательно"),
+        ({"patronymic": ""}, "Отчество: поле обязательно"),
         ({"phone": ""}, "Телефон: поле обязательно"),
         ({"email": ""}, "Email: поле обязательно"),
         ({"address": ""}, "Адрес: поле обязательно"),
@@ -228,14 +233,13 @@ def test_apply_email_taken_in_applications(api_client):
     assert resp.json() == {"ok": False, "error": "Email: уже зарегистрирован"}
 
 
-def test_apply_fio_two_words_empty_patronymic(api_client):
-    """Разбор ФИО: два слова → отчество пустое (граничный случай разбора)."""
-    resp = apply_post(api_client, fio="Смирнов Павел")
-    assert resp.status_code == 200
-    row = fetch_application("instructor@example.com")
-    assert row["surname"] == "Смирнов"
-    assert row["name"] == "Павел"
-    assert row["patronymic"] == ""
+def test_apply_fio_three_required_fields(api_client):
+    """Правка Заказчика 2026-10-14: ФИО — три обязательных поля; пустые
+    surname/name → 422 «Фамилия: поле обязательно» (первая ошибка)."""
+    resp = apply_post(api_client, surname="", name="", patronymic="")
+    assert resp.status_code == 422
+    assert resp.json()["error"] == "Фамилия: поле обязательно"
+
 
 
 def test_apply_no_password_in_logs_or_response(api_client, caplog):

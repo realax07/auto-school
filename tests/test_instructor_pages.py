@@ -128,7 +128,7 @@ def test_apply_page_texts_verbatim():
         "Заполни поля, отмеченные звёздочкой. Остальные данные можно уточнить позднее.",
         "Этап 1 из 2",
         "Личные данные",
-        'placeholder="Иванов Иван Иванович" required>',
+        'placeholder="Иванов" required>',
         "Номер телефона",
         "Электронная почта",
         "Адрес фактического проживания",
@@ -204,7 +204,7 @@ def test_apply_submit_wiring():
     assert "'Content-Type':'application/json'" in js
     # поля контракта sdd §15.1 в теле запроса
     for field in (
-        "fio:", "phone:", "email:", "address:", "work_format:", "plate:",
+        "surname:", "phone:", "email:", "address:", "work_format:", "plate:",
         "license_number:", "license_date:", "license_category:", "experience:",
         "password:", "password_confirm:", "consent:",
     ):
@@ -224,7 +224,7 @@ def test_apply_submit_wiring():
     assert "license-file" not in js.split("payload={", 1)[1].split("};", 1)[0]
     # id полей совпадают с макетом (кроме добавленных password-полей)
     for element_id in (
-        "fio", "phone", "email", "address", "plate", "license-number",
+        "surname", "name", "patronymic", "phone", "email", "address", "plate", "license-number",
         "license-date", "license-category", "experience", "notice",
     ):
         assert f'id="{element_id}"' in html, element_id

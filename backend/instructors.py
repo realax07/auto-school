@@ -29,6 +29,11 @@ class InstructorApplyRequest(BaseModel):
     # MAJ-1: дефолты вместо Pydantic-required — валидация в хендлере.
     # ФИО анкеты — одним полем (макет); разбор на surname/name/patronymic
     # — в хендлере (users требует три). Файл ВУ в контракте отсутствует.
+    # ФИО: три отдельных поля (правка Заказчика 2026-10-14) либо fio одной
+    # строкой (обратная совместимость старых клиентов/тестов)
+    surname: str = ""
+    name: str = ""
+    patronymic: str = ""
     fio: str = ""
     phone: str = ""
     email: str = ""
@@ -60,7 +65,9 @@ def _validate(data: InstructorApplyRequest) -> str | None:
     """Фиксированный порядок проверок (sdd §15.1); возвращает первую ошибку."""
     # 1) обязательные поля (звездочка макета + пароль + подтверждение)
     required = [
-        ("fio", "ФИО"),
+        ("surname", "Фамилия"),
+        ("name", "Имя"),
+        ("patronymic", "Отчество"),
         ("phone", "Телефон"),
         ("email", "Email"),
         ("address", "Адрес"),
@@ -141,7 +148,12 @@ def instructor_apply(data: InstructorApplyRequest):
                         data.password.encode("utf-8"),
                         bcrypt.gensalt(rounds=_BCRYPT_ROUNDS),
                     ).decode("utf-8")
-                    surname, name, patronymic = _split_fio(data.fio.strip())
+                    if data.surname.strip() and data.name.strip():
+                        surname, name, patronymic = (data.surname.strip(),
+                                                     data.name.strip(),
+                                                     data.patronymic.strip())
+                    else:
+                        surname, name, patronymic = _split_fio(data.fio.strip())
                     conn.execute(
                         "INSERT INTO instructor_applications (surname, name,"
                         " patronymic, email, phone, address, work_format, plate,"

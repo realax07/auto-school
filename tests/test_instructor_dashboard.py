@@ -51,7 +51,9 @@ def instructor(client):
     resp = client.post(
         "/api/instructors/apply",
         json={
-            "fio": "Иванов Иван Иванович",
+            "surname": "Иванов",
+            "name": "Иван",
+            "patronymic": "Иванович",
             "phone": "+7 (911) 222-33-44",
             "email": "instr@example.com",
             "address": "г. Тест, ул. Полевая, 1",
