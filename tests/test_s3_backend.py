@@ -163,7 +163,10 @@ def fetch_request_row(request_id):
 
 
 def test_migration_creates_new_tables(client):
-    """Задача 7.1: 4 таблицы контура созданы init_db (TestClient startup)."""
+    """TC-S3BE-001 (change add-instructor-student-loop): миграция создаёт 4 таблицы контура и их индексы при init_db (сборка 7.1).
+
+    Задача 7.1: 4 таблицы контура созданы init_db (TestClient startup).
+    """
     conn = sqlite3.connect(db_path())
     tables = {
         row[0]
@@ -195,7 +198,10 @@ def test_migration_creates_new_tables(client):
 
 
 def test_migration_is_idempotent(client):
-    """Повторный init_db не падает и не дублирует колонки/таблицы."""
+    """TC-S3BE-002 (change add-instructor-student-loop): повторный init_db идемпотентен: колонки и таблицы не дублируются.
+
+    Повторный init_db не падает и не дублирует колонки/таблицы.
+    """
     import backend.db as db
 
     db.init_db()
@@ -212,7 +218,9 @@ def test_migration_is_idempotent(client):
 
 
 def test_migration_of_legacy_db_without_new_columns(client):
-    """База, в которой уже есть записи users, повторно проходит init_db
+    """TC-S3BE-003 (change add-instructor-student-loop): миграция существующей БД с записями users не пересоздает таблицы и не теряет данные.
+    База, в которой уже есть записи users, повторно проходит init_db
+
     без пересоздания: записи остаются, колонки/таблицы добавлены (механика
     users.role — Спринты 0–2 поднимаются без потери данных)."""
     register(client)  # запись users в чистую БД
@@ -234,7 +242,9 @@ def test_migration_of_legacy_db_without_new_columns(client):
 
 
 def test_cars_crud_happy_path(api, client):
-    """Сценарий «Добавленный автомобиль появляется в списке владельца» +
+    """TC-S3BE-004 (change add-instructor-student-loop): сценарий «Добавленный автомобиль появляется в списке владельца» (instructor-cars): создание, список, PATCH без затирания остальных полей (FR-26, FR-28).
+    Сценарий «Добавленный автомобиль появляется в списке владельца» +
+
     редактирование (FR-26, FR-28)."""
     instr = create_instructor(client)
     car_id = add_car(client, instr["token"])
@@ -263,7 +273,9 @@ def test_cars_crud_happy_path(api, client):
 
 
 def test_cars_validation_422_per_field(api, client):
-    """Сценарий «Невалидные данные автомобиля отклоняются» (FR-26):
+    """TC-S3BE-005 (change add-instructor-student-loop): сценарий «Невалидные данные автомобиля отклоняются» (instructor-cars): пустая марка, год вне диапазона, КПП, пустой госномер — 422 с фрагментом поля (FR-26).
+    Сценарий «Невалидные данные автомобиля отклоняются» (FR-26):
+
     пустая марка / некорректный год / КПП вне значений → 422."""
     instr = create_instructor(client)
     base_car = {
@@ -290,7 +302,9 @@ def test_cars_validation_422_per_field(api, client):
 
 
 def test_cars_access_401_403(api, client):
-    """Сценарий «Доступ к разделу без инструкторской сессии отклоняется»:
+    """TC-S3BE-006 (change add-instructor-student-loop): сценарий «Доступ к разделу без инструкторской сессии отклоняется» (instructor-cars): гость 401, ученик 403.
+    Сценарий «Доступ к разделу без инструкторской сессии отклоняется»:
+
     гость → 401, ученик → 403, список не возвращается."""
     resp = client.get("/api/instructor/cars")
     assert resp.status_code == 401
@@ -303,7 +317,9 @@ def test_cars_access_401_403(api, client):
 
 
 def test_car_not_visible_to_other_instructor_and_foreign_404(api, client):
-    """Сценарии «Автомобиль не виден другому инструктору» и «Чужой
+    """TC-S3BE-007 (change add-instructor-student-loop): сценарии «Автомобиль не виден другому инструктору» и «Чужой автомобиль не редактируется и не удаляется» (instructor-cars): 404 вместо 403, данные владельца целы.
+    Сценарии «Автомобиль не виден другому инструктору» и «Чужой
+
     автомобиль не редактируется и не удаляется» (404, не 403 — не
     раскрываем существование)."""
     first = create_instructor(client, email="first@example.com")
@@ -339,7 +355,9 @@ def test_car_not_visible_to_other_instructor_and_foreign_404(api, client):
 
 
 def test_car_photo_upload_and_owner_only(api, client, tmp_path):
-    """Сценарии фото (FR-27, MIN-2): JPEG привязан и выдается владельцу
+    """TC-S3BE-008 (change add-instructor-student-loop): сценарии фото автомобиля (instructor-cars): JPEG/PNG привязан и выдается владельцу; PDF и >5 МБ — 422; чужой инструктор 404, гость 401, ученик 403; без фото 404 (FR-27, MIN-2).
+    Сценарии фото (FR-27, MIN-2): JPEG привязан и выдается владельцу
+
     (image/jpeg); PDF/6 МБ → 422; другому инструктору/гостю не выдается;
     свой без фото → 404."""
     instr = create_instructor(client)
@@ -432,7 +450,9 @@ def test_car_photo_upload_and_owner_only(api, client, tmp_path):
 
 
 def test_car_delete_unbinds_student_keeps_link(api, client):
-    """Сценарий «Удаление автомобиля снимает привязку, связь с
+    """TC-S3BE-009 (change add-instructor-student-loop): сценарий «Удаление автомобиля снимает привязку, связь с инструктором сохраняется» (instructor-cars, ОВ-3): car_id NULL, статус accepted, ученик в summary.
+    Сценарий «Удаление автомобиля снимает привязку, связь с
+
     инструктором сохраняется» (ОВ-3): car_id → NULL, статус accepted."""
     instr = create_instructor(client)
     car_id = add_car(client, instr["token"])
@@ -464,7 +484,9 @@ def test_car_delete_unbinds_student_keeps_link(api, client):
 
 
 def test_availability_save_and_readback(api, client):
-    """Сценарии «Выделенный интервал помечается рабочим» и «График
+    """TC-S3BE-010 (change add-instructor-student-loop): сценарии «Выделенный интервал помечается рабочим» и «График восстанавливается после перезахода» (instructor-availability): PUT и чтение после нового логина (FR-29, FR-30).
+    Сценарии «Выделенный интервал помечается рабочим» и «График
+
     восстанавливается после перезахода» (FR-29, FR-30)."""
     instr = create_instructor(client)
     payload = {"intervals": [{"weekday": 0, "start_time": "10:00",
@@ -489,7 +511,9 @@ def test_availability_save_and_readback(api, client):
 
 
 def test_availability_full_replace_and_dedup(api, client):
-    """Сценарий «Изменение графика перезаписывает сохраненный» (FR-30);
+    """TC-S3BE-011 (change add-instructor-student-loop): сценарий «Изменение графика перезаписывает сохраненный» (instructor-availability): полная замена и схлопывание дубликатов (FR-30).
+    Сценарий «Изменение графика перезаписывает сохраненный» (FR-30);
+
     дубликаты схлопываются (design.md блок 3)."""
     instr = create_instructor(client)
     first = {"intervals": [{"weekday": 0, "start_time": "10:00",
@@ -521,7 +545,9 @@ def test_availability_full_replace_and_dedup(api, client):
 
 
 def test_availability_validation_422(api, client):
-    """Сценарий «Некорректный интервал отклоняется»: Пн 14:00–10:00 → 422,
+    """TC-S3BE-012 (change add-instructor-student-loop): сценарий «Некорректный интервал отклоняется» (instructor-availability): конец раньше начала, weekday вне 0..6, не-ЧЧ:ММ — 422, график не сохранен (FR-29).
+    Сценарий «Некорректный интервал отклоняется»: Пн 14:00–10:00 → 422,
+
     график не сохраняется; weekday вне 0..6 и не-ЧЧ:ММ → 422."""
     instr = create_instructor(client)
     bad = client.put(
@@ -549,7 +575,10 @@ def test_availability_validation_422(api, client):
 
 
 def test_availability_access_401_403(api, client):
-    """Сценарий «Доступ к календарю без инструкторской сессии отклоняется»."""
+    """TC-S3BE-013 (change add-instructor-student-loop): сценарий «Доступ к календарю без инструкторской сессии отклоняется» (instructor-availability): гость 401, ученик 403.
+
+    Сценарий «Доступ к календарю без инструкторской сессии отклоняется».
+    """
     assert client.get("/api/instructor/availability").status_code == 401
     student = create_student(client)
     resp = client.get(
@@ -562,7 +591,9 @@ def test_availability_access_401_403(api, client):
 
 
 def test_apply_multipart_saves_license_image(api, client, tmp_path):
-    """Сценарий «Заявка с изображением ВУ сохраняет файл» (FR-23): файл в
+    """TC-S3BE-014 (change add-instructor-student-loop): сценарий «Заявка с изображением ВУ сохраняет файл» (instructor-documents): файл в каталоге license, license_photo_path в заявке; без файла — заявка с NULL (FR-23).
+    Сценарий «Заявка с изображением ВУ сохраняет файл» (FR-23): файл в
+
     data/uploads/license/ (env → tmp_path), license_photo_path в заявке;
     без файла — заявка создается с NULL (правило необязательности, задача
     3.3 не зафиксировала обязательность)."""
@@ -599,7 +630,9 @@ def test_apply_multipart_saves_license_image(api, client, tmp_path):
 
 
 def test_apply_rejects_bad_file_type_and_size(api, client):
-    """Сценарии «Файл недопустимого типа отклоняется» и «Файл больше 5 МБ
+    """TC-S3BE-015 (change add-instructor-student-loop): сценарии «Файл недопустимого типа отклоняется» и «Файл больше 5 МБ отклоняется» (instructor-documents): 422, заявка не создается; проверка по magic bytes (ОВ-5, NFR-6).
+    Сценарии «Файл недопустимого типа отклоняется» и «Файл больше 5 МБ
+
     отклоняется» (ОВ-5, NFR-6): 422, заявка НЕ создается; проверка по
     содержимому — JPEG-магия с image/png Content-Type тоже отвергается
     корректно (доверяем байтам, не заголовкам)."""
@@ -628,7 +661,9 @@ def test_apply_rejects_bad_file_type_and_size(api, client):
 
 
 def test_apply_experience_years_validation_and_transfer(api, client):
-    """MAJ-3 (arch-review итерация 2): стаж числом ≥ 0 → иначе 422;
+    """TC-S3BE-016 (change add-instructor-student-loop): стаж отрицательный/нечисловой — 422; approve переносит стаж в users.experience_years (instructor-documents, MAJ-3).
+    MAJ-3 (arch-review итерация 2): стаж числом ≥ 0 → иначе 422;
+
     approve переносит стаж в users.experience_years."""
     resp = apply_instructor(client, email="neg@example.com", experience_years=-1)
     assert resp.status_code == 422
@@ -649,7 +684,9 @@ def test_apply_experience_years_validation_and_transfer(api, client):
 
 
 def test_admin_card_and_license_image(api, client):
-    """Сценарии «Админ с валидным токеном получает изображение», «без
+    """TC-S3BE-017 (change add-instructor-student-loop): сценарии «Админ с валидным токеном получает изображение», без/с неверным токеном, ученическая сессия — отказ; карточка заявки с полными данными и фактом ВУ (instructor-documents, FR-24, FR-25, NFR-1).
+    Сценарии «Админ с валидным токеном получает изображение», «без
+
     токена», «с неверным токеном», «ученическая сессия не дает доступ»
     (FR-24, NFR-1); карточка заявки — полные данные + факт ВУ (FR-25)."""
     resp = client.post(
@@ -719,7 +756,9 @@ def test_admin_card_and_license_image(api, client):
 
 
 def test_license_image_direct_url_not_served(api, client):
-    """Сценарий «Прямой URL файла не работает» (NFR-1): каталог загрузок
+    """TC-S3BE-018 (change add-instructor-student-loop): сценарий «Прямой URL файла не работает» (instructor-documents): каталог загрузок вне раздаваемой статики (NFR-1).
+    Сценарий «Прямой URL файла не работает» (NFR-1): каталог загрузок
+
     не входит в раздаваемую статику."""
     resp = client.post(
         "/api/instructors/apply",
@@ -743,7 +782,9 @@ def test_license_image_direct_url_not_served(api, client):
 
 
 def test_marketplace_lists_only_approved(api, client):
-    """Сценарий «Ученик видит карточки одобренных инструкторов» +
+    """TC-S3BE-019 (change add-instructor-student-loop): сценарий «Ученик видит карточки одобренных инструкторов» (student-instructor-choice): waiting в каталог не попадает; карточка с ФИО, стажем, авто без фото/госномера, рейтингом и графиком (FR-31).
+    Сценарий «Ученик видит карточки одобренных инструкторов» +
+
     «waiting/deny не попадают в каталог» (FR-31): users.role заводится
     только approve; карточка содержит ФИО, стаж, авто без фото/госномера,
     рейтинг, часы работы."""
@@ -779,7 +820,9 @@ def test_marketplace_lists_only_approved(api, client):
 
 
 def test_marketplace_access_401_403(api, client):
-    """Сценарий «Каталог недоступен без сессии ученика»: гость → 401,
+    """TC-S3BE-020 (change add-instructor-student-loop): сценарий «Каталог недоступен без сессии ученика» (student-instructor-choice): гость 401, инструктор 403.
+    Сценарий «Каталог недоступен без сессии ученика»: гость → 401,
+
     инструктор → 403."""
     assert client.get("/api/student/instructors").status_code == 401
     instr = create_instructor(client)
@@ -790,7 +833,9 @@ def test_marketplace_access_401_403(api, client):
 
 
 def test_marketplace_filters(api, client):
-    """Сценарии фильтров (FR-32): по КПП, по рейтингу (MIN-1: без отзывов
+    """TC-S3BE-021 (change add-instructor-student-loop): сценарии фильтров каталога (student-instructor-choice): по КПП, рейтингу (MIN-1: без отзывов только min_rating=0), стажу, свободному времени; пустой результат — 200 [] (FR-32).
+    Сценарии фильтров (FR-32): по КПП, по рейтингу (MIN-1: без отзывов
+
     не проходит min_rating>0, проходит min_rating=0), по стажу, по
     свободному времени; пустой результат — 200 [] (пустое состояние)."""
     auto = create_instructor(client, email="auto@example.com", experience_years=3)
@@ -869,7 +914,9 @@ def _any_car_id(instructor_id):
 
 
 def test_marketplace_card_detail_and_aggregate(api, client):
-    """Сценарии агрегата (FR-35): {average, count} при отзывах (5,4 → 4.5,
+    """TC-S3BE-022 (change add-instructor-student-loop): сценарии агрегата рейтинга карточки (student-instructor-choice): {average, count} при отзывах, «нет отзывов» при пустом наборе, 404 несуществующему (FR-35).
+    Сценарии агрегата (FR-35): {average, count} при отзывах (5,4 → 4.5,
+
     count 2); «нет отзывов», а не 0.0, при пустом наборе; 404 для
     несуществующего/неодобренного."""
     instr = create_instructor(client)
@@ -932,7 +979,9 @@ def test_marketplace_card_detail_and_aggregate(api, client):
 
 
 def test_review_requires_accepted_link_server_side(api, client):
-    """Сценарии «Ученик без принятой заявки получает отказ» и «Прямой
+    """TC-S3BE-023 (change add-instructor-student-loop): сценарии «Ученик без принятой заявки получает отказ» и «Прямой вызов API без UI тоже отклоняется» (reviews): 403, отзыв не создан — проверка связи на сервере (FR-34, NFR-2).
+    Сценарии «Ученик без принятой заявки получает отказ» и «Прямой
+
     вызов API без UI тоже отклоняется» (FR-34, NFR-2): 403, отзыв не
     создан — проверка связи на сервере."""
     instr = create_instructor(client)
@@ -962,7 +1011,9 @@ def test_review_requires_accepted_link_server_side(api, client):
 
 
 def test_review_happy_duplicate_and_validation(api, client):
-    """Сценарии «Принятый ученик оставляет отзыв», «Повторный отзыв
+    """TC-S3BE-024 (change add-instructor-student-loop): сценарии «Принятый ученик оставляет отзыв», «Повторный отзыв отклоняется» (409), «Некорректная оценка отклоняется» (422) (reviews: FR-34, NFR-5).
+    Сценарии «Принятый ученик оставляет отзыв», «Повторный отзыв
+
     отклоняется» (409), «Некорректная оценка отклоняется» (422) (FR-34,
     NFR-5)."""
     instr = create_instructor(client)
@@ -1013,7 +1064,9 @@ def test_review_happy_duplicate_and_validation(api, client):
 
 
 def test_request_submit_duplicate_parallel_and_repeat(api, client):
-    """Сценарии подачи (FR-36, ОВ-1/ОВ-2): новая → создана; повторная
+    """TC-S3BE-025 (change add-instructor-student-loop): сценарии подачи заявки (student-requests): новая создана, дубликат активной тому же — 409, параллельная другому инструктору допустима (ОВ-1), повторная после отказа создается (ОВ-2) (FR-36).
+    Сценарии подачи (FR-36, ОВ-1/ОВ-2): новая → создана; повторная
+
     активная тому же → 409 без записи; параллельная другому инструктору →
     создается; повторная после отказа → создается."""
     instr_a = create_instructor(client, email="a@example.com")
@@ -1059,7 +1112,9 @@ def test_request_submit_duplicate_parallel_and_repeat(api, client):
 
 
 def test_active_request_unique_index_blocks_duplicate_at_db_level(api, client):
-    """Гонка дубликата (review-001 #6): частичный UNIQUE-индекс
+    """TC-S3BE-026 (change add-instructor-student-loop): гонка дубликата заявки (student-requests): частичный UNIQUE-индекс uq_student_requests_active блокирует второй активный дубликат на уровне БД; denied-записи индекс не учитывает (ОВ-2).
+    Гонка дубликата (review-001 #6): частичный UNIQUE-индекс
+
     uq_student_requests_active — второй активный дубликат невозможен
     на уровне БД (даже мимо check-then-insert API); denied-дубликаты
     индекс не учитывает — повторная заявка после отказа допустима (ОВ-2)."""
@@ -1086,7 +1141,9 @@ def test_active_request_unique_index_blocks_duplicate_at_db_level(api, client):
 
 
 def test_live_request_flow_submit_accept_closes_others(api, client):
-    """Живой поток заявки (review-001 #5): подача двумя инструкторам →
+    """TC-S3BE-027 (change add-instructor-student-loop): сценарий «Заявки: закрытие остальных» (student-requests, ОВ-1): принятие одним инструктором автозакрывает активные заявки другим с системным комментарием; статусы видны обоим (FR-37, FR-38).
+    Живой поток заявки (review-001 #5): подача двумя инструкторам →
+
     принятие одним (со своим авто) → остальные АКТИВНЫЕ закрыты системным
     комментарием; ученик видит оба статуса в «Моих заявках» (FR-38),
     инструктор — заявку с ФИО/стажем/авто (FR-37)."""
@@ -1148,7 +1205,9 @@ def test_live_request_flow_submit_accept_closes_others(api, client):
 
 
 def test_instructor_requests_contract_shape(api, client):
-    """Контракт шейпа GET /api/instructor/requests (review-001 #2/#3):
+    """TC-S3BE-028 (change add-instructor-student-loop): контракт шейпа GET /api/instructor/requests (student-requests): ровно согласованный набор полей, car null до accept и объект после (FR-37).
+    Контракт шейпа GET /api/instructor/requests (review-001 #2/#3):
+
     ровно поля id/status/created_at/decided_at/student_full_name/
     student_experience_years/car (объект с id/brand/model/year/
     transmission или null) — фронт читает только эти имена."""
@@ -1194,7 +1253,9 @@ def test_instructor_requests_contract_shape(api, client):
 
 
 def test_request_to_unapproved_instructor_404(api, client):
-    """Сценарий «Заявка неодобренному инструктору отклоняется»: waiting/
+    """TC-S3BE-029 (change add-instructor-student-loop): сценарий «Заявка неодобренному инструктору отклоняется» (student-requests): waiting без записи users — 404, заявки нет.
+    Сценарий «Заявка неодобренному инструктору отклоняется»: waiting/
+
     deny не имеют записи users → 404, заявки нет."""
     apply_instructor(client, email="waiting2@example.com")  # waiting
     student = create_student(client)
@@ -1207,7 +1268,9 @@ def test_request_to_unapproved_instructor_404(api, client):
 
 
 def test_instructor_sees_only_own_requests(api, client):
-    """Сценарии «Новая заявка видна в списке с учеником и датой» и «Чужие
+    """TC-S3BE-030 (change add-instructor-student-loop): сценарии «Новая заявка видна в списке с учеником и датой» и «Чужие заявки не видны» (student-requests, FR-37).
+    Сценарии «Новая заявка видна в списке с учеником и датой» и «Чужие
+
     заявки не видны» (FR-37)."""
     instr_a = create_instructor(client, email="a@example.com")
     instr_b = create_instructor(client, email="b@example.com")
@@ -1231,7 +1294,9 @@ def test_instructor_sees_only_own_requests(api, client):
 
 
 def test_deny_requires_comment_and_visible_to_student(api, client):
-    """Сценарии «Отказ без комментария заблокирован» (422, статус остается
+    """TC-S3BE-031 (change add-instructor-student-loop): сценарии «Отказ без комментария заблокирован» (422, статус new) и «Отказ с комментарием виден ученику» (student-requests, FR-38).
+    Сценарии «Отказ без комментария заблокирован» (422, статус остается
+
     new) и «Отказ с комментарием виден ученику» (FR-38)."""
     instr = create_instructor(client)
     student = create_student(client)
@@ -1267,7 +1332,9 @@ def test_deny_requires_comment_and_visible_to_student(api, client):
 
 
 def test_deny_and_accept_of_foreign_request_404_and_double_409(api, client):
-    """Сценарии «Чужую заявку отклонить нельзя» (404) и повторное решение
+    """TC-S3BE-032 (change add-instructor-student-loop): сценарии «Чужую заявку отклонить нельзя» (404) и повторное решение по закрытой заявке — 409 (student-requests, guard статуса).
+    Сценарии «Чужую заявку отклонить нельзя» (404) и повторное решение
+
     → 409 (guard статуса)."""
     instr_a = create_instructor(client, email="a@example.com")
     instr_b = create_instructor(client, email="b@example.com")
@@ -1310,7 +1377,9 @@ def test_deny_and_accept_of_foreign_request_404_and_double_409(api, client):
 
 
 def test_accept_requires_car_zero_cars_409_foreign_car_422(api, client):
-    """Сценарии «Принятие при 0 автомобилей недоступно» (409, ОВ-4) и
+    """TC-S3BE-033 (change add-instructor-student-loop): сценарии «Принятие при 0 автомобилей недоступно» (409, ОВ-4) и «Принятие с чужим автомобилем отклоняется» (422) (student-requests); своим авто принимается.
+    Сценарии «Принятие при 0 автомобилей недоступно» (409, ОВ-4) и
+
     «Принятие с чужим автомобилем отклоняется» (422)."""
     instr = create_instructor(client)
     student = create_student(client)
@@ -1351,7 +1420,9 @@ def test_accept_requires_car_zero_cars_409_foreign_car_422(api, client):
 
 
 def test_accept_closes_other_active_requests_new_and_accepted(api, client):
-    """Сценарии «Принятие закрывает остальные активные заявки ученика» +
+    """TC-S3BE-034 (change add-instructor-student-loop): сценарий «Принятие закрывает остальные активные заявки ученика» (student-requests): закрываются и new, и accepted (MAJ-1), системный комментарий виден ученику (FR-38).
+    Сценарии «Принятие закрывает остальные активные заявки ученика» +
+
     MAJ-1 (итерация 2): закрываются и 'new', и 'accepted' чужих
     инструкторов; системный комментарий виден ученику; обе ветки в одной
     транзакции."""
@@ -1413,7 +1484,10 @@ def test_accept_closes_other_active_requests_new_and_accepted(api, client):
 
 
 def test_accept_401_403(api, client):
-    """Кабинетные действия без сессии/с чужой ролью → 401/403."""
+    """TC-S3BE-035 (change add-instructor-student-loop): действие accept без сессии — 401, с ученической сессией — 403 (student-requests).
+
+    Кабинетные действия без сессии/с чужой ролью → 401/403.
+    """
     assert client.post("/api/instructor/requests/1/accept", json={}).status_code == 401
     student = create_student(client)
     resp = client.post(
@@ -1425,7 +1499,9 @@ def test_accept_401_403(api, client):
 
 
 def test_assign_student_car_rebind_and_guards(api, client):
-    """MAJ-2 (arch-review итерация 2): перекрепление авто принятого
+    """TC-S3BE-036 (change add-instructor-student-loop): перекрепление авто принятого ученика (student-requests, MAJ-2): свое авто 200, чужое 422, не-принятый ученик 404.
+    MAJ-2 (arch-review итерация 2): перекрепление авто принятого
+
     ученика — свое авто → 200, чужое → 422, не-принятый ученик → 404."""
     instr = create_instructor(client)
     car1 = add_car(client, instr["token"], plate="А111АА111")
@@ -1475,7 +1551,9 @@ def test_assign_student_car_rebind_and_guards(api, client):
 
 
 def test_summary_widgets(api, client):
-    """Сценарии виджетов (FR-40, FR-41): до принятия — students == []
+    """TC-S3BE-037 (change add-instructor-student-loop): сценарии виджетов кабинета инструктора: до принятия students пуст, после — ученик с авто и датой; today_lessons — честный [] (FR-40, FR-41).
+    Сценарии виджетов (FR-40, FR-41): до принятия — students == []
+
     (только 'new' в виджет не попадает); после принятия — ученик в списке
     с авто и датой; today_lessons — всегда честный []."""
     instr = create_instructor(client)
@@ -1507,6 +1585,7 @@ def test_summary_widgets(api, client):
 
 
 def test_summary_access_401_403(api, client):
+    """TC-S3BE-038 (change add-instructor-student-loop): доступ к summary без сессии — 401, с ученической сессией — 403."""
     assert client.get("/api/instructor/summary").status_code == 401
     student = create_student(client)
     assert (
@@ -1521,7 +1600,10 @@ def test_summary_access_401_403(api, client):
 
 
 def test_new_modules_no_sql_concatenation():
-    """NFR-3: в новых модулях нет f-строк/конкатенаций/ format() в SQL."""
+    """TC-S3BE-039 (change add-instructor-student-loop): NFR-3: в новых модулях контура нет f-строк/конкатенаций/format() в SQL — только параметризованные запросы.
+
+    NFR-3: в новых модулях нет f-строк/конкатенаций/ format() в SQL.
+    """
     for name in (
         "instructor_cars.py",
         "instructor_availability.py",
