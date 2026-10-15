@@ -43,6 +43,9 @@ _PAGE_ROUTES = {
     # Спринт 2, часть 2 (задача 3.1, change add-instructor-cabinet):
     # кабинет инструктора рядом с заглушкой
     "/instructor/dashboard": "instructor-dashboard.html",
+    # Спринт 3 (change add-instructor-student-loop):
+    # выбор инструктора учеником
+    "/instructor-choice": "instructor-choice.html",
 }
 
 
