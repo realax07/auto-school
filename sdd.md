@@ -680,3 +680,50 @@ SQLite data/app.db (WAL) — users (§4 + role §16): схема НЕ меняе
 Реальное расписание, доходы/выплаты, ученики, материалы, автомобиль,
 профиль-документы (разделы — демо-заглушки, FR-21), загрузка файлов,
 реальная категория ВУ в шапке, refresh-токены, multi-worker сессии.
+
+---
+
+# SDD (дополнение): Трассировка (Спринт 3, Партия A)
+
+> Источники: requirements-instructor-student-loop.md (УТВЕРЖДЕН,
+> FR-23…FR-41, NFR-1…NFR-6), design.md пакета
+> openspec/changes/add-instructor-student-loop/. Колонка тестов — по
+> маппингу test-model/qa-auto-report-add-instructor-student-loop.md
+> (backend-тесты test_s3_backend.py без TC-ID в docstring — трассировка
+> post-hoc, §4 отчета; UI-тесты TC-UI-007…011 — плановая).
+
+## 27. Трассировка (Спринт 3, Партия A)
+
+| Требование | Реализация (файл / эндпоинт / функция) | Тесты |
+|---|---|---|
+| FR-23 | backend/instructors.py POST /api/instructors/apply, multipart (instructor_apply, _parse_request, _validate_experience_years — стаж ≥ 0, MAJ-3) + backend/uploads.py (save_image → data/uploads/license/) + backend/db.py (instructor_applications.license_photo_path/experience_years) + frontend/instructor-apply.html (multipart) | tests/test_s3_backend.py::test_apply_multipart_saves_license_image, ::test_apply_experience_years_validation_and_transfer |
+| FR-24 | backend/instructor_admin.py GET /api/admin/instructor-applications/{id}/license-image (instructor_application_license_image; только X-Admin-Token) | tests/test_s3_backend.py::test_admin_card_and_license_image (без токена/неверный токен/ученическая сессия → 401) |
+| FR-25 | backend/instructor_admin.py GET /api/admin/instructor-applications/{id} (instructor_application_card) + frontend/admin-dashboard.html (карточка по клику на строку) | tests/test_s3_backend.py::test_admin_card_and_license_image + tests/test_ui_playwright.py::test_admin_row_click_opens_card_and_loads_license_image (TC-UI-011) |
+| FR-26 | backend/instructor_cars.py GET/POST /api/instructor/cars (list_cars, create_car; связь 1-ко-многим) + backend/db.py (instructor_cars) | tests/test_s3_backend.py::test_cars_crud_happy_path, ::test_cars_validation_422_per_field, ::test_cars_access_401_403, ::test_car_not_visible_to_other_instructor_and_foreign_404 |
+| FR-27 | backend/instructor_cars.py POST/GET /api/instructor/cars/{id}/photo (upload_car_photo, get_car_photo — матрица 401/403/404) + backend/uploads.py | tests/test_s3_backend.py::test_car_photo_upload_and_owner_only |
+| FR-28 | backend/instructor_cars.py PATCH/DELETE /api/instructor/cars/{id} (patch_car, delete_car — ОВ-3: car_id → NULL, связь сохраняется) + backend/student_requests.py PATCH /api/instructor/students/{id}/car (assign_student_car — перекрепление, MAJ-2) | tests/test_s3_backend.py::test_cars_crud_happy_path, ::test_car_delete_unbinds_student_keeps_link, ::test_car_not_visible_to_other_instructor_and_foreign_404, ::test_assign_student_car_rebind_and_guards |
+| FR-29 | backend/instructor_availability.py PUT /api/instructor/availability (put_availability — полная замена, дедуп, в одной транзакции) + frontend/instructor-dashboard.html (сетка календаря) | tests/test_s3_backend.py::test_availability_save_and_readback, ::test_availability_full_replace_and_dedup, ::test_availability_validation_422 + tests/test_ui_playwright.py::test_instructor_calendar_slot_toggle_and_put_availability (TC-UI-008) |
+| FR-30 | backend/instructor_availability.py GET /api/instructor/availability (get_availability) + PUT (восстановление графика) | tests/test_s3_backend.py::test_availability_save_and_readback, ::test_availability_access_401_403 |
+| FR-31 | backend/student_marketplace.py GET /api/student/instructors + GET …/{id} (list_instructors, instructor_card — только одобренные) + frontend/instructor-choice.html («Выбор инструктора» из cabinet.html) | tests/test_s3_backend.py::test_marketplace_lists_only_approved, ::test_marketplace_access_401_403 |
+| FR-32 | backend/student_marketplace.py (_parse_filters, _passes_filters — transmission/min_rating/min_experience/free_*) + фильтры frontend/instructor-choice.html | tests/test_s3_backend.py::test_marketplace_filters + tests/test_ui_playwright.py::test_student_choice_filters_narrow_and_apply_request (TC-UI-007) |
+| FR-33 | Вне скоупа (точка расширения, design.md «Сознательные ограничения») — карточка/фильтры без гео | Ручная инспекция отсутствия карт-вызовов (QA-отчет §3 п.4); де-факто — TestClient без сети (::test_marketplace_filters) |
+| FR-34 | backend/reviews.py POST /api/student/instructors/{id}/reviews (create_review — серверная проверка accepted-связи) | tests/test_s3_backend.py::test_review_happy_duplicate_and_validation, ::test_review_requires_accepted_link_server_side |
+| FR-35 | backend/student_marketplace.py (_rating_aggregate — AVG/COUNT; has_reviews:false) в GET …/{id} | tests/test_s3_backend.py::test_marketplace_card_detail_and_aggregate, ::test_marketplace_lists_only_approved |
+| FR-36 | backend/student_requests.py POST /api/student/requests (create_request — 409 дубликат, 404 неодобренный) + GET /api/instructor/requests + подача из UI | tests/test_s3_backend.py::test_request_submit_duplicate_parallel_and_repeat, ::test_active_request_unique_index_blocks_duplicate_at_db_level, ::test_request_to_unapproved_instructor_404 + tests/test_ui_playwright.py::test_student_choice_filters_narrow_and_apply_request (TC-UI-007) |
+| FR-37 | backend/student_requests.py GET /api/instructor/requests (incoming_requests — только этому инструктору, ФИО/стаж/дата) | tests/test_s3_backend.py::test_instructor_sees_only_own_requests, ::test_instructor_requests_contract_shape |
+| FR-38 | backend/student_requests.py GET /api/student/requests (my_requests — deny_comment виден) + POST …/{id}/deny (deny_request — comment обязателен, иначе 422) | tests/test_s3_backend.py::test_deny_requires_comment_and_visible_to_student, ::test_deny_and_accept_of_foreign_request_404_and_double_409 + tests/test_ui_playwright.py::test_instructor_requests_deny_locked_until_comment_accept_with_car (TC-UI-009) |
+| FR-39 | backend/student_requests.py POST …/{id}/accept (accept_request — car_id, ОВ-1 авто-закрытие, ОВ-4: 0 авто → 409) | tests/test_s3_backend.py::test_live_request_flow_submit_accept_closes_others, ::test_accept_requires_car_zero_cars_409_foreign_car_422, ::test_accept_closes_other_active_requests_new_and_accepted, ::test_accept_401_403 + tests/test_ui_playwright.py::test_instructor_requests_deny_locked_until_comment_accept_with_car (TC-UI-009), ::test_instructor_accept_flow_real_backend |
+| FR-40 | backend/instructor_summary.py GET /api/instructor/summary (instructor_summary — виджет students) | tests/test_s3_backend.py::test_summary_widgets, ::test_summary_access_401_403, ::test_car_delete_unbinds_student_keeps_link |
+| FR-41 | backend/instructor_summary.py GET /api/instructor/summary (today_lessons — всегда [], честная заглушка) | tests/test_s3_backend.py::test_summary_widgets |
+| NFR-1 | backend/uploads.py (uploads_dir — data/uploads/ вне frontend/, статикой не раздаются); выдача только через license-image (X-Admin-Token) и car photo (сессия владельца) | tests/test_s3_backend.py::test_license_image_direct_url_not_served, ::test_admin_card_and_license_image, ::test_car_photo_upload_and_owner_only |
+| NFR-2 | backend/reviews.py create_review — параметризованный SELECT к student_requests при каждом POST | tests/test_s3_backend.py::test_review_requires_accepted_link_server_side |
+| NFR-3 | Все новые модули (instructor_cars, instructor_availability, student_marketplace, reviews, student_requests, instructor_summary) — `?`-плейсхолдеры | tests/test_s3_backend.py::test_new_modules_no_sql_concatenation |
+| NFR-4 | (сквозное) токены/заголовки/персональные данные не логируются — новые модули без логирования ответов | Прямых автотестов нет — контроль ручной (QA-отчет §3) |
+| NFR-5 | backend/db.py — idempotent-миграции: instructor_cars (1-ко-многим), availability (интервалы, UNIQUE), reviews (UNIQUE пара), student_requests (3 статуса + deny_comment + car_id) | tests/test_s3_backend.py::test_migration_creates_new_tables, ::test_migration_is_idempotent, ::test_migration_of_legacy_db_without_new_columns, ::test_active_request_unique_index_blocks_duplicate_at_db_level, ::test_availability_full_replace_and_dedup |
+| NFR-6 | backend/uploads.py (sniff_image — magic bytes JPEG/PNG; лимит 5 МБ до записи; содержимое не исполняется) | tests/test_s3_backend.py::test_apply_rejects_bad_file_type_and_size, ::test_car_photo_upload_and_owner_only (граница «ровно 5 МБ» — ручной шаг, QA-отчет §3 п.3) |
+
+Правило полноты: нет Requirement без источника в ТЗ; нет Must-требования
+без Requirement (контракт 2/7). FR-23…FR-41 и NFR-1…NFR-6 покрыты
+полностью; известные ручные хвосты — QA-отчет §3 (визуальный рендер
+календаря, граница 5 МБ, инспекция карт-вызовов, эксплуатационные
+проверки стенда).
