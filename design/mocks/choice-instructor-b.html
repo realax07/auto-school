@@ -1,0 +1,228 @@
+<!doctype html>
+<!-- Мокап: «Выбор инструктора» — кабинет ученика. ВАРИАНТ B: фильтры верхней панелью (одна строка-бар над сеткой).
+     Задача 3.3 (change add-instructor-student-loop). FR-31/FR-32; логика фильтров и данные — те же, что в варианте A.
+     Отличие только в расположении фильтров; пустой результат — валидное состояние. -->
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#071015"><title>СберАвтошкола — Выбор инструктора (кабинет ученика)</title>
+<style>
+:root{--bg:#071015;--line:#ffffff16;--text:#f3f7f8;--muted:#93a6b1;--green:#35d879}
+*{box-sizing:border-box}html,body{margin:0;min-width:320px}
+body{background:radial-gradient(ellipse at 78% 0%,#123b2c4d,transparent 38%),radial-gradient(ellipse at 8% 90%,#27465f26,transparent 40%),var(--bg);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh}
+button,input,select{font:inherit;color:inherit}button{cursor:pointer}
+.frame{max-width:1300px;margin:auto;padding:26px 24px 46px}
+header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;height:48px;margin-bottom:6px}
+.brand{display:flex;align-items:center;gap:10px;font-size:22px;font-weight:650;letter-spacing:-1px}
+.brand em{font-style:normal;color:var(--green)}
+.check{width:32px;height:32px;flex:none;display:grid;place-items:center;border:3px solid var(--green);border-radius:50%;color:var(--green);font-size:20px;transform:rotate(-8deg)}
+.brand small{display:block;font-size:9px;color:#80919b;letter-spacing:.14em;text-transform:uppercase;margin-top:3px;font-weight:500}
+.crumb{font-size:12px;color:#8fa2ad;justify-self:center}
+.user{justify-self:end;display:flex;align-items:center;gap:13px}
+.uname{font-size:13px;color:#d6e4e2}
+.avatar{width:34px;height:34px;border-radius:11px;background:linear-gradient(145deg,#315744,#14261e);display:grid;place-items:center;color:#a0f2bd;font-size:11px;font-weight:700}
+.logout{padding:8px 20px;border:1px solid #ffffff40;border-radius:999px;background:transparent;font-size:13px}
+.logout:hover{border-color:var(--green)}
+.page-head{margin:30px 0 20px}
+.kicker{font-size:10px;color:#79eaa5;text-transform:uppercase;letter-spacing:.18em}
+.page-head h1{font-size:30px;letter-spacing:-.05em;font-weight:600;margin:9px 0 8px}
+.page-head p{font-size:13px;color:var(--muted);margin:0}
+/* ── ВАРИАНТ B: фильтры верхней панелью ── */
+.filterbar{display:grid;grid-template-columns:1.25fr 1fr 1fr 1.6fr auto;gap:11px;align-items:end;border:1px solid var(--line);border-radius:19px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:16px 18px;margin-bottom:16px}
+.fld>span{display:block;font-size:10px;color:#8fa0aa;text-transform:uppercase;letter-spacing:.12em;margin-bottom:8px}
+.seg{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px}
+.seg button{border:1px solid #ffffff14;background:#ffffff05;color:#b9c8ce;border-radius:9px;padding:8px 4px;font-size:11px}
+.seg button.on{background:#143322;border-color:#2c8651;color:#a3efbd}
+select,input[type=number]{width:100%;border:1px solid #ffffff16;background:#0b161c;border-radius:10px;padding:9px 11px;font-size:12px;color:#dcebe9}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.range-lab{display:flex;justify-content:space-between;font-size:11px;color:#8fa0aa;margin-bottom:7px}
+.range-lab b{color:#a3efbd;font-weight:600}
+input[type=range]{width:100%;accent-color:var(--green)}
+.chips{display:flex;gap:5px;flex-wrap:wrap}
+.chip{border:1px solid #ffffff14;background:#ffffff05;color:#b9c8ce;border-radius:999px;padding:6px 10px;font-size:10px}
+.chip.on{background:#143322;border-color:#2c8651;color:#a3efbd}
+.btn-reset{border:1px solid #ffffff16;background:#ffffff05;color:#aab8c0;border-radius:10px;padding:9px 16px;font-size:11px;white-space:nowrap}
+.btn-reset:hover{border-color:#4bcb7c66;color:#c9ffdd}
+.cards-top{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 0 13px}
+.cards-top b{font-size:13px;color:#c9d6db;font-weight:550}
+.sort{display:flex;align-items:center;gap:8px;font-size:11px;color:#8fa0aa}
+.sort select{width:auto;padding:7px 10px}
+/* карточки */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+.card{border:1px solid var(--line);border-radius:19px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:19px;display:flex;flex-direction:column;min-width:0;transition:border-color .15s,transform .15s}
+.card:hover{border-color:#35d87955;transform:translateY(-2px)}
+.card-top{display:flex;gap:12px;align-items:center}
+.icard{width:46px;height:46px;flex:none;border-radius:14px;background:linear-gradient(145deg,#2c4f3d,#132119);display:grid;place-items:center;color:#a0f2bd;font-size:13px;font-weight:700}
+.card-top b{font-size:15px;font-weight:600;letter-spacing:-.02em;display:block}
+.card-top small{display:block;font-size:11px;color:#8fa0aa;margin-top:4px}
+.rating{margin-left:auto;text-align:right;flex:none}
+.rating b{font-size:15px;color:#ffd479;display:flex;align-items:center;gap:5px;justify-content:flex-end}
+.rating small{display:block;font-size:10px;color:#8fa0aa;margin-top:4px}
+.rating.none b{color:#9db0ba}
+.meta{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+.pill{font-size:10px;padding:6px 10px;border-radius:999px;border:1px solid #ffffff12;background:#ffffff05;color:#b9c8ce}
+.pill.green{background:#143322;border-color:#2a5c40;color:#91efb1}
+.hours{border-top:1px solid #ffffff12;padding-top:13px;margin-top:auto}
+.hours span{display:block;font-size:10px;color:#84969f;text-transform:uppercase;letter-spacing:.11em;margin-bottom:8px}
+.slotrow{display:flex;gap:5px;flex-wrap:wrap}
+.slot{font-size:10px;padding:5px 8px;border-radius:8px;background:#0d2b1c;border:1px solid #235c3b;color:#9defb8}
+.apply{margin-top:15px;width:100%;border:1px solid #2b9c62;background:#123524;color:#c9ffdd;border-radius:12px;padding:12px;font-size:13px;font-weight:550}
+.apply:hover{filter:brightness(1.12)}
+.apply.sent{background:#143322;border-color:#2c8651;color:#7fe3a3;cursor:default}
+.sent-note{font-size:10px;color:#7fe3a3;margin:10px 0 0}
+.empty{display:none;border:1px dashed #ffffff22;border-radius:19px;padding:46px 20px;text-align:center;color:#8fa0a9}
+.empty b{display:block;font-size:15px;color:#c9d6db;margin-bottom:8px}
+.empty button{margin-top:16px;border:1px solid #2b9c62;background:#123524;color:#c9ffdd;border-radius:11px;padding:10px 18px;font-size:12px}
+footer{margin-top:34px;padding-top:18px;border-top:1px solid #ffffff10;display:flex;justify-content:space-between;gap:14px;font-size:11px;color:#5f717b;flex-wrap:wrap}
+.toast{position:fixed;bottom:22px;right:22px;max-width:340px;background:#143323;border:1px solid #367b50;color:#b5f8cc;padding:13px 16px;border-radius:13px;font-size:12px;box-shadow:0 10px 40px #0008;display:none;z-index:20}
+.toast.show{display:block}
+@media(max-width:1024px){.filterbar{grid-template-columns:1fr 1fr 1fr}}
+@media(max-width:850px){.frame{padding:20px 16px 36px}.crumb{display:none}.page-head h1{font-size:25px}.filterbar{grid-template-columns:1fr 1fr}.cards{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){header{grid-template-columns:1fr auto}.brand{font-size:19px}.uname{display:none}.filterbar{grid-template-columns:1fr}.cards{grid-template-columns:1fr}.cards-top{flex-direction:column;gap:9px}}
+</style></head>
+<body>
+<div class="frame">
+<header>
+  <div class="brand"><span class="check">✓</span><span><em>Сбер</em>Автошкола<small>Кабинет ученика</small></span></div>
+  <div class="crumb">Кабинет ученика · Выбор инструктора</div>
+  <div class="user"><span class="uname">Иван Иванов</span><span class="avatar">ИИ</span><button class="logout">Выйти</button></div>
+</header>
+
+<div class="page-head">
+  <div class="kicker">Выбор инструктора</div>
+  <h1>Найдите своего инструктора</h1>
+  <p>Одобренные инструкторы школы: рейтинг, стаж, автомобили и свободные часы. Подайте заявку — инструктор увидит её в своём кабинете.</p>
+</div>
+
+<!-- ВАРИАНТ B: фильтры верхней панелью -->
+<div class="filterbar">
+  <div class="fld">
+    <span>Автомобиль (КПП)</span>
+    <div class="seg" id="f-trans">
+      <button class="on" data-v="">Любая</button>
+      <button data-v="manual">Механика</button>
+      <button data-v="automatic">Автомат</button>
+    </div>
+  </div>
+  <div class="fld">
+    <span>Рейтинг не ниже</span>
+    <div class="range-lab"><b id="rating-val">0</b><span>из 5</span></div>
+    <input type="range" id="f-rating" min="0" max="5" step="0.5" value="0">
+  </div>
+  <div class="fld">
+    <span>Стаж от</span>
+    <select id="f-exp">
+      <option value="0">Любой</option><option value="3">3 года</option><option value="5">5 лет</option><option value="10">10 лет</option>
+    </select>
+  </div>
+  <div class="fld">
+    <span>Свободное время</span>
+    <div class="frow">
+      <select id="f-day">
+        <option value="">Любой день</option><option>Пн</option><option>Вт</option><option>Ср</option><option>Чт</option><option>Пт</option><option>Сб</option><option>Вс</option>
+      </select>
+      <div class="frow" style="grid-template-columns:1fr 1fr;gap:5px">
+        <select id="f-from"><option value="">с …</option><option>08:00</option><option>10:00</option><option>12:00</option><option>14:00</option><option>16:00</option><option>18:00</option></select>
+        <select id="f-to"><option value="">до …</option><option>12:00</option><option>14:00</option><option>16:00</option><option>18:00</option><option>20:00</option><option>22:00</option></select>
+      </div>
+    </div>
+  </div>
+  <button class="btn-reset" id="reset">Сбросить</button>
+</div>
+
+<section>
+  <div class="cards-top">
+    <b id="found">Найдено: 6</b>
+    <label class="sort">Сортировка
+      <select id="sort"><option value="rating">по рейтингу</option><option value="exp">по стажу</option><option value="name">по фамилии</option></select>
+    </label>
+  </div>
+  <div class="cards" id="cards"></div>
+  <div class="empty" id="empty"><b>Под фильтры никто не подошёл</b>Попробуйте ослабить условия: снизить рейтинг или расширить время.<br><button id="empty-reset">Сбросить фильтры</button></div>
+</section>
+
+<footer><span>СберАвтошкола · мокап «Выбор инструктора», вариант B</span><span>Демонстрационный интерфейс · данные вымышлены</span></footer>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+// демо-данные и логика — как в варианте A (choice-instructor-a.html)
+var data=[
+ {name:"Самойлов Михаил Петрович",exp:11,cars:[["Škoda Rapid",2020,"automatic"],["Kia Rio",2022,"manual"]],rating:4.8,count:14,slots:[["Пн","10:00–14:00"],["Ср","16:00–20:00"],["Сб","10:00–15:00"]]},
+ {name:"Гордеева Анна Викторовна",exp:6,cars:[["Volkswagen Polo",2021,"automatic"]],rating:4.6,count:9,slots:[["Вт","09:00–13:00"],["Ср","09:00–13:00"],["Вс","11:00–16:00"]]},
+ {name:"Кузьмин Олег Сергеевич",exp:3,cars:[["Lada Vesta",2023,"manual"]],rating:4.2,count:5,slots:[["Пн","14:00–20:00"],["Чт","14:00–20:00"],["Сб","09:00–13:00"]]},
+ {name:"Рахимова Динара Ильдаровна",exp:8,cars:[["Hyundai Solaris",2022,"automatic"],["Toyota Corolla",2021,"automatic"]],rating:5.0,count:21,slots:[["Ср","10:00–15:00"],["Пт","10:00–15:00"],["Вс","10:00–14:00"]]},
+ {name:"Белов Артём Дмитриевич",exp:1,cars:[["Lada Granta",2021,"manual"]],rating:null,count:0,slots:[["Пн","18:00–21:00"],["Вт","18:00–21:00"],["Вс","12:00–18:00"]]},
+ {name:"Мищенко Светлана Юрьевна",exp:15,cars:[["Škoda Octavia",2019,"manual"],["Nissan Qashqai",2020,"automatic"]],rating:4.9,count:33,slots:[["Пн","09:00–13:00"],["Сб","09:00–14:00"],["Вс","12:00–17:00"]]}
+];
+var state={trans:"",rating:0,exp:0,day:"",from:"",to:""},sent={};
+function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(window._tt);window._tt=setTimeout(function(){t.classList.remove('show')},2800)}
+function fmtRating(d){
+  if(!d.count) return '<div class="rating none"><b>☆ Нет отзывов</b><small>новый инструктор</small></div>';
+  return '<div class="rating"><b>★ '+d.rating.toFixed(1)+'</b><small>'+d.count+' отзывов</small></div>';
+}
+function carPills(d){return d.cars.map(function(c){return '<span class="pill">'+c[0]+' · '+c[1]+' · '+(c[2]==='automatic'?'автомат':'механика')+'</span>'}).join('')}
+function slotsHtml(d){return '<div class="slotrow">'+d.slots.map(function(s){return '<span class="slot">'+s[0]+' '+s[1]+'</span>'}).join('')+'</div>'}
+function passes(d){
+  if(state.trans && !d.cars.some(function(c){return c[2]===state.trans})) return false;
+  if(state.rating>0 && (!d.count || d.rating<state.rating)) return false; // без отзывов — фильтр «рейтинг > 0» не проходит
+  if(state.exp>0 && d.exp< +state.exp) return false;
+  if(state.day){
+    var ok=d.slots.some(function(s){
+      if(s[0]!==state.day) return false;
+      var st=+s[1].slice(0,2),en=+s[1].slice(6,8);
+      if(state.from && en<=+state.from.slice(0,2)) return false;
+      if(state.to && st>=+state.to.slice(0,2)) return false;
+      return true;
+    });
+    if(!ok) return false;
+  }
+  return true;
+}
+function render(){
+  var list=data.filter(passes);
+  var sort=document.getElementById('sort').value;
+  list.sort(function(a,b){
+    if(sort==='rating') return (b.count?b.rating:-1)-(a.count?a.rating:-1);
+    if(sort==='exp') return b.exp-a.exp;
+    return a.name.split(' ')[0].localeCompare(b.name.split(' ')[0],'ru');
+  });
+  document.getElementById('found').textContent='Найдено: '+list.length;
+  document.getElementById('empty').style.display=list.length?'none':'block';
+  document.getElementById('cards').innerHTML=list.map(function(d){
+    var sentNow=!!sent[d.name];
+    return '<article class="card">'+
+      '<div class="card-top"><span class="icard">'+d.name.split(' ').slice(0,2).map(function(w){return w[0]}).join('')+'</span>'+
+      '<div><b>'+d.name+'</b><small>Стаж: '+d.exp+' '+(d.exp%10===1&&d.exp%100!==11?'год':(d.exp%10>=2&&d.exp%10<=4&&(d.exp%100<10||d.exp%100>=20)?'года':'лет'))+'</small></div>'+
+      fmtRating(d)+'</div>'+
+      '<div class="meta"><span class="pill green">Авто: '+d.cars.length+'</span>'+carPills(d)+'</div>'+
+      '<div class="hours"><span>Свободные часы</span>'+slotsHtml(d)+'</div>'+
+      (sentNow?'<div class="sent-note">Заявка подана — статус появится в разделе «Мои заявки»</div>':'')+
+      '<button class="apply'+(sentNow?' sent':'')+'" data-name="'+d.name+'">'+(sentNow?'✓ Заявка отправлена':'Подать заявку')+'</button></article>';
+  }).join('');
+  document.querySelectorAll('.apply').forEach(function(b){
+    b.addEventListener('click',function(){
+      if(sent[b.dataset.name])return;
+      sent[b.dataset.name]=true;render();
+      toast('Заявка отправлена инструктору. Ответ появится в разделе «Мои заявки».');
+    });
+  });
+}
+document.getElementById('f-trans').addEventListener('click',function(e){
+  var b=e.target.closest('button');if(!b)return;
+  this.querySelectorAll('button').forEach(function(x){x.classList.remove('on')});
+  b.classList.add('on');state.trans=b.dataset.v;render();
+});
+document.getElementById('f-rating').addEventListener('input',function(){state.rating=+this.value;document.getElementById('rating-val').textContent=this.value;render()});
+document.getElementById('f-exp').addEventListener('change',function(){state.exp=this.value;render()});
+document.getElementById('f-day').addEventListener('change',function(){state.day=this.value;render()});
+document.getElementById('f-from').addEventListener('change',function(){state.from=this.value;render()});
+document.getElementById('f-to').addEventListener('change',function(){state.to=this.value;render()});
+document.getElementById('sort').addEventListener('change',render);
+function reset(){
+  state={trans:"",rating:0,exp:0,day:"",from:"",to:""};
+  document.querySelectorAll('#f-trans button').forEach(function(b,i){b.classList.toggle('on',i===0)});
+  document.getElementById('f-rating').value=0;document.getElementById('rating-val').textContent='0';
+  ['f-exp','f-day','f-from','f-to'].forEach(function(id){document.getElementById(id).value=id==='f-exp'?'0':''});
+  render();
+}
+document.getElementById('reset').addEventListener('click',reset);
+document.getElementById('empty-reset').addEventListener('click',reset);
+render();
+</script></body></html>
