@@ -15,6 +15,7 @@ teardown завершает процесс и удаляет временные 
 Стиль: синхронный API, без sleep — только expect/wait_for.
 """
 import bcrypt
+import base64
 import json
 import os
 import shutil
@@ -27,6 +28,7 @@ import urllib.error
 import urllib.request
 import uuid
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 
@@ -419,3 +421,403 @@ def test_admin_moderation_approve_reflects_status(server):
     assert status == 200 and data, (status, data)
     after = [a for a in data["applications"] if a["id"] == app_id][0]
     assert after["status"] == "approved", after["status"]
+
+
+# =========================================================================
+# Спринт 3, Партия A (change add-instructor-student-loop): FRONTEND e2e.
+# Бэкенд-задачи параллельны — все новые API мокаются через page.route:
+# тесты не зависят от backend/ и от маршрутов статики для новых страниц
+# (страница отдается route.fulfill из frontend/).
+# =========================================================================
+
+PNG_1PX = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAC"
+    "hwGA60e6kgAAAABJRU5ErkJggg==")  # валидный PNG 1×1
+
+SESSION_TOKEN = "ui-s3-student-token"
+INSTRUCTOR_TOKEN = "ui-s3-instructor-token"
+ADMIN_TOKEN = "ui-s3-admin-token"
+
+
+def _serve_frontend(page, server, path: str, filename: str) -> None:
+    """Отдать frontend/<filename> по <server><path>: новая страница не зависит
+    от бэкенда (маршрут статики /instructor-choice добавит задача 7.1)."""
+    body = (ROOT / "frontend" / filename).read_text(encoding="utf-8")
+    page.route(f"{server}{path}", lambda route: route.fulfill(
+        status=200, content_type="text/html; charset=utf-8", body=body))
+
+
+def _route_json(page, server, path: str, respond, *,
+                method: str | None = None, capture: list | None = None):
+    """page.route на <server><path>: fulfill JSON-ом respond(request).
+
+    respond(request) -> (status, payload). Чужие методы/пути — continue_().
+    """
+    def _handler(route):
+        req = route.request
+        if method is not None and req.method != method:
+            # fallback (не continue_): передать СЛЕДУЮЩему подходящему
+            # обработчику page.route, а не в реальную сеть
+            route.fallback()
+            return
+        if capture is not None:
+            capture.append(req)
+        status, payload = respond(req)
+        route.fulfill(status=status, content_type="application/json",
+                      body=json.dumps(payload, ensure_ascii=False))
+    # '*' в хвосте: совпадение и с query-string (фильтры каталога и т.п.)
+    page.route(f"{server}{path}*", _handler)
+
+
+def _seed_session(page, key: str, value: str) -> None:
+    """Положить токен в sessionStorage до скриптов страницы (page.route +
+    add_init_script — без реального логина).
+
+    Сторож в localStorage: init-скрипт переисполняется на каждой навигации
+    (например, редирект после logout), а не должен восстанавливать токен,
+    очищенный самим logout'ом (проверка очистки сессии в TC-UI-010).
+    """
+    page.add_init_script(
+        f"if(!localStorage.getItem('ui-seeded')){{"
+        f"localStorage.setItem('ui-seeded','1');"
+        f"sessionStorage.setItem('{key}','{value}');}}")
+
+
+def _instructor_card(idx: int, *, id: int, exp: int, transmission: str,
+                     rating, slots: list) -> dict:
+    return {
+        "id": id,
+        "fio": ["Самойлов Михаил Петрович", "Гордеева Анна Викторовна",
+                "Белов Артём Дмитриевич"][idx],
+        "experience": exp,
+        "cars": [{"brand": ["Škoda", "Volkswagen", "Lada"][idx],
+                  "model": ["Rapid", "Polo", "Granta"][idx],
+                  "year": 2020 + idx, "transmission": transmission}],
+        "rating": rating,  # {average,count} или {has_reviews:false}
+        "slots": slots,
+    }
+
+
+def _choice_instructors(params: dict) -> list:
+    """Серверная фильтрация каталога (замоканный GET /api/student/instructors)."""
+    pool = [
+        _instructor_card(0, id=1, exp=11, transmission="manual",
+                         rating={"average": 4.8, "count": 14},
+                         slots=[{"weekday": 0, "start_time": "10:00",
+                                 "end_time": "14:00"}]),
+        _instructor_card(1, id=2, exp=6, transmission="automatic",
+                         rating={"average": 4.6, "count": 9},
+                         slots=[{"weekday": 2, "start_time": "09:00",
+                                 "end_time": "13:00"}]),
+        _instructor_card(2, id=3, exp=1, transmission="manual",
+                         rating={"has_reviews": False},
+                         slots=[{"weekday": 5, "start_time": "18:00",
+                                 "end_time": "21:00"}]),
+    ]
+    if params.get("transmission"):
+        pool = [i for i in pool
+                if any(c["transmission"] == params["transmission"]
+                       for c in i["cars"])]
+    if params.get("min_experience"):
+        pool = [i for i in pool
+                if i["experience"] >= int(params["min_experience"])]
+    return pool
+
+
+def test_student_choice_filters_narrow_and_apply_request(page, server):
+    """TC-UI-007 (change add-instructor-student-loop): «Выбор инструктора» —
+    фильтры сужают список (запрос с query-параметрами, серверная фильтрация),
+    «Подать заявку» шлёт POST /api/student/requests {instructor_id}.
+    API замокан через page.route — бэкенд-задача параллельна."""
+    _serve_frontend(page, server, "/instructor-choice", "instructor-choice.html")
+    _seed_session(page, "session_token", SESSION_TOKEN)
+
+    list_queries: list[dict] = []
+    post_requests: list = []
+
+    def _respond_list(req):
+        params = {k: v[0] for k, v in
+                  parse_qs(urlparse(req.url).query).items()}
+        list_queries.append(params)
+        assert req.headers.get("x-session-token") == SESSION_TOKEN
+        return 200, {"ok": True, "instructors": _choice_instructors(params)}
+
+    _route_json(page, server, "/api/auth/me", lambda req: (
+        200, {"ok": True, "user": {"surname": "Иванов", "name": "Иван",
+                                   "patronymic": "Иванович"}}))
+    _route_json(page, server, "/api/student/instructors", _respond_list)
+    _route_json(page, server, "/api/student/requests", lambda req: (
+        200, {"ok": True, "id": 900}), method="POST", capture=post_requests)
+
+    page.goto(f"{server}/instructor-choice")
+    expect(page.locator(".card")).to_have_count(3)
+    expect(page.locator(".uname")).to_have_text("Иванов Иван Иванович")
+
+    # фильтр «Механика» -> query-параметр transmission=manual, список сужен
+    page.locator("#f-trans button[data-v='manual']").click()
+    expect(page.locator(".card")).to_have_count(2)
+    assert list_queries[-1].get("transmission") == "manual"
+
+    # фильтр «Стаж от 5 лет» -> min_experience, остаётся один инструктор
+    page.locator("#f-exp button[data-v='5']").click()
+    expect(page.locator(".card")).to_have_count(1)
+    assert list_queries[-1].get("transmission") == "manual"
+    assert list_queries[-1].get("min_experience") == "5"
+    expect(page.locator(".card b").first).to_have_text(
+        "Самойлов Михаил Петрович")
+
+    # сброс -> снова 3 карточки, фильтров в query нет
+    page.locator("#reset").click()
+    expect(page.locator(".card")).to_have_count(3)
+    assert "transmission" not in list_queries[-1]
+
+    # «Подать заявку» -> POST /api/student/requests {instructor_id}
+    page.locator(".card[data-id='2'] .apply").click()
+    expect(page.locator(".card[data-id='2'] .apply")).to_have_text(
+        "✓ Заявка отправлена")
+    assert len(post_requests) == 1
+    assert json.loads(post_requests[0].post_data) == {"instructor_id": 2}
+
+
+def test_instructor_calendar_slot_toggle_and_put_availability(page, server):
+    """TC-UI-008 (change add-instructor-student-loop): «Календарь» — клик по
+    слоту переключает состояние (вкл/выкл), «Сохранить график» шлёт PUT
+    /api/instructor/availability (полная замена: снятый слот удален).
+    API замокан через page.route."""
+    _seed_session(page, "session_token", INSTRUCTOR_TOKEN)
+
+    put_bodies: list = []
+    _route_json(page, server, "/api/auth/me", lambda req: (
+        200, {"ok": True, "user": {"surname": "Самойлов", "name": "Михаил"}}))
+    _route_json(page, server, "/api/instructor/dashboard", lambda req: (
+        200, {"ok": True, "instructor": {"surname": "Самойлов",
+                                         "name": "Михаил"}}))
+    _route_json(page, server, "/api/instructor/summary", lambda req: (
+        200, {"ok": True, "students": [], "today_lessons": []}))
+    _route_json(page, server, "/api/instructor/requests", lambda req: (
+        200, {"ok": True, "requests": []}))
+    _route_json(page, server, "/api/instructor/availability", lambda req: (
+        200, {"ok": True, "intervals": [
+            {"weekday": 0, "start_time": "10:00", "end_time": "14:00"}]}))
+    _route_json(page, server, "/api/instructor/availability", lambda req: (
+        200, {"ok": True}), method="PUT", capture=put_bodies)
+
+    page.goto(f"{server}/instructor/dashboard")
+    expect(page.locator(".user b")).to_have_text("Самойлов Михаил")
+
+    page.locator('.nav button[data-tab="Календарь"]').click()
+    expect(page.locator("#cal-grid")).to_be_visible()
+
+    # восстановление графика GET: Пн 10:00–14:00 -> слоты 0-10 и 0-12 отмечены
+    expect(page.locator(".cal-slot[data-k='0-10']")).to_have_class("cal-slot on")
+    expect(page.locator(".cal-slot[data-k='0-12']")).to_have_class("cal-slot on")
+    # посторонний слот не отмечен
+    assert page.locator(".cal-slot[data-k='3-14']").get_attribute(
+        "class") == "cal-slot"
+
+    # клик по слоту: снять 0-10 -> отметить 3-14 -> вернуть 0-10
+    page.locator(".cal-slot[data-k='0-10']").click()
+    expect(page.locator(".cal-slot[data-k='0-10']")).to_have_class("cal-slot")
+    expect(page.locator("#cal-changed")).to_be_visible()
+    page.locator(".cal-slot[data-k='3-14']").click()
+    expect(page.locator(".cal-slot[data-k='3-14']")).to_have_class(
+        "cal-slot on")
+    page.locator(".cal-slot[data-k='0-10']").click()
+    expect(page.locator(".cal-slot[data-k='0-10']")).to_have_class(
+        "cal-slot on")
+
+    # сохранение: PUT с полной заменой (снятый 0-12 удален)
+    page.locator("#cal-save").click()
+    expect(page.locator("#cal-changed")).to_be_hidden()
+    assert len(put_bodies) == 1
+    body = json.loads(put_bodies[0].post_data)
+    got = {(iv["weekday"], iv["start_time"], iv["end_time"])
+           for iv in body["intervals"]}
+    assert got == {(0, "10:00", "12:00"), (0, "12:00", "14:00"),
+                   (3, "14:00", "16:00")}, got
+
+
+def test_instructor_requests_deny_locked_until_comment_accept_with_car(
+        page, server):
+    """TC-UI-009 (change add-instructor-student-loop): «Запросы учеников» —
+    «Отказать» заблокировано до непустого комментария (FR-38), сабмит шлёт
+    POST …/deny {comment}; «Принять» требует выбор авто и шлёт POST …/accept
+    {car_id} (FR-39). API замокан через page.route."""
+    _seed_session(page, "session_token", INSTRUCTOR_TOKEN)
+
+    reqs = [
+        {"id": 301, "student_fio": "Павел Ежов", "student_experience": 0,
+         "created_at": "2026-10-15 09:14:00", "status": "new",
+         "comment": "Хочу учиться в вечернее время."},
+        {"id": 302, "student_fio": "Ольга Нечаева", "student_experience": 2,
+         "created_at": "2026-10-14 19:40:00", "status": "new",
+         "comment": "Нужна практика по городу на автомате."},
+    ]
+    cars = [
+        {"id": 11, "brand": "Škoda", "model": "Rapid", "year": 2020,
+         "transmission": "automatic", "plate": "А 123 АА 777"},
+        {"id": 12, "brand": "Kia", "model": "Rio", "year": 2022,
+         "transmission": "manual", "plate": "В 456 ВВ 777"},
+    ]
+    deny_posts: list = []
+    accept_posts: list = []
+
+    def _requests(req):
+        return 200, {"ok": True,
+                     "requests": [dict(r) for r in reqs]}
+
+    _route_json(page, server, "/api/auth/me", lambda req: (
+        200, {"ok": True, "user": {"surname": "Самойлов", "name": "Михаил"}}))
+    _route_json(page, server, "/api/instructor/dashboard", lambda req: (
+        200, {"ok": True, "instructor": {"surname": "Самойлов",
+                                         "name": "Михаил"}}))
+    _route_json(page, server, "/api/instructor/summary", lambda req: (
+        200, {"ok": True, "students": [], "today_lessons": []}))
+    _route_json(page, server, "/api/instructor/requests", _requests)
+    _route_json(page, server, "/api/instructor/cars", lambda req: (
+        200, {"ok": True, "cars": cars}))
+    _route_json(page, server, "/api/instructor/requests/301/deny",
+                lambda req: (
+                    reqs[0].__setitem__(
+                        "status", "denied") or (200, {"ok": True})),
+                method="POST", capture=deny_posts)
+    _route_json(page, server, "/api/instructor/requests/302/accept",
+                lambda req: (
+                    reqs[1].__setitem__(
+                        "status", "accepted") or (200, {"ok": True})),
+                method="POST", capture=accept_posts)
+
+    page.goto(f"{server}/instructor/dashboard")
+    expect(page.locator(".user b")).to_have_text("Самойлов Михаил")
+    page.locator('.nav button[data-tab="Запросы учеников"]').click()
+    expect(page.locator(".rq")).to_have_count(2)
+    expect(page.locator(".rq-top b").first).to_have_text("Павел Ежов")
+
+    # --- отказ: кнопка заблокирована до непустого комментария (FR-38) ---
+    page.locator("[data-denypanel='301']").click()
+    deny_btn = page.locator("[data-deny='301']")
+    expect(deny_btn).to_be_disabled()
+    page.fill("#rq-ta-301", " ")  # только пробел — всё еще блокировано
+    expect(deny_btn).to_be_disabled()
+    page.fill("#rq-ta-301", "Не совпадают графики занятий")
+    expect(deny_btn).to_be_enabled()
+    deny_btn.click()
+    assert len(deny_posts) == 1
+    assert json.loads(deny_posts[0].post_data) == {
+        "comment": "Не совпадают графики занятий"}
+
+    # --- принятие: выбор авто -> POST accept с car_id (FR-39) ---
+    page.locator("[data-accept='302']").click()
+    panel = page.locator("#rq-accept-302")
+    expect(panel).to_be_visible()
+    expect(page.locator("input[name='car-302']")).to_have_count(2)
+    # по умолчанию выбран первый автомобиль; переключим на второй
+    page.locator("input[name='car-302'][value='12']").check()
+    page.locator("[data-confirm='302']").click()
+    assert len(accept_posts) == 1
+    assert json.loads(accept_posts[0].post_data) == {"car_id": 12}
+    # статус отрисован: заявка 302 — «Принята»
+    expect(page.locator(".rq", has_text="Ольга Нечаева")
+           .locator(".rq-status")).to_have_text("Принята")
+
+
+def test_instructor_logout_redirects_to_instructors(page, server):
+    """TC-UI-010 (change add-instructor-student-loop): выход из кабинета
+    инструктора — POST /api/auth/logout, затем редирект на /instructors
+    (долг из review-001: не на главную, а на лендинг инструкторов)."""
+    _seed_session(page, "session_token", INSTRUCTOR_TOKEN)
+
+    logout_posts: list = []
+    _route_json(page, server, "/api/auth/me", lambda req: (
+        200, {"ok": True, "user": {"surname": "Самойлов", "name": "Михаил"}}))
+    _route_json(page, server, "/api/instructor/dashboard", lambda req: (
+        200, {"ok": True, "instructor": {"surname": "Самойлов",
+                                         "name": "Михаил"}}))
+    _route_json(page, server, "/api/auth/logout", lambda req: (
+        200, {"ok": True}), method="POST", capture=logout_posts)
+
+    page.goto(f"{server}/instructor/dashboard")
+    expect(page.locator(".user b")).to_have_text("Самойлов Михаил")
+
+    page.locator(".icon-btn[title='Выйти']").click()
+    page.wait_for_url("**/instructors")
+
+    # лендинг инструкторов действительно загрузился
+    expect(page.locator(".brand em")).to_have_text("Сбер")
+    # сессия очищена, logout вызван ровно один раз
+    token_left = page.evaluate("sessionStorage.getItem('session_token')")
+    assert token_left is None, "sessionStorage не очищен после выхода"
+    assert len(logout_posts) == 1
+
+
+def test_admin_row_click_opens_card_and_loads_license_image(page, server):
+    """TC-UI-011 (change add-instructor-student-loop): админка — клик по строке
+    заявки открывает карточку инструктора (модально, мокап
+    instructor-card-admin); изображение ВУ загружается только с X-Admin-Token
+    (FR-24/FR-25); у заявки без ВУ — пустое состояние без «битой» картинки.
+    API замокан через page.route."""
+    _seed_session(page, "admin_token", ADMIN_TOKEN)
+
+    image_reqs: list = []
+    apps = [
+        {"id": 1041, "surname": "Самойлов", "name": "Михаил",
+         "patronymic": "Петрович", "phone": "+7 912 445-19-08",
+         "email": "samoilov@example.com", "experience": 11,
+         "car_info": "Škoda Rapid · 2020 · автомат", "status": "waiting",
+         "review_comment": None, "license_photo_path": "license/ab.jpg"},
+        {"id": 1040, "surname": "Белов", "name": "Артём",
+         "patronymic": "Дмитриевич", "phone": "+7 903 208-77-41",
+         "email": "belov@example.com", "experience": 1,
+         "car_info": "Lada Granta · 2021 · механика", "status": "waiting",
+         "review_comment": None, "license_photo_path": None},
+    ]
+
+    _route_json(page, server, "/api/admin/users", lambda req: (
+        200, {"users": [], "count": 0}))
+    _route_json(page, server, "/api/admin/instructor-applications",
+                lambda req: (200, {"applications": apps, "count": len(apps)}))
+    _route_json(page, server, "/api/admin/instructor-applications/1041",
+                lambda req: (
+                    assert_admin_token(req) or (200, {"ok": True,
+                                                      "application": apps[0]})))
+    _route_json(page, server, "/api/admin/instructor-applications/1040",
+                lambda req: (200, {"ok": True, "application": apps[1]}))
+
+    def _png(route):
+        req = route.request
+        image_reqs.append(req)
+        route.fulfill(status=200, content_type="image/png", body=PNG_1PX)
+
+    page.route(f"{server}/api/admin/instructor-applications/1041/license-image",
+               _png)
+
+    page.goto(f"{server}/admin-dashboard")
+    # раздел «Заявки инструкторов» -> таблица заявок
+    page.locator(".nav button", has_text="Заявки инструкторов").click()
+    expect(page.locator("#app-rows tr")).to_have_count(2)
+
+    # клик по строке заявки с ВУ -> карточка, изображение с админ-токеном
+    page.locator("#app-rows tr", has_text="Самойлов").click()
+    expect(page.locator("#ic-backdrop")).to_be_visible()
+    expect(page.locator("#ic-name")).to_have_text("Самойлов Михаил Петрович")
+    expect(page.locator("#ic-last")).to_have_text("Самойлов")
+    expect(page.locator("#ic-exp")).to_have_text("11")
+    expect(page.locator("#ic-license img")).to_be_visible()
+    assert len(image_reqs) == 1
+    assert image_reqs[0].headers.get("x-admin-token") == ADMIN_TOKEN, \
+        "изображение ВУ запрошено без X-Admin-Token"
+
+    # закрытие -> карточка заявки БЕЗ ВУ: пустое состояние, картинки нет
+    page.locator("#ic-close").click()
+    expect(page.locator("#ic-backdrop")).to_be_hidden()
+    page.locator("#app-rows tr", has_text="Белов").click()
+    expect(page.locator("#ic-backdrop")).to_be_visible()
+    expect(page.locator("#ic-license")).to_contain_text("Файл ВУ не приложен")
+    assert page.locator("#ic-license img").count() == 0
+    assert len(image_reqs) == 1  # повторного запроса изображения не было
+
+
+def assert_admin_token(req):
+    """Заглушка-гард: карточка заявки запрашивается только с X-Admin-Token."""
+    assert req.headers.get("x-admin-token") == ADMIN_TOKEN
+    return None

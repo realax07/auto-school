@@ -29,6 +29,28 @@ tr:hover td{background:rgba(73,236,154,.04)}
 .badge{padding:3px 12px;border-radius:999px;font-size:12px;background:rgba(73,236,154,.14);color:#5cf0a4}
 .badge.red{background:rgba(255,107,107,.14);color:#ffb28e;border:1px solid rgba(255,107,107,.35)}
 .empty{display:none;padding:60px 0;text-align:center;color:#7d939a;font-size:14px}
+/* Карточка инструктора (модально, мокап design/mocks/instructor-card-admin.html,
+   change add-instructor-student-loop, FR-24/FR-25) */
+.ic-backdrop{position:fixed;inset:0;background:#02070bd0;backdrop-filter:blur(6px);display:none;place-items:center;padding:24px;z-index:30}
+.ic-backdrop.open{display:grid}
+.ic-modal{width:min(880px,100%);max-height:calc(100vh - 60px);overflow:auto;border:1px solid #ffffff20;border-radius:22px;background:linear-gradient(150deg,#16242c,#0b1418);box-shadow:0 30px 80px #000c;padding:26px 28px 28px}
+.ic-head{display:flex;align-items:start;gap:14px;margin-bottom:4px}
+.ic-head h2{font-size:22px;letter-spacing:-.04em;font-weight:600;margin:0}
+.ic-head .sub{font-size:12px;color:#8fa0aa;margin-top:7px}
+.ic-close{margin-left:auto;flex:none;width:36px;height:36px;border-radius:11px;border:1px solid #ffffff18;background:#ffffff06;color:#b9c8ce;font-size:17px;cursor:pointer}
+.ic-close:hover{border-color:#ff6b6b66;color:#ffb28e}
+.ic-grid2{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(240px,1fr);gap:16px;margin-top:18px}
+.ic-panel{border:1px solid #ffffff12;border-radius:15px;background:#ffffff04;padding:17px}
+.ic-panel h3{font-size:10px;color:#8fa0aa;text-transform:uppercase;letter-spacing:.14em;margin:0 0 13px;font-weight:500}
+.ic-rows{display:grid;gap:11px}
+.ic-row{display:flex;justify-content:space-between;gap:12px;font-size:12px}
+.ic-row span{color:#8fa0aa}
+.ic-row b{font-weight:550;text-align:right;color:#e4eef0;word-break:break-word}
+.ic-img-ph{aspect-ratio:16/10;border:1.5px dashed #35d87955;border-radius:13px;background:#0d2b1c55;display:grid;place-items:center;text-align:center;color:#7fe3a3;font-size:11px;line-height:1.7;padding:12px}
+.ic-img-ph img{max-width:100%;max-height:100%;border-radius:9px;display:block}
+.ic-note{font-size:10px;color:#8fa0aa;line-height:1.6;border:1px solid #ffffff12;border-radius:11px;background:#ffffff04;padding:10px 12px;margin-top:12px}
+.ic-note b{color:#a3efbd}
+@media(max-width:860px){.ic-grid2{grid-template-columns:1fr}.ic-modal{padding:18px}}
 @media(max-width:860px){.app{grid-template-columns:1fr}aside{display:none}main{padding:20px}}
 </style></head><body>
 <div class="app">
@@ -74,6 +96,45 @@ tr:hover td{background:rgba(73,236,154,.04)}
     </div>
   </div>
 </main>
+</div>
+<!-- Карточка инструктора: открытие по клику на строку (FR-25). Изображение ВУ
+     загружается с админ-токеном: GET /api/admin/instructor-applications/{id}/license-image
+     c X-Admin-Token (blob -> objectURL; у <img> нельзя задать заголовки).
+     Без токена/с неверным — 401, изображение не возвращается (FR-24, NFR-1). -->
+<div class="ic-backdrop" id="ic-backdrop" role="dialog" aria-modal="true" aria-labelledby="ic-name">
+  <div class="ic-modal">
+    <div class="ic-head">
+      <div><h2 id="ic-name">—</h2><div class="sub" id="ic-sub">Заявка инструктора № —</div></div>
+      <button class="ic-close" id="ic-close" aria-label="Закрыть">×</button>
+    </div>
+    <div class="ic-grid2">
+      <div class="ic-panel">
+        <h3>Данные анкеты</h3>
+        <div class="ic-rows">
+          <div class="ic-row"><span>Фамилия</span><b id="ic-last">—</b></div>
+          <div class="ic-row"><span>Имя</span><b id="ic-first">—</b></div>
+          <div class="ic-row"><span>Отчество</span><b id="ic-pat">—</b></div>
+          <div class="ic-row"><span>Email</span><b id="ic-email">—</b></div>
+          <div class="ic-row"><span>Телефон</span><b id="ic-phone">—</b></div>
+          <div class="ic-row"><span>Стаж вождения</span><b id="ic-exp">—</b></div>
+          <div class="ic-row"><span>Автомобиль</span><b id="ic-car">—</b></div>
+          <div class="ic-row"><span>Статус</span><b id="ic-status">—</b></div>
+          <div class="ic-row"><span>Причина отказа</span><b id="ic-review">—</b></div>
+        </div>
+      </div>
+      <div>
+        <div class="ic-panel">
+          <h3>Водительское удостоверение</h3>
+          <div class="ic-img-ph" id="ic-license"><span>Загрузка…</span></div>
+        </div>
+        <div class="ic-note"><b>Доступ к изображению:</b> файл хранится вне раздаваемой статики и выдаётся только по эндпоинту с валидным админ-токеном. Без токена — отказ, изображение не возвращается.</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap">
+      <button class="btn-export" id="ic-approve" style="flex:1">✓ Одобрить заявку</button>
+      <button class="btn-export" id="ic-deny" style="flex:1">✕ Отклонить</button>
+    </div>
+  </div>
 </div>
 <script>
 // Реальные данные из API (задача 4.1, дизайн 2026-10-08)
@@ -159,15 +220,16 @@ function loadApplications(){
         var act=document.createElement('td');
         if(a.status==='waiting'){
           var ok=document.createElement('button');ok.className='btn-export';ok.textContent='Одобрить';
-          ok.onclick=function(){approve(a.id);};
+          ok.onclick=function(e){e.stopPropagation();approve(a.id);};
           var no=document.createElement('button');no.className='btn-export';no.textContent='Отклонить';
-          no.style.marginLeft='8px';no.onclick=function(){showDeny(a.id);};
+          no.style.marginLeft='8px';no.onclick=function(e){e.stopPropagation();showDeny(a.id);};
           act.appendChild(ok);act.appendChild(no);
         }else{act.textContent='—';}
         tr.appendChild(act);
-        // клик по строке — детали (раскрытие)
+        // клик по строке — детальная карточка инструктора (FR-25, мокап
+        // instructor-card-admin; change add-instructor-student-loop)
         tr.style.cursor='pointer';
-        tr.appendChild; // noop
+        tr.addEventListener('click',function(){openInstructorCard(a.id);});
         tb.appendChild(tr);
       });
     }).catch(function(e){if(e.message!=='unauthorized')console.error(e);});
@@ -195,5 +257,88 @@ function submitDeny(){
       else{alert((res.data&&res.data.error)||'Ошибка');}
     });
 }
+
+// --- Детальная карточка инструктора (change add-instructor-student-loop,
+// задача 1.3, мокап instructor-card-admin): клик по строке -> модально;
+// данные GET /api/admin/instructor-applications/{id}; изображение ВУ —
+// GET …/{id}/license-image только с X-Admin-Token (FR-24/NFR-1): <img> не
+// умеет заголовки, поэтому fetch -> blob -> objectURL. У заявки без ВУ —
+// корректное пустое состояние без «битой» картинки.
+var IC_CURRENT=null;
+function icSet(id,text){var e=document.getElementById(id);e.textContent=(text==null||text==='')?'—':text;}
+function openInstructorCard(id){
+  IC_CURRENT=id;
+  fetch('/api/admin/instructor-applications/'+id,{headers:{'X-Admin-Token':TOKEN}})
+    .then(function(r){
+      if(r.status===401){location.href='/admin-login';throw new Error('unauthorized');}
+      return r.json().then(function(d){return {status:r.status,data:d};});
+    })
+    .then(function(res){
+      if(res.status!==200||!res.data||!res.data.ok){
+        alert((res.data&&res.data.error)||'Не удалось загрузить заявку');return;
+      }
+      var a=res.data.application||res.data;
+      var fio=[a.surname,a.name,a.patronymic].filter(Boolean).join(' ');
+      document.getElementById('ic-name').textContent=fio||'—';
+      document.getElementById('ic-sub').textContent='Заявка инструктора № '+id;
+      icSet('ic-last',a.surname);icSet('ic-first',a.name);icSet('ic-pat',a.patronymic);
+      icSet('ic-email',a.email);icSet('ic-phone',a.phone);
+      icSet('ic-exp',a.experience!=null?a.experience:a.experience_years);
+      icSet('ic-car',a.car_info||a.car);
+      icSet('ic-status',a.status==='waiting'?'На рассмотрении':a.status==='approved'?'Одобрена':'Отклонена');
+      icSet('ic-review',a.review_comment);
+      var waiting=(a.status==='waiting');
+      document.getElementById('ic-approve').style.display=waiting?'':'none';
+      document.getElementById('ic-deny').style.display=waiting?'':'none';
+      loadLicenseImage(id,a.license_photo_path||a.license_photo);
+      document.getElementById('ic-backdrop').classList.add('open');
+      document.body.style.overflow='hidden';
+    })
+    .catch(function(e){if(e.message!=='unauthorized')console.error(e);});
+}
+function loadLicenseImage(id,hasPhoto){
+  var ph=document.getElementById('ic-license');
+  if(!hasPhoto){
+    ph.innerHTML='<span>Файл ВУ не приложен<br>заявка без изображения</span>';
+    return;
+  }
+  ph.innerHTML='<span>Загрузка…</span>';
+  fetch('/api/admin/instructor-applications/'+id+'/license-image',{headers:{'X-Admin-Token':TOKEN}})
+    .then(function(r){
+      if(!r.ok){ // 401 без/с неверным токеном, 404 без файла — изображение не возвращается
+        return r.json().then(function(d){return {ok:false,error:d&&d.error};},function(){return {ok:false};});
+      }
+      return r.blob().then(function(b){return {ok:true,blob:b};});
+    })
+    .then(function(res){
+      if(res.ok){
+        ph.innerHTML='';
+        var img=document.createElement('img');
+        img.alt='Изображение водительского удостоверения';
+        img.src=URL.createObjectURL(res.blob);
+        ph.appendChild(img);
+      }else{
+        ph.innerHTML='<span>Изображение недоступно'+(res.error?'<br>'+res.error:'')+'</span>';
+      }
+    })
+    .catch(function(){ph.innerHTML='<span>Изображение недоступно</span>';});
+}
+function closeInstructorCard(){
+  var img=document.querySelector('#ic-license img');
+  if(img&&img.src.startsWith('blob:'))URL.revokeObjectURL(img.src);
+  document.getElementById('ic-backdrop').classList.remove('open');
+  document.body.style.overflow='';
+}
+document.getElementById('ic-close').addEventListener('click',closeInstructorCard);
+document.getElementById('ic-backdrop').addEventListener('click',function(e){
+  if(e.target===this)closeInstructorCard();
+});
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeInstructorCard();});
+document.getElementById('ic-approve').addEventListener('click',function(){
+  var id=IC_CURRENT;closeInstructorCard();approve(id);
+});
+document.getElementById('ic-deny').addEventListener('click',function(){
+  var id=IC_CURRENT;closeInstructorCard();showDeny(id);
+});
 </script>
 </body></html>
