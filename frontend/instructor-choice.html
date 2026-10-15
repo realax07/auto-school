@@ -195,41 +195,16 @@ api('/api/auth/me',{},function(res){
 });
 function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(window._tt);window._tt=setTimeout(function(){t.classList.remove('show')},3000)}
 
-// --- нормализация полей карточки (GET /api/student/instructors) ---
+// --- поля карточки (реальный шейп GET /api/student/instructors,
+//     backend/student_marketplace.py; code-review review-001 #2/#5:
+//     нормализация по «догадкам» удалена) ---
 var DAYS=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
-function instFio(i){
-  if(typeof i.fio==='string'&&i.fio)return i.fio;
-  if(typeof i.full_name==='string'&&i.full_name)return i.full_name;
-  var s=i.surname||i.last_name||'',n=i.name||i.first_name||'',p=i.patronymic||'';
-  return [s,n,p].filter(Boolean).join(' ')||'Инструктор';
-}
-function instExp(i){var e=i.experience;if(e==null)e=i.exp;if(e==null)e=0;return +e||0}
-function instCars(i){return i.cars||i.vehicles||[]}
-function carPill(c){
-  var name=[c.brand,c.model].filter(Boolean).join(' ')||c.name||'Автомобиль';
-  var tr=c.transmission==='automatic'?'автомат':c.transmission==='manual'?'механика':(c.transmission||'');
-  return '<span class="pill">'+name+' · '+(c.year||'')+(tr?' · '+tr:'')+'</span>';
-}
-function ratingInfo(i){
-  var r=i.rating;
-  if(r&&typeof r==='object'){
-    if(r.has_reviews===false||!r.count)return null;
-    var a=(r.average!=null)?r.average:r.avg;
-    return (a==null)?null:{avg:+a,cnt:r.count||0};
-  }
-  if(i.rating_average!=null)return {avg:+i.rating_average,cnt:i.rating_count||0};
-  return null;
-}
-function slotText(s){
-  if(typeof s==='string')return s;
-  if(Array.isArray(s))return s[0]+' '+s[1];
-  var d=(typeof s.weekday==='number')?DAYS[s.weekday]:(s.weekday!=null?s.weekday:(s.day!=null?s.day:''));
-  return d+' '+(s.start_time||s.start||'')+'–'+(s.end_time||s.end||'');
-}
-function slotsHtml(i){
-  var list=i.slots||i.hours||i.availability||[];
-  return '<div class="slotrow">'+list.map(function(s){return '<span class="slot">'+slotText(s)+'</span>'}).join('')+'</div>';
-}
+// DOM-хелпер: пользовательские строки — только через textContent
+// (code-review review-001 #1, stored XSS через innerHTML запрещен)
+function el(tag,cls,text){var n=document.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=text;return n}
+function instFio(i){return i.full_name||'Инструктор'}
+function instExp(i){return +i.experience_years||0}
+function slotText(s){return DAYS[s.weekday]+' '+s.start_time+'–'+s.end_time}
 
 // --- состояние фильтров -> query-параметры (фильтрует сервер, FR-32) ---
 var state={transmission:'',min_rating:0,min_experience:0,free_weekday:'',free_from:'',free_to:''};
@@ -257,10 +232,19 @@ function loadInstructors(){
   });
 }
 function expWord(n){return n%10===1&&n%100!==11?'год':(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20)?'года':'лет')}
-function fmtRating(i){
-  var r=ratingInfo(i);
-  if(!r)return '<div class="rating none"><b>☆ Нет отзывов</b><small>новый инструктор</small></div>';
-  return '<div class="rating"><b>★ '+r.avg.toFixed(1)+'</b><small>'+r.cnt+' отзывов</small></div>';
+// рейтинг — узел (агрегат {average,count} / {has_reviews:false}, FR-35)
+function ratingNode(i){
+  var r=i.rating;
+  if(!r||r.has_reviews===false||!r.count){
+    var none=el('div','rating none');
+    none.appendChild(el('b',null,'☆ Нет отзывов'));
+    none.appendChild(el('small',null,'новый инструктор'));
+    return none;
+  }
+  var box=el('div','rating');
+  box.appendChild(el('b',null,'★ '+(+r.average).toFixed(1)));
+  box.appendChild(el('small',null,String(r.count)+' отзывов'));
+  return box;
 }
 function render(){
   var list=instructors.slice();
@@ -268,26 +252,48 @@ function render(){
   list.sort(function(a,b){
     if(sort==='exp')return instExp(b)-instExp(a);
     if(sort==='name')return instFio(a).localeCompare(instFio(b),'ru');
-    var ra=ratingInfo(a),rb=ratingInfo(b);
-    return (rb?rb.avg:-1)-(ra?ra.avg:-1);
+    var ra=a.rating&&a.rating.average!=null?+a.rating.average:-1;
+    var rb=b.rating&&b.rating.average!=null?+b.rating.average:-1;
+    return rb-ra;
   });
   document.getElementById('found').textContent='Найдено: '+list.length;
   document.getElementById('empty').style.display=list.length?'none':'block';
-  document.getElementById('cards').innerHTML=list.map(function(i){
+  // Строим карточки через createElement/textContent — пользовательские
+  // строки (ФИО инструктора, brand/model) не проходят через innerHTML
+  // (code-review review-001 #1, stored XSS)
+  var cards=document.getElementById('cards');
+  cards.innerHTML='';
+  list.forEach(function(i){
     var id=i.id||i.instructor_id, sentNow=!!sent[id];
-    var cars=instCars(i);
-    return '<article class="card" data-id="'+id+'">'+
-      '<div class="card-top"><span class="icard">'+instFio(i).split(' ').slice(0,2).map(function(w){return (w[0]||'').toUpperCase()}).join('')+'</span>'+
-      '<div><b>'+instFio(i)+'</b><small>Стаж: '+instExp(i)+' '+expWord(instExp(i))+'</small></div>'+
-      fmtRating(i)+'</div>'+
-      '<div class="meta"><span class="pill green">Авто: '+cars.length+'</span>'+cars.map(carPill).join('')+'</div>'+
-      '<div class="hours"><span>Свободные часы</span>'+slotsHtml(i)+'</div>'+
-      (sentNow?'<div class="warn-note">Заявка подана — статус появится в разделе «Мои заявки»</div>':'')+
-      '<button class="apply'+(sentNow?' sent':'')+'" data-id="'+id+'">'+(sentNow?'✓ Заявка отправлена':'Подать заявку')+'</button></article>';
-  }).join('');
-  document.querySelectorAll('.apply').forEach(function(b){
-    b.addEventListener('click',function(){
-      var id=b.dataset.id;
+    var cars=i.cars||[];
+    var card=el('article','card');card.dataset.id=String(id);
+    var top=el('div','card-top');
+    var initials=instFio(i).split(' ').slice(0,2).map(function(w){return (w[0]||'').toUpperCase()}).join('');
+    top.appendChild(el('span','icard',initials));
+    var who=el('div');
+    who.appendChild(el('b',null,instFio(i)));
+    who.appendChild(el('small',null,'Стаж: '+instExp(i)+' '+expWord(instExp(i))));
+    top.appendChild(who);
+    top.appendChild(ratingNode(i));
+    card.appendChild(top);
+    var meta=el('div','meta');
+    meta.appendChild(el('span','pill green','Авто: '+cars.length));
+    cars.forEach(function(c){
+      var tr=c.transmission==='automatic'?'автомат':c.transmission==='manual'?'механика':(c.transmission||'');
+      meta.appendChild(el('span','pill',[c.brand,c.model].filter(Boolean).join(' ')+' · '+(c.year||'')+(tr?' · '+tr:'')));
+    });
+    card.appendChild(meta);
+    var hours=el('div','hours');
+    hours.appendChild(el('span',null,'Свободные часы'));
+    var slotrow=el('div','slotrow');
+    (i.availability||[]).forEach(function(s){slotrow.appendChild(el('span','slot',slotText(s)))});
+    hours.appendChild(slotrow);
+    card.appendChild(hours);
+    if(sentNow)card.appendChild(el('div','warn-note','Заявка подана — статус появится в разделе «Мои заявки»'));
+    var btn=el('button','apply'+(sentNow?' sent':''),sentNow?'✓ Заявка отправлена':'Подать заявку');
+    btn.type='button';btn.dataset.id=String(id);
+    btn.addEventListener('click',function(){
+      var id=btn.dataset.id;
       if(sent[id])return;
       api('/api/student/requests',{method:'POST',body:JSON.stringify({instructor_id:+id})},function(res){
         if(res.status===401||res.status===403){toLogin();return}
@@ -295,13 +301,16 @@ function render(){
           sent[id]=true;render();
           toast('Заявка отправлена инструктору. Ответ появится в разделе «Мои заявки».');
         }else if(res.status===409){
-          sent[id]=true;render();
+          // 409 не кэшируем в sent (review-001 #14): состояние «подано»
+          // знает только сервер
           toast('У вас уже есть активная заявка этому инструктору.');
         }else{
           toast((res.data&&res.data.error)||'Не удалось отправить заявку');
         }
       });
     });
+    card.appendChild(btn);
+    cards.appendChild(card);
   });
 }
 function segBind(id,key){

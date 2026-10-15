@@ -190,6 +190,7 @@ def test_migration_creates_new_tables(client):
         "idx_reviews_instructor",
         "idx_student_requests_instructor",
         "idx_student_requests_student",
+        "uq_student_requests_active",
     } <= indexes
 
 
@@ -1055,6 +1056,141 @@ def test_request_submit_duplicate_parallel_and_repeat(api, client):
         headers=_headers(student["token"]),
     )
     assert again.status_code == 200, again.text
+
+
+def test_active_request_unique_index_blocks_duplicate_at_db_level(api, client):
+    """Гонка дубликата (review-001 #6): частичный UNIQUE-индекс
+    uq_student_requests_active — второй активный дубликат невозможен
+    на уровне БД (даже мимо check-then-insert API); denied-дубликаты
+    индекс не учитывает — повторная заявка после отказа допустима (ОВ-2)."""
+    conn = sqlite3.connect(db_path())
+    conn.execute(
+        "INSERT INTO student_requests (student_id, instructor_id, status)"
+        " VALUES (1, 1, 'new')"
+    )
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute(
+            "INSERT INTO student_requests (student_id, instructor_id, status)"
+            " VALUES (1, 1, 'new')"
+        )
+    conn.execute(
+        "INSERT INTO student_requests (student_id, instructor_id, status)"
+        " VALUES (1, 1, 'denied')"
+    )
+    conn.commit()
+    count = conn.execute(
+        "SELECT COUNT(*) FROM student_requests WHERE student_id = 1"
+    ).fetchone()[0]
+    conn.close()
+    assert count == 2  # активная + отказ
+
+
+def test_live_request_flow_submit_accept_closes_others(api, client):
+    """Живой поток заявки (review-001 #5): подача двумя инструкторам →
+    принятие одним (со своим авто) → остальные АКТИВНЫЕ закрыты системным
+    комментарием; ученик видит оба статуса в «Моих заявках» (FR-38),
+    инструктор — заявку с ФИО/стажем/авто (FR-37)."""
+    instr_a = create_instructor(client, email="flow-a@example.com")
+    instr_b = create_instructor(client, email="flow-b@example.com")
+    car_a = add_car(client, instr_a["token"])
+    car_b = add_car(client, instr_b["token"])
+    student = create_student(client)
+
+    rid_a = create_request(client, student["token"], instr_a["id"])
+    rid_b = create_request(client, student["token"], instr_b["id"])
+
+    accepted = client.post(
+        f"/api/instructor/requests/{rid_b}/accept",
+        json={"car_id": car_b},
+        headers=_headers(instr_b["token"]),
+    )
+    assert accepted.status_code == 200, accepted.text
+
+    # заявка A автозакрыта системным комментарием (ОВ-1), B — accepted
+    row_a = fetch_request_row(rid_a)
+    row_b = fetch_request_row(rid_b)
+    assert row_a["status"] == "denied"
+    assert row_a["deny_comment"] == "Заявка закрыта: ученик принят другим инструктором"
+    assert row_b["status"] == "accepted" and row_b["car_id"] == car_b
+
+    # повторное решение по закрытой заявке — 409 (guard статуса)
+    assert (
+        client.post(
+            f"/api/instructor/requests/{rid_a}/accept",
+            json={"car_id": car_a},
+            headers=_headers(instr_a["token"]),
+        ).status_code
+        == 409
+    )
+
+    # инструктор B: в списке только его заявка, с ФИО/стажем и авто
+    incoming = client.get(
+        "/api/instructor/requests", headers=_headers(instr_b["token"])
+    ).json()["requests"]
+    target = [r for r in incoming if r["id"] == rid_b][0]
+    assert target["status"] == "accepted"
+    assert target["student_full_name"] == "Петрова-Водкина Анна Оттовна"
+    assert target["student_experience_years"] == 0
+    assert target["car"]["id"] == car_b
+    assert target["car"]["brand"] == "Škoda"
+
+    # ученик: «Мои заявки» показывают accepted и системный отказ (FR-38)
+    mine = client.get(
+        "/api/student/requests", headers=_headers(student["token"])
+    ).json()["requests"]
+    by_id = {r["id"]: r for r in mine}
+    assert by_id[rid_b]["status"] == "accepted"
+    assert by_id[rid_b]["car"]["id"] == car_b
+    assert by_id[rid_a]["status"] == "denied"
+    assert by_id[rid_a]["deny_comment"] == (
+        "Заявка закрыта: ученик принят другим инструктором"
+    )
+
+
+def test_instructor_requests_contract_shape(api, client):
+    """Контракт шейпа GET /api/instructor/requests (review-001 #2/#3):
+    ровно поля id/status/created_at/decided_at/student_full_name/
+    student_experience_years/car (объект с id/brand/model/year/
+    transmission или null) — фронт читает только эти имена."""
+    instr = create_instructor(client, experience_years=5)
+    student = create_student(client)
+    rid = create_request(client, student["token"], instr["id"])
+
+    items = client.get(
+        "/api/instructor/requests", headers=_headers(instr["token"])
+    ).json()["requests"]
+    assert len(items) == 1
+    item = items[0]
+    assert set(item.keys()) == {
+        "id", "status", "created_at", "decided_at",
+        "student_full_name", "student_experience_years", "car",
+    }
+    assert item["id"] == rid
+    assert item["status"] == "new"
+    assert item["created_at"]
+    assert item["decided_at"] is None
+    assert item["student_full_name"] == "Петрова-Водкина Анна Оттовна"
+    assert item["student_experience_years"] == 0  # users.experience_years DEFAULT 0
+    assert item["car"] is None  # авто появляется после accept
+
+    car_id = add_car(client, instr["token"])
+    accepted = client.post(
+        f"/api/instructor/requests/{rid}/accept",
+        json={"car_id": car_id},
+        headers=_headers(instr["token"]),
+    )
+    assert accepted.status_code == 200, accepted.text
+
+    item = client.get(
+        "/api/instructor/requests", headers=_headers(instr["token"])
+    ).json()["requests"][0]
+    assert item["status"] == "accepted"
+    assert item["decided_at"] is not None
+    assert set(item["car"].keys()) == {"id", "brand", "model", "year", "transmission"}
+    assert item["car"] == {
+        "id": car_id, "brand": "Škoda", "model": "Rapid",
+        "year": 2020, "transmission": "automatic",
+    }
 
 
 def test_request_to_unapproved_instructor_404(api, client):

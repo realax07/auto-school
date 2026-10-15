@@ -485,16 +485,21 @@ def _seed_session(page, key: str, value: str) -> None:
 
 def _instructor_card(idx: int, *, id: int, exp: int, transmission: str,
                      rating, slots: list) -> dict:
+    """Шейп карточки — РЕАЛЬНЫЙ ответ GET /api/student/instructors
+    (backend/student_marketplace.py; review-001 #5: моки с вымышленными
+    полями fio/experience/slots неспособны поймать расхождение
+    фронт↔бэк)."""
     return {
         "id": id,
-        "fio": ["Самойлов Михаил Петрович", "Гордеева Анна Викторовна",
-                "Белов Артём Дмитриевич"][idx],
-        "experience": exp,
-        "cars": [{"brand": ["Škoda", "Volkswagen", "Lada"][idx],
+        "full_name": ["Самойлов Михаил Петрович", "Гордеева Анна Викторовна",
+                      "Белов Артём Дмитриевич"][idx],
+        "experience_years": exp,
+        "cars": [{"id": 51 + idx,
+                  "brand": ["Škoda", "Volkswagen", "Lada"][idx],
                   "model": ["Rapid", "Polo", "Granta"][idx],
                   "year": 2020 + idx, "transmission": transmission}],
-        "rating": rating,  # {average,count} или {has_reviews:false}
-        "slots": slots,
+        "rating": rating,  # {has_reviews:true,average,count} | {has_reviews:false}
+        "availability": slots,
     }
 
 
@@ -520,7 +525,7 @@ def _choice_instructors(params: dict) -> list:
                        for c in i["cars"])]
     if params.get("min_experience"):
         pool = [i for i in pool
-                if i["experience"] >= int(params["min_experience"])]
+                if i["experience_years"] >= int(params["min_experience"])]
     return pool
 
 
@@ -528,7 +533,7 @@ def test_student_choice_filters_narrow_and_apply_request(page, server):
     """TC-UI-007 (change add-instructor-student-loop): «Выбор инструктора» —
     фильтры сужают список (запрос с query-параметрами, серверная фильтрация),
     «Подать заявку» шлёт POST /api/student/requests {instructor_id}.
-    API замокан через page.route — бэкенд-задача параллельна."""
+    Моки — с шейпами РЕАЛЬНОГО бэкенда (review-001 #5)."""
     _serve_frontend(page, server, "/instructor-choice", "instructor-choice.html")
     _seed_session(page, "session_token", SESSION_TOKEN)
 
@@ -547,7 +552,8 @@ def test_student_choice_filters_narrow_and_apply_request(page, server):
                                    "patronymic": "Иванович"}}))
     _route_json(page, server, "/api/student/instructors", _respond_list)
     _route_json(page, server, "/api/student/requests", lambda req: (
-        200, {"ok": True, "id": 900}), method="POST", capture=post_requests)
+        200, {"ok": True, "request_id": 900}), method="POST",
+        capture=post_requests)
 
     page.goto(f"{server}/instructor-choice")
     expect(page.locator(".card")).to_have_count(3)
@@ -642,16 +648,18 @@ def test_instructor_requests_deny_locked_until_comment_accept_with_car(
     """TC-UI-009 (change add-instructor-student-loop): «Запросы учеников» —
     «Отказать» заблокировано до непустого комментария (FR-38), сабмит шлёт
     POST …/deny {comment}; «Принять» требует выбор авто и шлёт POST …/accept
-    {car_id} (FR-39). API замокан через page.route."""
+    {car_id} (FR-39). Мок /api/instructor/requests — шейп РЕАЛЬНОГО бэкенда
+    backend/student_requests.py (review-001 #2/#5): student_full_name,
+    student_experience_years, car-объект; полей student_fio/comment нет."""
     _seed_session(page, "session_token", INSTRUCTOR_TOKEN)
 
     reqs = [
-        {"id": 301, "student_fio": "Павел Ежов", "student_experience": 0,
-         "created_at": "2026-10-15 09:14:00", "status": "new",
-         "comment": "Хочу учиться в вечернее время."},
-        {"id": 302, "student_fio": "Ольга Нечаева", "student_experience": 2,
-         "created_at": "2026-10-14 19:40:00", "status": "new",
-         "comment": "Нужна практика по городу на автомате."},
+        {"id": 301, "status": "new", "created_at": "2026-10-15 09:14:00",
+         "decided_at": None, "student_full_name": "Павел Ежов",
+         "student_experience_years": 0, "car": None},
+        {"id": 302, "status": "new", "created_at": "2026-10-14 19:40:00",
+         "decided_at": None, "student_full_name": "Ольга Нечаева",
+         "student_experience_years": 2, "car": None},
     ]
     cars = [
         {"id": 11, "brand": "Škoda", "model": "Rapid", "year": 2020,
@@ -719,6 +727,165 @@ def test_instructor_requests_deny_locked_until_comment_accept_with_car(
     # статус отрисован: заявка 302 — «Принята»
     expect(page.locator(".rq", has_text="Ольга Нечаева")
            .locator(".rq-status")).to_have_text("Принята")
+
+
+def test_instructor_accept_flow_real_backend(page, server):
+    """Интеграционный e2e на РЕАЛЬНОМ бэкенде, без page.route
+    (review-001 #2/#4/#5): подача заявки учеником → кабинет инструктора
+    показывает заявку с реальным ФИО/стажем → accept с выбором авто →
+    виджет «Привязанные ученики» показывает full_name/car/decided_at;
+    статус ученика отражается в /api/student/requests."""
+    # --- подготовка через API: инструктор (apply → approve → login) + авто
+    email, password = unique_email("flowinstr"), "Dr1vePass!"
+    status, data = api("POST", "/api/instructors/apply", base=server, body={
+        "surname": "Громов", "name": "Борис", "patronymic": "Арсеньевич",
+        "phone": "+7 902 333-44-55", "email": email,
+        "address": "г. Москва, ул. Летняя, д. 5", "work_format": "school",
+        "license_number": "9987654321", "license_category": "B",
+        "experience_years": 9,
+        "password": password, "password_confirm": password, "consent": True,
+    })
+    assert status == 200 and data and data["ok"], (status, data)
+    admin_token = admin_login(server)
+    status, listing = api("GET", "/api/admin/instructor-applications",
+                          base=server, admin_token=admin_token)
+    app_id = next(a["id"] for a in listing["applications"]
+                  if a["email"] == email)
+    status, data = api(
+        "POST", f"/api/admin/instructor-applications/{app_id}/approve",
+        base=server, admin_token=admin_token)
+    assert status == 200 and data and data["ok"], (status, data)
+    instructor_id = data["user_id"]
+    status, data = api("POST", "/api/auth/login", base=server, body={
+        "email": email, "password": password})
+    assert status == 200, (status, data)
+    instr_token = data["token"]
+
+    status, car = api("POST", "/api/instructor/cars", base=server, token=instr_token,
+                      body={"brand": "Škoda", "model": "Rapid", "year": 2020,
+                            "plate": "А123АА777", "transmission": "automatic"})
+    assert status == 200 and car and car["ok"], (status, car)
+    car_id = car["car_id"]
+
+    # --- ученик: регистрация + подача заявки через API
+    stu_email = unique_email("flowstu")
+    status, data = api("POST", "/api/register", base=server, body={
+        "surname": "Смирнова", "name": "Ольга", "patronymic": "Павловна",
+        "email": stu_email, "phone": "+7 901 222-33-44",
+        "password": "S3cretPass!", "password_confirm": "S3cretPass!",
+    })
+    assert status == 200 and data and data["ok"], (status, data)
+    status, data = api("POST", "/api/auth/login", base=server, body={
+        "email": stu_email, "password": "S3cretPass!"})
+    stu_token = data["token"]
+    status, data = api("POST", "/api/student/requests", base=server,
+                       token=stu_token, body={"instructor_id": instructor_id})
+    assert status == 200 and data and data["ok"], (status, data)
+
+    # заявка видна инструктору с РЕАЛЬНЫМ контрактом (стаж в ответе — FR-37)
+    status, data = api("GET", "/api/instructor/requests", base=server,
+                       token=instr_token)
+    assert status == 200, (status, data)
+    req = data["requests"][0]
+    request_id = req["id"]
+    assert req["student_full_name"] == "Смирнова Ольга Павловна"
+    assert req["student_experience_years"] == 0
+    assert req["car"] is None
+
+    # --- UI: вход инструктора → кабинет
+    page.goto(f"{server}/")
+    page.locator('.auth [data-open="login"]').click()
+    page.fill("#login-email", email)
+    page.fill("#login-password", password)
+    page.locator("#login-submit").click()
+    page.wait_for_url("**/instructor/dashboard")
+    expect(page.locator(".user b")).to_have_text("Громов Борис Арсеньевич")
+
+    # до принятия виджет «Привязанные ученики» пуст
+    expect(page.locator("#w-students-n")).to_have_text("0")
+
+    # раздел «Запросы учеников»: заявка с реальным ФИО и стажем «нет»
+    page.locator('.nav button[data-tab="Запросы учеников"]').click()
+    expect(page.locator(".rq")).to_have_count(1)
+    expect(page.locator(".rq-top b")).to_have_text("Смирнова Ольга Павловна")
+    expect(page.locator(".rq-top small")).to_contain_text("Стаж вождения: нет")
+
+    # accept с выбором авто сквозняком
+    page.locator(f"[data-accept='{request_id}']").click()
+    panel = page.locator(f"#rq-accept-{request_id}")
+    expect(panel).to_be_visible()
+    expect(page.locator(f"input[name='car-{request_id}']")).to_have_count(1)
+    page.locator(f"[data-confirm='{request_id}']").click()
+    expect(page.locator(".rq-status").first).to_have_text("Принята")
+
+    # виджет «Привязанные ученики» обновился без перезагрузки:
+    # full_name + car (review-001 #4 — фронт читает full_name/decided_at)
+    expect(page.locator("#w-students-n")).to_have_text("1")
+    expect(page.locator("#w-students-list .w-stu b")).to_have_text(
+        "Смирнова Ольга Павловна")
+    expect(page.locator("#w-students-list .w-stu .car")).to_have_text(
+        "Škoda Rapid 2020")
+
+    # бэкенд: ученик видит accepted + авто в «Моих заявках» (FR-38)
+    status, data = api("GET", "/api/student/requests", base=server,
+                       token=stu_token)
+    mine = data["requests"][0]
+    assert mine["status"] == "accepted" and mine["car"]["id"] == car_id, mine
+    assert mine["car"]["brand"] == "Škoda" and mine["car"]["model"] == "Rapid"
+
+
+def test_student_choice_xss_instructor_name_not_executed(page, server):
+    """Регресс stored XSS (review-001 #1): инструктор с payload в ФИО
+    (свободный текст анкеты → users при approve) не исполняется в сессии
+    ученика: карточка строится через createElement/textContent, payload
+    виден как текст, window.__xss не определен, img-элементов нет."""
+    payload = "<img src=x onerror=window.__xss=1>"
+    email, password = unique_email("xssinstr"), "Dr1vePass!"
+    status, data = api("POST", "/api/instructors/apply", base=server, body={
+        "surname": payload, "name": "Пейлоад", "patronymic": "Оттовна",
+        "phone": "+7 904 555-66-77", "email": email,
+        "address": "г. Тест, ул. Хакерская, 1", "work_format": "school",
+        "license_number": "9911223344", "license_category": "B",
+        "experience_years": 3,
+        "password": password, "password_confirm": password, "consent": True,
+    })
+    assert status == 200 and data and data["ok"], (status, data)
+    admin_token = admin_login(server)
+    status, listing = api("GET", "/api/admin/instructor-applications",
+                          base=server, admin_token=admin_token)
+    app_id = next(a["id"] for a in listing["applications"]
+                  if a["email"] == email)
+    status, data = api(
+        "POST", f"/api/admin/instructor-applications/{app_id}/approve",
+        base=server, admin_token=admin_token)
+    assert status == 200 and data and data["ok"], (status, data)
+
+    # ученик входит и открывает каталог (реальный бэкенд, реальная страница)
+    stu_email = unique_email("xssstu")
+    status, data = api("POST", "/api/register", base=server, body={
+        "surname": "Иванов", "name": "Иван", "patronymic": "Иванович",
+        "email": stu_email, "phone": "+7 905 888-99-00",
+        "password": "S3cretPass!", "password_confirm": "S3cretPass!",
+    })
+    assert status == 200 and data and data["ok"], (status, data)
+    page.goto(f"{server}/")
+    page.locator('.auth [data-open="login"]').click()
+    page.fill("#login-email", stu_email)
+    page.fill("#login-password", "S3cretPass!")
+    page.locator("#login-submit").click()
+    page.wait_for_url("**/cabinet")
+
+    page.goto(f"{server}/instructor-choice")
+    # каталог общий на всю тестовую сессию (server session-scoped) —
+    # привязываемся к карточке с payload, а не к общему числу карточек
+    payload_card = page.locator(".card", has_text=payload)
+    expect(payload_card).to_have_count(1)
+    # payload НЕ исполнен: img не вставлен, глобальной переменной нет
+    assert page.locator(".cards img").count() == 0
+    assert page.evaluate("window.__xss === undefined")
+    # payload отображается как текст (textContent)
+    expect(payload_card.locator("b").first).to_have_text(
+        f"{payload} Пейлоад Оттовна")
 
 
 def test_instructor_logout_redirects_to_instructors(page, server):

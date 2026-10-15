@@ -18,6 +18,12 @@ new → denied (deny: комментарий обязателен → 422). По
 ('new' И 'accepted') заявки ученика → denied с системным deny_comment
 «Заявка закрыта: ученик принят другим инструктором» — одна транзакция.
 
+Гонки (code-review review-001 #6/#7): дубликат активной заявки защищен
+частичным UNIQUE-индексом uq_student_requests_active (db.py) +
+IntegrityError → 409; переходы accept/deny — UPDATE … WHERE id=? AND
+status='new' с проверкой rowcount (0 → 409 «решение уже принято»),
+молчаливой перезаписи статуса нет.
+
 Системный отказ и комментарии решений видны ученику в «Моих заявках»
 (FR-38). SQL — параметризованный (NFR-3); ФИО учеников не логируются
 (NFR-4).
@@ -109,11 +115,19 @@ def create_request(
         if duplicate is not None:
             return _error(409, "Заявка: активная заявка этому инструктору уже есть")
 
-        cur = conn.execute(
-            "INSERT INTO student_requests (student_id, instructor_id, status)"
-            " VALUES (?, ?, 'new')",
-            (student_id, data.instructor_id),
-        )
+        # Гонка дубликата (review-001 #6): параллельный POST может пройти
+        # SELECT выше — частичный UNIQUE-индекс uq_student_requests_active
+        # (db.py) роняет второй INSERT; IntegrityError → 409 без записи
+        # (по образцу reviews.py).
+        try:
+            cur = conn.execute(
+                "INSERT INTO student_requests (student_id, instructor_id, status)"
+                " VALUES (?, ?, 'new')",
+                (student_id, data.instructor_id),
+            )
+        except sqlite3.IntegrityError:
+            conn.rollback()
+            return _error(409, "Заявка: активная заявка этому инструктору уже есть")
         request_id = cur.lastrowid
         conn.commit()
     finally:
@@ -193,6 +207,11 @@ def incoming_requests(
                 "created_at": row["created_at"],
                 "decided_at": row["decided_at"],
                 "student_full_name": full_name(student) if student else "",
+                # FR-37 (design.md блок 6): стаж ученика в ответе
+                # (review-001 #3 — SELECT выполнялся, поле терялось)
+                "student_experience_years": (
+                    student["experience_years"] if student is not None else 0
+                ),
                 "car": _car_brief(conn, row["car_id"]),
             })
     finally:
@@ -241,11 +260,16 @@ def accept_request(
 
         # ОВ-1 (MAJ-1) — одна транзакция: принятие + автозакрытие остальных
         # АКТИВНЫХ ('new' и 'accepted') заявок ученика с системным комментарием
-        conn.execute(
+        # Гонка перехода статуса (review-001 #7): guard AND status='new' в
+        # WHERE + rowcount — интерливинг accept/deny не перезаписывает
+        # молча уже выставленное решение (0 строк → 409).
+        cur = conn.execute(
             "UPDATE student_requests SET status = 'accepted', car_id = ?,"
-            " decided_at = datetime('now') WHERE id = ?",
+            " decided_at = datetime('now') WHERE id = ? AND status = 'new'",
             (car_id, request_id),
         )
+        if cur.rowcount == 0:
+            return _error(409, "Заявка: решение уже принято")
         conn.execute(
             "UPDATE student_requests SET status = 'denied',"
             " deny_comment = ?, decided_at = datetime('now')"
@@ -289,11 +313,15 @@ def deny_request(
         if row["status"] != "new":
             return _error(409, "Заявка: решение уже принято")
 
-        conn.execute(
+        # Гонка перехода статуса (review-001 #7): guard AND status='new'
+        # в WHERE + rowcount — молчаливой перезаписи решения нет.
+        cur = conn.execute(
             "UPDATE student_requests SET status = 'denied', deny_comment = ?,"
-            " decided_at = datetime('now') WHERE id = ?",
+            " decided_at = datetime('now') WHERE id = ? AND status = 'new'",
             (comment.strip(), request_id),
         )
+        if cur.rowcount == 0:
+            return _error(409, "Заявка: решение уже принято")
         conn.commit()
     finally:
         conn.close()

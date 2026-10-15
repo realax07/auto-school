@@ -297,7 +297,12 @@ function navTo(name){
 // --- Виджеты главной (change add-instructor-student-loop, FR-40/FR-41):
 // GET /api/instructor/summary (students, today_lessons) + GET /api/instructor/requests
 // (счётчик новых). До ответа / при ошибке API — честные пустые состояния.
+// Шейпы — по backend/instructor_summary.py и backend/student_requests.py
+// (code-review review-001 #2/#4: вымышленные алиасы fio/since/… удалены).
 function el(id){return document.getElementById(id)}
+// DOM-хелпер: пользовательские строки — только через textContent
+// (code-review review-001 #1: stored XSS через innerHTML запрещен)
+function node(tag,cls,text){var n=document.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=text;return n}
 function stuInitials(fio){return (fio||'').split(/\s+/).filter(Boolean).slice(0,2).map(function(w){return (w[0]||'').toUpperCase()}).join('')||'—'}
 function loadSummary(){
   if(!token)return;
@@ -306,23 +311,35 @@ function loadSummary(){
     var students=res.students||[];
     el('w-students-n').textContent=students.length;
     var box=el('w-students-list');
+    box.innerHTML='';
     if(!students.length){
       box.innerHTML='<div class="w-empty"><b>Пока нет привязанных учеников</b>Принятые заявки появятся в этом списке.</div>';
     }else{
-      box.innerHTML=students.map(function(s){
-        var fio=s.fio||s.name||[s.surname,s.name].filter(Boolean).join(' ');
-        var car=s.car||s.car_name||'авто не выбрано';
-        var date=s.since||s.accepted_at||s.date||'';
-        return '<div class="w-stu"><span class="w-sic">'+stuInitials(fio)+'</span><div><b>'+fio+'</b>'+(date?'<small>с инструктора с '+String(date).split(' ')[0]+'</small>':'')+'</div><span class="car">'+car+'</span></div>';
-      }).join('');
+      students.forEach(function(s){
+        var row=node('div','w-stu');
+        row.appendChild(node('span','w-sic',stuInitials(s.full_name)));
+        var who=node('div');
+        who.appendChild(node('b',null,s.full_name||''));
+        var date=s.decided_at?String(s.decided_at).split(' ')[0]:'';
+        if(date)who.appendChild(node('small',null,'с инструктора с '+date));
+        row.appendChild(who);
+        row.appendChild(node('span','car',s.car||'авто не выбрано'));
+        box.appendChild(row);
+      });
     }
     var lessons=res.today_lessons||[];
     if(lessons.length){
       el('w-today-empty').style.display='none';
       el('w-today-list').style.display='block';
-      el('w-today-list').innerHTML=lessons.map(function(l){
-        return '<div class="w-req"><div><b>'+(l.student||l.fio||'Занятие')+'</b><small>'+(l.time||'')+'</small></div></div>';
-      }).join('');
+      el('w-today-list').innerHTML='';
+      lessons.forEach(function(l){
+        var row=node('div','w-req');
+        var div=node('div');
+        div.appendChild(node('b',null,l.student||'Занятие'));
+        div.appendChild(node('small',null,l.time||''));
+        row.appendChild(div);
+        el('w-today-list').appendChild(row);
+      });
     }else{
       // честная заглушка FR-41: реального расписания нет
       el('w-today-empty').style.display='block';
@@ -336,12 +353,20 @@ function countNewRequests(){
     var list=(res.requests||[]).filter(function(r){return (r.status||'')==='new'});
     el('w-requests-n').textContent=list.length+' новых';
     var box=el('w-requests-list');
+    box.innerHTML='';
     if(!list.length){
       box.innerHTML='<div class="w-empty"><b>Новых запросов нет</b>Заявки учеников появятся здесь.</div>';
     }else{
-      box.innerHTML=list.slice(0,3).map(function(r){
-        return '<div class="w-req"><div><b>'+rqFio(r)+'</b><small>'+(rqDate(r))+' · стаж '+(rqExp(r)==0?'нет':rqExp(r))+'</small></div><span class="go" data-goto-requests>→</span></div>';
-      }).join('');
+      list.slice(0,3).forEach(function(r){
+        var row=node('div','w-req');
+        var div=node('div');
+        div.appendChild(node('b',null,rqFio(r)));
+        div.appendChild(node('small',null,rqDate(r)+' · стаж '+(rqExp(r)===0?'нет':rqExp(r))));
+        row.appendChild(div);
+        var go=node('span','go','→');go.dataset.gotoRequests='1';
+        row.appendChild(go);
+        box.appendChild(row);
+      });
       box.querySelectorAll('[data-goto-requests]').forEach(function(g){g.addEventListener('click',function(){navTo('Запросы учеников')})});
     }
     var badge=el('nav-req-badge');
@@ -474,31 +499,28 @@ el('cal-save').addEventListener('click',function(){
 // Отказать -> POST …/{id}/deny {comment}, кнопка заблокирована до непустого
 // комментария.
 var rqState={list:[],filter:'all',open:null,cars:null};
-function rqFio(r){
-  if(typeof r.student_fio==='string'&&r.student_fio)return r.student_fio;
-  if(r.student&&typeof r.student==='object'){
-    return r.student.fio||[r.student.surname,r.student.name,r.student.patronymic].filter(Boolean).join(' ');
-  }
-  return r.student_name||'Ученик';
-}
-function rqExp(r){
-  var e=(r.student&&r.student.experience!=null)?r.student.experience:r.student_experience;
-  if(e==null)e=r.experience;if(e==null)e=0;return +e||0;
-}
-function rqDate(r){
-  var d=r.created_at||r.date||'';
-  return String(d).split('.')[0];
-}
-function rqComment(r){
-  return r.comment||r.student_comment||(r.student&&r.student.comment)||'';
-}
+// Поля — реальный шейп GET /api/instructor/requests
+// (backend/student_requests.py: id, status, created_at, decided_at,
+// student_full_name, student_experience_years, car:{brand,model,…})
+function rqFio(r){return r.student_full_name||'Ученик'}
+function rqExp(r){return (r.student_experience_years!=null)?+r.student_experience_years:0}
+function rqDate(r){return String(r.created_at||'').split('.')[0]}
 function rqCarName(r){
-  return r.car_name||r.car||(r.car_info&&r.car_info.name)||'авто не выбрано';
+  var c=r.car;
+  return c?([c.brand,c.model].filter(Boolean).join(' ')||'авто не выбрано'):'авто не выбрано';
+}
+function carTitle(c){
+  var name=[c.brand,c.model].filter(Boolean).join(' ')||'Автомобиль';
+  return name+(c.year?' · '+c.year:'');
+}
+function carSub(c){
+  var tr=c.transmission==='automatic'?'автомат':c.transmission==='manual'?'механика':(c.transmission||'');
+  return tr+(c.plate?' · '+c.plate:'');
 }
 function rqStatusBadge(s){
-  return s==='new'?'<span class="rq-status rq-st-new">Новая</span>'
-    :s==='accepted'?'<span class="rq-status rq-st-acc">Принята</span>'
-    :'<span class="rq-status rq-st-den">Отказана</span>';
+  var cls=s==='new'?'rq-st-new':s==='accepted'?'rq-st-acc':'rq-st-den';
+  var text=s==='new'?'Новая':s==='accepted'?'Принята':'Отказана';
+  return node('span','rq-status '+cls,text);
 }
 function expWord2(n){return n%10===1&&n%100!==11?'год':(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20)?'года':'лет')}
 function renderRequests(){
@@ -507,42 +529,72 @@ function renderRequests(){
   var newN=rqState.list.filter(function(r){return r.status==='new'}).length;
   el('rq-new-n').textContent='·'+newN;
   if(!list.length){box.innerHTML='<div class="rq-none">Заявок в этой категории нет.</div>';return}
+  // DOM-строительство (code-review review-001 #1): ФИО/бренд/модель —
+  // только textContent, без сборки HTML из пользовательских строк
   list.forEach(function(r){
-    var art=document.createElement('article');art.className='rq';
-    var html='<div class="rq-top"><span class="rq-sic">'+stuInitials(rqFio(r))+'</span>'+
-      '<div><b>'+rqFio(r)+'</b><small>Стаж вождения: '+(rqExp(r)===0?'нет':rqExp(r)+' '+expWord2(rqExp(r)))+' · '+rqDate(r)+'</small></div>'+
-      rqStatusBadge(r.status)+'</div>'+
-      (rqComment(r)!==''?'<div class="rq-comment'+(r.status==='denied'?' denied':'')+'"><span>'+(r.status==='denied'?'Комментарий к отказу':'Комментарий ученика')+'</span>'+rqComment(r)+'</div>':'');
-    if(r.status==='accepted')html+='<div class="rq-decided">Ученик в разделе «Мои ученики» · автомобиль: '+rqCarName(r)+'</div>';
-    if(r.status==='new')html+='<div class="rq-actions">'+
-      '<button type="button" class="rq-act accept" data-accept="'+r.id+'">✓ Принять…</button>'+
-      '<button type="button" class="rq-act deny" data-denypanel="'+r.id+'">✕ Отказать…</button></div>'+
-      acceptPanelHtml(r)+denyPanelHtml(r);
-    art.innerHTML=html;box.appendChild(art);
+    var art=node('article','rq');
+    var top=node('div','rq-top');
+    top.appendChild(node('span','rq-sic',stuInitials(rqFio(r))));
+    var who=node('div');
+    who.appendChild(node('b',null,rqFio(r)));
+    who.appendChild(node('small',null,'Стаж вождения: '+(rqExp(r)===0?'нет':rqExp(r)+' '+expWord2(rqExp(r)))+' · '+rqDate(r)));
+    top.appendChild(who);
+    top.appendChild(rqStatusBadge(r.status));
+    art.appendChild(top);
+    if(r.status==='accepted'){
+      art.appendChild(node('div','rq-decided','Ученик в разделе «Мои ученики» · автомобиль: '+rqCarName(r)));
+    }
+    if(r.status==='new'){
+      var actions=node('div','rq-actions');
+      var acc=node('button','rq-act accept','✓ Принять…');acc.type='button';acc.dataset.accept=String(r.id);
+      var den=node('button','rq-act deny','✕ Отказать…');den.type='button';den.dataset.denypanel=String(r.id);
+      actions.appendChild(acc);actions.appendChild(den);
+      art.appendChild(actions);
+      art.appendChild(acceptPanelNode(r));
+      art.appendChild(denyPanelNode(r));
+    }
+    box.appendChild(art);
   });
   bindRequests();
 }
-function acceptPanelHtml(r){
+function acceptPanelNode(r){
+  var panel=node('div','rq-accept'+(rqState.open==='accept-'+r.id?' open':''));
+  panel.id='rq-accept-'+r.id;
   if(rqState.cars&&!rqState.cars.length){
-    return '<div class="rq-no-cars">Принять заявку нельзя: у вас нет автомобилей. Заведите автомобиль в разделе «Мой автомобиль».</div>';
+    panel.appendChild(node('div','rq-no-cars','Принять заявку нельзя: у вас нет автомобилей. Заведите автомобиль в разделе «Мой автомобиль».'));
+    return panel;
   }
-  var cars=rqState.cars||[];
-  return '<div class="rq-accept'+(rqState.open==='accept-'+r.id?' open':'')+'" id="rq-accept-'+r.id+'">'+
-    '<h4>Выберите автомобиль для ученика</h4>'+
-    cars.map(function(c,i){
-      var name=[c.brand,c.model].filter(Boolean).join(' ')||c.name||'Автомобиль';
-      var tr=c.transmission==='automatic'?'автомат':c.transmission==='manual'?'механика':(c.transmission||'');
-      return '<label class="rq-caropt"><input type="radio" name="car-'+r.id+'" value="'+c.id+'"'+(i===0?' checked':'')+'>'+
-        '<div><b>'+name+(c.year?' · '+c.year:'')+'</b><small>'+tr+(c.plate?' · '+c.plate:'')+'</small></div></label>';
-    }).join('')+
-    '<button type="button" class="rq-confirm" data-confirm="'+r.id+'">✓ Принять ученика</button></div>';
+  panel.appendChild(node('h4',null,'Выберите автомобиль для ученика'));
+  (rqState.cars||[]).forEach(function(c,i){
+    var lab=node('label','rq-caropt');
+    var radio=document.createElement('input');
+    radio.type='radio';radio.name='car-'+r.id;radio.value=String(c.id);
+    if(i===0)radio.checked=true;
+    lab.appendChild(radio);
+    var div=node('div');
+    div.appendChild(node('b',null,carTitle(c)));
+    div.appendChild(node('small',null,carSub(c)));
+    lab.appendChild(div);
+    panel.appendChild(lab);
+  });
+  var btn=node('button','rq-confirm','✓ Принять ученика');btn.type='button';btn.dataset.confirm=String(r.id);
+  panel.appendChild(btn);
+  return panel;
 }
-function denyPanelHtml(r){
-  return '<div class="rq-deny'+(rqState.open==='deny-'+r.id?' open':'')+'" id="rq-deny-'+r.id+'">'+
-    '<h4>Комментарий к отказу (обязательно)</h4>'+
-    '<textarea id="rq-ta-'+r.id+'" placeholder="Например: не совпадают графики занятий…"></textarea>'+
-    '<div class="rq-deny-actions"><button type="button" class="rq-deny-confirm" data-deny="'+r.id+'" disabled>✕ Отказать</button>'+
-    '<span class="rq-note">Без комментария кнопка недоступна. Текст увидит ученик в разделе «Мои заявки».</span></div></div>';
+function denyPanelNode(r){
+  var panel=node('div','rq-deny'+(rqState.open==='deny-'+r.id?' open':''));
+  panel.id='rq-deny-'+r.id;
+  panel.appendChild(node('h4',null,'Комментарий к отказу (обязательно)'));
+  var ta=document.createElement('textarea');
+  ta.id='rq-ta-'+r.id;
+  ta.placeholder='Например: не совпадают графики занятий…';
+  panel.appendChild(ta);
+  var actions=node('div','rq-deny-actions');
+  var btn=node('button','rq-deny-confirm','✕ Отказать');btn.type='button';btn.dataset.deny=String(r.id);btn.disabled=true;
+  actions.appendChild(btn);
+  actions.appendChild(node('span','rq-note','Без комментария кнопка недоступна. Текст увидит ученик в разделе «Мои заявки».'));
+  panel.appendChild(actions);
+  return panel;
 }
 function loadCars(cb){
   if(rqState.cars){cb();return}

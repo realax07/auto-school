@@ -91,6 +91,16 @@ CREATE INDEX IF NOT EXISTS idx_student_requests_instructor
   ON student_requests(instructor_id, status);
 CREATE INDEX IF NOT EXISTS idx_student_requests_student
   ON student_requests(student_id, status);
+
+-- Спринт 3, фикс-ветка (code-review review-001 #6, гонка дубликата):
+-- частичный UNIQUE-индекс гарантирует «не более одной АКТИВНОЙ
+-- (new/accepted) заявки ученика этому инструктору» на уровне БД —
+-- check-then-insert в create_request не защищает от параллельных POST
+-- (sync-эндпоинты FastAPI выполняются в threadpool). Отказы (denied)
+-- индекс не учитывает — повторная заявка после отказа допустима (ОВ-2).
+CREATE UNIQUE INDEX IF NOT EXISTS uq_student_requests_active
+  ON student_requests(student_id, instructor_id)
+  WHERE status IN ('new','accepted');
 """
 
 # Спринт 0–1: users.role (add-instructor-flow, задача 1.2, sdd.md §16).
