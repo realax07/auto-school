@@ -1,6 +1,7 @@
 fastapi
 uvicorn
 bcrypt
+python-multipart
 
 # dev
 pytest
