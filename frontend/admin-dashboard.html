@@ -27,6 +27,7 @@ th{padding:12px 14px;text-align:left;color:#8ea4a8;font-weight:500;border-bottom
 td{padding:13px 14px;border-bottom:1px solid rgba(217,239,238,.07);color:#dcebe9}
 tr:hover td{background:rgba(73,236,154,.04)}
 .badge{padding:3px 12px;border-radius:999px;font-size:12px;background:rgba(73,236,154,.14);color:#5cf0a4}
+.badge.red{background:rgba(255,107,107,.14);color:#ffb28e;border:1px solid rgba(255,107,107,.35)}
 .empty{display:none;padding:60px 0;text-align:center;color:#7d939a;font-size:14px}
 @media(max-width:860px){.app{grid-template-columns:1fr}aside{display:none}main{padding:20px}}
 </style></head><body>
@@ -59,7 +60,7 @@ tr:hover td{background:rgba(73,236,154,.04)}
     <div class="top"><h1>Заявки инструкторов</h1><div class="spacer"></div></div>
     <div class="toolbar"><span class="count" id="app-count"></span></div>
     <table>
-      <thead><tr><th>ФИО</th><th>Email</th><th>Телефон</th><th>Формат</th><th>ВУ</th><th>Стаж</th><th>Статус</th><th>Действия</th></tr></thead>
+      <thead><tr><th>ФИО</th><th>Email</th><th>Телефон</th><th>Формат</th><th>ВУ</th><th>Стаж</th><th>Статус</th><th>Причина отказа</th><th>Действия</th></tr></thead>
       <tbody id="app-rows"></tbody>
     </table>
     <div class="empty" id="app-empty">Заявок пока нет</div>
@@ -144,12 +145,17 @@ function loadApplications(){
       data.applications.forEach(function(a){
         var tr=document.createElement('tr');
         function td(text){var c=document.createElement('td');c.textContent=text||'—';return c;}
-        tr.appendChild(td(a.fio));tr.appendChild(td(a.email));tr.appendChild(td(a.phone));
+        // ФИО из трех полей анкеты (surname/name/patronymic, правка
+        // Заказчика 2026-10-14); старое поле fio API больше не отдает
+        var fio=[a.surname,a.name,a.patronymic].filter(Boolean).join(' ');
+        tr.appendChild(td(fio));tr.appendChild(td(a.email));tr.appendChild(td(a.phone));
         tr.appendChild(td(a.work_format==='own'?'Свой автомобиль':'Авто Сбера'));
         tr.appendChild(td(a.license_number));tr.appendChild(td(a.experience));
-        var st=document.createElement('td');var sp=document.createElement('span');sp.className='badge';
+        var st=document.createElement('td');var sp=document.createElement('span');
+        sp.className='badge'+(a.status==='deny'?' red':'');
         sp.textContent=a.status==='waiting'?'На рассмотрении':a.status==='approved'?'Одобрена':'Отклонена';
         st.appendChild(sp);tr.appendChild(st);
+        tr.appendChild(td(a.review_comment));
         var act=document.createElement('td');
         if(a.status==='waiting'){
           var ok=document.createElement('button');ok.className='btn-export';ok.textContent='Одобрить';

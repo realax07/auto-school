@@ -18,12 +18,14 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
 @media(max-width:1100px){.app{grid-template-columns:200px 1fr}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.content-grid{grid-template-columns:1fr}.right-col{grid-template-columns:1fr 1fr}.bottom-grid{grid-template-columns:1fr}}
 @media(max-width:720px){.app{display:block}.sidebar{padding:13px 16px;border-right:0;border-bottom:1px solid #ffffff12;display:block}.brand{margin-bottom:12px}.nav-label,.side-bottom{display:none}.nav{display:flex;overflow:auto;gap:5px}.nav button{white-space:nowrap;padding:9px 10px;font-size:11px}.nav button .ico{display:none}main{padding:23px 16px 35px}.topbar{margin-bottom:25px}.topbar h1{font-size:23px}.date-chip{display:none}.user b{display:none}.user small{display:none}.hello{align-items:start}.hello h2{font-size:27px}.online{display:none}.stats{gap:9px}.stat{padding:14px}.value{font-size:25px}.stat-head{font-size:10px}.stat-icon{width:27px;height:27px}.content-grid{margin-top:12px}.panel{padding:15px}.week{gap:4px}.day{padding:9px 2px}.day .dnum{font-size:15px}.day .dname{font-size:8px}.right-col{grid-template-columns:1fr}.bottom-grid{margin-top:12px}.quick-actions{grid-template-columns:repeat(3,1fr)}footer{flex-direction:column}.appointment{grid-template-columns:50px 3px minmax(0,1fr);gap:9px}.appointment .status{grid-column:3;justify-self:start;margin-top:2px}.appt-name{font-size:11px}}
 @media(max-width:380px){.stats{grid-template-columns:1fr 1fr}.value{font-size:23px}.stat-foot{font-size:9px}.hello h2{font-size:24px}.quick{font-size:9px}.panel-title{font-size:14px}}
+.today-empty{display:none;padding:14px;border:1px dashed #ffffff1c;border-radius:12px;color:#8fa0a9;font-size:12px;text-align:center}
 </style>
 </head>
 <body>
 <div class="app">
 <aside class="sidebar">
   <div class="brand"><div class="check">✓</div><div>СберАвтошкола<small>Кабинет инструктора</small></div></div>
+</aside>
 
 <main>
   <div class="topbar"><div><div class="crumb">Рабочее пространство / <span id="crumb">Мой день</span></div><h1 id="page-title">Мой день</h1></div><div class="top-actions"><div class="date-chip">◷ &nbsp; Пн, 12 октября 2026</div><button class="icon-btn" onclick="toast('Новых уведомлений нет')">♧</button><div class="user"><div class="avatar">МС</div><div><b>Михаил Самойлов</b><small>Инструктор</small></div></div></div></div>
@@ -54,6 +56,7 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
         <div class="appointment"><div><div class="time">14:30</div><div class="duration">60 минут</div></div><div class="bar"></div><div><div class="appt-name">Дмитрий Волков</div><div class="appt-meta">Практика · Город</div></div><span class="status">Подтверждено</span></div>
         <div class="appointment"><div><div class="time">16:00</div><div class="duration">60 минут</div></div><div class="bar orangebar"></div><div><div class="appt-name">Свободное окно</div><div class="appt-meta">Можно открыть запись для ученика</div></div><span class="status gray">Свободно</span></div>
       </div>
+      <div class="today-empty" id="today-empty">Сегодня занятий нет</div>
     </section>
     <div class="right-col">
       <section class="card panel next"><div class="panel-head"><div><div class="panel-title">Ближайшее занятие</div><div class="panel-sub">Сегодня, через 30 минут</div></div><span class="status">Скоро</span></div>

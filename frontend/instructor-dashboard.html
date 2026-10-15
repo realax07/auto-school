@@ -22,6 +22,7 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
 .nav button .demo-tag{flex:none}
 .side-logout{color:#ffb28e}
 .side-logout:hover{background:#34251f33}
+.today-empty{display:none;padding:14px;border:1px dashed #ffffff1c;border-radius:12px;color:#8fa0a9;font-size:12px;text-align:center}
 </style>
 </head>
 <body>
@@ -64,13 +65,14 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
         <div class="day"><div class="dname">ВС</div><div class="dnum">18</div><div class="dots"></div></div>
       </div>
       <div class="legend"><span><i class="green"></i>Занятие подтверждено</span><span><i class="blue"></i>Ожидает подтверждения</span><span><i class="orange"></i>Свободное окно</span></div>
-      <div class="panel-head"><div class="panel-title">Сегодня · 4 занятия</div><button class="text-btn" onclick="navTo('Расписание')">Весь календарь ↗</button></div>
+      <div class="panel-head"><div class="panel-title" id="today-count">Сегодня · 4 занятия</div><button class="text-btn" onclick="navTo('Расписание')">Весь календарь ↗</button></div>
       <div class="appointments">
         <div class="appointment"><div><div class="time">10:00</div><div class="duration">60 минут</div></div><div class="bar"></div><div><div class="appt-name">Александр Иванов</div><div class="appt-meta">Практика · Городской маршрут</div></div><span class="status">Подтверждено</span></div>
         <div class="appointment"><div><div class="time">12:00</div><div class="duration">90 минут</div></div><div class="bar bluebar"></div><div><div class="appt-name">Екатерина Смирнова</div><div class="appt-meta">Практика · Манёвры и парковка</div></div><span class="status blue-status">Ожидает</span></div>
         <div class="appointment"><div><div class="time">14:30</div><div class="duration">60 минут</div></div><div class="bar"></div><div><div class="appt-name">Дмитрий Волков</div><div class="appt-meta">Практика · Город</div></div><span class="status">Подтверждено</span></div>
         <div class="appointment"><div><div class="time">16:00</div><div class="duration">60 минут</div></div><div class="bar orangebar"></div><div><div class="appt-name">Свободное окно</div><div class="appt-meta">Можно открыть запись для ученика</div></div><span class="status gray">Свободно</span></div>
       </div>
+      <div class="today-empty" id="today-empty">Сегодня занятий нет</div>
     </section>
     <div class="right-col">
       <section class="card panel next"><div class="panel-head"><div><div class="panel-title">Ближайшее занятие</div><div class="panel-sub">Сегодня, через 30 минут</div></div><span class="status">Скоро</span></div>
@@ -102,6 +104,20 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
 </div>
 <div class="toast" id="toast"></div>
 <script>
+// Спринт 3: даты кабинета — актуальные, TimeZone Europe/Moscow (GMT+3),
+// локаль ru. Дефолтные строки HTML сохранены (design-guard сверяет с
+// мокапом) — здесь они заменяются на текущую дату.
+(function(){
+  var now=new Date();
+  var cap=function(s){return s.charAt(0).toUpperCase()+s.slice(1)};
+  function parts(opts){var o={};new Intl.DateTimeFormat('ru-RU',Object.assign({timeZone:'Europe/Moscow'},opts)).formatToParts(now).forEach(function(x){o[x.type]=x.value});return o}
+  var sh=parts({weekday:'short',day:'numeric',month:'long',year:'numeric'});
+  var lo=parts({weekday:'long',day:'numeric',month:'long'});
+  var chip=document.querySelector('.date-chip');
+  if(chip)chip.innerHTML='◷ &nbsp; '+cap(sh.weekday)+', '+sh.day+' '+sh.month+' '+sh.year;
+  var kick=document.querySelector('.kicker');
+  if(kick)kick.textContent=cap(lo.weekday)+' · '+lo.day+' '+lo.month;
+})();
 // FR-20: ФИО из учетной записи; приветствие по имени (правка Заказчика 2026-10-14)
 fetch('/api/auth/me',{headers:{'X-Session-Token':sessionStorage.getItem('session_token')||''}})
   .then(function(r){if(!r.ok){location.href='/';return;}return r.json();})
@@ -113,6 +129,18 @@ fetch('/api/auth/me',{headers:{'X-Session-Token':sessionStorage.getItem('session
     document.getElementById('avatar').textContent=ini||'—';
     if(u.name){document.getElementById('hello-name').textContent='Добрый день, '+u.name;}
   }).catch(function(){location.href='/';});
+// Виджет «Занятия на сегодня» (спринт 3): пустой массив занятий в панели
+// расписания -> заглушка «Сегодня занятий нет»; демо-данные остаются как есть.
+(function(){
+  var todayAppointments=Array.prototype.slice.call(document.querySelectorAll('.appointments .appointment'));
+  if(todayAppointments.length!==0)return;
+  var stub=document.getElementById('today-empty');
+  var wrap=document.querySelector('.appointments');
+  var head=document.getElementById('today-count');
+  if(stub)stub.style.display='block';
+  if(wrap)wrap.style.display='none';
+  if(head)head.textContent='Сегодня · занятий нет';
+})();
 let weekShift=0;
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>t.classList.remove('show'),2600)}
 function navTo(name){if(name==='__logout__'){logout();return}if(name==='Профиль и документы'){document.getElementById('profile-panel').style.display='block'}else{document.getElementById('profile-panel').style.display='none'}document.getElementById('page-title').textContent=name;document.getElementById('crumb').textContent=name;document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));if(name!=='Мой день')toast('Раздел «'+name+'» — демо-данные, следующий экран в концепции кабинета')}
@@ -144,11 +172,12 @@ fetch('/api/instructor/dashboard',{headers:{'X-Session-Token':token}})
   .catch(function(){toLogin()});
 }
 // Выход (FR-22): POST /api/auth/logout -> по любому ответу очистка
-// sessionStorage -> редирект на главную (механика §10.2).
+// sessionStorage -> редирект на лендинг инструкторов (спринт 3, правка:
+// выход из кабинета ведет на /instructors, а не на главную).
 function logout(){
 fetch('/api/auth/logout',{method:'POST',headers:{'X-Session-Token':token||''}})
   .catch(function(){})
-  .then(function(){clearSession();location.href='/'});
+  .then(function(){clearSession();location.href='/instructors'});
 }
 </script>
 </body></html>
