@@ -21,13 +21,14 @@
 | 11 | Спринт-1 контур (CAD-002) | **Авторизация — отдельный модуль backend/auth.py (роуты /api/auth/*), одна таблица users (email UNIQUE + bcrypt), in-memory сессии {token: (expires, user_id)} TTL 12 ч, вход email-only** — ADR-002 | Тот же single-worker-инвариант (сессии учеников тоже в памяти); нет анти-брутфорса на публичном /api/auth/login — принятый техдолг; «отдельный сервис» = отдельная граница модуля, выделение в процесс — опция Релиза 1 |
 | 12 | Спринт-2 контур, часть 1 (CAD-003) | **Поток инструктора: заявка (instructor_applications, bcrypt-хэш пароля в заявке) → модерация админом (approve переносит хэш в users) → вход через общий /api/auth/login; роли — флаг role в users ('student'/'instructor')** — ADR-003 | bcrypt-хэш хранится и в заявке, и в users (две копии до архивации заявок — решение Заказчика FR-11.1/FR-14); login при отсутствующей записи users делает bcrypt-проверку против хэша заявки (второй bcrypt-вызов в худшем пути); single-worker-инвариант без изменений |
 | 13 | Спринт-2 контур, часть 2 (add-instructor-cabinet, arch-review approved-with-notes) | **Кабинет инструктора — демо-визуал по утвержденному макету; доступ — через новый защищенный эндпоинт GET /api/instructor/me (require_session + серверная проверка role='instructor', 403 при иной роли); содержимое — статика макета, из данных только ФИО/инициалы учетки; схема БД и существующие контракты не меняются** | Реального расписания/доходов/учеников нет — все цифры кабинета фиктивны (макет «Все данные вымышлены»); страница (HTML) по-прежнему доставляется всем — защита на уровне API + клиентский редирект (паттерн статики без сборки, спринт-1) |
+| 14 | Спринт-3 контур, Партия A (add-instructor-student-loop, arch-review needs-rework — MAJ-1…3 в работе СА) | **Контур «инструктор ↔ ученик»: профиль инструктора (авто 1-ко-многим instructor_cars + интервалы availability) → каталог одобренных для ученика (карточки + фильтры) → заявки student_requests (new/accepted/denied) → принять (с car_id) / отказать (обязательный комментарий) → отзывы reviews (UNIQUE пара, рейтинг агрегатом AVG/COUNT на лету); ФИО — только в users (JOIN по id, без дублирования); файлы — data/uploads/ вне статики, выдача авторизованными эндпоинтами (ВУ — X-Admin-Token, фото авто — владельцу)** — ADR-004 | Авто-закрытие заявок при чужом accept → denied + системный комментарий (допущение proposal; объем закрытия — MAJ-1 ревью); стаж для карточки/фильтра — MAJ-3 (материализация в схеме не завершена); правило префиксов /api/instructors|instructor|student|admin — закрытие MIN-3 ревью 2.2 |
 
 Паттерны 1, 2, 4 в спринте-0 не задействованы: nginx/TLS, gateway,
 контейнеры/оркестрация **отложены Заказчиком** (решение 2026-10-06 — все три
 вопроса решаются параллельно с первым этапом, когда поступит первое ТЗ на
 сервис). Это отложенные, НЕ решенные вопросы (см. «Долг / открытые вопросы»).
 
-## Компоненты (спринт-0 контур + спринт-1 auth//cabinet + спринт-2 поток инструктора + спринт-2.2 кабинет инструктора)
+## Компоненты (спринт-0 контур + спринт-1 auth//cabinet + спринт-2 поток инструктора + спринт-2.2 кабинет инструктора + спринт-3A контур инструктор↔ученик)
 
 ```
 Клиент (браузер)
@@ -60,6 +61,35 @@ FastAPI-сервис (uvicorn, single-worker)          ← единственн�
    │                        роли) → {id, surname, name, patronymic, email};
    │                        серверная проверка роли кабинета (закрывает
    │                        техдолг 2.1)
+   ├── uploads.py          — СПРИНТ-3A (add-instructor-student-loop): helper
+   │                        файлов — magic bytes JPEG/PNG + ≤5 МБ до записи,
+   │                        data/uploads/{license,cars}/<uuid>.<ext>
+   ├── instructors.py /    — СПРИНТ-3A РАСШИРЕНИЯ: apply принимает multipart
+   │   instructor_admin.py   с ВУ; admin-API — карточка заявки +
+   │                        GET …/{id}/license-image (только X-Admin-Token)
+   ├── instructor_cars.py  — СПРИНТ-3A: GET/POST /api/instructor/cars,
+   │                        PATCH/DELETE …/{id}, POST+GET …/{id}/photo
+   │                        (владелец; ОВ-3: DELETE снимает car_id принятых
+   │                        заявок, связь сохраняется)
+   ├── instructor_availability.py — СПРИНТ-3A: GET/PUT
+   │                        /api/instructor/availability (полная замена
+   │                        графика в одной транзакции)
+   ├── student_marketplace.py — СПРИНТ-3A: GET /api/student/instructors
+   │                        (одобренные + фильтры КПП/рейтинг/стаж/время),
+   │                        GET …/{id} (карточка: ФИО из users, авто без
+   │                        фото/госномера, агрегат рейтинга, часы работы)
+   ├── reviews.py          — СПРИНТ-3A: POST
+   │                        /api/student/instructors/{id}/reviews — серверная
+   │                        проверка связи accepted (NFR-2), UNIQUE пара
+   ├── student_requests.py — СПРИНТ-3A: POST/GET /api/student/requests,
+   │                        GET /api/instructor/requests, POST
+   │                        …/{id}/accept|deny (accept: car_id своего авто,
+   │                        0 авто → 409, авто-закрытие остальных активных
+   │                        заявок ученика → denied + системный комментарий,
+   │                        ОВ-1; deny: комментарий обязателен)
+   ├── instructor_summary.py — СПРИНТ-3A: GET /api/instructor/summary
+   │                        («Привязанные ученики», today_lessons = [] —
+   │                        честная заглушка FR-41)
    └── frontend/   — статика из design/mocks (/, /registered, /admin-login,
                      /admin-dashboard) + спринт-1: /cabinet → cabinet.html
                      (модалка «Вход» m-login на /, wiring: X-Session-Token
@@ -89,6 +119,7 @@ instructor_applications (email UNIQUE, password_hash, status), сессии — 
 | [001-add-registration-admin-stack](adr/001-add-registration-admin-stack.md) | Стек и контур спринта-0: FastAPI+SQLite WAL+bcrypt, статика тем же сервисом, in-memory admin-токен, .env-секреты | Принято (Заказчик, 2026-10-08) |
 | [002-auth-service](adr/002-auth-service.md) | Авторизация учеников (Спринт 1): отдельный модуль-сервис backend/auth.py, одна таблица users (bcrypt), in-memory сессии TTL 12 ч, email-only логин (телефон — атрибут) | Принято (Заказчик, 2026-10-09; допущения подтверждены — 2294a4a) |
 | [003-instructor-flow](adr/003-instructor-flow.md) | Поток инструктора (Спринт 2, часть 1): bcrypt-хэш пароля хранится в заявке, approve переносит его в users без повторного хэширования, вход — общий /api/auth/login, роли — флаг role в users | Принято (Заказчик, 2026-10-12; ревью — arch-review add-instructor-flow, changes-required: MAJ-1 UNIQUE email заявок) |
+| [004-instructor-student-loop](adr/004-instructor-student-loop.md) | Контур «инструктор ↔ ученик» (Спринт 3, Партия A): ФИО — гранулярно в users, новые таблицы не дублируют; файлы — data/uploads/ вне статики, выдача только авторизованными эндпоинтами; рейтинг — агрегат AVG/COUNT на лету без денормализации; связь «принят» = статус accepted заявки | Принято (Заказчик — «Дефолты принимаю», 2026-10-15; ревью — arch-review add-instructor-student-loop, needs-rework: MAJ-1…3 — не касаются решений ADR) |
 
 ## Долг / открытые вопросы
 
@@ -165,3 +196,24 @@ instructor_applications (email UNIQUE, password_hash, status), сессии — 
 - Главное демо-вид «Мой день» без пометки «демо» при реальном ФИО в шапке —
   MIN-1 arch-review add-instructor-cabinet (пометка или явное решение
   Заказчика — до/в задаче 2.1).
+
+## Техдолг спринта-3, Партия A (контур инструктор↔ученик; arch-review needs-rework — устраняется СА до передачи в разработку)
+
+- Открытые MAJ ревью add-instructor-student-loop: MAJ-1 — авто-закрытие
+  заявок при чужом accept охватывает только 'new', двойное «принят»
+  достижимо (принять может только один — ОВ-1); MAJ-2 — перекрепление авто
+  принятого ученика (ОВ-3) без API-эндпоинта и backend-задачи; MAJ-3 —
+  стаж инструктора (FR-31 карточка, FR-32 фильтр min_experience) не
+  материализован в схеме (в instructor_applications — текст, approve в
+  users не переносит).
+- Файлы-сироты в data/uploads/ (DELETE авто / обработка заявок не удаляют
+  файлы с диска) — принять как осознанный техдолг (MIN-3 ревью; cleanup
+  вне объема).
+- Семантика фильтра min_rating при отсутствии отзывов (MIN-1 ревью) и
+  матрица кодов GET фото авто (MIN-2 ревью) — дофиксировать в design.md.
+- answers-файл раунда ОВ-1…ОВ-6 (docs/ba/answers_roundN.md, контракт 1)
+  отсутствует — БА дописать (MIN-4 ревью; решения процитированы в ТЗ).
+- Наследуются без изменений: single-worker + in-memory сессии/токены
+  (ADR-001/002), статика без серверной защиты страниц (спринт-1 паттерн),
+  нет rate-limit на публичных эндпоинтах (публичная анкета теперь multipart
+  с файлом — поверхность выросла; анти-брутфорс/лимиты — Релиз 1 за Gateway).
