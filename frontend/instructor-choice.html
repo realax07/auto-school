@@ -1,0 +1,345 @@
+<!doctype html>
+<!-- «Выбор инструктора» — кабинет ученика. Вариант A (согласованный мокап
+     design/mocks/choice-instructor-a.html): фильтры колонкой слева.
+     Задачи 3.3/4.2/6.3 (change add-instructor-student-loop).
+     Единственные отличия от мокапа — wiring:
+     - GET /api/student/instructors (сессия X-Session-Token, sessionStorage
+       'session_token'; 401/403 -> редирект на главную, к модалке входа);
+     - фильтры -> query-параметры (transmission, min_rating, min_experience,
+       free_weekday+free_from+free_to), фильтрация на сервере (FR-31, FR-32);
+     - «Подать заявку» -> POST /api/student/requests {instructor_id} (FR-36);
+       409 (активная заявка) -> сообщение, дубля нет;
+     - пустой результат фильтров — валидное состояние (не ошибка). -->
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#071015"><title>СберАвтошкола — Выбор инструктора (кабинет ученика)</title>
+<style>
+:root{--bg:#071015;--panel:rgba(20,32,40,.72);--line:#ffffff16;--text:#f3f7f8;--muted:#93a6b1;--green:#35d879;--green-soft:#9af0b9}
+*{box-sizing:border-box}html,body{margin:0;min-width:320px}
+body{background:radial-gradient(ellipse at 78% 0%,#123b2c4d,transparent 38%),radial-gradient(ellipse at 8% 90%,#27465f26,transparent 40%),var(--bg);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh}
+button,input,select{font:inherit;color:inherit}button{cursor:pointer}
+.frame{max-width:1300px;margin:auto;padding:26px 24px 46px}
+header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;height:48px;margin-bottom:6px}
+.brand{display:flex;align-items:center;gap:10px;font-size:22px;font-weight:650;letter-spacing:-1px}
+.brand em{font-style:normal;color:var(--green)}
+.check{width:32px;height:32px;flex:none;display:grid;place-items:center;border:3px solid var(--green);border-radius:50%;color:var(--green);font-size:20px;transform:rotate(-8deg)}
+.brand small{display:block;font-size:9px;color:#80919b;letter-spacing:.14em;text-transform:uppercase;margin-top:3px;font-weight:500}
+.crumb{font-size:12px;color:#8fa2ad;justify-self:center}
+.user{justify-self:end;display:flex;align-items:center;gap:13px}
+.uname{font-size:13px;color:#d6e4e2}
+.avatar{width:34px;height:34px;border-radius:11px;background:linear-gradient(145deg,#315744,#14261e);display:grid;place-items:center;color:#a0f2bd;font-size:11px;font-weight:700}
+.logout{padding:8px 20px;border:1px solid #ffffff40;border-radius:999px;background:transparent;font-size:13px}
+.logout:hover{border-color:var(--green)}
+.page-head{margin:30px 0 22px}
+.kicker{font-size:10px;color:#79eaa5;text-transform:uppercase;letter-spacing:.18em}
+.page-head h1{font-size:30px;letter-spacing:-.05em;font-weight:600;margin:9px 0 8px}
+.page-head p{font-size:13px;color:var(--muted);margin:0}
+.layout{display:grid;grid-template-columns:248px minmax(0,1fr);gap:18px;align-items:start}
+/* ── фильтры: колонка слева (ВАРИАНТ A) ── */
+.filters{position:sticky;top:18px;border:1px solid var(--line);border-radius:19px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:19px}
+.filters h2{font-size:14px;font-weight:600;margin:0 0 3px;letter-spacing:-.02em}
+.filters .sub{font-size:11px;color:#8799a3;margin:0 0 16px}
+.fgroup{margin-bottom:17px}
+.fgroup>span{display:block;font-size:10px;color:#8fa0aa;text-transform:uppercase;letter-spacing:.13em;margin-bottom:9px}
+.seg{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px}
+.seg button{border:1px solid #ffffff14;background:#ffffff05;color:#b9c8ce;border-radius:9px;padding:8px 4px;font-size:11px}
+.seg button.on{background:#143322;border-color:#2c8651;color:#a3efbd}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid #ffffff14;background:#ffffff05;color:#b9c8ce;border-radius:999px;padding:7px 12px;font-size:11px}
+.chip.on{background:#143322;border-color:#2c8651;color:#a3efbd}
+select,input[type=number]{width:100%;border:1px solid #ffffff16;background:#0b161c;border-radius:10px;padding:9px 11px;font-size:12px;color:#dcebe9}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}
+.range-lab{display:flex;justify-content:space-between;font-size:11px;color:#8fa0aa;margin-bottom:7px}
+.range-lab b{color:#a3efbd;font-weight:600}
+input[type=range]{width:100%;accent-color:var(--green)}
+.reset{width:100%;margin-top:4px;border:1px solid #ffffff16;background:#ffffff05;color:#aab8c0;border-radius:10px;padding:9px;font-size:11px}
+.reset:hover{border-color:#4bcb7c66;color:#c9ffdd}
+/* ── карточки инструкторов ── */
+.cards-top{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:13px}
+.cards-top b{font-size:13px;color:#c9d6db;font-weight:550}
+.cards-top span{font-size:11px;color:#7e909a}
+.sort{display:flex;align-items:center;gap:8px;font-size:11px;color:#8fa0aa}
+.sort select{width:auto;padding:7px 10px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+.card{border:1px solid var(--line);border-radius:19px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:19px;display:flex;flex-direction:column;min-width:0;transition:border-color .15s,transform .15s}
+.card:hover{border-color:#35d87955;transform:translateY(-2px)}
+.card-top{display:flex;gap:12px;align-items:center}
+.icard{width:46px;height:46px;flex:none;border-radius:14px;background:linear-gradient(145deg,#2c4f3d,#132119);display:grid;place-items:center;color:#a0f2bd;font-size:13px;font-weight:700}
+.card-top b{font-size:15px;font-weight:600;letter-spacing:-.02em;display:block}
+.card-top small{display:block;font-size:11px;color:#8fa0aa;margin-top:4px}
+.rating{margin-left:auto;text-align:right;flex:none}
+.rating b{font-size:15px;color:#ffd479;display:flex;align-items:center;gap:5px;justify-content:flex-end}
+.rating small{display:block;font-size:10px;color:#8fa0aa;margin-top:4px}
+.rating.none b{color:#9db0ba}
+.meta{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+.pill{font-size:10px;padding:6px 10px;border-radius:999px;border:1px solid #ffffff12;background:#ffffff05;color:#b9c8ce}
+.pill.green{background:#143322;border-color:#2a5c40;color:#91efb1}
+.hours{border-top:1px solid #ffffff12;padding-top:13px;margin-top:auto}
+.hours span{display:block;font-size:10px;color:#84969f;text-transform:uppercase;letter-spacing:.11em;margin-bottom:8px}
+.slotrow{display:flex;gap:5px;flex-wrap:wrap}
+.slot{font-size:10px;padding:5px 8px;border-radius:8px;background:#0d2b1c;border:1px solid #235c3b;color:#9defb8}
+.apply{margin-top:15px;width:100%;border:1px solid #2b9c62;background:#123524;color:#c9ffdd;border-radius:12px;padding:12px;font-size:13px;font-weight:550;transition:filter .15s}
+.apply:hover{filter:brightness(1.12)}
+.apply.sent{background:#143322;border-color:#2c8651;color:#7fe3a3;cursor:default}
+.card.warn{border-color:#8a5c2055}
+.card .warn-note{font-size:10px;color:#e8b877;margin:10px 0 0}
+/* пустой результат */
+.empty{display:none;border:1px dashed #ffffff22;border-radius:19px;padding:46px 20px;text-align:center;color:#8fa0a9}
+.empty b{display:block;font-size:15px;color:#c9d6db;margin-bottom:8px}
+.empty button{margin-top:16px;border:1px solid #2b9c62;background:#123524;color:#c9ffdd;border-radius:11px;padding:10px 18px;font-size:12px}
+footer{margin-top:34px;padding-top:18px;border-top:1px solid #ffffff10;display:flex;justify-content:space-between;gap:14px;font-size:11px;color:#5f717b;flex-wrap:wrap}
+.toast{position:fixed;bottom:22px;right:22px;max-width:340px;background:#143323;border:1px solid #367b50;color:#b5f8cc;padding:13px 16px;border-radius:13px;font-size:12px;box-shadow:0 10px 40px #0008;display:none;z-index:20}
+.toast.show{display:block}
+@media(max-width:1024px){.layout{grid-template-columns:1fr}.filters{position:static}}
+@media(max-width:850px){.frame{padding:20px 16px 36px}.crumb{display:none}.page-head h1{font-size:25px}.cards{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){header{grid-template-columns:1fr auto}.brand{font-size:19px}.uname{display:none}.cards{grid-template-columns:1fr}.cards-top{flex-direction:column;gap:9px}}
+</style></head>
+<body>
+<div class="frame">
+<header>
+  <div class="brand"><span class="check">✓</span><span><em>Сбер</em>Автошкола<small>Кабинет ученика</small></span></div>
+  <div class="crumb">Кабинет ученика · Выбор инструктора</div>
+  <div class="user"><span class="uname" id="uname">…</span><span class="avatar" id="avatar">—</span><button class="logout" id="logout">Выйти</button></div>
+</header>
+
+<div class="page-head">
+  <div class="kicker">Выбор инструктора</div>
+  <h1>Найдите своего инструктора</h1>
+  <p>Одобренные инструкторы школы: рейтинг, стаж, автомобили и свободные часы. Подайте заявку — инструктор увидит её в своём кабинете.</p>
+</div>
+
+<div class="layout">
+  <!-- ВАРИАНТ A: фильтры колонкой слева -->
+  <aside class="filters">
+    <h2>Фильтры</h2>
+    <p class="sub">Сузьте подбор под ваш график</p>
+    <div class="fgroup">
+      <span>Автомобиль (КПП)</span>
+      <div class="seg" id="f-trans">
+        <button class="on" data-v="">Любая</button>
+        <button data-v="manual">Механика</button>
+        <button data-v="automatic">Автомат</button>
+      </div>
+    </div>
+    <div class="fgroup">
+      <span>Рейтинг не ниже</span>
+      <div class="range-lab"><b id="rating-val">0</b><span>из 5</span></div>
+      <input type="range" id="f-rating" min="0" max="5" step="0.5" value="0">
+    </div>
+    <div class="fgroup">
+      <span>Стаж от</span>
+      <div class="chips" id="f-exp">
+        <button class="chip on" data-v="0">Любой</button>
+        <button class="chip" data-v="3">3 года</button>
+        <button class="chip" data-v="5">5 лет</button>
+        <button class="chip" data-v="10">10 лет</button>
+      </div>
+    </div>
+    <div class="fgroup">
+      <span>Свободное время</span>
+      <div class="chips" id="f-day">
+        <button class="chip on" data-v="">Любой день</button>
+        <button class="chip" data-v="0">Пн</button>
+        <button class="chip" data-v="2">Ср</button>
+        <button class="chip" data-v="5">Сб</button>
+        <button class="chip" data-v="6">Вс</button>
+      </div>
+      <div class="frow">
+        <select id="f-from" aria-label="Время от">
+          <option value="">с …</option><option>08:00</option><option>10:00</option><option>12:00</option><option>14:00</option><option>16:00</option><option>18:00</option>
+        </select>
+        <select id="f-to" aria-label="Время до">
+          <option value="">до …</option><option>12:00</option><option>14:00</option><option>16:00</option><option>18:00</option><option>20:00</option><option>22:00</option>
+        </select>
+      </div>
+    </div>
+    <button class="reset" id="reset">Сбросить фильтры</button>
+  </aside>
+
+  <section>
+    <div class="cards-top">
+      <b id="found">Найдено: …</b>
+      <label class="sort">Сортировка
+        <select id="sort"><option value="rating">по рейтингу</option><option value="exp">по стажу</option><option value="name">по фамилии</option></select>
+      </label>
+    </div>
+    <div class="cards" id="cards"></div>
+    <div class="empty" id="empty"><b>Под фильтры никто не подошёл</b>Попробуйте ослабить условия: снизить рейтинг или расширить время.<br><button id="empty-reset">Сбросить фильтры</button></div>
+  </section>
+</div>
+
+<footer><span>СберАвтошкола · «Выбор инструктора», вариант A</span><span>Кабинет ученика</span></footer>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+// --- сессия ученика (единый паттерн кабинета, sdd §10.2–10.3) ---
+var TOKEN_KEY='session_token';
+var token=null;
+try{token=sessionStorage.getItem(TOKEN_KEY)}catch(e){}
+function clearSession(){try{sessionStorage.clear()}catch(e){}}
+function toLogin(){clearSession();location.href='/';}
+if(!token){toLogin()}
+function api(path,opts,cb){
+  opts=opts||{};
+  opts.headers=Object.assign({'X-Session-Token':token},opts.headers||{});
+  if(opts.body)opts.headers['Content-Type']='application/json';
+  fetch(path,opts).then(function(r){
+    return r.json().then(function(d){cb({status:r.status,data:d})},function(){cb({status:r.status,data:null})});
+  },function(){cb({status:0,data:null})});
+}
+// ФИО/аватар ученика (FR-5)
+api('/api/auth/me',{},function(res){
+  if(res.status===401||res.status===403||!res.data||!res.data.ok){toLogin();return}
+  var u=res.data.user||{};
+  var fio=[u.surname,u.name,u.patronymic].filter(Boolean).join(' ');
+  if(fio){document.getElementById('uname').textContent=fio;
+    document.getElementById('avatar').textContent=((u.surname||'')[0]||'')+((u.name||'')[0]||'');}
+});
+function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(window._tt);window._tt=setTimeout(function(){t.classList.remove('show')},3000)}
+
+// --- поля карточки (реальный шейп GET /api/student/instructors,
+//     backend/student_marketplace.py; code-review review-001 #2/#5:
+//     нормализация по «догадкам» удалена) ---
+var DAYS=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+// DOM-хелпер: пользовательские строки — только через textContent
+// (code-review review-001 #1, stored XSS через innerHTML запрещен)
+function el(tag,cls,text){var n=document.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=text;return n}
+function instFio(i){return i.full_name||'Инструктор'}
+function instExp(i){return +i.experience_years||0}
+function slotText(s){return DAYS[s.weekday]+' '+s.start_time+'–'+s.end_time}
+
+// --- состояние фильтров -> query-параметры (фильтрует сервер, FR-32) ---
+var state={transmission:'',min_rating:0,min_experience:0,free_weekday:'',free_from:'',free_to:''};
+var sent={};       // instructor_id -> заявка подана (в этой сессии страницы)
+var instructors=[];// последний ответ API
+var fetchSeq=0;
+function buildQuery(){
+  var q=[];
+  if(state.transmission)q.push('transmission='+encodeURIComponent(state.transmission));
+  if(state.min_rating>0)q.push('min_rating='+state.min_rating);
+  if(state.min_experience>0)q.push('min_experience='+state.min_experience);
+  if(state.free_weekday!=='')q.push('free_weekday='+state.free_weekday);
+  if(state.free_from)q.push('free_from='+encodeURIComponent(state.free_from));
+  if(state.free_to)q.push('free_to='+encodeURIComponent(state.free_to));
+  return q.length?('?'+q.join('&')):'';
+}
+function loadInstructors(){
+  var seq=++fetchSeq;
+  api('/api/student/instructors'+buildQuery(),{},function(res){
+    if(seq!==fetchSeq)return; // устаревший ответ — фильтр уже менялся
+    if(res.status===401||res.status===403){toLogin();return}
+    if(!res.data||!res.data.ok){toast((res.data&&res.data.error)||'Не удалось загрузить список инструкторов');return}
+    instructors=res.data.instructors||[];
+    render();
+  });
+}
+function expWord(n){return n%10===1&&n%100!==11?'год':(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20)?'года':'лет')}
+// рейтинг — узел (агрегат {average,count} / {has_reviews:false}, FR-35)
+function ratingNode(i){
+  var r=i.rating;
+  if(!r||r.has_reviews===false||!r.count){
+    var none=el('div','rating none');
+    none.appendChild(el('b',null,'☆ Нет отзывов'));
+    none.appendChild(el('small',null,'новый инструктор'));
+    return none;
+  }
+  var box=el('div','rating');
+  box.appendChild(el('b',null,'★ '+(+r.average).toFixed(1)));
+  box.appendChild(el('small',null,String(r.count)+' отзывов'));
+  return box;
+}
+function render(){
+  var list=instructors.slice();
+  var sort=document.getElementById('sort').value;
+  list.sort(function(a,b){
+    if(sort==='exp')return instExp(b)-instExp(a);
+    if(sort==='name')return instFio(a).localeCompare(instFio(b),'ru');
+    var ra=a.rating&&a.rating.average!=null?+a.rating.average:-1;
+    var rb=b.rating&&b.rating.average!=null?+b.rating.average:-1;
+    return rb-ra;
+  });
+  document.getElementById('found').textContent='Найдено: '+list.length;
+  document.getElementById('empty').style.display=list.length?'none':'block';
+  // Строим карточки через createElement/textContent — пользовательские
+  // строки (ФИО инструктора, brand/model) не проходят через innerHTML
+  // (code-review review-001 #1, stored XSS)
+  var cards=document.getElementById('cards');
+  cards.innerHTML='';
+  list.forEach(function(i){
+    var id=i.id||i.instructor_id, sentNow=!!sent[id];
+    var cars=i.cars||[];
+    var card=el('article','card');card.dataset.id=String(id);
+    var top=el('div','card-top');
+    var initials=instFio(i).split(' ').slice(0,2).map(function(w){return (w[0]||'').toUpperCase()}).join('');
+    top.appendChild(el('span','icard',initials));
+    var who=el('div');
+    who.appendChild(el('b',null,instFio(i)));
+    who.appendChild(el('small',null,'Стаж: '+instExp(i)+' '+expWord(instExp(i))));
+    top.appendChild(who);
+    top.appendChild(ratingNode(i));
+    card.appendChild(top);
+    var meta=el('div','meta');
+    meta.appendChild(el('span','pill green','Авто: '+cars.length));
+    cars.forEach(function(c){
+      var tr=c.transmission==='automatic'?'автомат':c.transmission==='manual'?'механика':(c.transmission||'');
+      meta.appendChild(el('span','pill',[c.brand,c.model].filter(Boolean).join(' ')+' · '+(c.year||'')+(tr?' · '+tr:'')));
+    });
+    card.appendChild(meta);
+    var hours=el('div','hours');
+    hours.appendChild(el('span',null,'Свободные часы'));
+    var slotrow=el('div','slotrow');
+    (i.availability||[]).forEach(function(s){slotrow.appendChild(el('span','slot',slotText(s)))});
+    hours.appendChild(slotrow);
+    card.appendChild(hours);
+    if(sentNow)card.appendChild(el('div','warn-note','Заявка подана — статус появится в разделе «Мои заявки»'));
+    var btn=el('button','apply'+(sentNow?' sent':''),sentNow?'✓ Заявка отправлена':'Подать заявку');
+    btn.type='button';btn.dataset.id=String(id);
+    btn.addEventListener('click',function(){
+      var id=btn.dataset.id;
+      if(sent[id])return;
+      api('/api/student/requests',{method:'POST',body:JSON.stringify({instructor_id:+id})},function(res){
+        if(res.status===401||res.status===403){toLogin();return}
+        if(res.status===200&&res.data&&res.data.ok){
+          sent[id]=true;render();
+          toast('Заявка отправлена инструктору. Ответ появится в разделе «Мои заявки».');
+        }else if(res.status===409){
+          // 409 не кэшируем в sent (review-001 #14): состояние «подано»
+          // знает только сервер
+          toast('У вас уже есть активная заявка этому инструктору.');
+        }else{
+          toast((res.data&&res.data.error)||'Не удалось отправить заявку');
+        }
+      });
+    });
+    card.appendChild(btn);
+    cards.appendChild(card);
+  });
+}
+function segBind(id,key){
+  var box=document.getElementById(id);
+  box.addEventListener('click',function(e){
+    var b=e.target.closest('button');if(!b)return;
+    box.querySelectorAll('button').forEach(function(x){x.classList.remove('on')});
+    b.classList.add('on');state[key]=b.dataset.v;loadInstructors();
+  });
+}
+segBind('f-trans','transmission');segBind('f-exp','min_experience');segBind('f-day','free_weekday');
+document.getElementById('f-rating').addEventListener('input',function(){state.min_rating=+this.value;document.getElementById('rating-val').textContent=this.value;loadInstructors()});
+document.getElementById('f-from').addEventListener('change',function(){state.free_from=this.value;loadInstructors()});
+document.getElementById('f-to').addEventListener('change',function(){state.free_to=this.value;loadInstructors()});
+document.getElementById('sort').addEventListener('change',render);
+function reset(){
+  state={transmission:'',min_rating:0,min_experience:0,free_weekday:'',free_from:'',free_to:''};
+  ['f-trans','f-exp','f-day'].forEach(function(id){document.querySelectorAll('#'+id+' button').forEach(function(b,i){b.classList.toggle('on',i===0)})});
+  document.getElementById('f-rating').value=0;document.getElementById('rating-val').textContent='0';
+  document.getElementById('f-from').value='';document.getElementById('f-to').value='';
+  loadInstructors();
+}
+document.getElementById('reset').addEventListener('click',reset);
+document.getElementById('empty-reset').addEventListener('click',reset);
+// «Выйти»: POST /api/auth/logout -> очистка -> главная (к модалке входа)
+document.getElementById('logout').addEventListener('click',function(){
+  fetch('/api/auth/logout',{method:'POST',headers:{'X-Session-Token':token||''}})
+    .catch(function(){})
+    .then(function(){clearSession();location.href='/';});
+});
+if(token)loadInstructors();
+</script></body></html>

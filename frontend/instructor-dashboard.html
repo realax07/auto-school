@@ -13,6 +13,92 @@ main{padding:28px clamp(20px,3vw,44px) 45px;max-width:1600px;width:100%;margin:a
 .right-col{display:grid;gap:15px;align-content:start}.next{background:radial-gradient(ellipse at 100% 0%,#1e855029,transparent 45%),linear-gradient(145deg,#192b31,#101a20)}.next-time{display:flex;align-items:center;gap:13px;margin:19px 0}.timebox{padding:12px 10px;border-radius:12px;background:#143424;border:1px solid #2b6645;text-align:center;min-width:70px}.timebox b{font-size:20px;display:block}.timebox small{font-size:9px;color:#92bba1;display:block;margin-top:4px}.next-person b{font-size:13px;display:block}.next-person small{font-size:10px;color:#94a5ad;display:block;margin-top:5px}.next-details{border-top:1px solid #ffffff15;padding-top:13px;display:grid;gap:9px}.detail{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:10px;color:#8fa0a9}.detail b{color:#d6e0e4;font-weight:500;text-align:right}.full-btn{width:100%;margin-top:15px;padding:11px;border-radius:11px;border:1px solid #2f8d55;background:#173a28;color:#9bf3b9;font-size:11px}
 .vehicle-top{display:flex;align-items:center;gap:12px}.vehicle-icon{width:46px;height:46px;border-radius:14px;background:#143322;border:1px solid #286541;color:#6feaa0;display:grid;place-items:center;font-size:22px}.vehicle-top b{font-size:13px;display:block}.vehicle-top small{font-size:10px;color:#91a1aa;display:block;margin-top:5px}.vehicle-status{margin-left:auto;font-size:9px;color:#82e9a5}.vehicle-line{height:1px;background:#ffffff12;margin:16px 0}.vehicle-data{display:grid;grid-template-columns:1fr 1fr;gap:14px}.vehicle-data span{display:block;color:#84969f;font-size:10px}.vehicle-data b{display:block;font-size:12px;margin-top:6px}.progress-label{display:flex;justify-content:space-between;font-size:10px;color:#9aabb3;margin:15px 0 7px}.progress{height:5px;background:#ffffff12;border-radius:99px;overflow:hidden}.progress span{height:100%;display:block;width:72%;background:linear-gradient(90deg,#19b96a,#65efa0);border-radius:99px}
 .bottom-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-top:15px}.activity{display:grid;gap:14px}.activity-row{display:flex;align-items:center;gap:11px}.activity-icon{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:#143323;color:#7deaa5;flex:none}.activity-copy{flex:1;min-width:0}.activity-copy b{font-size:11px;display:block;font-weight:550}.activity-copy small{font-size:10px;color:#8799a2;display:block;margin-top:4px}.amount{font-size:11px;font-weight:600;white-space:nowrap}.amount.plus{color:#8aefad}.amount.minus{color:#ffb28e}.quick-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.quick{border:1px solid #ffffff13;border-radius:13px;background:#ffffff04;color:#c6d1d6;padding:14px 8px;text-align:center;font-size:10px;line-height:1.45}.quick:hover{border-color:#4bcb7c66;background:#1c3a2a55}.quick span{display:block;font-size:19px;margin-bottom:9px;color:#79e9a1}
+/* Спринт 3 (change add-instructor-student-loop): виджеты главной —
+   «Привязанные ученики», «Запросы учеников», «Занятия на сегодня»
+   (по мокапу design/mocks/calendar-availability-a.html) */
+.widgets{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:15px;margin:0 0 16px}
+.w{border:1px solid var(--line);border-radius:19px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.78));box-shadow:inset 0 1px #ffffff08;padding:17px 18px;min-width:0}
+.w-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:13px}
+.w-head b{font-size:13px;font-weight:600;letter-spacing:-.02em}
+.w-n{font-size:10px;color:#91efb1;border:1px solid #2a5c40;background:#143322;border-radius:999px;padding:3px 9px;white-space:nowrap}
+.w-stu{display:flex;align-items:center;gap:11px;padding:6px 0}
+.w-sic{width:34px;height:34px;flex:none;border-radius:11px;background:linear-gradient(145deg,#2c4f3d,#132119);display:grid;place-items:center;color:#a0f2bd;font-size:10px;font-weight:700}
+.w-stu b{font-size:12px;font-weight:550;display:block}
+.w-stu small{display:block;font-size:10px;color:#8fa0aa;margin-top:3px}
+.w-stu .car{margin-left:auto;font-size:10px;color:#9db0ba;border:1px solid #ffffff12;background:#ffffff05;border-radius:999px;padding:4px 10px;white-space:nowrap}
+.w-req{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid #ffffff10;background:#ffffff03;border-radius:12px;margin-bottom:8px}
+.w-req b{font-size:12px;font-weight:550;display:block}
+.w-req small{font-size:10px;color:#8fa0aa;display:block;margin-top:3px}
+.w-req .go{margin-left:auto;color:#7fe3a3;font-size:16px;cursor:pointer}
+.w-empty{border:1px dashed #ffffff1e;border-radius:12px;padding:18px 12px;text-align:center;color:#8fa0a9;font-size:11px}
+.w-empty b{display:block;color:#c9d6db;font-size:12px;margin-bottom:5px}
+/* Раздел «Календарь» (мокап calendar-availability-a): сетка недели × интервалы */
+.cal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:15px;flex-wrap:wrap}
+.cal-head b{font-size:15px;font-weight:600;letter-spacing:-.02em}
+.cal-head .sub{font-size:11px;color:#8799a3;margin-top:5px}
+.cal-save{display:flex;align-items:center;gap:12px}
+.cal-save button{border:1px solid #2b9c62;background:#123524;color:#c9ffdd;border-radius:11px;padding:10px 20px;font-size:12px;font-weight:550}
+.cal-save button:hover{filter:brightness(1.12)}
+#cal-changed{font-size:11px;color:#ffd479;display:none}
+.cal-grid-wrap{border:1px solid var(--line);border-radius:19px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.78));box-shadow:inset 0 1px #ffffff08;padding:19px;margin-top:15px}
+.cal-grid{display:grid;grid-template-columns:64px repeat(7,minmax(0,1fr));gap:6px}
+.cal-corner{font-size:9px;color:#637681;display:grid;place-items:end center;padding-bottom:6px;text-transform:uppercase;letter-spacing:.08em}
+.cal-dh{text-align:center;padding:7px 2px;border-radius:10px;background:#ffffff04;border:1px solid #ffffff0e}
+.cal-dh small{display:block;font-size:9px;color:#84959e;text-transform:uppercase;letter-spacing:.08em}
+.cal-dh b{display:block;font-size:14px;margin-top:4px;font-weight:600}
+.cal-dh.today{background:#143322;border-color:#2c8651}
+.cal-dh.today small{color:#a3efbd}
+.cal-tlabel{font-size:10px;color:#7e909a;display:flex;align-items:center;justify-content:flex-end;padding-right:6px}
+.cal-slot{height:33px;border-radius:9px;border:1px solid #ffffff10;background:#ffffff03;transition:background .1s,border-color .1s;padding:0;cursor:pointer}
+.cal-slot:hover{border-color:#35d87988}
+.cal-slot.on{background:#143322;border-color:#2c8651;background-image:linear-gradient(180deg,#1c4a2e,#12331f)}
+.cal-slot.on:after{content:"✓";color:#7fe3a3;font-size:11px}
+.cal-hint{margin-top:14px;font-size:11px;color:#7e909a}
+/* Раздел «Запросы учеников» (мокап student-requests) */
+.rq-filters{display:flex;gap:6px;margin:0 0 14px;flex-wrap:wrap}
+.rq-filters button{border:1px solid #ffffff14;background:#ffffff05;color:#b9c8ce;border-radius:999px;padding:8px 15px;font-size:11px}
+.rq-filters button.on{background:#143322;border-color:#2c8651;color:#a3efbd}
+.rq-list{display:grid;gap:11px}
+.rq{border:1px solid var(--line);border-radius:18px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.78));box-shadow:inset 0 1px #ffffff08;padding:18px 19px}
+.rq-top{display:flex;gap:13px;align-items:center}
+.rq-sic{width:44px;height:44px;flex:none;border-radius:13px;background:linear-gradient(145deg,#2c4f3d,#132119);display:grid;place-items:center;color:#a0f2bd;font-size:12px;font-weight:700}
+.rq-top b{font-size:15px;font-weight:600;letter-spacing:-.02em;display:block}
+.rq-top small{display:block;font-size:11px;color:#8fa0aa;margin-top:4px}
+.rq-status{margin-left:auto;flex:none;font-size:10px;padding:6px 12px;border-radius:999px;white-space:nowrap}
+.rq-st-new{background:#143322;color:#91efb1;border:1px solid #2a5c40}
+.rq-st-acc{background:#17283a;color:#9bc5ff;border-color:#2d4a68}
+.rq-st-den{background:#33201a;color:#ffb28e;border:1px solid #5c3030}
+.rq-comment{margin:13px 0 0;padding:11px 14px;border:1px solid #ffffff10;background:#ffffff04;border-radius:12px;font-size:12px;color:#c9d6db;line-height:1.55}
+.rq-comment span{display:block;font-size:10px;color:#8fa0aa;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+.rq-comment.denied span{color:#e8b877}
+.rq-actions{display:flex;gap:9px;margin-top:15px;flex-wrap:wrap}
+.rq-act{border-radius:11px;padding:11px 20px;font-size:12px;font-weight:550;border:1px solid;cursor:pointer}
+.rq-act.accept{background:#123524;border-color:#2b9c62;color:#c9ffdd}
+.rq-act.accept:hover{filter:brightness(1.12)}
+.rq-act.deny{background:transparent;border-color:#8a3c3c66;color:#ffb28e}
+.rq-act.deny:hover{background:#33201a55}
+.rq-accept{display:none;margin-top:14px;border:1px solid #2a5c40;border-radius:13px;background:#0d241766;padding:15px}
+.rq-accept.open{display:block}
+.rq-accept h4,.rq-deny h4{margin:0 0 11px;font-size:10px;color:#8fa0aa;text-transform:uppercase;letter-spacing:.12em;font-weight:500}
+.rq-caropt{display:flex;align-items:center;gap:11px;border:1px solid #ffffff12;background:#ffffff05;border-radius:11px;padding:11px 13px;margin-bottom:8px;cursor:pointer;font-size:12px}
+.rq-caropt:hover{border-color:#35d87977}
+.rq-caropt input{accent-color:#35d879}
+.rq-caropt b{font-weight:550}
+.rq-caropt small{display:block;color:#8fa0aa;margin-top:3px;font-size:10px}
+.rq-confirm{width:100%;margin-top:6px;border:1px solid #2b9c62;background:#123524;color:#c9ffdd;border-radius:11px;padding:11px;font-size:12px;font-weight:550;cursor:pointer}
+.rq-confirm:disabled{opacity:.45;cursor:not-allowed}
+.rq-deny{display:none;margin-top:14px;border:1px solid #5c3030;border-radius:13px;background:#24131366;padding:15px}
+.rq-deny.open{display:block}
+.rq-deny h4{color:#e8b877}
+.rq-deny textarea{width:100%;min-height:74px;resize:vertical;border:1px solid #ffffff16;background:#0b161c;border-radius:11px;padding:11px 13px;font:inherit;font-size:12px;color:#dcebe9;line-height:1.5}
+.rq-deny textarea:focus{outline:none;border-color:#35d87966}
+.rq-deny-actions{display:flex;align-items:center;gap:11px;margin-top:11px;flex-wrap:wrap}
+.rq-deny-confirm{border:1px solid #8a3c3c;background:#33201a;color:#ffb28e;border-radius:11px;padding:11px 20px;font-size:12px;font-weight:550;cursor:pointer}
+.rq-deny-confirm:disabled{opacity:.4;cursor:not-allowed}
+.rq-note{font-size:10px;color:#8fa0aa}
+.rq-decided{font-size:11px;color:#8fa0aa;margin-top:14px}
+.rq-none{margin-top:6px;border:1px dashed #ffffff1c;border-radius:12px;padding:16px 14px;font-size:11px;color:#8fa0aa;text-align:center}
+.rq-no-cars{margin-top:14px;border:1px dashed #6b5426;border-radius:12px;padding:12px 14px;font-size:11px;color:#ffd479;background:#2a201040}
 footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content:space-between;gap:15px}
 .toast{position:fixed;bottom:22px;right:22px;max-width:330px;background:#143323;border:1px solid #367b50;color:#b5f8cc;padding:13px 16px;border-radius:13px;font-size:12px;box-shadow:0 10px 40px #0008;display:none;z-index:10}.toast.show{display:block}
 @media(max-width:1100px){.app{grid-template-columns:200px 1fr}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.content-grid{grid-template-columns:1fr}.right-col{grid-template-columns:1fr 1fr}.bottom-grid{grid-template-columns:1fr}}
@@ -33,7 +119,9 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
   <nav class="nav">
     <button class="active" data-tab="Мой день"><span class="ico">⌂</span>Мой день</button>
     <button data-tab="Расписание"><span class="ico">▦</span>Расписание<small class="demo-tag">демо</small></button>
+    <button data-tab="Календарь"><span class="ico">▦</span>Календарь</button>
     <button data-tab="Мои ученики"><span class="ico">♧</span>Мои ученики<small class="demo-tag">демо</small></button>
+    <button data-tab="Запросы учеников"><span class="ico">✉</span>Запросы учеников<small class="demo-tag" id="nav-req-badge" style="display:none">0</small></button>
     <button data-tab="Доходы и выплаты"><span class="ico">₽</span>Доходы и выплаты<small class="demo-tag">демо</small></button>
     <button data-tab="Мой автомобиль"><span class="ico">▰</span>Мой автомобиль<small class="demo-tag">демо</small></button>
     <button data-tab="Материалы и обучение"><span class="ico">◈</span>Материалы и обучение<small class="demo-tag">демо</small></button>
@@ -46,13 +134,31 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
 <main>
   <div class="topbar"><div><div class="crumb">Рабочее пространство / <span id="crumb">Мой день</span></div><h1 id="page-title">Мой день</h1></div><div class="top-actions"><div class="date-chip">◷ &nbsp; Пн, 12 октября 2026</div><button class="icon-btn" onclick="toast('Новых уведомлений нет')">♧</button><div class="user"><div class="avatar" id="avatar">—</div><div><b id="user-fio">…</b><small>Инструктор</small></div></div><button class="icon-btn" onclick="logout()" title="Выйти">⎋</button></div></div>
   <div class="hello"><div><div class="kicker">Понедельник · 12 октября</div><h2 id="hello-name">Добрый день, Михаил</h2><p>Вот что у тебя сегодня. Всё под контролем.</p></div><div class="online"><i></i> Профиль активен</div></div>
-  <section class="stats">
+  <!-- Виджеты главной (мокап calendar-availability-a, change add-instructor-student-loop):
+       данные GET /api/instructor/summary + GET /api/instructor/requests; до ответа —
+       честные пустые состояния (демо-данных виджеты больше не показывают). -->
+  <section class="widgets">
+    <div class="w" id="w-students">
+      <div class="w-head"><b>Привязанные ученики</b><span class="w-n" id="w-students-n">0</span></div>
+      <div id="w-students-list"><div class="w-empty" id="w-students-empty"><b>Пока нет привязанных учеников</b>Принятые заявки появятся в этом списке.</div></div>
+    </div>
+    <div class="w" id="w-requests">
+      <div class="w-head"><b>Запросы учеников</b><span class="w-n" id="w-requests-n">0 новых</span></div>
+      <div id="w-requests-list"><div class="w-empty" id="w-requests-empty"><b>Новых запросов нет</b>Заявки учеников появятся здесь.</div></div>
+    </div>
+    <div class="w" id="w-today">
+      <div class="w-head"><b>Занятия на сегодня</b></div>
+      <div class="w-empty" id="w-today-empty"><b>Сегодня занятий нет</b>Расписание занятий появится в следующих версиях школы.</div>
+      <div id="w-today-list" style="display:none"></div>
+    </div>
+  </section>
+  <section class="stats day-content">
     <article class="card stat"><div class="stat-head">Заработано за месяц <span class="stat-icon">₽</span></div><div class="value">84 600 <small>₽</small></div><div class="stat-foot"><span class="trend">↗ +12%</span> <span>к прошлому месяцу</span></div></article>
     <article class="card stat"><div class="stat-head">Отработано часов <span class="stat-icon">◷</span></div><div class="value">62 <small>ч</small></div><div class="stat-foot"><span class="trend neutral">из 80 ч</span><span>план на месяц</span></div></article>
     <article class="card stat"><div class="stat-head">Мои ученики <span class="stat-icon">♧</span></div><div class="value">12</div><div class="stat-foot"><span class="trend">+3</span><span>новых за неделю</span></div></article>
     <article class="card stat"><div class="stat-head">Занятия сегодня <span class="stat-icon">▦</span></div><div class="value">4</div><div class="stat-foot"><span class="trend neutral">Первое в 10:00</span></div></article>
   </section>
-  <div class="content-grid">
+  <div class="content-grid day-content">
     <section class="card panel">
       <div class="panel-head"><div><div class="panel-title">Расписание занятий</div><div class="panel-sub">Загруженность и свободные окна на неделе</div></div><div class="calendar-tools"><button onclick="changeWeek(-1)">‹</button><button onclick="toast('Показана текущая неделя')">Эта неделя</button><button onclick="changeWeek(1)">›</button></div></div>
       <div class="week" id="week">
@@ -87,7 +193,7 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
       </section>
     </div>
   </div>
-  <div class="bottom-grid">
+  <div class="bottom-grid day-content">
     <section class="card panel"><div class="panel-head"><div><div class="panel-title">Последние операции</div><div class="panel-sub">Начисления и выплаты</div></div><button class="text-btn" onclick="navTo('Доходы')">Все операции ↗</button></div>
       <div class="activity">
         <div class="activity-row"><div class="activity-icon">↗</div><div class="activity-copy"><b>Занятие · Александр Иванов</b><small>Сегодня, 09:00 · Начисление</small></div><div class="amount plus">+2 000 ₽</div></div>
@@ -99,6 +205,34 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
       <div class="quick-actions"><button class="quick" onclick="navTo('Расписание')"><span>＋</span>Открыть время<br>для записи</button><button class="quick" onclick="navTo('Ученики')"><span>♧</span>Посмотреть<br>учеников</button><button class="quick" onclick="navTo('Доходы')"><span>₽</span>Мои доходы<br>и выплаты</button></div>
     </section>
   </div>
+
+  <!-- Раздел «Календарь» (мокап calendar-availability-a, вариант A: сетка недели;
+       FR-29/FR-30: GET /api/instructor/availability при входе, PUT — полная замена) -->
+  <section class="card panel" id="sec-calendar" style="display:none">
+    <div class="cal-head">
+      <div><b>Мой график на неделю</b><div class="sub">Клик по слоту — отметить или снять интервал · шаг 2 часа</div></div>
+      <div class="cal-save"><span id="cal-changed">Есть несохранённые изменения</span><button id="cal-save" type="button">Сохранить график</button></div>
+    </div>
+    <div class="legend"><span><i class="green"></i>Рабочий интервал</span><span><i style="background:#3a4a52"></i>Не работаю</span></div>
+    <div class="cal-grid-wrap">
+      <div class="cal-grid" id="cal-grid"></div>
+      <div class="cal-hint">Сохранение заменяет весь график недели: интервалы, снятые с выбора, будут удалены. Дубликаты объединяются автоматически.</div>
+    </div>
+  </section>
+
+  <!-- Раздел «Запросы учеников» (мокап student-requests; FR-37/38/39:
+       принять — с выбором своего авто, отказ — только с непустым комментарием) -->
+  <section class="card panel" id="sec-requests" style="display:none">
+    <div class="panel-head"><div><div class="panel-title">Входящие заявки</div><div class="panel-sub">Принять можно только заявку в статусе «новая» — с выбором вашего автомобиля. Отказ требует обязательного комментария.</div></div></div>
+    <div class="rq-filters" id="rq-filters">
+      <button class="on" data-f="all">Все</button>
+      <button data-f="new">Новые <span id="rq-new-n" style="color:#ffd479">·0</span></button>
+      <button data-f="accepted">Принятые</button>
+      <button data-f="denied">Отказанные</button>
+    </div>
+    <div class="rq-list" id="rq-list"></div>
+  </section>
+
   <footer><span>СберАвтошкола · Кабинет инструктора</span><span>Демонстрационный интерфейс · Все данные вымышлены</span></footer>
 </main>
 </div>
@@ -143,7 +277,104 @@ fetch('/api/auth/me',{headers:{'X-Session-Token':sessionStorage.getItem('session
 })();
 let weekShift=0;
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>t.classList.remove('show'),2600)}
-function navTo(name){if(name==='__logout__'){logout();return}if(name==='Профиль и документы'){document.getElementById('profile-panel').style.display='block'}else{document.getElementById('profile-panel').style.display='none'}document.getElementById('page-title').textContent=name;document.getElementById('crumb').textContent=name;document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));if(name!=='Мой день')toast('Раздел «'+name+'» — демо-данные, следующий экран в концепции кабинета')}
+function navTo(name){
+  if(name==='__logout__'){logout();return}
+  // Спринт 3: реальные разделы «Календарь» и «Запросы учеников»
+  var isCal=(name==='Календарь'),isReq=(name==='Запросы учеников');
+  document.querySelectorAll('.day-content').forEach(function(el){el.style.display=(isCal||isReq)?'none':''});
+  document.getElementById('sec-calendar').style.display=isCal?'block':'none';
+  document.getElementById('sec-requests').style.display=isReq?'block':'none';
+  if(isCal)openCalendar();
+  if(isReq)openRequests();
+  var pp=document.getElementById('profile-panel');
+  if(pp)pp.style.display='none';
+  document.getElementById('page-title').textContent=name;
+  document.getElementById('crumb').textContent=name;
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
+  if(name!=='Мой день'&&!isCal&&!isReq)toast('Раздел «'+name+'» — демо-данные, следующий экран в концепции кабинета')
+}
+
+// --- Виджеты главной (change add-instructor-student-loop, FR-40/FR-41):
+// GET /api/instructor/summary (students, today_lessons) + GET /api/instructor/requests
+// (счётчик новых). До ответа / при ошибке API — честные пустые состояния.
+// Шейпы — по backend/instructor_summary.py и backend/student_requests.py
+// (code-review review-001 #2/#4: вымышленные алиасы fio/since/… удалены).
+function el(id){return document.getElementById(id)}
+// DOM-хелпер: пользовательские строки — только через textContent
+// (code-review review-001 #1: stored XSS через innerHTML запрещен)
+function node(tag,cls,text){var n=document.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=text;return n}
+function stuInitials(fio){return (fio||'').split(/\s+/).filter(Boolean).slice(0,2).map(function(w){return (w[0]||'').toUpperCase()}).join('')||'—'}
+function loadSummary(){
+  if(!token)return;
+  apiGet('/api/instructor/summary',function(res){
+    if(!res||!res.ok)return;
+    var students=res.students||[];
+    el('w-students-n').textContent=students.length;
+    var box=el('w-students-list');
+    box.innerHTML='';
+    if(!students.length){
+      box.innerHTML='<div class="w-empty"><b>Пока нет привязанных учеников</b>Принятые заявки появятся в этом списке.</div>';
+    }else{
+      students.forEach(function(s){
+        var row=node('div','w-stu');
+        row.appendChild(node('span','w-sic',stuInitials(s.full_name)));
+        var who=node('div');
+        who.appendChild(node('b',null,s.full_name||''));
+        var date=s.decided_at?String(s.decided_at).split(' ')[0]:'';
+        if(date)who.appendChild(node('small',null,'с инструктора с '+date));
+        row.appendChild(who);
+        row.appendChild(node('span','car',s.car||'авто не выбрано'));
+        box.appendChild(row);
+      });
+    }
+    var lessons=res.today_lessons||[];
+    if(lessons.length){
+      el('w-today-empty').style.display='none';
+      el('w-today-list').style.display='block';
+      el('w-today-list').innerHTML='';
+      lessons.forEach(function(l){
+        var row=node('div','w-req');
+        var div=node('div');
+        div.appendChild(node('b',null,l.student||'Занятие'));
+        div.appendChild(node('small',null,l.time||''));
+        row.appendChild(div);
+        el('w-today-list').appendChild(row);
+      });
+    }else{
+      // честная заглушка FR-41: реального расписания нет
+      el('w-today-empty').style.display='block';
+      el('w-today-list').style.display='none';
+    }
+  });
+}
+function countNewRequests(){
+  apiGet('/api/instructor/requests',function(res){
+    if(!res||!res.ok)return;
+    var list=(res.requests||[]).filter(function(r){return (r.status||'')==='new'});
+    el('w-requests-n').textContent=list.length+' новых';
+    var box=el('w-requests-list');
+    box.innerHTML='';
+    if(!list.length){
+      box.innerHTML='<div class="w-empty"><b>Новых запросов нет</b>Заявки учеников появятся здесь.</div>';
+    }else{
+      list.slice(0,3).forEach(function(r){
+        var row=node('div','w-req');
+        var div=node('div');
+        div.appendChild(node('b',null,rqFio(r)));
+        div.appendChild(node('small',null,rqDate(r)+' · стаж '+(rqExp(r)===0?'нет':rqExp(r))));
+        row.appendChild(div);
+        var go=node('span','go','→');go.dataset.gotoRequests='1';
+        row.appendChild(go);
+        box.appendChild(row);
+      });
+      box.querySelectorAll('[data-goto-requests]').forEach(function(g){g.addEventListener('click',function(){navTo('Запросы учеников')})});
+    }
+    var badge=el('nav-req-badge');
+    badge.style.display=list.length?'inline-block':'none';
+    badge.textContent='+'+list.length;
+  });
+}
+
 document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click',()=>navTo(b.dataset.tab)));
 function changeWeek(dir){weekShift+=dir;const days=document.querySelectorAll('#week .day .dnum');days.forEach((el,i)=>el.textContent=String(12+weekShift*7+i));toast(weekShift===0?'Текущая неделя':'Неделя переключена — демонстрационные даты')}
 
@@ -168,9 +399,264 @@ fetch('/api/instructor/dashboard',{headers:{'X-Session-Token':token}})
     document.querySelector('.user b').textContent=fio;
     var initials=[(i.surname||'').trim()[0],(i.name||'').trim()[0]].filter(Boolean).join('').toUpperCase();
     document.querySelector('.avatar').textContent=initials;
+    loadSummary();countNewRequests();
   })
   .catch(function(){toLogin()});
 }
+// JSON-GET с инструкторской сессией; cb получает {ok,...} или null
+function apiGet(path,cb){
+  fetch(path,{headers:{'X-Session-Token':token||''}})
+    .then(function(r){
+      if(r.status===401||r.status===403){cb(null);return}
+      return r.json().then(function(d){cb(r.status===200&&d&&d.ok?d:null)});
+    })
+    .catch(function(){cb(null)});
+}
+// JSON-POST/PUT с инструкторской сессией; cb получает {status,data}
+function apiSend(method,path,body,cb){
+  fetch(path,{method:method,headers:{'X-Session-Token':token||'','Content-Type':'application/json'},body:JSON.stringify(body||{})})
+    .then(function(r){return r.json().then(function(d){cb({status:r.status,data:d})},function(){cb({status:r.status,data:null})})})
+    .catch(function(){cb({status:0,data:null})});
+}
+
+// --- Раздел «Календарь» (FR-29/FR-30): сетка недели × 2-часовые интервалы,
+// клик переключает выбор, «Сохранить график» -> PUT /api/instructor/availability
+// (полная замена), при входе восстановление через GET.
+var CAL_HOURS=[8,10,12,14,16,18,20];
+var CAL_DAYS=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+var calBuilt=false;
+var calSelected={}; // ключ 'weekday-hour'
+function calBuildGrid(){
+  var grid=el('cal-grid');
+  var now=new Date(new Date().toLocaleString('en-US',{timeZone:'Europe/Moscow'}));
+  var mon=new Date(now);mon.setDate(mon.getDate()-((mon.getDay()+6)%7));
+  var todayIdx=(now.getDay()+6)%7;
+  var html='<div class="cal-corner">МСК</div>';
+  for(var d=0;d<7;d++){
+    var dt=new Date(mon);dt.setDate(mon.getDate()+d);
+    html+='<div class="cal-dh'+(d===todayIdx?' today':'')+'" data-day="'+d+'"><small>'+CAL_DAYS[d]+'</small><b>'+dt.getDate()+'</b></div>';
+  }
+  CAL_HOURS.forEach(function(h){
+    var p=function(n){return (n<10?'0':'')+n};
+    html+='<div class="cal-tlabel">'+p(h)+':00–'+p(h+2)+':00</div>';
+    for(var d2=0;d2<7;d2++){
+      html+='<button type="button" class="cal-slot" data-k="'+d2+'-'+h+'" aria-label="Интервал '+CAL_DAYS[d2]+', '+p(h)+':00"></button>';
+    }
+  });
+  grid.innerHTML=html;
+  grid.querySelectorAll('.cal-slot').forEach(function(b){
+    b.addEventListener('click',function(){
+      var k=b.dataset.k;
+      if(calSelected[k])delete calSelected[k];else calSelected[k]=true;
+      b.classList.toggle('on');
+      el('cal-changed').style.display='inline';
+    });
+  });
+  calBuilt=true;
+}
+function openCalendar(){
+  if(!calBuilt)calBuildGrid();
+  apiGet('/api/instructor/availability',function(res){
+    calSelected={};
+    el('cal-grid').querySelectorAll('.cal-slot').forEach(function(b){b.classList.remove('on')});
+    if(!res)return;
+    (res.intervals||[]).forEach(function(iv){
+      var s=parseInt((iv.start_time||'').split(':')[0],10);
+      var e=parseInt((iv.end_time||'').split(':')[0],10);
+      if(isNaN(s)||isNaN(e))return;
+      // отмечаем все слоты сетки, покрываемые интервалом (напр. 10:00–14:00
+      // -> слоты 10–12 и 12–14)
+      CAL_HOURS.forEach(function(h){
+        if(h<e&&h+2>s){
+          var k=iv.weekday+'-'+h;
+          calSelected[k]=true;
+          var b=el('cal-grid').querySelector('.cal-slot[data-k="'+k+'"]');
+          if(b)b.classList.add('on');
+        }
+      });
+    });
+    el('cal-changed').style.display='none';
+  });
+}
+el('cal-save').addEventListener('click',function(){
+  var intervals=Object.keys(calSelected).map(function(k){
+    var parts=k.split('-'),d=+parts[0],h=+parts[1],p=function(n){return (n<10?'0':'')+n};
+    return {weekday:d,start_time:p(h)+':00',end_time:p(h+2)+':00'};
+  });
+  apiSend('PUT','/api/instructor/availability',{intervals:intervals},function(res){
+    if(res.status===200&&res.data&&res.data.ok){
+      el('cal-changed').style.display='none';
+      toast('График сохранён: '+intervals.length+' интервалов. Он виден ученикам в фильтре свободного времени.');
+    }else{
+      toast((res.data&&res.data.error)||'Не удалось сохранить график');
+    }
+  });
+});
+
+// --- Раздел «Запросы учеников» (FR-37/38/39): GET /api/instructor/requests;
+// Принять -> POST /api/instructor/requests/{id}/accept {car_id} (авто из
+// GET /api/instructor/cars; при 0 авто действие недоступно — ОВ-4);
+// Отказать -> POST …/{id}/deny {comment}, кнопка заблокирована до непустого
+// комментария.
+var rqState={list:[],filter:'all',open:null,cars:null};
+// Поля — реальный шейп GET /api/instructor/requests
+// (backend/student_requests.py: id, status, created_at, decided_at,
+// student_full_name, student_experience_years, car:{brand,model,…})
+function rqFio(r){return r.student_full_name||'Ученик'}
+function rqExp(r){return (r.student_experience_years!=null)?+r.student_experience_years:0}
+function rqDate(r){return String(r.created_at||'').split('.')[0]}
+function rqCarName(r){
+  var c=r.car;
+  return c?([c.brand,c.model].filter(Boolean).join(' ')||'авто не выбрано'):'авто не выбрано';
+}
+function carTitle(c){
+  var name=[c.brand,c.model].filter(Boolean).join(' ')||'Автомобиль';
+  return name+(c.year?' · '+c.year:'');
+}
+function carSub(c){
+  var tr=c.transmission==='automatic'?'автомат':c.transmission==='manual'?'механика':(c.transmission||'');
+  return tr+(c.plate?' · '+c.plate:'');
+}
+function rqStatusBadge(s){
+  var cls=s==='new'?'rq-st-new':s==='accepted'?'rq-st-acc':'rq-st-den';
+  var text=s==='new'?'Новая':s==='accepted'?'Принята':'Отказана';
+  return node('span','rq-status '+cls,text);
+}
+function expWord2(n){return n%10===1&&n%100!==11?'год':(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20)?'года':'лет')}
+function renderRequests(){
+  var box=el('rq-list');box.innerHTML='';
+  var list=rqState.list.filter(function(r){return rqState.filter==='all'||r.status===rqState.filter});
+  var newN=rqState.list.filter(function(r){return r.status==='new'}).length;
+  el('rq-new-n').textContent='·'+newN;
+  if(!list.length){box.innerHTML='<div class="rq-none">Заявок в этой категории нет.</div>';return}
+  // DOM-строительство (code-review review-001 #1): ФИО/бренд/модель —
+  // только textContent, без сборки HTML из пользовательских строк
+  list.forEach(function(r){
+    var art=node('article','rq');
+    var top=node('div','rq-top');
+    top.appendChild(node('span','rq-sic',stuInitials(rqFio(r))));
+    var who=node('div');
+    who.appendChild(node('b',null,rqFio(r)));
+    who.appendChild(node('small',null,'Стаж вождения: '+(rqExp(r)===0?'нет':rqExp(r)+' '+expWord2(rqExp(r)))+' · '+rqDate(r)));
+    top.appendChild(who);
+    top.appendChild(rqStatusBadge(r.status));
+    art.appendChild(top);
+    if(r.status==='accepted'){
+      art.appendChild(node('div','rq-decided','Ученик в разделе «Мои ученики» · автомобиль: '+rqCarName(r)));
+    }
+    if(r.status==='new'){
+      var actions=node('div','rq-actions');
+      var acc=node('button','rq-act accept','✓ Принять…');acc.type='button';acc.dataset.accept=String(r.id);
+      var den=node('button','rq-act deny','✕ Отказать…');den.type='button';den.dataset.denypanel=String(r.id);
+      actions.appendChild(acc);actions.appendChild(den);
+      art.appendChild(actions);
+      art.appendChild(acceptPanelNode(r));
+      art.appendChild(denyPanelNode(r));
+    }
+    box.appendChild(art);
+  });
+  bindRequests();
+}
+function acceptPanelNode(r){
+  var panel=node('div','rq-accept'+(rqState.open==='accept-'+r.id?' open':''));
+  panel.id='rq-accept-'+r.id;
+  if(rqState.cars&&!rqState.cars.length){
+    panel.appendChild(node('div','rq-no-cars','Принять заявку нельзя: у вас нет автомобилей. Заведите автомобиль в разделе «Мой автомобиль».'));
+    return panel;
+  }
+  panel.appendChild(node('h4',null,'Выберите автомобиль для ученика'));
+  (rqState.cars||[]).forEach(function(c,i){
+    var lab=node('label','rq-caropt');
+    var radio=document.createElement('input');
+    radio.type='radio';radio.name='car-'+r.id;radio.value=String(c.id);
+    if(i===0)radio.checked=true;
+    lab.appendChild(radio);
+    var div=node('div');
+    div.appendChild(node('b',null,carTitle(c)));
+    div.appendChild(node('small',null,carSub(c)));
+    lab.appendChild(div);
+    panel.appendChild(lab);
+  });
+  var btn=node('button','rq-confirm','✓ Принять ученика');btn.type='button';btn.dataset.confirm=String(r.id);
+  panel.appendChild(btn);
+  return panel;
+}
+function denyPanelNode(r){
+  var panel=node('div','rq-deny'+(rqState.open==='deny-'+r.id?' open':''));
+  panel.id='rq-deny-'+r.id;
+  panel.appendChild(node('h4',null,'Комментарий к отказу (обязательно)'));
+  var ta=document.createElement('textarea');
+  ta.id='rq-ta-'+r.id;
+  ta.placeholder='Например: не совпадают графики занятий…';
+  panel.appendChild(ta);
+  var actions=node('div','rq-deny-actions');
+  var btn=node('button','rq-deny-confirm','✕ Отказать');btn.type='button';btn.dataset.deny=String(r.id);btn.disabled=true;
+  actions.appendChild(btn);
+  actions.appendChild(node('span','rq-note','Без комментария кнопка недоступна. Текст увидит ученик в разделе «Мои заявки».'));
+  panel.appendChild(actions);
+  return panel;
+}
+function loadCars(cb){
+  if(rqState.cars){cb();return}
+  apiGet('/api/instructor/cars',function(res){
+    rqState.cars=res?(res.cars||res.vehicles||[]):null;
+    cb();
+  });
+}
+function openRequests(){
+  loadCars(function(){
+    apiGet('/api/instructor/requests',function(res){
+      rqState.list=res?(res.requests||res.items||[]):[];
+      renderRequests();
+    });
+  });
+}
+function bindRequests(){
+  document.querySelectorAll('[data-accept]').forEach(function(b){b.addEventListener('click',function(){
+    rqState.open=rqState.open==='accept-'+b.dataset.accept?null:'accept-'+b.dataset.accept;
+    renderRequests();
+  })});
+  document.querySelectorAll('[data-denypanel]').forEach(function(b){b.addEventListener('click',function(){
+    rqState.open=rqState.open==='deny-'+b.dataset.denypanel?null:'deny-'+b.dataset.denypanel;
+    renderRequests();
+    var ta=el('rq-ta-'+b.dataset.denypanel);if(ta)ta.focus();
+  })});
+  document.querySelectorAll('[data-deny]').forEach(function(b){
+    var id=b.dataset.deny,ta=el('rq-ta-'+id);
+    ta.addEventListener('input',function(){b.disabled=!ta.value.trim()}); // FR-38: без комментария заблокировано
+    b.addEventListener('click',function(){
+      if(!ta.value.trim())return;
+      apiSend('POST','/api/instructor/requests/'+id+'/deny',{comment:ta.value.trim()},function(res){
+        if(res.status===200&&res.data&&res.data.ok){
+          rqState.open=null;openRequests();
+          toast('Заявка отклонена. Ученик увидит ваш комментарий в «Моих заявках».');
+        }else{
+          toast((res.data&&res.data.error)||'Не удалось отклонить заявку');
+        }
+      });
+    });
+  });
+  document.querySelectorAll('[data-confirm]').forEach(function(b){b.addEventListener('click',function(){
+    var id=b.dataset.confirm;
+    var radio=document.querySelector('input[name="car-'+id+'"]:checked');
+    if(!radio){toast('Выберите автомобиль');return}
+    apiSend('POST','/api/instructor/requests/'+id+'/accept',{car_id:+radio.value},function(res){
+      if(res.status===200&&res.data&&res.data.ok){
+        rqState.open=null;openRequests();loadSummary();countNewRequests();
+        toast('Заявка принята. Остальные активные заявки ученика закроются автоматически.');
+      }else if(res.status===409){
+        toast((res.data&&res.data.error)||'Заведите автомобиль, чтобы принять ученика');
+      }else{
+        toast((res.data&&res.data.error)||'Не удалось принять заявку');
+      }
+    });
+  })});
+  document.querySelectorAll('#rq-filters button').forEach(function(b){b.addEventListener('click',function(){
+    document.querySelectorAll('#rq-filters button').forEach(function(x){x.classList.remove('on')});
+    b.classList.add('on');rqState.filter=b.dataset.f;rqState.open=null;renderRequests();
+  })});
+}
+
 // Выход (FR-22): POST /api/auth/logout -> по любому ответу очистка
 // sessionStorage -> редирект на лендинг инструкторов (спринт 3, правка:
 // выход из кабинета ведет на /instructors, а не на главную).

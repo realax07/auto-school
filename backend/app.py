@@ -16,8 +16,14 @@ from backend.admin import router as admin_router
 from backend.auth import router as auth_router
 from backend.dashboard import router as dashboard_router
 from backend.instructor_admin import router as instructor_admin_router
+from backend.instructor_availability import router as instructor_availability_router
+from backend.instructor_cars import router as instructor_cars_router
+from backend.instructor_summary import router as instructor_summary_router
 from backend.instructors import router as instructors_router
 from backend.register import router as register_router
+from backend.reviews import router as reviews_router
+from backend.student_marketplace import router as student_marketplace_router
+from backend.student_requests import router as student_requests_router
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = ROOT_DIR / "frontend"
@@ -37,6 +43,9 @@ _PAGE_ROUTES = {
     # Спринт 2, часть 2 (задача 3.1, change add-instructor-cabinet):
     # кабинет инструктора рядом с заглушкой
     "/instructor/dashboard": "instructor-dashboard.html",
+    # Спринт 3 (change add-instructor-student-loop):
+    # выбор инструктора учеником
+    "/instructor-choice": "instructor-choice.html",
 }
 
 
@@ -56,6 +65,15 @@ def create_app() -> FastAPI:
     app.include_router(instructor_admin_router)
     # Спринт 2, часть 2 (задача 3.1): данные кабинета инструктора
     app.include_router(dashboard_router)
+    # Спринт 3 (change add-instructor-student-loop, задача 7.1): контур
+    # «инструктор ↔ ученик» (правило префиксов design.md: /api/instructor/*
+    # — кабинет инструктора, /api/student/* — кабинет ученика)
+    app.include_router(instructor_cars_router)
+    app.include_router(instructor_availability_router)
+    app.include_router(student_marketplace_router)
+    app.include_router(reviews_router)
+    app.include_router(student_requests_router)
+    app.include_router(instructor_summary_router)
 
     @app.get("/api/health")
     def health():

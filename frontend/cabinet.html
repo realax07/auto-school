@@ -75,7 +75,7 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
     <p>Пробный экзамен в формате ГИБДД: 20 вопросов, те же правила оценки.</p>
     <span class="go">→</span>
   </button>
-  <button class="tile"><span class="soon">СКОРО</span>
+  <button class="tile" id="tile-instructor"><span class="soon">В КАБИНЕТЕ</span>
     <div class="tile-icon">▤</div><b>Найти водителя</b>
     <p>Подбор инструктора: рейтинги, отзывы и свободные окна расписания.</p>
     <span class="go">→</span>
@@ -135,9 +135,19 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
       });
   });
 
+  // Плитка «Найти водителя» (спринт 3, change add-instructor-student-loop):
+  // переход в раздел «Выбор инструктора» (страница /instructor-choice)
+  var tileInstructor = document.getElementById('tile-instructor');
+  if (tileInstructor) {
+    tileInstructor.addEventListener('click', function () {
+      location.href = '/instructor-choice';
+    });
+  }
+
   // заглушки спринта-1 (как в мокапе, FR-6): плитки и чат не подключены;
-  // .logout выведен из заглушек — у него реальный wiring выше
-  document.querySelectorAll('.tile,.quick button,.send').forEach(function (b) {
+  // .logout выведен из заглушек — у него реальный wiring выше;
+  // плитка «Найти водителя» — реальный переход на /instructor-choice
+  document.querySelectorAll('.tile:not(#tile-instructor),.quick button,.send').forEach(function (b) {
     b.addEventListener('click', function () { alert('Заглушка: сервис появится в следующем спринте'); });
   });
 })();

@@ -21,6 +21,8 @@ EXPECTED_COLUMNS = {
     "phone": "TEXT",
     "password_hash": "TEXT",
     "role": "TEXT",
+    # Спринт 3 (add-instructor-student-loop, MAJ-3): стаж числом
+    "experience_years": "INTEGER",
     "created_at": "TEXT",
 }
 
@@ -179,6 +181,10 @@ APPLICATION_COLUMNS = {
     "password_hash": "TEXT",
     "status": "TEXT",
     "review_comment": "TEXT",
+    # Спринт 3 (add-instructor-student-loop): стаж числом (MAJ-3) и
+    # сохраненный файл ВУ анкеты (FR-23, NULL = заявка без ВУ)
+    "experience_years": "INTEGER",
+    "license_photo_path": "TEXT",
     "created_at": "TEXT",
 }
 

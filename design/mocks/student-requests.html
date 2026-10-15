@@ -1,0 +1,207 @@
+<!doctype html>
+<!-- Мокап: «Запросы учеников» — раздел кабинета инструктора. Задача 3.3 (change add-instructor-student-loop).
+     FR-37: входящие заявки (ученик, стаж, дата, комментарий). FR-39: «Принять» требует выбор своего
+     автомобиля (car_id); при 0 авто действие недоступно (ОВ-4). FR-38: «Отказать» без комментария
+     заблокировано (422 на бэкенде). Данные демо. -->
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#071015"><title>СберАвтошкола — Кабинет инструктора · Запросы учеников</title>
+<style>
+:root{--bg:#071015;--line:#ffffff16;--text:#f3f7f8;--muted:#93a6b1;--green:#35d879}
+*{box-sizing:border-box}html,body{margin:0;min-width:320px}
+body{background:radial-gradient(ellipse at 78% 0%,#123b2c4d,transparent 38%),radial-gradient(ellipse at 8% 90%,#27465f26,transparent 40%),var(--bg);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh}
+button,textarea{font:inherit;color:inherit}button{cursor:pointer}
+.frame{max-width:1080px;margin:auto;padding:26px 24px 46px}
+header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;height:48px;margin-bottom:6px}
+.brand{display:flex;align-items:center;gap:10px;font-size:22px;font-weight:650;letter-spacing:-1px}
+.brand em{font-style:normal;color:var(--green)}
+.check{width:32px;height:32px;flex:none;display:grid;place-items:center;border:3px solid var(--green);border-radius:50%;color:var(--green);font-size:20px;transform:rotate(-8deg)}
+.brand small{display:block;font-size:9px;color:#80919b;letter-spacing:.14em;text-transform:uppercase;margin-top:3px;font-weight:500}
+.crumb{font-size:12px;color:#8fa2ad;justify-self:center}
+.user{justify-self:end;display:flex;align-items:center;gap:13px}
+.uname{font-size:13px;color:#d6e4e2}
+.avatar{width:34px;height:34px;border-radius:11px;background:linear-gradient(145deg,#315744,#14261e);display:grid;place-items:center;color:#a0f2bd;font-size:11px;font-weight:700}
+.logout{padding:8px 20px;border:1px solid #ffffff40;border-radius:999px;background:transparent;font-size:13px}
+.logout:hover{border-color:var(--green)}
+.page-head{margin:26px 0 6px;display:flex;align-items:end;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.kicker{font-size:10px;color:#79eaa5;text-transform:uppercase;letter-spacing:.18em}
+h1{font-size:28px;letter-spacing:-.05em;font-weight:600;margin:9px 0 8px}
+.page-head p{font-size:12px;color:var(--muted);margin:0}
+.tabs{display:flex;gap:5px;border:1px solid #ffffff14;background:#ffffff05;border-radius:12px;padding:5px}
+.tabs button{border:1px solid transparent;background:transparent;color:#aab8c0;border-radius:9px;padding:8px 14px;font-size:12px}
+.tabs button.on{background:#143322;border-color:#2c8651;color:#a3efbd}
+.filters{display:flex;gap:6px;margin:18px 0 14px}
+.filters button{border:1px solid #ffffff14;background:#ffffff05;color:#b9c8ce;border-radius:999px;padding:8px 15px;font-size:11px}
+.filters button.on{background:#143322;border-color:#2c8651;color:#a3efbd}
+.filters button .n{color:#ffd479}
+/* заявки */
+.list{display:grid;gap:11px}
+.req{border:1px solid var(--line);border-radius:18px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:18px 19px}
+.req-top{display:flex;gap:13px;align-items:center}
+.sic{width:44px;height:44px;flex:none;border-radius:13px;background:linear-gradient(145deg,#2c4f3d,#132119);display:grid;place-items:center;color:#a0f2bd;font-size:12px;font-weight:700}
+.req-top b{font-size:15px;font-weight:600;letter-spacing:-.02em;display:block}
+.req-top small{display:block;font-size:11px;color:#8fa0aa;margin-top:4px}
+.status{margin-left:auto;flex:none;font-size:10px;padding:6px 12px;border-radius:999px;white-space:nowrap}
+.st-new{background:#143322;color:#91efb1;border:1px solid #2a5c40}
+.st-acc{background:#17283a;color:#9bc5ff;border-color:#2d4a68}
+.st-den{background:#33201a;color:#ffb28e;border:1px solid #5c3030}
+.comment{margin:13px 0 0;padding:11px 14px;border:1px solid #ffffff10;background:#ffffff04;border-radius:12px;font-size:12px;color:#c9d6db;line-height:1.55}
+.comment span{display:block;font-size:10px;color:#8fa0aa;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+.comment.denied span{color:#e8b877}
+.actions{display:flex;gap:9px;margin-top:15px;flex-wrap:wrap}
+.act{border-radius:11px;padding:11px 20px;font-size:12px;font-weight:550;border:1px solid}
+.act.accept{background:#123524;border-color:#2b9c62;color:#c9ffdd}
+.act.accept:hover{filter:brightness(1.12)}
+.act.deny{background:transparent;border-color:#8a3c3c66;color:#ffb28e}
+.act.deny:hover{background:#33201a55}
+.act:disabled{opacity:.4;cursor:not-allowed;filter:none}
+/* панель принятия (выбор авто) */
+.accept-panel{display:none;margin-top:14px;border:1px solid #2a5c40;border-radius:13px;background:#0d241766;padding:15px}
+.accept-panel.open{display:block}
+.accept-panel h4{margin:0 0 11px;font-size:10px;color:#8fa0aa;text-transform:uppercase;letter-spacing:.12em;font-weight:500}
+.caropt{display:flex;align-items:center;gap:11px;border:1px solid #ffffff12;background:#ffffff05;border-radius:11px;padding:11px 13px;margin-bottom:8px;cursor:pointer;font-size:12px}
+.caropt:hover{border-color:#35d87977}
+.caropt input{accent-color:var(--green)}
+.caropt b{font-weight:550}
+.caropt small{display:block;color:#8fa0aa;margin-top:3px;font-size:10px}
+.confirm{width:100%;margin-top:6px;border:1px solid #2b9c62;background:#123524;color:#c9ffdd;border-radius:11px;padding:11px;font-size:12px;font-weight:550}
+.confirm:disabled{opacity:.45;cursor:not-allowed}
+/* панель отказа */
+.deny-panel{display:none;margin-top:14px;border:1px solid #5c3030;border-radius:13px;background:#24131366;padding:15px}
+.deny-panel.open{display:block}
+.deny-panel h4{margin:0 0 11px;font-size:10px;color:#e8b877;text-transform:uppercase;letter-spacing:.12em;font-weight:500}
+.deny-panel textarea{width:100%;min-height:74px;resize:vertical;border:1px solid #ffffff16;background:#0b161c;border-radius:11px;padding:11px 13px;font-size:12px;color:#dcebe9;line-height:1.5}
+.deny-panel textarea:focus{outline:none;border-color:#35d87966}
+.deny-actions{display:flex;align-items:center;gap:11px;margin-top:11px;flex-wrap:wrap}
+.deny-confirm{border:1px solid #8a3c3c;background:#33201a;color:#ffb28e;border-radius:11px;padding:11px 20px;font-size:12px;font-weight:550}
+.deny-confirm:disabled{opacity:.4;cursor:not-allowed}
+.deny-note{font-size:10px;color:#8fa0aa}
+.decided-note{font-size:11px;color:#8fa0aa;margin-top:14px}
+.no-cars{margin-top:14px;border:1px dashed #6b5426;border-radius:12px;padding:12px 14px;font-size:11px;color:#ffd479;background:#2a201040}
+footer{margin-top:32px;padding-top:18px;border-top:1px solid #ffffff10;display:flex;justify-content:space-between;gap:14px;font-size:11px;color:#5f717b;flex-wrap:wrap}
+.toast{position:fixed;bottom:22px;right:22px;max-width:360px;background:#143323;border:1px solid #367b50;color:#b5f8cc;padding:13px 16px;border-radius:13px;font-size:12px;box-shadow:0 10px 40px #0008;display:none;z-index:20}
+.toast.show{display:block}
+@media(max-width:850px){.frame{padding:20px 16px 36px}.crumb{display:none}h1{font-size:24px}.req-top{flex-wrap:wrap}.status{margin-left:57px;order:3}}
+@media(max-width:560px){header{grid-template-columns:1fr auto}.brand{font-size:19px}.uname{display:none}.tabs{width:100%;overflow-x:auto}.filters{overflow-x:auto}.act{flex:1}}
+</style></head>
+<body>
+<div class="frame">
+<header>
+  <div class="brand"><span class="check">✓</span><span><em>Сбер</em>Автошкола<small>Кабинет инструктора</small></span></div>
+  <div class="crumb">Кабинет инструктора · Запросы учеников</div>
+  <div class="user"><span class="uname">Михаил Самойлов</span><span class="avatar">МС</span><button class="logout">Выйти</button></div>
+</header>
+
+<div class="page-head">
+  <div>
+    <div class="kicker">Запросы учеников</div>
+    <h1>Входящие заявки</h1>
+    <p>Принять можно только заявку в статусе «новая» — с выбором вашего автомобиля. Отказ требует обязательного комментария: его увидит ученик.</p>
+  </div>
+  <div class="tabs">
+    <button>Календарь</button>
+    <button>Автомобили</button>
+    <button class="on">Запросы</button>
+    <button>Ученики</button>
+  </div>
+</div>
+
+<div class="filters">
+  <button class="on" data-f="all">Все</button>
+  <button data-f="new">Новые <span class="n">·2</span></button>
+  <button data-f="accepted">Принятые</button>
+  <button data-f="denied">Отказанные</button>
+</div>
+
+<div class="list" id="list"></div>
+
+<footer><span>СберАвтошкола · мокап «Запросы учеников»</span><span>Демонстрационный интерфейс · данные вымышлены</span></footer>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+// мои автомобили (GET /api/instructor/cars) — демо
+var myCars=[
+ {id:11,name:'Škoda Rapid',year:2020,trans:'автомат',plate:'А 123 АА 777'},
+ {id:12,name:'Kia Rio',year:2022,trans:'механика',plate:'В 456 ВВ 777'}
+];
+// входящие заявки (GET /api/instructor/requests) — демо
+var reqs=[
+ {id:301,student:'Павел Ежов',exp:0,date:'сегодня, 09:14',status:'new',comment:'Хочу учиться в вечернее время после работы, опыт вождения нулевой.',f:'new'},
+ {id:300,student:'Ольга Нечаева',exp:2,date:'вчера, 19:40',status:'new',comment:'Заканчиваю теорию, нужна практика по городу. Удобнее на автомобиле с автоматом.',f:'new'},
+ {id:297,student:'Иван Ковалёв',exp:0,date:'02.10.2026',status:'accepted',comment:'Готов начинать с базовых манёвров.',car:'Škoda Rapid',f:'accepted'},
+ {id:293,student:'Дмитрий Лунев',exp:1,date:'29.09.2026',status:'denied',comment:'Извините, сейчас не берусь: не совпадают графики. Рекомендую обратиться к коллеге.',f:'denied'}
+];
+var openPanel=null; // 'accept-301' / 'deny-301'
+function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(window._tt);window._tt=setTimeout(function(){t.classList.remove('show')},3200)}
+function statusBadge(s){
+  return s==='new'?'<span class="status st-new">Новая</span>':s==='accepted'?'<span class="status st-acc">Принята</span>':'<span class="status st-den">Отказана</span>';
+}
+function initials(name){return name.split(' ').map(function(w){return w[0]}).join('')}
+function acceptPanel(r){
+  if(!myCars.length) return '<div class="no-cars">Принять заявку нельзя: у вас нет автомобилей. Заведите автомобиль в разделе «Автомобили».</div>';
+  return '<div class="accept-panel'+(openPanel==='accept-'+r.id?' open':'')+'" id="accept-'+r.id+'">'+
+    '<h4>Выберите автомобиль для ученика</h4>'+
+    myCars.map(function(c,i){
+      return '<label class="caropt"><input type="radio" name="car-'+r.id+'" value="'+c.id+'"'+(i===0?' checked':'')+'>'+
+        '<div><b>'+c.name+' · '+c.year+'</b><small>'+c.trans+' · '+c.plate+'</small></div></label>';
+    }).join('')+
+    '<button class="confirm" data-confirm="'+r.id+'">✓ Принять ученика</button></div>';
+}
+function denyPanel(r){
+  return '<div class="deny-panel'+(openPanel==='deny-'+r.id?' open':'')+'" id="deny-'+r.id+'">'+
+    '<h4>Комментарий к отказу (обязательно)</h4>'+
+    '<textarea id="ta-'+r.id+'" placeholder="Например: не совпадают графики занятий…"></textarea>'+
+    '<div class="deny-actions"><button class="deny-confirm" data-deny="'+r.id+'" disabled>✕ Отказать</button>'+
+    '<span class="deny-note">Без комментария кнопка недоступна. Текст увидит ученик в разделе «Мои заявки».</span></div></div>';
+}
+function render(filter){
+  var box=document.getElementById('list');box.innerHTML='';
+  var list=reqs.filter(function(r){return filter==='all'||r.f===filter});
+  if(!list.length){box.innerHTML='<div class="no-cars" style="border-color:#ffffff1c;color:#8fa0aa;background:none">Заявок в этой категории нет.</div>';return}
+  list.forEach(function(r){
+    var art=document.createElement('article');art.className='req';
+    var html='<div class="req-top"><span class="sic">'+initials(r.student)+'</span>'+
+      '<div><b>'+r.student+'</b><small>Стаж вождения: '+(r.exp===0?'нет':r.exp+' '+(r.exp%10===1&&r.exp%100!==11?'год':(r.exp%10>=2&&r.exp%10<=4?'года':'лет')))+' · '+r.date+'</small></div>'+
+      statusBadge(r.status)+'</div>'+
+      '<div class="comment'+(r.status==='denied'?' denied':'')+'"><span>'+(r.status==='denied'?'Ваш комментарий отказа':'Комментарий ученика')+'</span>'+r.comment+'</div>';
+    if(r.status==='accepted') html+='<div class="decided-note">Ученик в разделе «Мои ученики» · автомобиль: '+r.car+' (привязку можно изменить там же)</div>';
+    if(r.status==='new') html+='<div class="actions">'+
+      '<button class="act accept" data-accept="'+r.id+'">✓ Принять…</button>'+
+      '<button class="act deny" data-denypanel="'+r.id+'">✕ Отказать…</button></div>'+acceptPanel(r)+denyPanel(r);
+    art.innerHTML=html;box.appendChild(art);
+  });
+  bind();
+}
+function bind(){
+  document.querySelectorAll('[data-accept]').forEach(function(b){b.addEventListener('click',function(){
+    var id=b.dataset.accept;openPanel=openPanel==='accept-'+id?null:'accept-'+id;render(curFilter());
+  })});
+  document.querySelectorAll('[data-denypanel]').forEach(function(b){b.addEventListener('click',function(){
+    var id=b.dataset.denypanel;openPanel=openPanel==='deny-'+id?null:'deny-'+id;render(curFilter());
+    var ta=document.getElementById('ta-'+id);if(ta)ta.focus();
+  })});
+  document.querySelectorAll('[data-deny]').forEach(function(b){
+    var id=b.dataset.deny,ta=document.getElementById('ta-'+id);
+    ta.addEventListener('input',function(){b.disabled=!ta.value.trim()}); // FR-38: без комментария заблокировано
+    b.addEventListener('click',function(){
+      var r=reqs.find(function(x){return x.id===+id});
+      r.status='denied';r.f='denied';r.comment=ta.value.trim();openPanel=null;
+      render(curFilter());toast('Заявка отклонена. Ученик увидит ваш комментарий в «Моих заявках».');
+    });
+  });
+  document.querySelectorAll('[data-confirm]').forEach(function(b){b.addEventListener('click',function(){
+    var id=b.dataset.confirm;
+    var carId=(document.querySelector('input[name="car-'+id+'"]:checked')||{}).value;
+    var car=myCars.find(function(c){return c.id===+carId});
+    var r=reqs.find(function(x){return x.id===+id});
+    r.status='accepted';r.f='accepted';r.car=car.name;openPanel=null;
+    render(curFilter());
+    toast('Заявка принята: '+r.student+' закреплён(а) за '+car.name+'. Остальные активные заявки ученика закроются автоматически.');
+  })});
+}
+var cur='all';
+function curFilter(){return cur}
+document.querySelectorAll('.filters button').forEach(function(b){b.addEventListener('click',function(){
+  document.querySelectorAll('.filters button').forEach(function(x){x.classList.remove('on')});
+  b.classList.add('on');cur=b.dataset.f;openPanel=null;render(cur);
+})});
+render('all');
+</script></body></html>
