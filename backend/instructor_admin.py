@@ -9,12 +9,14 @@ created_at DESC, id DESC. approve — ОДНА транзакция (MIN-3): INS
 статуса (MIN-1) + обязательный комментарий (FR-15).
 """
 import sqlite3
+from pathlib import Path
 
 from fastapi import APIRouter, Header, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
 import backend.db as db
+import backend.uploads as uploads
 from backend.admin import require_admin
 
 router = APIRouter()
@@ -56,7 +58,7 @@ class DenyRequest(BaseModel):
 def _fetch_application(conn, application_id: int):
     return conn.execute(
         "SELECT id, email, surname, name, patronymic, phone, password_hash,"
-        " status FROM instructor_applications WHERE id = ?",
+        " experience_years, status FROM instructor_applications WHERE id = ?",
         (application_id,),
     ).fetchone()
 
@@ -111,7 +113,8 @@ def instructor_application_approve(
             # commit один — симметрично register.py.
             cur = conn.execute(
                 "INSERT INTO users (surname, name, patronymic, email, phone,"
-                " password_hash, role) VALUES (?, ?, ?, ?, ?, ?, 'instructor')",
+                " password_hash, role, experience_years)"
+                " VALUES (?, ?, ?, ?, ?, ?, 'instructor', ?)",
                 (
                     app_row["surname"],
                     app_row["name"],
@@ -119,6 +122,9 @@ def instructor_application_approve(
                     app_row["email"],
                     app_row["phone"],
                     app_row["password_hash"],
+                    # MAJ-3 (arch-review итерация 2): стаж переносится при
+                    # approve; NULL анкеты → 0.
+                    app_row["experience_years"] if app_row["experience_years"] is not None else 0,
                 ),
             )
             user_id = cur.lastrowid  # research.md §3
@@ -176,3 +182,77 @@ def instructor_application_deny(
     finally:
         conn.close()
     return {"ok": True}
+
+
+# --- Спринт 3 (add-instructor-student-loop, задача 1.2): карточка заявки ---
+# и выдача изображения ВУ — только по валидному X-Admin-Token (FR-24, NFR-1).
+
+
+@router.get("/api/admin/instructor-applications/{application_id}")
+def instructor_application_card(
+    application_id: int,
+    x_admin_token: str | None = Header(default=None),
+):
+    """Полные данные заявки + факт/путь ВУ (FR-25); 404 при отсутствии
+    (чужой объект не отличим от несуществующего)."""
+    try:
+        require_admin(x_admin_token=x_admin_token)
+    except HTTPException:
+        return _unauthorized()
+
+    conn = db.get_conn()
+    try:
+        row = conn.execute(
+            "SELECT id, surname, name, patronymic, email, phone, address,"
+            " work_format, plate, license_number, license_date,"
+            " license_category, experience, experience_years, status,"
+            " review_comment, created_at, license_photo_path"
+            " FROM instructor_applications WHERE id = ?",
+            (application_id,),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    if row is None:
+        return _json(404, {"ok": False, "error": "Заявка не найдена"})
+    application = {field: row[field] for field in row.keys()}
+    return {"ok": True, "application": application}
+
+
+@router.get("/api/admin/instructor-applications/{application_id}/license-image")
+def instructor_application_license_image(
+    application_id: int,
+    x_admin_token: str | None = Header(default=None),
+):
+    """Изображение ВУ (FR-24, NFR-1): только валидный X-Admin-Token;
+    без/с неверным токеном — 401, изображение не возвращается; заявка
+    без ВУ (или несуществующая) — 404. Content-Type — image/jpeg|image/png
+    по сохраненному файлу (uploads.image_media_type)."""
+    try:
+        require_admin(x_admin_token=x_admin_token)
+    except HTTPException:
+        return _unauthorized()
+
+    conn = db.get_conn()
+    try:
+        row = conn.execute(
+            "SELECT license_photo_path FROM instructor_applications"
+            " WHERE id = ?",
+            (application_id,),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    if row is None:
+        return _json(404, {"ok": False, "error": "Заявка не найдена"})
+    path = row["license_photo_path"]
+    if not path:
+        return _json(404, {"ok": False, "error": "ВУ не загружено"})
+    file_path = Path(path)
+    if not file_path.is_file():
+        # Файл-сирота (cleanup вне скоупа, MIN-3 arch-review) — 404.
+        return _json(404, {"ok": False, "error": "ВУ не загружено"})
+    return Response(
+        content=file_path.read_bytes(),
+        media_type=uploads.image_media_type(path),
+    )
