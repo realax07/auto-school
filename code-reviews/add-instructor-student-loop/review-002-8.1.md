@@ -17,7 +17,7 @@ tests/test_ui_playwright.py. Ветка checked out в worktree (eb4ba6d).
 
 ## Вердикт: APPROVE
 
-Reviewer-Delegation: spawned hermes chat session (role=code_reviewer, итерация 2)
+Reviewer-Delegation: deleg_spawn2026101521362109c307 — Reviewer-Delegation: spawned hermes chat session (role=code_reviewer, итерация 2); id сессии hermes 20261015_213621_09c307
 
 Все обязательные замечания review-001 устранены. Новых проблем итерация не
 внесла (проверено: остаточные innerHTML — только статика/очистка; ответ
@@ -54,4 +54,4 @@ APPROVE. Обязательный список review-001 (#1–#7) закрыт
 объеме (2.2/5.2/6.3 → Партия B). Хвост: частичный 6.4 без пометки переноса —
 в бэклог ПМа, не блокирует. Прогон: 53 passed, 1 warning, 122s.
 
-МЕТА: Reviewer-Delegation: spawned hermes chat session (role=code_reviewer, итерация 2)
+МЕТА: Reviewer-Delegation: deleg_spawn2026101521362109c307 — Reviewer-Delegation: spawned hermes chat session (role=code_reviewer, итерация 2); id сессии hermes 20261015_213621_09c307
