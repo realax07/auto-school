@@ -45,14 +45,19 @@ FastAPI (uvicorn, single-worker)
   ├── student_requests.py    — НОВЫЙ (домен student-requests):
   │                            POST/GET /api/student/requests,
   │                            GET /api/instructor/requests,
-  │                            POST /api/instructor/requests/{id}/accept|deny
+  │                            POST /api/instructor/requests/{id}/accept|deny,
+  │                            PATCH /api/instructor/students/{id}/car
+  │                            (перекрепление авто — ОВ-3)
   ├── instructor_summary.py  — НОВЫЙ (виджеты главной кабинета):
   │                            GET /api/instructor/summary
   ├── uploads.py             — НОВЫЙ helper (сохранение/выдача файлов:
   │                            валидация JPEG/PNG ≤5 МБ по содержимому,
   │                            data/uploads/{license,cars}/<uuid>.<ext>)
-  ├── db.py                  — РАСШИРЕНИЕ: 4 таблицы + колонка license_photo_path
-  │                            (миграции idempotent, механика users.role)
+  ├── db.py                  — РАСШИРЕНИЕ: 4 таблицы + колонки
+  │                            license_photo_path/experience_years
+  │                            (instructor_applications) + experience_years
+  │                            (users; перенос при approve) — миграции
+  │                            idempotent, механика users.role
   ├── app.py                 — include роутеров (+ маршруты статики, если мокапы
   │                            задачи 3.3 потребуют отдельных страниц)
   ▼
@@ -62,8 +67,21 @@ SQLite data/app.db (WAL) + data/uploads/ (файлы; вне frontend/, стат
 
 ## Модель данных (NFR-5; уровень сущностей — DDL уточняет dev в границах)
 
-Существующая таблица `instructor_applications` (§16): + колонка
-`license_photo_path TEXT NULL` (idempotent миграция; NULL — заявка без ВУ).
+Существующие таблицы (idempotent-миграции — механика users.role Спринта 2):
+
+- `instructor_applications` (§16): + `license_photo_path TEXT NULL`
+  (NULL — заявка без ВУ); + `experience_years INTEGER NULL` — стаж анкеты,
+  валидируется при подаче как целое ≥ 0 (закрытие MAJ-3 arch-review);
+  NULL — анкеты старого формата. Свободный TEXT `experience` к фильтру
+  «стаж ≥ N лет» непригоден и фильтром не используется.
+- `users`: + `experience_years INTEGER NOT NULL DEFAULT 0` —
+  материализованный стаж инструктора; единственный источник стажа для
+  карточки (FR-31) и фильтра `min_experience` (FR-32). Переносится из
+  `instructor_applications.experience_years` при approve: список
+  копируемых полей переноса (sdd.md §16: surname, name, patronymic, email,
+  phone, password_hash) расширяется на `experience_years` — версия
+  архитектора (MAJ-3), принята. Анкеты до миграции дают стаж 0
+  (DEFAULT); старый TEXT при approve не интерпретируется.
 
 Новые таблицы:
 
@@ -122,10 +140,14 @@ SQLite data/app.db (WAL) + data/uploads/ (файлы; вне frontend/, стат
 - Принять: только инструктору-получателю, только из 'new'; требует `car_id`
   — автомобиль этого инструктора (422 при чужом/несуществующем); при 0
   автомобилей инструктора — 409 «заведите автомобиль» (ОВ-4). Побочный
-  эффект (ОВ-1): остальные 'new'-заявки этого ученика → 'denied' с
+  эффект (ОВ-1, доведен до буквы ТЗ по MAJ-1 arch-review): остальные
+  АКТИВНЫЕ заявки этого ученика — и 'new', и 'accepted' → 'denied' с
   системным `deny_comment` = «Заявка закрыта: ученик принят другим
   инструктором» (три статуса NFR-5 сохранены; решение зафиксировано
-  в proposal.md как допущение).
+  в proposal.md как допущение). Разрыв чужой accepted-связи использует
+  ТОТ ЖЕ системный текст (решение по пограничному вопросу 1 ревью:
+  смысл комментария для ученика идентичен, второй строки не заводим);
+  уникальность связи «принят» восстановлена в любом порядке accept'ов.
 - Отказать: только инструктору-получателю, только из 'new'; `comment`
   обязателен (пустой/отсутствующий → 422; действие заблокировано).
 - Удаление автомобиля (ОВ-3): car_id привязанных заявок → NULL; связь
@@ -147,7 +169,7 @@ SQL — только параметризованный (NFR-3); токены/з
 
 | Метод и путь | Роль | Валидации / поведение |
 |---|---|---|
-| POST /api/instructors/apply (РАСШИРЕНИЕ, multipart) | гость | поля анкеты — как Спринт 2; `license_photo` (файл, при наличии): тип содержимого JPEG/PNG (проверка magic bytes, не только Content-Type), ≤5 МБ (ОВ-5) → иначе 422; сохранение в data/uploads/license/, заявка хранит license_photo_path (FR-23, NFR-6); отправка без файла — по обязательности макета (задача 3.3) |
+| POST /api/instructors/apply (РАСШИРЕНИЕ, multipart) | гость | поля анкеты — как Спринт 2; `experience_years` (стаж): целое ≥ 0 → иначе 422, хранится в заявке и переносится в users.experience_years при approve (MAJ-3); `license_photo` (файл, при наличии): тип содержимого JPEG/PNG (проверка magic bytes, не только Content-Type), ≤5 МБ (ОВ-5) → иначе 422; сохранение в data/uploads/license/, заявка хранит license_photo_path (FR-23, NFR-6); отправка без файла — по обязательности макета (задача 3.3) |
 | GET /api/admin/instructor-applications/{id} | админ-токен | полные данные заявки + факт/путь ВУ; 404 при отсутствии (FR-25) |
 | GET /api/admin/instructor-applications/{id}/license-image | админ-токен | только валидный X-Admin-Token → изображение (Content-Type image/jpeg|image/png); без/с неверным токеном — 401, изображение не возвращается (FR-24, NFR-1); у заявки без ВУ — 404 |
 
@@ -160,7 +182,7 @@ SQL — только параметризованный (NFR-3); токены/з
 | PATCH /api/instructor/cars/{id} | сессия + instructor | только СВОЙ автомобиль (чужой/несуществующий → 404); валидации как POST (FR-28) |
 | DELETE /api/instructor/cars/{id} | сессия + instructor | только СВОЙ (иначе 404); удаляет авто; привязки: car_id принятых заявок → NULL, связь с инструктором сохраняется (FR-28, ОВ-3) |
 | POST /api/instructor/cars/{id}/photo | владелец | файл: JPEG/PNG (magic bytes), ≤5 МБ → иначе 422; привязка к авто (FR-27, NFR-6) |
-| GET /api/instructor/cars/{id}/photo | владелец | выдает фото; чужому/гостю — 401/403/404 (NFR-1); без фото — 404 |
+| GET /api/instructor/cars/{id}/photo | владелец | матрица кодов (MIN-2 arch-review): гость/без сессии → 401; сессия чужой роли → 403; чужой или несуществующий автомобиль → 404 (не раскрываем существование); свой автомобиль без фото → 404 (NFR-1) |
 
 ### Блок 3 — instructor-availability
 
@@ -173,8 +195,14 @@ SQL — только параметризованный (NFR-3); токены/з
 
 | Метод и путь | Роль | Валидации / поведение |
 |---|---|---|
-| GET /api/student/instructors | сессия + student | карточки ТОЛЬКО одобренных (role='instructor' в users — следствие approve, Спринт 2; waiting/deny в users отсутствуют); фильтры- query-параметры: `transmission` (manual/automatic), `min_rating` (0–5), `min_experience` (лет), `free_weekday`+`free_from`+`free_to` (пересечение с availability); пустой результат — 200 с пустым списком (FR-31, FR-32) |
+| GET /api/student/instructors | сессия + student | карточки ТОЛЬКО одобренных (role='instructor' в users — следствие approve, Спринт 2; waiting/deny в users отсутствуют); фильтры- query-параметры: `transmission` (manual/automatic), `min_rating` (0–5), `min_experience` (лет; по users.experience_years — MAJ-3), `free_weekday`+`free_from`+`free_to` (пересечение с availability); пустой результат — 200 с пустым списком (FR-31, FR-32) |
 | GET /api/student/instructors/{id} | сессия + student | профиль карточки: ФИО, стаж, автомобили (марка/модель, год, КПП — без фото и госномера), агрегат рейтинга {average, count} или {has_reviews:false} (FR-35), часы работы; несуществующий/неодобренный → 404 |
+
+Семантика `min_rating` при отсутствии отзывов (MIN-1 arch-review,
+подтверждена рекомендация ревью): агрегат {has_reviews:false} фильтру
+`min_rating > 0` НЕ удовлетворяет (инструктор без отзывов из выборки
+выпадает); при `min_rating = 0` или без фильтра — присутствует. Рейтинг —
+агрегат AVG/COUNT по reviews на лету, без денормализации (ADR-004 п.3).
 
 ### Блок 5 — reviews
 
@@ -193,8 +221,9 @@ SQL — только параметризованный (NFR-3); токены/з
 | POST /api/student/requests | сессия + student | {instructor_id}: цель — одобренный инструктор → иначе 404; активная (new/accepted) заявка этому инструктору → 409 без записи; new → создается (FR-36, ОВ-1, ОВ-2) |
 | GET /api/student/requests | сессия + student | СВОИ заявки: статус, дата, инструктор, deny_comment (вкл. системный) (FR-38) |
 | GET /api/instructor/requests | сессия + instructor | заявки ТОЛЬКО этому инструктору: ученик (ФИО, стаж), дата, статус (FR-37) |
-| POST /api/instructor/requests/{id}/accept | сессия + instructor | заявка — этому инструктору и в 'new' (иначе 404/409); {car_id}: авто этого инструктора → иначе 422; 0 авто → 409 «заведите автомобиль» (ОВ-4); эффект: статус → accepted, car_id проставлен; остальные 'new' заявки ученика → denied + системный комментарий (ОВ-1) (FR-39) |
+| POST /api/instructor/requests/{id}/accept | сессия + instructor | заявка — этому инструктору и в 'new' (иначе 404/409); {car_id}: авто этого инструктора → иначе 422; 0 авто → 409 «заведите автомобиль» (ОВ-4); эффект: статус → accepted, car_id проставлен; остальные АКТИВНЫЕ заявки ученика ('new' И 'accepted' — MAJ-1 arch-review, буква ОВ-1) → denied + системный комментарий (одинаковый для обоих исходов) (FR-39) |
 | POST /api/instructor/requests/{id}/deny | сессия + instructor | заявка — этому инструктору и в 'new'; {comment} непустой → иначе 422, действие заблокировано (FR-38); эффект: status='denied', deny_comment=comment |
+| PATCH /api/instructor/students/{id}/car | сессия + instructor | перекрепление авто принятого ученика (ОВ-3, MAJ-2 arch-review); {id} — id ученика с принятой заявкой ЭТОМУ инструктору (иначе 404 — не раскрываем); {car_id}: автомобиль этого инструктора → иначе 422; эффект: car_id принятой заявки обновлен; связь ученик↔инструктор не меняется (FR-28, ОВ-3) |
 | GET /api/instructor/summary | сессия + instructor | виджеты главной: students (принятые: ФИО, авто, дата принятия), today_lessons — всегда [] (реального расписания нет) (FR-40, FR-41) |
 
 ## Безопасность файлов (NFR-1, NFR-6)
@@ -233,6 +262,7 @@ SQL — только параметризованный (NFR-3); токены/з
 | Принятие при 0 авто / чужой car_id | 409 / 422 {ok:false} | FR-39, ОВ-4 |
 | Отказ без комментария | 422 {ok:false}, действие заблокировано | FR-38 |
 | Отзыв без принятой заявки / повторный | 403 / 409 {ok:false} | FR-34, NFR-2/5 |
+| Перекрепление: чужой/несуществующий car_id; ученик не принят этому инструктору | 422 / 404 {ok:false} | ОВ-3, MAJ-2 |
 | Пустой результат фильтров каталога | 200 {ok:true, instructors:[]} | FR-32 |
 | Виджет «Занятия на сегодня» | 200 {ok:true, today_lessons:[]} | FR-41 |
 
@@ -258,6 +288,23 @@ SQL — только параметризованный (NFR-3); токены/з
 - Виджет «Занятия на сегодня» — всегда пустой список (заглушка честная:
   «Сегодня занятий нет», без фиктивных данных).
 - Авто-закрытие заявок при чужом accept — статус denied + системный
-  комментарий (компромисс зафиксирован в proposal.md; механика ОВ-1).
+  комментарий (компромисс зафиксирован в proposal.md; механика ОВ-1;
+  охват — ВСЕ активные заявки, включая accepted — MAJ-1).
+- Файлы-сироты в data/uploads/ (MIN-3 arch-review): DELETE автомобиля и
+  обработка заявок (denied/авто-закрытие) НЕ удаляют файлы с диска —
+  осознанный техдолг, cleanup вне скоупа этого объема; прямой угрозы нет
+  (каталог не раздается статикой, URL недоступен).
 - In-memory сессии/admin-токены, single-worker — наследованные ограничения
   Спринтов 0–1, не revisiting в этом объеме.
+
+## Соответствие ADR-004 (архитектурные решения контура)
+
+Ключевые решения дизайна следуют ADR-004 (Принято): (1) ФИО — гранулярные
+поля в users, новые таблицы ФИО не дублируют, выдача JOIN/склейкой;
+(2) файлы — data/uploads/{license,cars}/ вне frontend/, статикой не
+раздаются, выдача только через авторизованные эндпоинты (админ-токен для
+ВУ, сессия владельца для фото авто); (3) рейтинг — агрегат AVG/COUNT по
+reviews на лету, колонки rating_avg в users нет (фильтр min_rating
+вычисляет агрегат при чтении; семантика без отзывов — блок 4);
+(4) связь «ученик принят» — статус заявки student_requests, отдельной
+сущности нет. Отступлений от ADR-004 в этом пакете нет.

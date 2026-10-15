@@ -23,8 +23,10 @@ requirements-instructor-flow.md). Этот объем замыкает цикл:
 кроме дополнения анкеты инструктора загрузкой файла — см. допущения):
 
 - Домен `instructor-documents`:
-  - анкета инструктора (POST /api/instructors/apply) принимает и сохраняет
-    файл изображения ВУ (multipart; проверка типа JPEG/PNG и размера ≤5 МБ);
+  - анкета инструктора (POST /api/instructors/apply) принимает стаж
+    числом (валидация целого ≥ 0; переносится в users при approve —
+    MAJ-3 arch-review) и сохраняет файл изображения ВУ (multipart;
+    проверка типа JPEG/PNG и размера ≤5 МБ);
   - admin-API: детальная карточка заявки + выдача изображения ВУ только
     при валидном X-Admin-Token (механика Спринта 0);
   - карточка инструктора в админке открывается кликом по строке таблицы
@@ -52,7 +54,9 @@ requirements-instructor-flow.md). Этот объем замыкает цикл:
     ученика (статусы, включая комментарий отказа);
   - раздел «Запросы учеников» кабинета инструктора: принять (с выбором
     своего автомобиля; при 0 автомобилей недоступно; закрывает остальные
-    активные заявки ученика) / отказать (комментарий обязателен);
+    активные заявки ученика — new и accepted, ОВ-1) / отказать
+    (комментарий обязателен); перекрепление автомобиля принятого ученика
+    (ОВ-3, PATCH /api/instructor/students/{id}/car — MAJ-2 arch-review);
   - виджеты главной кабинета инструктора: «Привязанные ученики» (реальные
     принятые ученики) и «Занятия на сегодня» (честная заглушка — «Сегодня
     занятий нет»).
@@ -64,7 +68,9 @@ requirements-instructor-flow.md). Этот объем замыкает цикл:
   `backend/reviews.py`, `backend/student_requests.py`; правки
   `backend/instructors.py` (прием файла ВУ в multipart), `backend/instructor_admin.py`
   (карточка + изображение ВУ); правки `backend/db.py` (4 новые таблицы +
-  колонка `license_photo_path` в instructor_applications; миграции
+  колонки `license_photo_path`, `experience_years` в
+  `instructor_applications` и `experience_years` в `users` с переносом
+  при approve; миграции
   idempotent — механика миграции users.role Спринта 2); правки `backend/app.py`
   (include роутеров, маршруты статики). Фронт: разделы существующих
   `frontend/instructor-dashboard.html` и `frontend/cabinet.html`, карточка
