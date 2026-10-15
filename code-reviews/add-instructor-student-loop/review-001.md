@@ -16,7 +16,7 @@ frontend (instructor-choice, кабинет инструктора: календ
 
 ## Вердикт: RETURN
 
-Reviewer-Delegation: spawned hermes chat session (role=code_reviewer, Партия A)
+Reviewer-Delegation: deleg_spawn202610152106584f6dc2 — Reviewer-Delegation: spawned hermes chat session (role=code_reviewer, Партия A); id сессии hermes 20261015_210658_4f6dc2
 
 Основания для RETURN: 1 BLOCKER (stored XSS в кабинете ученика), связка
 MAJOR-1+MAJOR-2 (фронт читает поля, которых нет в реальных ответах бэкенда —
@@ -63,4 +63,4 @@ RETURN. Перечень обязательных фиксов до approve: #1 
 Прогон ревью: 48 passed (см. шапку); ничего в репозитории ревьюером не
 правилось — проверочный скрипт выполнен во временном каталоге.
 
-МЕТА: Reviewer-Delegation: spawned hermes chat session (role=code_reviewer, Партия A)
+МЕТА: Reviewer-Delegation: deleg_spawn202610152106584f6dc2 — Reviewer-Delegation: spawned hermes chat session (role=code_reviewer, Партия A); id сессии hermes 20261015_210658_4f6dc2
