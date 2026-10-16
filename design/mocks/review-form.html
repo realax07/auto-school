@@ -1,0 +1,180 @@
+<!doctype html>
+<!-- Мокап: «Оставить отзыв» — кабинет ученика. Спринт 4, Партия A, задача 4.1
+     (change add-instructor-student-loop). Домен reviews: звёзды 1–5 (клик), textarea,
+     отправка — POST /api/student/instructors/{id}/reviews. Подсказка: отзыв доступен
+     только ученикам с принятой заявкой (серверная проверка NFR-2, UI-скрытие проверкой
+     не считается). Повторный отзыв — 409 (UNIQUE пара) → состояние «уже оставлен».
+     Открывается из карточки инструктора или из «Моих заявок» (статус «принята»).
+     Данные демо. -->
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#071015"><title>СберАвтошкола — Кабинет ученика · Отзыв об инструкторе</title>
+<style>
+:root{--bg:#071015;--line:#ffffff16;--text:#f3f7f8;--muted:#93a6b1;--green:#35d879}
+*{box-sizing:border-box}html,body{margin:0;min-width:320px}
+body{background:radial-gradient(ellipse at 78% 0%,#123b2c4d,transparent 38%),radial-gradient(ellipse at 8% 90%,#27465f26,transparent 40%),var(--bg);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh}
+button,textarea{font:inherit;color:inherit}button{cursor:pointer}
+.frame{max-width:760px;margin:auto;padding:26px 24px 46px}
+header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;height:48px;margin-bottom:6px}
+.brand{display:flex;align-items:center;gap:10px;font-size:22px;font-weight:650;letter-spacing:-1px}
+.brand em{font-style:normal;color:var(--green)}
+.check{width:32px;height:32px;flex:none;display:grid;place-items:center;border:3px solid var(--green);border-radius:50%;color:var(--green);font-size:20px;transform:rotate(-8deg)}
+.brand small{display:block;font-size:9px;color:#80919b;letter-spacing:.14em;text-transform:uppercase;margin-top:3px;font-weight:500}
+.crumb{font-size:12px;color:#8fa2ad;justify-self:center}
+.user{justify-self:end;display:flex;align-items:center;gap:13px}
+.uname{font-size:13px;color:#d6e4e2}
+.avatar{width:34px;height:34px;border-radius:11px;background:linear-gradient(145deg,#315744,#14261e);display:grid;place-items:center;color:#a0f2bd;font-size:11px;font-weight:700}
+.logout{padding:8px 20px;border:1px solid #ffffff40;border-radius:999px;background:transparent;font-size:13px}
+.logout:hover{border-color:var(--green)}
+.page-head{margin:26px 0 18px}
+.kicker{font-size:10px;color:#79eaa5;text-transform:uppercase;letter-spacing:.18em}
+h1{font-size:28px;letter-spacing:-.05em;font-weight:600;margin:9px 0 8px}
+.page-head p{font-size:12px;color:var(--muted);margin:0}
+.back{display:inline-flex;align-items:center;gap:7px;margin-bottom:16px;font-size:12px;color:#8fa2ad;border:1px solid #ffffff14;background:#ffffff05;border-radius:999px;padding:8px 15px;text-decoration:none}
+.back:hover{border-color:#4bcb7c66;color:#c9ffdd}
+/* карточка инструктора (контекст) */
+.icard{display:flex;align-items:center;gap:13px;border:1px solid var(--line);border-radius:16px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:15px 17px;margin-bottom:14px}
+.iava{width:46px;height:46px;flex:none;border-radius:14px;background:linear-gradient(145deg,#2c4f3d,#132119);display:grid;place-items:center;color:#a0f2bd;font-size:13px;font-weight:700}
+.icard b{font-size:15px;font-weight:600;letter-spacing:-.02em;display:block}
+.icard small{display:block;font-size:11px;color:#8fa0aa;margin-top:4px}
+.irating{margin-left:auto;text-align:right;flex:none;font-size:13px;color:#ffd479;font-weight:600}
+.irating small{display:block;font-size:10px;color:#8fa0aa;margin-top:4px;font-weight:400}
+/* форма отзыва */
+.form-card{border:1px solid var(--line);border-radius:19px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:22px}
+.form-card h2{font-size:16px;font-weight:600;letter-spacing:-.02em;margin:0 0 4px}
+.form-card .sub{font-size:12px;color:#8fa0aa}
+.stars{display:flex;gap:9px;margin:20px 0 6px}
+.star{width:46px;height:46px;border-radius:13px;border:1px solid #ffffff14;background:#ffffff05;font-size:22px;color:#5d707b;display:grid;place-items:center;transition:all .12s}
+.star:hover{border-color:#ffd47966;transform:translateY(-2px)}
+.star.on{background:#332a14;border-color:#6b5426;color:#ffd479}
+.stars-lab{font-size:11px;color:#8fa0aa;min-height:16px;margin-bottom:14px}
+.stars-lab b{color:#ffd479;font-weight:550}
+textarea{width:100%;min-height:120px;resize:vertical;border:1px solid #ffffff16;background:#0b161c;border-radius:13px;padding:13px 15px;font-size:13px;color:#dcebe9;line-height:1.55}
+textarea:focus{outline:none;border-color:#35d87966}
+.ta-row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-top:8px}
+.ta-row span{font-size:10px;color:#8fa0aa}
+.counter{font-size:10px;color:#637681;flex:none}
+.counter.over{color:#ffb28e}
+.send{width:100%;margin-top:14px;border:1px solid #2b9c62;background:#123524;color:#c9ffdd;border-radius:12px;padding:13px;font-size:13px;font-weight:550}
+.send:hover{filter:brightness(1.12)}
+.send:disabled{opacity:.4;cursor:not-allowed;filter:none}
+.hint{display:flex;gap:10px;align-items:flex-start;margin-top:15px;border:1px solid #6b5426;border-radius:12px;background:#2a201040;padding:12px 14px;font-size:11px;color:#ffd479;line-height:1.6}
+/* состояние «уже оставлен» */
+.done-card{display:none;border:1px solid #2a5c40;border-radius:19px;background:linear-gradient(150deg,rgba(20,51,34,.55),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:22px}
+.done-card h2{font-size:16px;font-weight:600;letter-spacing:-.02em;margin:0 0 6px;display:flex;align-items:center;gap:9px}
+.done-card .ok{width:26px;height:26px;flex:none;border-radius:50%;border:2px solid #2c8651;color:#7fe3a3;display:grid;place-items:center;font-size:13px}
+.done-note{font-size:12px;color:#8fa0aa;line-height:1.6}
+.done-stars{display:flex;gap:5px;margin:16px 0 10px}
+.done-stars i{font-style:normal;font-size:18px;color:#ffd479}
+.done-stars i.off{color:#3a4a52}
+.done-text{border:1px solid #ffffff12;border-radius:13px;background:#ffffff04;padding:14px 16px;font-size:13px;color:#c9d6db;line-height:1.6}
+.done-date{font-size:11px;color:#637681;margin-top:10px}
+/* переключение демо-состояний */
+.demo-switch{display:flex;gap:6px;border:1px solid #ffffff14;background:#ffffff05;border-radius:12px;padding:5px;margin-bottom:18px}
+.demo-switch button{flex:1;border:1px solid transparent;background:transparent;color:#aab8c0;border-radius:9px;padding:8px 10px;font-size:11px}
+.demo-switch button.on{background:#143322;border-color:#2c8651;color:#a3efbd}
+footer{margin-top:32px;padding-top:18px;border-top:1px solid #ffffff10;display:flex;justify-content:space-between;gap:14px;font-size:11px;color:#5f717b;flex-wrap:wrap}
+.toast{position:fixed;bottom:22px;right:22px;max-width:360px;background:#143323;border:1px solid #367b50;color:#b5f8cc;padding:13px 16px;border-radius:13px;font-size:12px;box-shadow:0 10px 40px #0008;display:none;z-index:20}
+.toast.show{display:block}
+@media(max-width:850px){.frame{padding:20px 16px 36px}.crumb{display:none}h1{font-size:24px}}
+@media(max-width:560px){header{grid-template-columns:1fr auto}.brand{font-size:19px}.uname{display:none}.star{width:40px;height:40px;font-size:19px}.icard{flex-wrap:wrap}.irating{margin-left:59px;text-align:left}}
+</style></head>
+<body>
+<div class="frame">
+<header>
+  <div class="brand"><span class="check">✓</span><span><em>Сбер</em>Автошкола<small>Кабинет ученика</small></span></div>
+  <div class="crumb">Кабинет ученика · Отзыв об инструкторе</div>
+  <div class="user"><span class="uname">Иван Ковалёв</span><span class="avatar">ИК</span><button class="logout">Выйти</button></div>
+</header>
+
+<div class="page-head">
+  <div class="kicker">Отзывы</div>
+  <h1>Оставить отзыв</h1>
+  <p>Рейтинг и текст отзыва видны другим ученикам в карточке инструктора и влияют на фильтр «рейтинг не ниже».</p>
+</div>
+
+<a class="back" href="#">← Вернуться к инструктору</a>
+
+<!-- демо-переключатель состояний (в продукте выбирается данными: 409 → «уже оставлен») -->
+<div class="demo-switch">
+  <button class="on" id="sw-form">Состояние: форма отзыва</button>
+  <button id="sw-done">Состояние: отзыв уже оставлен</button>
+</div>
+
+<!-- контекст: инструктор, о котором отзыв -->
+<div class="icard">
+  <span class="iava">МС</span>
+  <div><b>Михаил Самойлов</b><small>Стаж 11 лет · Škoda Rapid, Kia Rio · заявка принята 02.10.2026</small></div>
+  <div class="irating">4.8 ★<small>6 отзывов учеников</small></div>
+</div>
+
+<!-- СОСТОЯНИЕ 1: форма отзыва -->
+<section class="form-card" id="view-form">
+  <h2>Как прошли занятия?</h2>
+  <div class="sub">Оцените инструктора и поделитесь опытом — отзыв публикуется под вашим именем.</div>
+  <div class="stars" id="stars">
+    <button class="star" data-v="1" aria-label="1 звезда">★</button>
+    <button class="star" data-v="2" aria-label="2 звезды">★</button>
+    <button class="star" data-v="3" aria-label="3 звезды">★</button>
+    <button class="star" data-v="4" aria-label="4 звезды">★</button>
+    <button class="star" data-v="5" aria-label="5 звёзд">★</button>
+  </div>
+  <div class="stars-lab" id="stars-lab">Выберите оценку от 1 до 5</div>
+  <textarea id="review-text" maxlength="1000" placeholder="Что понравилось? Чему научились? Что стоит знать будущим ученикам…"></textarea>
+  <div class="ta-row">
+    <span>Текст отзыва обязателен (непустой)</span>
+    <span class="counter" id="counter">0 / 1000</span>
+  </div>
+  <button class="send" id="send" disabled>Отправить отзыв</button>
+  <div class="hint">🔒 Отзыв может оставить только ученик с принятой заявкой у этого инструктора. Повторный отзыв оставить нельзя.</div>
+</section>
+
+<!-- СОСТОЯНИЕ 2: отзыв уже оставлен (UNIQUE пара → 409) -->
+<section class="done-card" id="view-done">
+  <h2><span class="ok">✓</span>Отзыв уже отправлен</h2>
+  <div class="done-note">Вы уже оценили этого инструктора. Один отзыв на пару «ученик ↔ инструктор» — изменить или дополнить его нельзя.</div>
+  <div class="done-stars" id="done-stars"></div>
+  <div class="done-text">Занимаюсь с Михаилом Петровичем с октября — всё чётко: спокойный, объясняет до полного понимания, автомобиль комфортный. Первые манёвры уже уверенно!</div>
+  <div class="done-date">Отправлен 12.10.2026 · отображается в карточке инструктора</div>
+</section>
+
+<footer><span>СберАвтошкола · мокап «Оставить отзыв»</span><span>Демонстрационный интерфейс · данные вымышлены</span></footer>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+var rating=0;
+var LABELS={0:'Выберите оценку от 1 до 5',1:'1 — плохо',2:'2 — так себе',3:'3 — нормально',4:'4 — хорошо',5:'5 — отлично!'};
+function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(window._tt);window._tt=setTimeout(function(){t.classList.remove('show')},3200)}
+// звёзды: клик фиксирует оценку, hover — предпросмотр
+var stars=document.querySelectorAll('.star');
+function paint(n){stars.forEach(function(s){s.classList.toggle('on',+s.dataset.v<=n)});document.getElementById('stars-lab').innerHTML=n?'Оценка: <b>'+LABELS[n]+'</b>':LABELS[0]}
+stars.forEach(function(s){
+  s.addEventListener('mouseenter',function(){paint(+s.dataset.v)});
+  s.addEventListener('mouseleave',function(){paint(rating)});
+  s.addEventListener('click',function(){rating=+s.dataset.v;paint(rating);validate()});
+});
+var ta=document.getElementById('review-text');
+ta.addEventListener('input',function(){
+  var c=document.getElementById('counter'),len=ta.value.length;
+  c.textContent=len+' / 1000';c.classList.toggle('over',len>1000);
+  validate();
+});
+function validate(){
+  var ok=rating>0&&ta.value.trim().length>0&&ta.value.length<=1000;
+  document.getElementById('send').disabled=!ok;
+}
+document.getElementById('send').addEventListener('click',function(){
+  toast('Отзыв отправлен: оценка '+rating+' из 5. Спасибо — он появится в карточке инструктора.');
+});
+// демо-переключение состояний
+function show(view){
+  var form=view==='form';
+  document.getElementById('view-form').style.display=form?'block':'none';
+  document.getElementById('view-done').style.display=form?'none':'block';
+  document.getElementById('sw-form').classList.toggle('on',form);
+  document.getElementById('sw-done').classList.toggle('on',!form);
+}
+document.getElementById('sw-form').addEventListener('click',function(){show('form')});
+document.getElementById('sw-done').addEventListener('click',function(){show('done')});
+// заполнить «уже оставлен» (4 из 5)
+(function(){var box=document.getElementById('done-stars');for(var i=1;i<=5;i++){var s=document.createElement('i');s.textContent='★';if(i>4)s.className='off';box.appendChild(s)}})();
+show('form');
+</script></body></html>
