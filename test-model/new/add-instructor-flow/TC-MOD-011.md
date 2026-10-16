@@ -27,3 +27,9 @@
 
 ## Тестовые данные
 Заявка — базовый валидный набор (TC-APP-005) с email dup@example.com. Чужая запись: users (surname X, name Y, patronymic Z, dup@example.com, телефон, пароль-хэш-заглушка). Админ: admin / admin-pass-2026.
+
+## Трассировка
+
+### Requirement: Одобрение заявки создает пользователя
+#### Scenario: Одобрение заявки waiting
+

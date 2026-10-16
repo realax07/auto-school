@@ -29,3 +29,9 @@
 
 ## Тестовые данные
 Инструктор: instr@example.com / Instr1234 (apply + approve через админ-API; админ admin / admin-pass-2026).
+
+## Трассировка
+
+### Requirement: Заглушка кабинета инструктора
+#### Scenario: Заглушка вместо кабинета
+

@@ -32,3 +32,9 @@
 
 ## Тестовые данные
 IP 10.0.0.4; ghost@example.com; параметры _BF_MAX_FAILURES=5, _BF_BASE_BLOCK_SECONDS=30, _BF_MAX_BLOCK_SECONDS=900 (читать из backend/auth.py).
+
+## Трассировка
+
+### Requirement: Ограничение попыток входа (анти-брутфорс)
+#### Scenario: Длительность блокировки нарастает
+

@@ -28,3 +28,9 @@
 
 ## Тестовые данные
 Мокап: design/mocks/cabinet-student.html; страница: GET /cabinet (frontend/cabinet.html).
+
+## Трассировка
+
+### Requirement: Соответствие утвержденному мокапу кабинета
+#### Scenario: Тексты кабинета совпадают с мокапом
+

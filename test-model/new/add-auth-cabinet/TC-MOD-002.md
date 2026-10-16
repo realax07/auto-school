@@ -30,3 +30,9 @@
 ## Тестовые данные
 - Вариант A: petrova@example.com / wrong-pass.
 - Вариант B: ghost@example.com / whatever.
+
+## Трассировка
+
+### Requirement: Единое сообщение об отказе входа
+#### Scenario: Сообщение об отказе не раскрывает причину
+

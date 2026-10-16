@@ -41,3 +41,9 @@
 }
 ```
 Тело логина: {"email": "petrova@example.com", "password": "Qwerty123"}.
+
+## Трассировка
+
+### Requirement: Вход ученика
+#### Scenario: Успешный вход ученика
+

@@ -30,3 +30,9 @@
 
 ## Тестовые данные
 Заявки: базовый валидный набор (TC-APP-005) с email a@example.com (waiting), b@example.com (approved), c@example.com (deny). Админ: admin / admin-pass-2026.
+
+## Трассировка
+
+### Requirement: Раздел заявок инструкторов в админке
+#### Scenario: Администратор видит все заявки
+

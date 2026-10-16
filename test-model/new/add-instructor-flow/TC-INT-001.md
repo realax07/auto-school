@@ -31,3 +31,8 @@
 
 ## Тестовые данные
 Ученик petrova@example.com / Qwerty123; анкета — набор _apply (instr@example.com / Instr1234); админ admin / admin-pass-2026.
+
+## Трассировка
+
+### Requirement: Вход инструктора через общий механизм авторизации
+#### Scenario: Вход одобренного инструктора

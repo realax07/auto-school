@@ -29,3 +29,9 @@
 
 ## Тестовые данные
 Базовый валидный набор анкеты (контракт §15.1): fio «Иванов Иван Иванович», phone «+7 (912) 345-67-89», email instructor@example.com, address «Москва, Тверская 1, кв. 2», work_format «own», plate «А123АА 777», license_number «1234 567890», license_date «2020-05-01», license_category «B», experience «5–9 лет», password/password_confirm «Qwerty123», consent true. Файл: license.pdf (любое непустое содержимое).
+
+## Трассировка
+
+### Requirement: Данные ВУ-файла не сохраняются
+#### Scenario: Файл не загружается на сервер
+
