@@ -161,6 +161,10 @@ def my_requests(
             ).fetchone()
             requests.append({
                 "id": row["id"],
+                # instructor_id нужен клиенту для «Повторить заявку» (ОВ-2:
+                # POST /api/student/requests {instructor_id}; Спринт 4,
+                # change add-s3-frontend-links) — это СВОЯ заявка ученика
+                "instructor_id": row["instructor_id"],
                 "status": row["status"],
                 "created_at": row["created_at"],
                 "decided_at": row["decided_at"],

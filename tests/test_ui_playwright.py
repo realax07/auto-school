@@ -27,6 +27,7 @@ import time
 import urllib.error
 import urllib.request
 import uuid
+from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -1083,3 +1084,399 @@ def assert_admin_token(req):
     """Заглушка-гард: карточка заявки запрашивается только с X-Admin-Token."""
     assert req.headers.get("x-admin-token") == ADMIN_TOKEN
     return None
+
+
+# =========================================================================
+# Спринт 4, Партия A (change add-s3-frontend-links): ИНТЕГРАЦИОННЫЕ e2e
+# на ЖИВОМ бэкенде (фикстура server, без page.route) — UI-связки над
+# готовым Спринтом 3: /my-cars, /review, /my-requests.
+# =========================================================================
+
+def _approve_instructor(server, surname="Громов", name="Борис",
+                        patronymic="Арсеньевич"):
+    """Реальный флоу инструктора: apply → approve → login.
+    Возвращает (token, instructor_id)."""
+    email, password = unique_email("s4instr"), "Dr1vePass!"
+    status, data = api("POST", "/api/instructors/apply", base=server, body={
+        "surname": surname, "name": name, "patronymic": patronymic,
+        "phone": "+7 902 333-44-55", "email": email,
+        "address": "г. Москва, ул. Летняя, д. 5", "work_format": "school",
+        "license_number": "9987654321", "license_category": "B",
+        "experience_years": 9,
+        "password": password, "password_confirm": password, "consent": True,
+    })
+    assert status == 200 and data and data["ok"], (status, data)
+    admin_token = admin_login(server)
+    status, listing = api("GET", "/api/admin/instructor-applications",
+                          base=server, admin_token=admin_token)
+    app_id = next(a["id"] for a in listing["applications"]
+                  if a["email"] == email)
+    status, data = api(
+        "POST", f"/api/admin/instructor-applications/{app_id}/approve",
+        base=server, admin_token=admin_token)
+    assert status == 200 and data and data["ok"], (status, data)
+    instructor_id = data["user_id"]
+    status, data = api("POST", "/api/auth/login", base=server, body={
+        "email": email, "password": password})
+    assert status == 200 and data and data.get("token"), (status, data)
+    return data["token"], instructor_id
+
+
+def _student_token(server):
+    """Регистрация + вход ученика; возвращает токен сессии."""
+    email = unique_email("s4stu")
+    status, data = api("POST", "/api/register", base=server, body={
+        "surname": "Смирнова", "name": "Ольга", "patronymic": "Павловна",
+        "email": email, "phone": "+7 901 222-33-44",
+        "password": "S3cretPass!", "password_confirm": "S3cretPass!",
+    })
+    assert status == 200 and data and data["ok"], (status, data)
+    status, data = api("POST", "/api/auth/login", base=server, body={
+        "email": email, "password": "S3cretPass!"})
+    assert status == 200 and data and data.get("token"), (status, data)
+    return data["token"]
+
+
+def _add_car(server, token, plate="А123АА777"):
+    status, data = api("POST", "/api/instructor/cars", base=server,
+                       token=token,
+                       body={"brand": "Škoda", "model": "Rapid", "year": 2020,
+                             "plate": plate, "transmission": "automatic"})
+    assert status == 200 and data and data["ok"], (status, data)
+    return data["car_id"]
+
+
+def _accepted_request(server, instructor_token, instructor_id, car_id):
+    """Ученик подает заявку, инструктор принимает; возвращает токен ученика."""
+    stu_token = _student_token(server)
+    status, data = api("POST", "/api/student/requests", base=server,
+                       token=stu_token, body={"instructor_id": instructor_id})
+    assert status == 200 and data and data["ok"], (status, data)
+    status, data = api("GET", "/api/instructor/requests", base=server,
+                       token=instructor_token)
+    request_id = data["requests"][0]["id"]
+    status, data = api(
+        "POST", f"/api/instructor/requests/{request_id}/accept",
+        base=server, token=instructor_token, body={"car_id": car_id})
+    assert status == 200 and data and data["ok"], (status, data)
+    return stu_token
+
+
+def test_s4_my_cars_add_edit_delete_car(page, server):
+    """TC-UI-015 (change add-s3-frontend-links): «Мои автомобили» на живом
+    бэкенде — добавил авто → виден в списке (карточка + GET API); PATCH
+    редактирование отражается; удаление с подтверждением (отмена работает,
+    подтверждение удаляет) → в списке и API авто больше нет."""
+    token, _ = _approve_instructor(server)
+    _seed_session(page, "session_token", token)
+
+    page.goto(f"{server}/my-cars")
+    expect(page.locator("h1")).to_have_text("Мои автомобили")
+    expect(page.locator("#empty")).to_be_visible()
+    expect(page.locator("#count")).to_have_text("Автомобилей: 0")
+
+    # --- добавление: модалка → POST /api/instructor/cars ---
+    page.locator("#open-add").click()
+    expect(page.locator("#m-add")).to_be_visible()
+    expect(page.locator("#save-car")).to_be_disabled()
+    page.fill("#f-brand", "Škoda")
+    page.fill("#f-model", "Rapid")
+    page.fill("#f-year", "2020")
+    page.fill("#f-plate", "А123АА777")
+    page.locator("#f-trans button[data-v='automatic']").click()
+    expect(page.locator("#save-car")).to_be_enabled()
+    page.locator("#save-car").click()
+
+    # карточка появилась (пустое состояние ушло)
+    card = page.locator(".car")
+    expect(card).to_have_count(1)
+    expect(card.locator("b.title")).to_have_text("Škoda Rapid")
+    expect(card.locator(".pill.plate")).to_have_text("А123АА777")
+    expect(card.locator(".pill.green")).to_have_text("автомат")
+    expect(page.locator("#empty")).to_be_hidden()
+    expect(page.locator("#count")).to_have_text("Автомобилей: 1")
+
+    # бэкенд: авто реально создан
+    status, data = api("GET", "/api/instructor/cars", base=server, token=token)
+    assert status == 200 and len(data["cars"]) == 1, (status, data)
+    assert data["cars"][0]["brand"] == "Škoda"
+    assert data["cars"][0]["transmission"] == "automatic"
+    assert data["cars"][0]["has_photo"] is False
+    car_id = data["cars"][0]["id"]
+
+    # --- редактирование: PATCH /api/instructor/cars/{id} ---
+    card.locator(".edit").click()
+    expect(page.locator("#add-title")).to_have_text("Редактирование автомобиля")
+    expect(page.locator("#f-brand")).to_have_value("Škoda")
+    page.fill("#f-plate", "В456ВВ777")
+    page.locator("#save-car").click()
+    expect(card.locator(".pill.plate")).to_have_text("В456ВВ777")
+    status, data = api("GET", "/api/instructor/cars", base=server, token=token)
+    assert data["cars"][0]["plate"] == "В456ВВ777"
+
+    # --- удаление с подтверждением: отмена → авто на месте ---
+    card.locator(".del").click()
+    expect(page.locator("#m-del")).to_be_visible()
+    expect(page.locator("#del-what")).to_have_text("Škoda Rapid · В456ВВ777")
+    page.locator("#del-cancel").click()
+    expect(page.locator("#m-del")).to_be_hidden()
+    expect(page.locator(".car")).to_have_count(1)
+
+    # --- подтверждение → DELETE, авто исчезает из UI и API ---
+    card.locator(".del").click()
+    page.locator("#del-confirm").click()
+    expect(page.locator(".car")).to_have_count(0)
+    expect(page.locator("#empty")).to_be_visible()
+    expect(page.locator("#count")).to_have_text("Автомобилей: 0")
+    status, data = api("GET", "/api/instructor/cars", base=server, token=token)
+    assert status == 200 and data["cars"] == [], (status, data)
+    # чужой/несуществующий id больше не отвечает 200 (удаление прошло)
+    status, _ = api("DELETE", f"/api/instructor/cars/{car_id}", base=server,
+                    token=token)
+    assert status == 404, status
+
+
+def test_s4_my_cars_photo_upload_progress_and_preview(page, server, tmp_path):
+    """TC-UI-016 (change add-s3-frontend-links): «Мои автомобили» — загрузка
+    фото (POST /api/instructor/cars/{id}/photo, multipart): прогресс в
+    модалке, превью-картинка на карточке после сохранения, has_photo=true
+    и выдача фото только по сессии владельца (GET …/photo)."""
+    token, _ = _approve_instructor(server)
+    car_id = _add_car(server, token)
+    _seed_session(page, "session_token", token)
+
+    page.goto(f"{server}/my-cars")
+    card = page.locator(".car")
+    expect(card).to_have_count(1)
+    # плейсхолдер до загрузки
+    expect(card.locator(".photo")).to_contain_text("Плейсхолдер фото авто")
+    assert card.locator(".photo img").count() == 0
+
+    # выбираем файл в модалке и сохраняем
+    png_file = tmp_path / "car-photo.png"
+    png_file.write_bytes(PNG_1PX)
+    card.locator(".edit").click()
+    expect(page.locator("#m-add")).to_be_visible()
+    page.locator("#f-photo").set_input_files(str(png_file))
+    expect(page.locator("#up-lab")).to_contain_text("Файл выбран")
+    page.locator("#save-car").click()
+
+    # карточка перерисовалась: превью-картинка вместо плейсхолдера
+    expect(card.locator(".photo img")).to_be_visible()
+
+    # бэкенд: has_photo=true; фото отдается владельцу по сессии (image/png)
+    status, data = api("GET", "/api/instructor/cars", base=server, token=token)
+    assert data["cars"][0]["has_photo"] is True, data
+    req = urllib.request.Request(
+        f"{server}/api/instructor/cars/{car_id}/photo",
+        headers={"X-Session-Token": token})
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        assert resp.status == 200
+        assert resp.headers["Content-Type"] == "image/png"
+        assert resp.read() == PNG_1PX
+
+
+def test_s4_review_submit_then_repeat_blocked_409(page, server):
+    """TC-UI-017 (change add-s3-frontend-links): поток «принял заявку ученика →
+    оставил отзыв → отзыв виден/повтор 409-блок» на живом бэкенде: контекст
+    инструктора на /review, сабмит 200 → состояние «отправлен»; повторный
+    сабмит через UI → 409 → состояние «уже оставлен»; прямой повторный
+    POST в API → 409 (NFR-5)."""
+    instructor_token, instructor_id = _approve_instructor(server)
+    car_id = _add_car(server, instructor_token)
+    stu_token = _accepted_request(server, instructor_token, instructor_id,
+                                  car_id)
+    _seed_session(page, "session_token", stu_token)
+
+    # /review без ?instructor= → редирект на /my-requests (NIT-5 review-001)
+    page.goto(f"{server}/review")
+    page.wait_for_url("**/my-requests")
+    expect(page.locator("h1")).to_have_text("Заявки инструкторам")
+
+    page.goto(f"{server}/review?instructor={instructor_id}")
+
+    # контекст: карточка инструктора с реальным ФИО из API
+    expect(page.locator("#i-name")).to_have_text("Громов Борис Арсеньевич")
+    expect(page.locator("#view-form")).to_be_visible()
+    expect(page.locator("#send")).to_be_disabled()
+
+    # валидация: звезда без текста — кнопка все еще заблокирована
+    page.locator(".star[data-v='5']").click()
+    expect(page.locator("#send")).to_be_disabled()
+    page.fill("#review-text", "Спокойный инструктор, объясняет до полного понимания. Первые манёвры уже уверенно!")
+    expect(page.locator("#send")).to_be_enabled()
+    page.locator("#send").click()
+
+    # 200 → состояние «отправлен», форма скрыта
+    expect(page.locator("#view-done")).to_be_visible()
+    expect(page.locator("#done-title")).to_have_text("Отзыв отправлен")
+    expect(page.locator("#view-form")).to_be_hidden()
+
+    # отзыв виден в агрегате карточки инструктора (FR-35)
+    status, data = api("GET", f"/api/student/instructors/{instructor_id}",
+                       base=server, token=stu_token)
+    assert data["instructor"]["rating"]["count"] == 1, data
+    assert abs(data["instructor"]["rating"]["average"] - 5.0) < 1e-9
+
+    # повторный сабмит через UI → сервер 409 → состояние «уже оставлен»
+    page.reload()
+    expect(page.locator("#view-form")).to_be_visible()
+    page.locator(".star[data-v='4']").click()
+    page.fill("#review-text", "Попытка второго отзыва")
+    page.locator("#send").click()
+    expect(page.locator("#view-done")).to_be_visible()
+    expect(page.locator("#done-title")).to_have_text("Отзыв уже отправлен")
+
+    # прямой повторный POST мимо UI → 409 (UNIQUE пара, NFR-5)
+    status, data = api(
+        "POST", f"/api/student/instructors/{instructor_id}/reviews",
+        base=server, token=stu_token,
+        body={"rating": 4, "text": "еще одна попытка"})
+    assert status == 409 and data and data["ok"] is False, (status, data)
+
+
+def test_s4_my_requests_badges_deny_comment_retry_and_review_link(
+        page, server):
+    """TC-UI-018 (change add-s3-frontend-links): поток «подал заявку → статус
+    в моих заявках» на живом бэкенде: желтый бейдж «На рассмотрении»; после
+    отказа — красный «Отказана» с видимым комментарием инструктора;
+    «Повторить заявку» (ОВ-2) снова создает активную заявку; после принятия —
+    зеленая «Принята», авто занятий и переход на форму отзыва."""
+    instructor_token, instructor_id = _approve_instructor(
+        server, surname="Самойлов", name="Михаил", patronymic="Петрович")
+    car_id = _add_car(server, instructor_token)
+    stu_token = _student_token(server)
+    status, data = api("POST", "/api/student/requests", base=server,
+                       token=stu_token, body={"instructor_id": instructor_id})
+    assert status == 200 and data and data["ok"], (status, data)
+    _seed_session(page, "session_token", stu_token)
+
+    page.goto(f"{server}/my-requests")
+    expect(page.locator("h1")).to_have_text("Заявки инструкторам")
+    req = page.locator(".req")
+    expect(req).to_have_count(1)
+    expect(page.locator(".uname")).to_have_text("Смирнова Ольга Павловна")
+
+    # новая заявка: желтый бейдж «На рассмотрении» (#332a14)
+    badge = req.locator(".status")
+    expect(badge).to_have_text("На рассмотрении")
+    assert badge.evaluate(
+        "el => getComputedStyle(el).backgroundColor") == "rgb(51, 42, 20)"
+    assert "Автомобиль занятий" not in req.inner_text()
+
+    # фильтры (F1 review-001): «Отказанные» при единственной новой заявке —
+    # пустой результат: empty-блок виден, карточек НЕТ (раньше рендер
+    # игнорировал фильтр и показывал полный список вместе с empty)
+    page.locator(".filters button[data-f='denied']").click()
+    expect(page.locator("#noreq")).to_be_visible()
+    expect(page.locator(".req")).to_have_count(0)
+    page.locator(".filters button[data-f='all']").click()
+    expect(page.locator("#noreq")).to_be_hidden()
+    expect(page.locator(".req")).to_have_count(1)
+
+    # инструктор отказывает с комментарием → красный бейдж + комментарий виден
+    status, data = api("GET", "/api/instructor/requests", base=server,
+                       token=instructor_token)
+    request_id = data["requests"][0]["id"]
+    status, data = api(
+        "POST", f"/api/instructor/requests/{request_id}/deny",
+        base=server, token=instructor_token,
+        body={"comment": "Извините, группа на этот сезон уже набрана. Напишите в следующем наборе — буду рада!"})
+    assert status == 200 and data and data["ok"], (status, data)
+
+    page.reload()
+    req = page.locator(".req")
+    expect(req.locator(".status")).to_have_text("Отказана")
+    comment = req.locator(".comment")
+    expect(comment).to_be_visible()
+    expect(comment).to_contain_text(
+        "Извините, группа на этот сезон уже набрана")
+    expect(comment.locator("span")).to_have_text("Комментарий инструктора")
+
+    # «Повторить заявку» (ОВ-2): POST создает НОВУЮ активную заявку,
+    # старая отказанная остается в списке
+    retry = req.locator(".act.retry")
+    expect(retry).to_be_visible()
+    retry.click()
+    expect(page.locator(".req")).to_have_count(2)
+    expect(page.locator(".req .status").first).to_have_text("На рассмотрении")
+    expect(page.locator(".req .status").nth(1)).to_have_text("Отказана")
+
+    # инструктор принимает (новую) заявку с авто → зеленый бейдж, авто
+    # занятий, ссылка на отзыв
+    status, data = api("GET", "/api/instructor/requests", base=server,
+                       token=instructor_token)
+    request_id = data["requests"][0]["id"]
+    status, data = api(
+        "POST", f"/api/instructor/requests/{request_id}/accept",
+        base=server, token=instructor_token, body={"car_id": car_id})
+    assert status == 200 and data and data["ok"], (status, data)
+
+    page.reload()
+    req = page.locator(".req").first
+    badge = req.locator(".status")
+    expect(badge).to_have_text("Принята")
+    assert badge.evaluate(
+        "el => getComputedStyle(el).backgroundColor") == "rgb(20, 51, 34)"
+    expect(req.locator(".pill.car")).to_have_text("🚗 Škoda Rapid 2020 · автомат")
+
+    # фильтры (F1 review-001): «Отказанные» → только отказанная заявка,
+    # «Принятые» → только принятая, «Все» → полный список
+    page.locator(".filters button[data-f='denied']").click()
+    expect(page.locator(".req")).to_have_count(1)
+    expect(page.locator(".req .status")).to_have_text("Отказана")
+    expect(page.locator("#noreq")).to_be_hidden()
+    page.locator(".filters button[data-f='accepted']").click()
+    expect(page.locator(".req")).to_have_count(1)
+    expect(page.locator(".req .status")).to_have_text("Принята")
+    page.locator(".filters button[data-f='all']").click()
+    expect(page.locator(".req")).to_have_count(2)
+
+    # переход из «Моих заявок» у принятой заявки → форма отзыва
+    review_btn = req.locator(".act.review")
+    expect(review_btn).to_be_visible()
+    review_btn.click()
+    page.wait_for_url(f"**/review?instructor={instructor_id}")
+    expect(page.locator("#i-name")).to_have_text("Самойлов Михаил Петрович")
+
+    # бэкенд-срез: статус и авто в контракте GET /api/student/requests
+    status, data = api("GET", "/api/student/requests", base=server,
+                       token=stu_token)
+    mine = data["requests"][0]
+    assert mine["status"] == "accepted" and mine["car"]["id"] == car_id, mine
+    # комментарий отказа остался виден у старой отказанной заявки
+    assert "группа на этот сезон" in (data["requests"][1]["deny_comment"] or "")
+
+
+# ------------------------------------------------------------- design-guard
+@pytest.mark.parametrize("filename", [
+    "my-cars.html", "review-form.html", "my-requests.html"])
+def test_s4_pages_tag_balance(filename):
+    """NIT-4 review-001 (change add-s3-frontend-links): баланс тегов
+    S4-страниц — параметризованный pytest-наследник одноразового
+    scripts/check_tag_balance_s4.py: лишний/незакрытый тег роняет тест
+    при любом следующем редактировании страницы."""
+    VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input",
+            "link", "meta", "param", "source", "track", "wbr"}
+
+    class _Balance(HTMLParser):
+        def __init__(self):
+            super().__init__(convert_charrefs=True)
+            self.stack: list = []
+            self.errs: list = []
+
+        def handle_starttag(self, tag, attrs):
+            if tag not in VOID:
+                self.stack.append((tag, self.getpos()))
+
+        def handle_endtag(self, tag):
+            if tag in VOID:
+                return
+            if not self.stack or self.stack[-1][0] != tag:
+                self.errs.append(f"mismatch </{tag}> at {self.getpos()}")
+                return
+            self.stack.pop()
+
+    p = _Balance()
+    p.feed((ROOT / "frontend" / filename).read_text(encoding="utf-8"))
+    assert not p.errs and not p.stack, (p.errs, p.stack)

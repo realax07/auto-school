@@ -7,7 +7,7 @@ instructor-cars (FR-26/27/28, ОВ-3/5), instructor-availability (FR-29/30),
 student-instructor-choice (FR-31/32/35, MIN-1), reviews (FR-34, NFR-2/5),
 student-requests (FR-36/37/38/39, ОВ-1/2/4; MAJ-1/MAJ-2 итерации 2).
 
-TC-трассировка не ведется (backend-тесты, не test-model). Фикстуры —
+TC-S3BE-040/041 (Спринт 4) трассированы в docstring. Фикстуры —
 общий client из conftest (create_app() поверх чистой БД в tmp_path);
 каталог загрузок переопределяется env AUTOSCHOOL_UPLOADS_DIR в tmp_path
 (механика AUTOSCHOOL_DB_PATH). time.sleep запрещен (спека qa-pipeline).
@@ -1619,3 +1619,39 @@ def test_new_modules_no_sql_concatenation():
                     "f\"UPDATE", "f'UPDATE", "f\"DELETE", "f'DELETE",
                     "+ \"SELECT", "\"SELECT \" +", "format(SELECT"):
             assert bad not in src, (name, bad)
+
+
+# --- Спринт 4, Партия A (change add-s3-frontend-links): статика ------------
+
+
+@pytest.mark.parametrize("path,marker", [
+    ("/my-cars", "Мои автомобили"),
+    ("/review", "Оставить отзыв"),
+    ("/my-requests", "Заявки инструкторам"),
+])
+def test_s4_static_routes_new_pages(client, path, marker):
+    """TC-S3BE-040 (change add-s3-frontend-links): статические маршруты
+    модульных страниц-разделов Спринта 4 отдаются из backend/app.py —
+    /my-cars, /review, /my-requests → 200 text/html с заголовком страницы."""
+    resp = client.get(path)
+    assert resp.status_code == 200, path
+    assert "text/html" in resp.headers["content-type"], path
+    assert marker in resp.text, path
+
+
+def test_s4_pages_wired_to_real_api_shapes():
+    """TC-S3BE-041 (change add-s3-frontend-links): новые страницы ссылаются
+    на РЕАЛЬНЫЕ контракты Спринта 3 (design.md), а не на вымышленные пути:
+    /my-cars — /api/instructor/cars (+ фото); /review — POST
+    /api/student/instructors/{{id}}/reviews; /my-requests — GET/POST
+    /api/student/requests."""
+    checks = {
+        "my-cars.html": ["api/instructor/cars", "cars/'+carId+'/photo"],
+        "review-form.html": ["instructors/'+instructorId+'/reviews"],
+        "my-requests.html": ["api/student/requests",
+                             "instructor_id:r.instructor_id"],
+    }
+    for filename, needles in checks.items():
+        src = (ROOT / "frontend" / filename).read_text(encoding="utf-8")
+        for needle in needles:
+            assert needle in src, (filename, needle)

@@ -122,6 +122,7 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
     <button data-tab="Календарь"><span class="ico">▦</span>Календарь</button>
     <button data-tab="Мои ученики"><span class="ico">♧</span>Мои ученики<small class="demo-tag">демо</small></button>
     <button data-tab="Запросы учеников"><span class="ico">✉</span>Запросы учеников<small class="demo-tag" id="nav-req-badge" style="display:none">0</small></button>
+    <button data-tab="Мои автомобили"><span class="ico">▰</span>Мои автомобили</button>
     <button data-tab="Доходы и выплаты"><span class="ico">₽</span>Доходы и выплаты<small class="demo-tag">демо</small></button>
     <button data-tab="Мой автомобиль"><span class="ico">▰</span>Мой автомобиль<small class="demo-tag">демо</small></button>
     <button data-tab="Материалы и обучение"><span class="ico">◈</span>Материалы и обучение<small class="demo-tag">демо</small></button>
@@ -279,6 +280,9 @@ let weekShift=0;
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>t.classList.remove('show'),2600)}
 function navTo(name){
   if(name==='__logout__'){logout();return}
+  // Спринт 4, Партия A (change add-s3-frontend-links): «Мои автомобили» —
+  // отдельная модульная страница /my-cars (не раздел этого дашборда)
+  if(name==='Мои автомобили'){location.href='/my-cars';return}
   // Спринт 3: реальные разделы «Календарь» и «Запросы учеников»
   var isCal=(name==='Календарь'),isReq=(name==='Запросы учеников');
   document.querySelectorAll('.day-content').forEach(function(el){el.style.display=(isCal||isReq)?'none':''});

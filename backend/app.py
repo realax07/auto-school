@@ -46,6 +46,12 @@ _PAGE_ROUTES = {
     # Спринт 3 (change add-instructor-student-loop):
     # выбор инструктора учеником
     "/instructor-choice": "instructor-choice.html",
+    # Спринт 4, Партия A (change add-s3-frontend-links): модульные
+    # страницы-разделы кабинетов (связываются навигацией, не раздувая
+    # instructor-dashboard.html/cabinet.html)
+    "/my-cars": "my-cars.html",
+    "/review": "review-form.html",
+    "/my-requests": "my-requests.html",
 }
 
 
