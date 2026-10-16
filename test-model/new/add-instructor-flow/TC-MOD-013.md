@@ -27,3 +27,9 @@
 
 ## Тестовые данные
 Заявка — набор test_auth_route.py::_apply: instr@example.com / Instr1234 (work_format sber). Админ: admin / admin-pass-2026.
+
+## Трассировка
+
+### Requirement: Одобрение заявки создает пользователя
+#### Scenario: Вход одобренного инструктора с паролем из анкеты
+

@@ -27,3 +27,9 @@
 
 ## Тестовые данные
 Базовый валидный набор (TC-APP-005); email: instructor@example.com (waiting), dup@example.com (deny, комментарий «Не подтверждена квалификация»), app@example.com (approved).
+
+## Трассировка
+
+### Requirement: Сохранение заявки со статусом waiting
+#### Scenario: Отклонение анкеты с email существующей заявки
+

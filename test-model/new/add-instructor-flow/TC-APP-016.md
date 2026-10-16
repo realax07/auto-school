@@ -28,3 +28,9 @@
 
 ## Тестовые данные
 Анкета — базовый валидный набор (TC-APP-005) с подменой email. Пользователи: petrova@example.com / Qwerty123 (регистрация 7 полей, TC-AUTH-001); taken@example.com (прямой INSERT, password_hash 'x'*60).
+
+## Трассировка
+
+### Requirement: Сохранение заявки со статусом waiting
+#### Scenario: Отклонение анкеты с email существующего пользователя
+

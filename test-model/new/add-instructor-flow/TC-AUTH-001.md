@@ -28,3 +28,12 @@
 
 ## Тестовые данные
 Анкета (набор test_auth_route.py::_apply): instr@example.com / Instr1234, work_format sber. Админ: admin / admin-pass-2026.
+
+## Трассировка
+
+### Requirement: Вход инструктора через общий механизм авторизации
+#### Scenario: Вход одобренного инструктора
+
+### Requirement: Роутинг после входа по статусу
+#### Scenario: Пользователь найден — заглушка кабинета
+

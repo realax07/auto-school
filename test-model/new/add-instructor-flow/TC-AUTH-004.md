@@ -27,3 +27,9 @@
 
 ## Тестовые данные
 Анкета: instr@example.com / Instr1234 (набор test_auth_route.py::_apply).
+
+## Трассировка
+
+### Requirement: Роутинг после входа по статусу
+#### Scenario: Заявка waiting — экран ожидания
+
