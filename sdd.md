@@ -727,3 +727,47 @@ SQLite data/app.db (WAL) — users (§4 + role §16): схема НЕ меняе
 полностью; известные ручные хвосты — QA-отчет §3 (визуальный рендер
 календаря, граница 5 МБ, инспекция карт-вызовов, эксплуатационные
 проверки стенда).
+
+---
+
+# SDD (дополнение): Трассировка (Спринт 4, Партия A)
+
+> Источники: design.md пакета openspec/changes/add-instructor-student-loop/
+> (сущности Спринта 3 — instructor_cars, reviews, student_requests — и их
+> UI-связки; Блок 6, строка GET /api/student/requests с пометкой
+> «дополнено Спринтом 4, согласовано») и согласованные Заказчиком мокапы
+> design/mocks/{my-cars,my-requests,review-form}.html (задача 4.1,
+> 2026-10-16; отклонения F2–F4/NIT-1 закрыты design-guard-строками в
+> шапках страниц, итерация 2). Change: add-s3-frontend-links
+> (ветка feature/s4-links). Пограничное решение по instructor_id —
+> openspec/changes/add-instructor-student-loop/arch-review-s4.md,
+> вердикт «ДОПУСТИТЬ» (2026-10-16). Колонка тестов: TC-UI-015…018 —
+> tests/test_ui_playwright.py (docstring, плановая, живой сервер);
+> TC-S3BE-040/041 — tests/test_s3_backend.py (docstring, правило 6).
+
+## 28. Трассировка (Спринт 4, Партия A)
+
+| Требование / сценарий | Реализация (файл / эндпоинт / функция) | Тесты |
+|---|---|---|
+| Сценарий «Мои автомобили» (сущность instructor_cars, UI-связка): список/добавление/PATCH/удаление авто с подтверждением — мокап design/mocks/my-cars.html | frontend/my-cars.html (CRUD-карточки против GET/POST/PATCH/DELETE /api/instructor/cars Спринта 3) + маршрут /my-cars → my-cars.html (backend/app.py _PAGE_ROUTES) + пункт навигации «Мои автомобили» в frontend/instructor-dashboard.html → /my-cars | tests/test_ui_playwright.py::test_s4_my_cars_add_edit_delete_car (TC-UI-015); tests/test_s3_backend.py::test_s4_static_routes_new_pages[/my-cars] (TC-S3BE-040), ::test_s4_pages_wired_to_real_api_shapes (TC-S3BE-041) |
+| Сценарий «Фото автомобиля» (instructor_cars.photo): загрузка multipart с прогрессом, превью на карточке, выдача только по сессии владельца | frontend/my-cars.html (POST /api/instructor/cars/{id}/photo) + backend/instructor_cars.py upload_car_photo/get_car_photo (Спринт 3) | tests/test_ui_playwright.py::test_s4_my_cars_photo_upload_progress_and_preview (TC-UI-016) |
+| Сценарий «Оставить отзыв» (сущность reviews, UI-связка): контекст инструктора, сабмит, повтор 409-блок — мокап design/mocks/review-form.html | frontend/review-form.html (POST /api/student/instructors/{id}/reviews Спринта 3) + маршрут /review → review-form.html (backend/app.py _PAGE_ROUTES) + связка frontend/my-requests.html → /review?instructor=<id> по instructor_id | tests/test_ui_playwright.py::test_s4_review_submit_then_repeat_blocked_409 (TC-UI-017); tests/test_s3_backend.py::test_s4_pages_wired_to_real_api_shapes (TC-S3BE-041) |
+| Сценарий «Мои заявки» (сущность student_requests, UI-связка): бейджи статусов, deny_comment, «Повторить заявку» (ОВ-2), переход к отзыву — мокап design/mocks/my-requests.html | frontend/my-requests.html (GET/POST /api/student/requests Спринта 3) + маршрут /my-requests → my-requests.html (backend/app.py _PAGE_ROUTES) + переход из frontend/cabinet.html (плитка «Мои заявки» → /my-requests) | tests/test_ui_playwright.py::test_s4_my_requests_badges_deny_comment_retry_and_review_link (TC-UI-018); tests/test_s3_backend.py::test_s4_static_routes_new_pages[/my-requests] (TC-S3BE-040) |
+| Пограничное дополнение контракта: instructor_id в ответе GET /api/student/requests (design.md, Блок 6 — пометка «дополнено Спринтом 4, согласовано»; arch-review-s4.md — ДОПУСТИТЬ: свои заявки ≠ раскрытие чужих данных, instructor_id нужен клиенту для «Повторить заявку» ОВ-2) | backend/student_requests.py my_requests (+4 строки: `"instructor_id": row["instructor_id"]` в элементе ответа; параметризованный SELECT, выборка только СВОИХ заявок по сессии) + frontend/my-requests.html (использование instructor_id для /review?instructor= и повтора) | tests/test_ui_playwright.py::test_s4_my_requests_badges_deny_comment_retry_and_review_link (TC-UI-018); tests/test_s3_backend.py::test_s4_pages_wired_to_real_api_shapes (TC-S3BE-041 — проверка «instructor_id:r.instructor_id» в my-requests.html) |
+| Статические маршруты страниц-разделов отдаются бэкендом с маркерами заголовков | backend/app.py _PAGE_ROUTES: /my-cars → my-cars.html, /review → review-form.html, /my-requests → my-requests.html | tests/test_s3_backend.py::test_s4_static_routes_new_pages (TC-S3BE-040, параметризованный); ::test_s4_pages_tag_balance (sanity-баланс тегов 3 страниц, без TC-ID) |
+
+Примечания:
+
+1. Полное покрытие связки «страница ↔ реальный контракт» (без вымышленных
+   путей) закреплено TC-S3BE-041: my-cars.html → api/instructor/cars (+фото),
+   review-form.html → instructors/{id}/reviews, my-requests.html →
+   api/student/requests + instructor_id.
+2. Диапазон TC-UI-012…014 из task-постановки относится к итерации BUG-046
+   change add-instructor-student-loop (Спринт 3: модалка действий админ-карточки
+   и design-guard, tests/test_ui_playwright.py::test_admin_row_click… /
+   TC-UI-013, TC-UI-014) — в Партию A Спринта 4 не входит; трассировка
+   Партии A — TC-UI-015…018 и TC-S3BE-040/041 (сверено с приемкой:
+   test-model/reviews/add-s3-frontend-links/review-acceptance.md).
+3. Полнота: все артефакты Партии A (3 страницы + 3 маршрута + 3 навигационные
+   связки + 1 пограничное дополнение контракта) имеют строки трассировки
+   выше; ни одна строка не ссылается на отсутствующие файлы/тесты.

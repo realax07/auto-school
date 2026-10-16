@@ -7,7 +7,7 @@ instructor-cars (FR-26/27/28, ОВ-3/5), instructor-availability (FR-29/30),
 student-instructor-choice (FR-31/32/35, MIN-1), reviews (FR-34, NFR-2/5),
 student-requests (FR-36/37/38/39, ОВ-1/2/4; MAJ-1/MAJ-2 итерации 2).
 
-TC-трассировка не ведется (backend-тесты, не test-model). Фикстуры —
+TC-S3BE-040/041 (Спринт 4) трассированы в docstring. Фикстуры —
 общий client из conftest (create_app() поверх чистой БД в tmp_path);
 каталог загрузок переопределяется env AUTOSCHOOL_UPLOADS_DIR в tmp_path
 (механика AUTOSCHOOL_DB_PATH). time.sleep запрещен (спека qa-pipeline).
