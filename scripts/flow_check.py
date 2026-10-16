@@ -15,6 +15,17 @@ from pathlib import Path
 CHANGE_ID = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)+$")  # kebab-case, >= 2 слов
 TC_REF = re.compile(r"TC-[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*-\d{3}")
 
+# --- Единая грамматика BUG-id (MIN-3 ревью BUG-AF-RECHECK) ---
+# Имя репорта test-model/bugs/<id>.md И scope Флоу 2 в enforcer — ОДНА
+# регекс-строка. BUG- с опциональными сегментами-словами (A-Z0-9,
+# дефис-разделитель) и финальным NNN; опциональный суффикс-slug после NNN —
+# lowercase-слова/цифры/точка/дефис (исторические репорты проектов:
+# BUG-001-search-card-click.md, BUG-002-fast-explicit-null-priority-201.md).
+# enforcer (plugins/flow-enforcer/enforcer.py) импортирует эту строку
+# (fallback-копия там же синхронизируется тестом test_recheck2_fixes.py).
+BUG_ID_PATTERN = r"^BUG-(?:[A-Z0-9]+-)*\d{3}(?:-[a-z0-9][a-z0-9.-]*)?$"
+BUG_NAME_RE = re.compile(BUG_ID_PATTERN)
+
 # --- J10: обязательный code-review закрытых dev-задач ---
 # Формат review-файла: agents/code_reviewer_agent.md —
 #   код-reviews/<change-id>/review-<задача>-<NNN>.md, строка «## Вердикт: approve|return».
@@ -23,7 +34,7 @@ REVIEW_FILE_RE = re.compile(r"^review-(\d{3})-(.+?)-(\d{3})\.md$", re.I)  # rev-
 REVIEW_FILE_REV_FIRST = re.compile(r"^review-(\d{3})-(.+)\.md$", re.I)
 REVIEW_FILE_TASK_FIRST = re.compile(r"^review-(.+?)-(\d{3})\.md$", re.I)
 VERDICT_LINE_RE = re.compile(r"^#{1,4}\s*Вердикт\s*:?\s*(.+)$", re.I | re.M)
-VERDICT_APPROVE_RE = re.compile(r"\b(approve|approved|одобрен\w*)\b", re.I)
+VERDICT_APPROVE_RE = re.compile(r"\b(approve|approved|одобрен\w*|одобрить)\b", re.I)
 # SELF_REVIEW-защита (решение Заказчика 2026-10-03): review-файл обязан нести
 # Reviewer-Delegation: deleg_<id> — платформенный id делегации ревьюера
 # (реестр async_delegations устойчив к пересозданию main-сессий: id
@@ -31,6 +42,17 @@ VERDICT_APPROVE_RE = re.compile(r"\b(approve|approved|одобрен\w*)\b", re.
 REVIEWER_META_RE = re.compile(r"Reviewer-Delegation[^A-Za-z0-9]{0,6}(deleg[-_][A-Za-z0-9]+)", re.I)
 VERDICT_RETURN_RE = re.compile(r"\b(return|доработк\w*)\b", re.I)
 QA_SECTION = "6"  # раздел 6.x — QA-цикл, не dev (J10)
+
+# --- J46: карта архитектуры — обязательный артефакт (решение Заказчика
+# 2026-10-12: «ты еще забыл про map. Она же основной была») ---
+# Строка-вердикт по карте в architecture-ревью: «Карта: обновлена» (когда
+# architecture/** менялся в пакете) ИЛИ «Карта: без изменений» (с
+# обоснованием). Регистр точный — машиночитаемый контракт, не проза.
+MAP_VERDICT_RE = re.compile(
+    r"^\s*\*{0,2}\s*Карта:\s*(обновлена|без изменений)\s*\*{0,2}\s*$", re.M)
+# Продуктовые дельты архивного пакета: эвристика по текстам пакета (те же
+# зоны, что в воротах dev_task — flow_transition.PRODUCT_DELTA_PREFIXES).
+ARCHIVED_PRODUCT_PATH_RE = re.compile(r"\b(backend|services|frontend|design)/")
 
 
 def archived_delta_problems(repo: Path) -> dict[str, list[str]]:
@@ -80,13 +102,17 @@ def closed_dev_tasks(tasks_text: str) -> list[str]:
     Исключены также ops/docs-задачи (маркер `[ops]`/`[docs]` после чекбокса):
     боевая приемка Заказчика / верификация фактов вместо code-review
     (контракт flow_control: ops_task/docs_task, J10 не применяется).
+    `[design]`-задачи (design_task/ui_designer, решение
+    2026-10-05-design-task-flow1) тоже исключены: артефакт — мокап в design/,
+    приемка — утверждение Заказчиком (не review-файл); дизайн-фаза опциональна
+    — в пакетах без UI-дельты задачи [design] может не быть вовсе.
     """
     out = []
     for m in re.finditer(r"^[-*]\s*\[x\]\s*(\d+(?:\.\d+)*)(?:\s+\[[SP]\])?(\s+\[([a-z]+)\])?", tasks_text, re.M):
         num = m.group(1)
         if num.split(".")[0] == QA_SECTION:
             continue
-        if m.group(3) in ("ops", "docs"):
+        if m.group(3) in ("ops", "docs", "design"):
             continue
         out.append(num)
     return out
@@ -105,12 +131,32 @@ def parse_verdict(text: str) -> str | None:
     return None
 
 
-def approved_review_tasks(repo: Path, change_id: str) -> dict[str, str]:
-    """task-id → имя последнего review-файла с вердиктом approve (code-reviews/<change-id>/)."""
-    covered: dict[str, tuple[int, str]] = {}
+def approved_review_tasks(repo: Path, change_id: str,
+                          warns: list[str] | None = None) -> dict[str, str]:
+    """task-id → имя review-файла АКТУАЛЬНОЙ итерации с вердиктом approve
+    (code-reviews/<change-id>/; BUG-AF-RECHECK-003).
+
+    Действует вердикт ПОСЛЕДНЕЙ итерации задачи (max rev среди ВСЕХ
+    review-файлов задачи — имена и review-mapping.json): approve→return —
+    не покрыто; return→approve — покрыто; approve→return→approve — покрыто
+    последней. Файлы одной итерации (одинаковый rev, напр. копии-привязки
+    review-<task>-NNN.md к review-NNN.md) согласованы: вердикты должны
+    совпадать, мета Reviewer-Delegation достаточна хотя бы у одного файла
+    итерации. Нечитаемый или противоречивый вердикт последней итерации —
+    задача НЕ покрыта + сообщение в warns (если передан), не молчаливая
+    подмена старым approve.
+    """
+
+    def _warn(msg: str) -> None:
+        if warns is not None:
+            warns.append(msg)
+
     cr_dir = repo / "code-reviews" / change_id
     if not cr_dir.is_dir():
         return {}
+    # Все файлы-кандидаты: (rev, имя файла, задачи) — из имен (два формата)
+    # и исторической карты review-mapping.json.
+    entries: list[tuple[int, str, list[str]]] = []
     for rf in cr_dir.glob("review-*.md"):
         m = REVIEW_FILE_REV_FIRST.match(rf.name)
         if m:
@@ -124,16 +170,7 @@ def approved_review_tasks(repo: Path, change_id: str) -> dict[str, str]:
         # или нести суффикс (review-001-1.1-auth-me.md) — задачи = все числовые
         # идентификаторы вида N[.N...] в task-части имени
         nums = re.findall(r"\d+(?:\.\d+)*", task)
-        tasks = nums if nums else [task]
-        text = rf.read_text(encoding="utf-8", errors="replace")
-        verdict = parse_verdict(text)
-        meta = REVIEWER_META_RE.search(text)
-        if verdict == "approve" and meta:
-            for task_id in tasks:
-                if task_id not in covered or rev > covered[task_id][0]:
-                    covered[task_id] = (rev, rf.name)
-    # Исторические ревью с нестандартными именами (Флоу 4, карта покрытия
-    # review-mapping.json: файл → список task-id). Мета обязательна и здесь.
+        entries.append((rev, rf.name, nums if nums else [task]))
     mapping_file = cr_dir / "review-mapping.json"
     if mapping_file.is_file():
         try:
@@ -141,19 +178,98 @@ def approved_review_tasks(repo: Path, change_id: str) -> dict[str, str]:
         except json.JSONDecodeError:
             mapping = {}
         for fname, task_ids in mapping.items():
-            if fname.startswith("_"):
+            if fname.startswith("_") or not isinstance(task_ids, list):
                 continue
-            rf = cr_dir / fname
-            if not rf.is_file():
+            if not (cr_dir / fname).is_file():
                 continue
-            verdict = parse_verdict(rf.read_text(encoding="utf-8", errors="replace"))
-            meta = REVIEWER_META_RE.search(rf.read_text(encoding="utf-8", errors="replace"))
-            if verdict == "approve" and meta:
-                rev = int(fname.split("-")[1]) if fname.split("-")[1].isdigit() else 0
-                for task_id in task_ids:
-                    if task_id not in covered or rev > covered[task_id][0]:
-                        covered[task_id] = (rev, fname)
-    return {task: name for task, (_, name) in covered.items()}
+            parts = fname.split("-")
+            # «review-002.md» → rev 002 (суффикс .md отсекается); без номера — 0
+            num = parts[1].split(".")[0] if len(parts) > 1 else ""
+            rev = int(num) if num.isdigit() else 0
+            entries.append((rev, fname, [str(t) for t in task_ids]))
+
+    # Актуальная итерация каждой задачи: max rev; файлы одной итерации
+    # (одинаковый rev) собираются вместе — вердикт решает итерация целиком.
+    # Мета Reviewer-Delegation — свойство СОБЫТИЯ ревью (rev): копии-привязки
+    # review-<task>-NNN.md ссылаются на источник review-NNN.md, где мета.
+    latest: dict[str, tuple[int, dict[str, tuple[str | None, bool]]]] = {}
+    meta_by_rev: dict[int, bool] = {}
+    for rev, fname, tasks in entries:
+        text = (cr_dir / fname).read_text(encoding="utf-8", errors="replace")
+        verdict = parse_verdict(text)
+        meta = bool(REVIEWER_META_RE.search(text))
+        meta_by_rev[rev] = meta_by_rev.get(rev, False) or meta
+        for task_id in tasks:
+            cur = latest.get(task_id)
+            if cur is None or rev > cur[0]:
+                latest[task_id] = (rev, {fname: (verdict, meta)})
+            elif rev == cur[0]:
+                cur[1].setdefault(fname, (verdict, meta))
+
+    covered: dict[str, str] = {}
+    for task_id, (rev, files) in sorted(latest.items()):
+        names = ", ".join(sorted(files))
+        verdicts = {v for v, _ in files.values() if v is not None}
+        if not verdicts:
+            _warn(
+                f"{change_id}: задача {task_id}: вердикт последней итерации "
+                f"(rev {rev:03d}: {names}) не читается — задача НЕ покрыта "
+                f"(BUG-AF-RECHECK-003: не подменяем старым approve)")
+            continue
+        if len(verdicts) > 1:
+            _warn(
+                f"{change_id}: задача {task_id}: противоречивые вердикты "
+                f"последней итерации (rev {rev:03d}: {names}) — задача НЕ "
+                f"покрыта, нужно решение ревьюера")
+            continue
+        if "return" in verdicts:
+            continue  # легитимный возврат: покрытия нет до нового approve
+        # Все вердикты итерации — approve: у СОБЫТИЯ ревью (rev) есть
+        # Reviewer-Delegation хотя бы в одном файле (копии-привязки ссылаются
+        # на источник, мета живет в первичном review-файле события).
+        if not meta_by_rev.get(rev, False):
+            _warn(
+                f"{change_id}: задача {task_id}: approve последней итерации "
+                f"(rev {rev:03d}: {names}) без Reviewer-Delegation — задача "
+                f"НЕ покрыта (защита SELF_REVIEW, J10)")
+            continue
+        covered[task_id] = next(
+            (fname for fname, (_, meta) in sorted(files.items()) if meta),
+            sorted(files)[0])
+    return covered
+
+
+def archived_package_has_product_deltas(d: Path) -> bool:
+    """Архивный пакет касается продуктового кода (J46): его тексты
+    (proposal/design/tasks/sdd) упоминают пути backend/|services/|frontend/|design/.
+    Детерминированная эвристика: у архива нет diff'а — зоны берутся из
+    описания пакета; тот же набор зон, что в воротах dev_task."""
+    for name in ("proposal.md", "design.md", "tasks.md", "sdd.md"):
+        f = d / name
+        if f.is_file() and ARCHIVED_PRODUCT_PATH_RE.search(
+                f.read_text(encoding="utf-8", errors="replace")):
+            return True
+    return False
+
+
+def map_verdict_ok(repo: Path, change_id: str) -> tuple[bool, str]:
+    """(ok, что_не_так) — вердикт по карте в architecture-ревью архива (J46).
+
+    Файл ищется в test-model/reviews/<change>/review-NNN-architecture.md;
+    если architecture-ревью нет вовсе — проверка неприменима (ретро-пакеты
+    до J46, миграцию строк делает ПМ) → (True, ""). Если файлы есть, хотя
+    бы один обязан нести «Карта: обновлена» или «Карта: без изменений».
+    """
+    rev_dir = repo / "test-model" / "reviews" / change_id
+    files = sorted(rev_dir.glob("review-*-architecture.md")) \
+        if rev_dir.is_dir() else []
+    if not files:
+        return True, ""
+    for rf in files:
+        if MAP_VERDICT_RE.search(rf.read_text(encoding="utf-8",
+                                              errors="replace")):
+            return True, ""
+    return False, ", ".join(rf.name for rf in files)
 
 
 def errs(*msg):
@@ -172,6 +288,17 @@ def check(repo: Path) -> int:
     errors = 0
     openspec = repo / "openspec"
     tm = repo / "test-model"
+
+    # --- J46 (а): карта архитектуры — обязательный артефакт проекта ---
+    # Проект с продуктовым кодом (backend/ или services/) обязан нести
+    # architecture/map.md — основной артефакт роли архитектора; отсутствие
+    # = FLOW-ERROR (решение Заказчика 2026-10-12).
+    if (repo / "backend").is_dir() or (repo / "services").is_dir():
+        if not (repo / "architecture" / "map.md").is_file():
+            errors += errs(
+                "карта архитектуры отсутствует (J46): нет architecture/map.md — "
+                "основной артефакт роли architect обязателен для проекта с "
+                "backend/ или services/")
 
     # --- factory-init: рассинхрон промптов с эталоном фабрики (если фабрика на машине) ---
     project_agents = repo / "agents"
@@ -273,6 +400,22 @@ def check(repo: Path) -> int:
                     + "; ".join(delta_problems[:5])
                 )
 
+    # --- J46 (б): архивный пакет с продуктовыми дельтами обязан нести
+    # вердикт по карте в architecture-ревью («Карта: обновлена» /
+    # «Карта: без изменений»; строку пишет архитектор при ревью пакета).
+    # Ревью нет вовсе — проверка неприменима (ретро-пакеты до J46; миграцию
+    # строк «Карта:» в существующие ревью делает ПМ отдельно).
+    for d in archived_changes:
+        if not archived_package_has_product_deltas(d):
+            continue
+        ok, files = map_verdict_ok(repo, d.name)
+        if not ok:
+            errors += errs(
+                f"openspec/changes/archive/{d.name}: в architecture-ревью нет "
+                f"вердикта по карте (J46): {files} — нужна строка "
+                f"«Карта: обновлена» или «Карта: без изменений» "
+                f"(контракт 7-дополнение, J46)")
+
     if ch_dir.is_dir():
         for d in sorted(p for p in ch_dir.iterdir() if p.is_dir()):
             if d.name == "archive":
@@ -305,7 +448,12 @@ def check(repo: Path) -> int:
             if tasks_file.is_file():
                 closed = closed_dev_tasks(tasks_file.read_text(encoding="utf-8", errors="replace"))
                 if closed:
-                    covered = approved_review_tasks(repo, d.name)
+                    review_warns: list[str] = []
+                    covered = approved_review_tasks(repo, d.name, review_warns)
+                    # BUG-AF-RECHECK-003: нечитаемая/противоречивая последняя
+                    # итерация — не молчаливая подмена старым approve, а WARNING.
+                    for w in review_warns:
+                        warns(f"code-reviews/: {w}")
                     if not covered:
                         errors += errs(
                             f"openspec/changes/{d.name}: {len(closed)} закрытых dev-задач без "
@@ -342,39 +490,38 @@ def check(repo: Path) -> int:
             if n_req and n_scn == 0:
                 errors += errs(f"{sf.relative_to(repo)}: {n_req} Requirement без Scenario")
 
-    # --- Этап QA: чеклист требует спеку/дельты (контракт 3/4) ---
-    checklists = list((tm / "checklists").glob("*.md")) if (tm / "checklists").is_dir() else []
-    has_spec_source = bool(active_changes) or (
-        specs_dir.is_dir() and any(specs_dir.rglob("spec.md"))
-    )
-    for cl in checklists:
-        if not has_spec_source:
-            errors += errs(f"{cl.relative_to(repo)}: чеклист без спеки (контракт 3)")
-            continue
-        text = cl.read_text(encoding="utf-8")
-        rows = [ln for ln in text.splitlines() if re.match(r"^\|\s*CHK-", ln)]
-        if not rows:
-            errors += errs(f"{cl.relative_to(repo)}: нет строк чеклиста CHK-*")
-        bad_src = [ln for ln in rows if not re.search(r"FR-\d+|NFR-\d+|Requirement", ln)]
-        if bad_src:
-            errors += errs(
-                f"{cl.relative_to(repo)}: {len(bad_src)} CHK-строк без источника FR/NFR (rule 6)"
-            )
-        if "Дефекты спеки" not in text:
-            errors += errs(f"{cl.relative_to(repo)}: нет раздела «Дефекты спеки»")
+    # --- remove-qa-checklist: контракт 3 (валидация чеклистов) удален ---
+    # Этап qa_checklist упразднен: новые чеклисты не требуются и не
+    # проверяются; существующие в test-model/checklists/ — append-only
+    # история (не удаляются, но и не валидируются).
 
-    # --- Кейсы new/: требуют чеклист (контракт 4), CHK-ссылки и формат H1 ---
+    # --- Кейсы new/: формат H1 + трассировка к спеке (контракт 4) ---
     # H1: 1 кейс = 1 файл, имя файла = ID кейса (допускается суффикс -update).
     # Заголовки кейсов: # TC-... или ## TC-... (оба уровня приняты практикой).
+    # remove-qa-checklist: чеклист больше не предшественник кейсов — кейс
+    # обязан трассироваться к спеке (### Requirement:/#### Scenario:),
+    # «кейсы без чеклиста» больше не нарушение.
     TC_HEAD = re.compile(r"^#{1,3}\s+(TC-[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*-\d{3})", re.M)
+    TRACE_RE = re.compile(r"(?:Requirement|Scenario):\s*([^\n|]+)", re.I)
     new_dir = tm / "new"
     case_files = list(new_dir.rglob("*.md")) if new_dir.is_dir() else []
-    cl_ids = {cl.stem for cl in checklists}
+    # Корпус заголовков спеки: master-spec + дельты активных пакетов.
+    trace_titles: set[str] = set()
+    if specs_dir.is_dir():
+        for sf in specs_dir.rglob("spec.md"):
+            text = sf.read_text(encoding="utf-8", errors="replace")
+            trace_titles.update(
+                t.strip() for t in re.findall(r"^### Requirement:\s*(.+)$", text, re.M))
+            trace_titles.update(
+                t.strip() for t in re.findall(r"^#### Scenario:\s*(.+)$", text, re.M))
+    for d in active_changes:
+        for sf in d.rglob("spec.md"):
+            text = sf.read_text(encoding="utf-8", errors="replace")
+            trace_titles.update(
+                t.strip() for t in re.findall(r"^### Requirement:\s*(.+)$", text, re.M))
+            trace_titles.update(
+                t.strip() for t in re.findall(r"^#### Scenario:\s*(.+)$", text, re.M))
     for cf in case_files:
-        if cf.parent.name not in cl_ids:
-            errors += errs(
-                f"{cf.relative_to(repo)}: кейсы без чеклиста test-model/checklists/{cf.parent.name}.md (контракт 4)"
-            )
         text = cf.read_text(encoding="utf-8")
         tcs = TC_HEAD.findall(text)
         if not tcs:
@@ -388,9 +535,14 @@ def check(repo: Path) -> int:
             errors += errs(
                 f"{cf.relative_to(repo)}: имя файла не совпадает с ID кейса {tcs[0]} (H1)"
             )
-        orphan = [tc for tc in tcs if f"[{tc}]" not in text and "CHK-" not in text]
-        if orphan:
-            errors += errs(f"{cf.relative_to(repo)}: кейсы без CHK-трассировки (rule 6)")
+        # Трассировка TC → Requirement/Scenario спеки (контракт 4): кейс без
+        # ссылки на заголовок спеки — дефект трассировки (rule 6).
+        refs = [t.strip() for t in TRACE_RE.findall(text)]
+        if not refs or not any(r in trace_titles for r in refs):
+            errors += errs(
+                f"{cf.relative_to(repo)}: кейс без трассировки к спеке "
+                f"(### Requirement:/#### Scenario:) — дефект (контракт 4)"
+            )
 
     # --- approved/: требуют review с вердиктом «одобрить» (контракт 5/6) ---
     rev_dir = tm / "reviews"
@@ -476,8 +628,10 @@ def check(repo: Path) -> int:
                 f = pkg / name
                 if f.is_file():
                     cover_texts.append(f.read_text(encoding="utf-8", errors="replace"))
+        # remove-qa-checklist: чеклисты — append-only история (в т.ч. archive/),
+        # corpus читает их рекурсивно, покрытие маршрутов не осиротает.
         if (tm / "checklists").is_dir():
-            for cf in (tm / "checklists").glob("*.md"):
+            for cf in sorted((tm / "checklists").rglob("*.md")):
                 cover_texts.append(cf.read_text(encoding="utf-8", errors="replace"))
         corpus = "\n".join(cover_texts)
         allowlist = {"/health", "/api/health", "/login", "/logout"}
@@ -491,10 +645,17 @@ def check(repo: Path) -> int:
                 )
 
     # --- bugs/: append-only структура ---
+    # Имя репорта: BUG-NNN, BUG-<КОМПЛЕКС>-NNN (BUG-AF-RECHECK-001 — комплект
+    # внешнего ревью) или с суффиксом-slug после NNN (исторические репорты
+    # проектов: BUG-001-search-card-click.md). Грамматика ЕДИНАЯ с scope Флоу 2
+    # в enforcer (MIN-3 ревью BUG-AF-RECHECK): константа BUG_ID_PATTERN ниже.
     bugs = tm / "bugs"
     if bugs.is_dir():
-        for bf in sorted(bugs.glob("*.md")):
-            if not re.match(r"^BUG-\d{3}", bf.stem):
+        BUG_NAME_RE = re.compile(BUG_ID_PATTERN)
+        # Правило имен — только для репортов BUG-*.md; PLAN.md (план Флоу 2)
+        # и служебные файлы каталога не репорты.
+        for bf in sorted(bugs.glob("BUG-*.md")):
+            if not BUG_NAME_RE.match(bf.stem):
                 errors += errs(f"{bf.relative_to(repo)}: баг-репорт не BUG-NNN")
 
     if errors == 0:
