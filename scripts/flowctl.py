@@ -68,7 +68,8 @@ Usage:
         [--pm-require-review] [--pr-id ID] [--log-dir D] [--report-dir D]
         [--registry PATH] [--state PATH] [--audit PATH] [--json]
     flowctl.py status [--correlation-id ID] [--registry PATH] [--state PATH]
-        [--json]
+    flowctl.py phase --repo PATH --project ID --flow N --scope S
+        [--registry PATH] [--state PATH]
     flowctl.py reconcile [--repo PATH] [--delegation-id ID]
         [--registry PATH] [--state PATH] [--audit PATH] [--json]
 
@@ -98,6 +99,14 @@ import session_check as sc  # noqa: E402
 OUTPUT_SCHEMA = "flowctl-output/1"
 STATE_SCHEMA = "flowctl-state/1"
 ADAPTER = "manual"
+
+# J43.1: память фазы (flowctl phase).
+PHASE_SCHEMA = "flowctl-phase/1"
+# «Завершенный этап» для памяти фазы/последовательности: вердикт вынесен
+# (accepted — этап принят; returned — этап завершен возвратом на доработку,
+# сам факт этапа состоялся). prepared/running — этап еще не завершен;
+# blocked — завершения не было.
+PHASE_COMPLETED_STATUSES = ("accepted", "returned")
 
 # ------------------------------------------- P0.3: политика зон записи ролей
 # Источник политики — ROLE_ZONE_POLICY (role_zone_policy.py) из таблицы
@@ -843,16 +852,43 @@ def cmd_finish(args) -> int:
         }, args.as_json)
         return {"accepted": 0, "returned": 1}[record["status"]]
     if record["status"] != "running":
-        # Timeout/crash/reconcile не продвигают на следующий шаг.
-        _emit({
-            "schema_version": OUTPUT_SCHEMA, "command": "finish",
-            "correlation_id": args.correlation_id, "verdict": "blocked",
-            "record": record,
-            "note": f"статус {record['status']!r}: приемка невозможна — "
-                    "разбор (status/reconcile) и явное решение ПМ; сессия и "
-                    "worktree сохранены",
-        }, args.as_json)
-        return 2
+        # Повторная приемка blocked-сессии — только по явному решению ПМ
+        # (--pm-resume): сценарий «blocked по конфигурационной ошибке
+        # запускающего» (например, первый finish без --pm-mode — gate ERROR
+        # «режим не задан», сам агент и его отчет без дефектов). Агентский
+        # вердикт не выносился, прогон воротов не был по существу — повтор
+        # finish с корректной конфигурацией честен. FAIL/zone-дефекты агент
+        # не обходит: --pm-resume не принимается, если в записи есть
+        # дефекты по существу (FAIL gates, ZONE_*).
+        resume_requested = bool(getattr(args, "pm_resume", False))
+        prev_defects = record.get("defects") or []
+        config_only = bool(prev_defects) and all(
+            d.get("code") in ("ERROR", "SKIPPED") and d.get("source") == "gate"
+            for d in prev_defects)
+        if record["status"] == "blocked" and resume_requested and config_only:
+            def _mutate_resume(st: dict) -> None:
+                r = st["runs"][args.correlation_id]
+                r["status"] = "running"
+                r.setdefault("lifecycle", {}).setdefault("history", []).append({
+                    "at": gr.utcnow_iso(),
+                    "from": "blocked", "to": "running",
+                    "reason": "ПМ: --pm-resume — предыдущий blocked был "
+                              "конфигурационной ошибкой запускающего (gate "
+                              "ERROR без дефектов по существу); повтор finish",
+                })
+            state_write_locked(state_path, state, _mutate_resume)
+        else:
+            # Timeout/crash/reconcile не продвигают на следующий шаг.
+            _emit({
+                "schema_version": OUTPUT_SCHEMA, "command": "finish",
+                "correlation_id": args.correlation_id, "verdict": "blocked",
+                "record": record,
+                "note": f"статус {record['status']!r}: приемка невозможна — "
+                        "разбор (status/reconcile) и явное решение ПМ "
+                        "(--pm-resume — только для blocked по gate ERROR без "
+                        "дефектов по существу); сессия и worktree сохранены",
+            }, args.as_json)
+            return 2
 
     report_path = Path(args.report) if args.report else None
     if report_path is None or not report_path.is_file():
@@ -1108,6 +1144,60 @@ def cmd_finish(args) -> int:
 # ------------------------------------------------------------------ status
 
 
+# ----------------------------------------------------------------- phase
+# J43.1: память фазы. Читает flowctl_state.json и возвращает последний run
+# заданного scope — {action, actor_role, finished_status, timestamp} — или
+# {phase: 'none'}. Дополнительно completed_actions — действия scope,
+# завершенные (accepted/returned): их использует опциональная проверка
+# последовательности энфорсера (FLOW_ENFORCER_SEQUENCE=1).
+
+
+def cmd_phase(args) -> int:
+    state_path = Path(args.state) if args.state else default_state_path(
+        args.registry)
+    state = state_load(state_path)
+    try:
+        repo_resolved = str(Path(args.repo).resolve(strict=True))
+    except OSError:
+        repo_resolved = str(args.repo)
+    best = None
+    best_ts = ""
+    completed: list[str] = []
+    for rec in state.get("runs", {}).values():
+        if not isinstance(rec, dict):
+            continue
+        sc = rec.get("scope") or {}
+        if sc.get("change") != args.scope or sc.get("flow") != args.flow:
+            continue
+        if args.project and sc.get("project") != args.project:
+            continue
+        rec_repo = sc.get("repo")
+        if rec_repo and str(Path(rec_repo)) != repo_resolved:
+            continue
+        ts = rec.get("finished_at") or rec.get("created_at") or ""
+        if best is None or ts > best_ts:
+            best, best_ts = rec, ts
+        if rec.get("status") in PHASE_COMPLETED_STATUSES:
+            completed.append(rec.get("action") or "")
+    payload = {
+        "schema_version": PHASE_SCHEMA, "command": "phase",
+        "repo": repo_resolved, "project": args.project,
+        "flow": args.flow, "scope": args.scope,
+    }
+    if best is None:
+        payload["phase"] = "none"
+    else:
+        payload["phase"] = {
+            "action": best.get("action"),
+            "actor_role": best.get("actor_role"),
+            "finished_status": best.get("status"),
+            "timestamp": best_ts,
+        }
+        payload["completed_actions"] = sorted({a for a in completed if a})
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    return 0
+
+
 def cmd_status(args) -> int:
     state_path = Path(args.state) if args.state else default_state_path(
         args.registry)
@@ -1280,6 +1370,10 @@ def main(argv: list[str] | None = None) -> int:
     p_fin.add_argument("--pm-commits", default=None)
     p_fin.add_argument("--pm-range", default=None)
     p_fin.add_argument("--pm-registry", default=None)
+    p_fin.add_argument("--pm-resume", action="store_true", default=False,
+                       help="явное решение ПМ: повтор finish blocked-сессии "
+                            "(только blocked по gate ERROR без дефектов "
+                            "по существу — конфигурационная ошибка запускающего)")
     p_fin.add_argument("--pm-require-review", action="store_true")
     p_fin.add_argument("--pr-id", default=None)
     p_fin.add_argument("--log-dir", default=None)
@@ -1296,6 +1390,19 @@ def main(argv: list[str] | None = None) -> int:
     p_st.add_argument("--state", default=None)
     p_st.add_argument("--json", action="store_true", dest="as_json")
     p_st.set_defaults(func=cmd_status)
+
+    # J43.1: память фазы — последний run scope из flowctl_state.json.
+    p_ph = sub.add_parser(
+        "phase", help="последний завершенный этап scope (память фазы)")
+    p_ph.add_argument("--repo", required=True)
+    p_ph.add_argument("--project", required=True)
+    p_ph.add_argument("--flow", required=True, type=int,
+                      choices=flow_state.FLOW_IDS)
+    p_ph.add_argument("--scope", required=True,
+                      help="идентификатор scope (change/BUG-NNN/slug)")
+    p_ph.add_argument("--registry", default=None)
+    p_ph.add_argument("--state", default=None)
+    p_ph.set_defaults(func=cmd_phase)
 
     p_rec = sub.add_parser("reconcile", help="сверка после сбоя (без удаления)")
     p_rec.add_argument("--repo", default=None)

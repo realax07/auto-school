@@ -55,27 +55,30 @@ ROLE_ZONE_POLICY: dict[str, tuple[str, ...]] = {
     ),
     "dev": (
         "openspec/changes/*/tasks.md",
+        # проектная адаптация (wiki, из ekotov-wiki@8cdd0af/462e017 — эталон
+        # синхронизирован оттуда, директива двусторонней синхронизации
+        # 2026-10-03): реальная структура монорепо + инфра-зона
+        "backend/**",
+        "frontend/**",
+        "e2e/**",
+        "services/**",
+        "scripts/**",
+        "contracts/**",
+        # решение Заказчика 2026-10-04 (диалог, дословно: «Расширить зону
+        # dev на deploy/**»): инфра-задачи микросервисного релиза (deploy.sh
+        # v3 и последующие) исполняет роль dev — devops не входит в dev_task
+        # графа Флоу 1 (WRONG_ROLE), а devops-зона не покрывает код задачи.
+        "deploy/**",
         "src/**",
         "tests/**",
         "test-model/bugs/*",
         "feature/*",
-        # Решение ПМ 2026-10-08 (полномочие Заказчика «Реши как лучше»):
-        # проектная структура спека спринта-0 — backend/ + frontend/ вместо
-        # эталонного src/**; scaffold-файлы в корне. Эталон (~/ai-factory)
-        # не тронут; рассинхрон — осознанный, ловится flow_check WARNING.
-        "backend/**",
-        "frontend/**",
-        "requirements.txt",
-        ".env.example",
-        ".gitignore",
-        "data/**",
     ),
     "code_reviewer": (
         "code-reviews/*/review-*.md",
     ),
-    "qa_checklist": (
-        "test-model/checklists/**",
-    ),
+    # remove-qa-checklist: зона роли qa_checklist удалена (роль упразднена);
+    # test-model/checklists/ — append-only история, новых чеклистов не пишут.
     "qa_author": (
         "test-model/new/*/**",
     ),

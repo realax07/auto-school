@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import posixpath
 import re
 import subprocess
 import sys
@@ -70,11 +71,27 @@ STALE_EVIDENCE = "STALE_EVIDENCE"
 AMBIGUOUS_STATE = "AMBIGUOUS_STATE"
 STALE_SNAPSHOT = "STALE_SNAPSHOT"
 EXTERNAL_ENFORCEMENT_UNKNOWN = "EXTERNAL_ENFORCEMENT_UNKNOWN"
+# J41 (план релиза — обязательный артефакт ворот): план релиза не найден /
+# в плане не объявлен воркфлоу. Отдельные стабильные коды — Заказчик требует
+# различать «артефакта нет» и «артефакт неполон» (контракт §9: код — машина-
+# читаемая причина, DENY перечисляет все).
+PLAN_RELEASE_MISSING = "PLAN_RELEASE_MISSING"
+PLAN_FLOW_UNDECLARED = "PLAN_FLOW_UNDECLARED"
+# J46 (архитектор — актор ревью, вердикт-ворота): dev_task продуктового пакета
+# без architecture-ревью с вердиктом — DENY (ворота не дают devs стартовать,
+# пока архитектор не вынес вердикт; урок P15 — новый домен без арх-ревью).
+ARCH_REVIEW_MISSING = "ARCH_REVIEW_MISSING"
 REASON_CODES = (
     MISSING_INPUT, INVALID_GATE, HUMAN_APPROVAL_REQUIRED, WRONG_ROLE,
     ZONE_CONFLICT, STALE_EVIDENCE, AMBIGUOUS_STATE, STALE_SNAPSHOT,
-    EXTERNAL_ENFORCEMENT_UNKNOWN,
+    EXTERNAL_ENFORCEMENT_UNKNOWN, PLAN_RELEASE_MISSING, PLAN_FLOW_UNDECLARED,
+    ARCH_REVIEW_MISSING,
 )
+
+# J46: продуктовые дельты пакета — пути в этих зонах (те же зоны, что и в
+# политике зон dev/architect; docs-only и бэклог-пакеты продуктовых дельт
+# не имеют и architecture-ревью не требуют).
+PRODUCT_DELTA_PREFIXES = ("backend/", "services/", "frontend/", "design/")
 
 # Политика перехода к merge/release (пересмотр плана P0.1, п.3; вопрос ПМ —
 # дефолт true): действие, требующее внешний факт (branch protection),
@@ -282,6 +299,202 @@ def _requirements_approved(snapshot: dict, ctx: dict) -> list:
     return out
 
 
+# J41 (план релиза — обязательный артефакт ворот; урок P15 add-wiki: релиз
+# стартовал БЕЗ PLAN-файла — план существовал только в tasks.md СА и в
+# переписке ПМ, «по сути» план был, «по форме» артефакта не было, и ворота
+# не могли его требовать). Решение Заказчика 2026-10-11: «перед релизом план
+# набрасываем, СА лишь детализацию» — план релиза пишет ПМ ДО запуска СА,
+# ворота его обязаны требовать машиночитаемо. Легальные расположения артефакта
+# (оба, как у J41 backlog): корень репо и каталог change-пакета.
+PLAN_RELEASE_FILENAME = "PLAN-{change}.md"
+PLAN_FLOW_RE = re.compile(
+    r"^\s*\*{0,2}\s*Флоу:\s*([1-5])\s*\*{0,2}[^\n]*$", re.M)
+
+
+def plan_release_paths(repo: Path, change_id: str, flow: int = 1) -> list[Path]:
+    """Кандидаты-пути плана релиза (J41 + J43.1: легкий план Флоу 2/4).
+
+    Флоу 1 (change-пакет): корень репо и каталог change-пакета — оба
+    расположения легальны, порядок не важен.
+    Флоу 2 (J43.1, матрица Заказчика 2026-10-12: план обязателен, легкий):
+    PLAN-BUG-NNN.md в корне репо ИЛИ общий test-model/bugs/PLAN.md (один
+    на все баги допустим — содержит строку «Флоу: 2» и покрывает).
+    Флоу 4 (легкий): PLAN-<slug>.md в корне репо.
+    Флоу 3/5: план не требуем (решение Заказчика: incident_ref уже есть /
+    экспресс-режим) — путь не вызывается воротами этих флоу.
+    """
+    if flow == 2:
+        return [
+            Path(repo) / f"PLAN-{change_id}.md",
+            Path(repo) / "test-model" / "bugs" / "PLAN.md",
+        ]
+    if flow == 4:
+        return [Path(repo) / f"PLAN-{change_id}.md"]
+    rel = f"openspec/changes/{change_id}"
+    return [
+        Path(repo) / f"PLAN-{change_id}.md",
+        Path(repo) / rel / "PLAN.md",
+    ]
+
+
+def _plan_release(snapshot: dict, ctx: dict) -> list:
+    """План релиза существует и объявляет воркфлоу (J41; J43.1 для Флоу 2/4).
+
+    В духе _requirements_approved: change-идентификатор берется из scope
+    снимка (тот же, что использует change.package); файл ищется в легальных
+    расположениях СВОЕГО флоу (plan_release_paths): Флоу 1 — корень репо /
+    каталог change-пакета; Флоу 2 — PLAN-BUG-NNN.md в корне или общий
+    test-model/bugs/PLAN.md; Флоу 4 — PLAN-<slug>.md в корне (матрица
+    Заказчика 2026-10-12: Флоу 1/2/4 — план обязателен, 2/4 легкий; Флоу 3/5 —
+    план не требуем, ворота этих флоу _plan_release не вызывают). Отсутствие
+    файла — DENY PLAN_RELEASE_MISSING (урок P15: без артефакта ворота
+    бессильны); файл без объявления воркфлоу (строка вида «Флоу: N», N 1–5,
+    допускается жирное выделение) — DENY PLAN_FLOW_UNDECLARED: воркфлоу
+    фиксирует, по какой схеме ПМ поведет релиз, без него план — не план.
+    Файл есть и воркфлоу объявлен — находок нет (ALLOW не «рисуем», просто
+    не добавляем причин).
+    """
+    scope = snapshot.get("scope", {})
+    change_id = scope.get("change")
+    repo = scope.get("repo")
+    flow = scope.get("flow", 1)
+    ctx["checked"].add("plan.release")
+    # Как _requirements_approved: нет входа — MISSING_INPUT (честный отказ),
+    # не молчаливое разрешение.
+    if not repo or not change_id:
+        return [Finding(
+            MISSING_INPUT,
+            "план релиза не проверяем: scope без repo/change — пересобери "
+            "inspect (J41; контракт §2)")]
+    paths = plan_release_paths(Path(repo), str(change_id), flow)
+    for path in paths:
+        if not path.is_file():
+            continue
+        ctx["evidence"].add(str(path))
+        text = path.read_text(encoding="utf-8", errors="replace")
+        if not PLAN_FLOW_RE.search(text):
+            return [Finding(
+                PLAN_FLOW_UNDECLARED,
+                f"план релиза {path.name} не объявляет воркфлоу — нужна строка "
+                f"«Флоу: N» (N 1–5, допускается **жирное**) (J41; правило "
+                f"фабрики: план фиксирует, по какой схеме релиз ведется)")]
+        return []
+    return [Finding(
+        PLAN_RELEASE_MISSING,
+        f"план релиза не найден (Флоу {flow}): ни одного из: "
+        f"{', '.join(str(p) for p in paths)} (J41/J43.1; правило фабрики: "
+        f"релиз стартует с плана ПМ, СА лишь детализирует; легкий план "
+        f"Флоу 2/4: цель, строка «Флоу: N», зоны записи, критерий приемки)")]
+
+
+def _canon_rel_path(p: str) -> str:
+    """Канонизация относительного пути (MAJ-2 ревью BUG-AF-RECHECK): срез
+    ведущих '/' и './', схлопывание сегментов (a/./b/, a/x/../b → b).
+    Оставшийся '..' — путь мимо канона (энфорсер такие --path отвергает
+    раньше); здесь он просто не матчится с зонами (fail-closed)."""
+    q = p.replace("\\", "/")
+    while q.startswith("./"):
+        q = q[2:]
+    q = q.lstrip("/")
+    q = posixpath.normpath(q)
+    return "" if q == "." else q
+
+
+def product_paths(action: "ActionRequest") -> list[str]:
+    """Пути запроса в продуктовых зонах (J46): backend/services/frontend/design.
+
+    Путь канонизируется (_canon_rel_path) и матчится по префиксу зоны
+    (backend/app/x.py) или совпадает с ней самой (backend) — тот же стиль,
+    что protected-пути check_chore_task. 'backendx/evil' с зоной 'backend'
+    НЕ матчится; 'backend/' и 'backend/./x' матчится после нормализации
+    (MAJ-2 ревью BUG-AF-RECHECK).
+    """
+    out: list[str] = []
+    for p in (action.paths or ()):
+        c = _canon_rel_path(p)
+        if c and any(c == pe.rstrip("/") or c.startswith(pe)
+                     for pe in PRODUCT_DELTA_PREFIXES):
+            out.append(p)
+    return out
+
+
+ARCH_REVIEW_FILE_RE = re.compile(r"^review-(\d{3})-architecture\.md$", re.I)
+
+
+def architecture_review_verdict(repo: Path, change_id: str) -> tuple[bool, list[str]]:
+    """(есть_верdict_approve, файлы) по test-model/reviews/<change>/ (J46).
+
+    Вердикт парсится как для code_review (flow_check.parse_verdict, формат
+    «## Вердикт: …»). Действует вердикт ПОСЛЕДНЕЙ итерации —
+    review-NNN-architecture с максимальным NNN (BUG-AF-RECHECK-003): поздний
+    return отменяет ранее approve; approve→return→approve — последняя.
+    return вердиктом не считается. Неоднозначность — файлы вне канонической
+    схемы review-NNN-architecture.md (номер итерации неопределим) или
+    несколько файлов с одинаковым максимальным NNN → (False, files) —
+    решает человек, молчаливой подмены старым approve нет.
+    """
+    rev_dir = Path(repo) / "test-model" / "reviews" / change_id
+    if not rev_dir.is_dir():
+        return False, []
+    files = sorted(rev_dir.glob("review-*-architecture.md"))
+    if not files:
+        return False, []
+    parsed = []
+    for rf in files:
+        m = ARCH_REVIEW_FILE_RE.match(rf.name)
+        if m is None:
+            # Неопределимый номер итерации — неоднозначность (не молчаливое
+            # «файла нет»): разрешение не рискуем
+            return False, [str(f) for f in files]
+        parsed.append((int(m.group(1)), rf))
+    max_rev = max(rev for rev, _ in parsed)
+    latest = [rf for rev, rf in parsed if rev == max_rev]
+    str_files = [str(f) for f in files]
+    if len(latest) > 1:
+        return False, str_files  # неоднозначность: одинаковый максимальный NNN
+    text = latest[0].read_text(encoding="utf-8", errors="replace")
+    return flow_check.parse_verdict(text) == "approve", str_files
+
+
+def _arch_review_gate(snapshot: dict, action: "ActionRequest", ctx: dict) -> list:
+    """Вердикт-ворота архитектора (J46): dev_task пакета с продуктовыми
+    дельтами требует test-model/reviews/<change>/review-NNN-architecture.md
+    с вердиктом approve. Пакеты без продуктовых дельт (docs-only, бэклог)
+    ворота не проходят. Отсутствие scope-входов — честный MISSING_INPUT
+    (контракт §2), не молчаливое разрешение.
+    """
+    if not product_paths(action):
+        return []
+    ctx["checked"].add("arch.review")
+    scope = snapshot.get("scope", {})
+    repo = scope.get("repo")
+    change_id = scope.get("change")
+    if not repo or not change_id:
+        return [Finding(
+            MISSING_INPUT,
+            "architecture-ревью не проверяемо: scope без repo/change — "
+            "пересобери inspect (J46; контракт §2)")]
+    ok, files = architecture_review_verdict(Path(repo), str(change_id))
+    if ok:
+        return []
+    if files:
+        return [Finding(
+            ARCH_REVIEW_MISSING,
+            f"architecture-ревью без вердикта approve актуальной итерации "
+            f"(J46; BUG-AF-RECHECK-003: вердикт review-NNN с максимальным "
+            f"номером решает, поздний return отменяет старый approve): "
+            f"{', '.join(Path(f).name for f in files)} — нужен "
+            f"«## Вердикт: approve» (формат agents/architect_agent.md); "
+            f"этап architecture_review — роль архитектора")]
+    return [Finding(
+        ARCH_REVIEW_MISSING,
+        f"architecture-ревью отсутствует: нет "
+        f"test-model/reviews/{change_id}/review-NNN-architecture.md — "
+        f"пакет с продуктовыми дельтами ({', '.join(product_paths(action))}) "
+        f"не стартует dev-задачи без вердикта архитектора (J46; "
+        f"этап architecture_review — роль architect)")]
+
+
 def _arch_review_done(snapshot: dict, ctx: dict) -> list:
     """Этап architecture review: change-пакет + sdd.md + дельты (контракт 2)."""
     out: list = []
@@ -383,10 +596,15 @@ def _deps_findings(action: ActionRequest, ctx: dict) -> list:
                 f"задачи с зависимостями — строго последовательно; "
                 f"evidence: openspec/changes/<id>/tasks.md)"))
         elif not ev.get("review_approved"):
+            # MIN-4 ревью BUG-AF-RECHECK: причина «не покрыта» из warns
+            # парсера (нечитаемый/противоречивый вердикт, SELF_REVIEW) —
+            # в диагностике отказа, не молчаливый факт.
+            warn = ev.get("review_warning")
             out.append(Finding(
                 INVALID_GATE,
                 f"зависимость {d} закрыта без code-review approve (J10; "
-                f"evidence: code-reviews/<change-id>/review-*.md)"))
+                f"evidence: code-reviews/<change-id>/review-*.md)"
+                + (f"; диагностика: {warn}" if warn else "")))
     return out
 
 
@@ -674,7 +892,13 @@ def check_approve_requirements(snapshot, action, ctx, flow):
 
 
 def check_create_change(snapshot, action, ctx, flow):
-    return list(_requirements_approved(snapshot, ctx))
+    # J41: create_change — старт change-пакета; ворота требуют план релиза
+    # (PLAN-<change>.md / openspec/changes/<id>/PLAN.md с объявленным
+    # воркфлоу) вместе с утвержденными requirements — иначе план появился бы
+    # только «когда удобно» (урок P15: план жил в переписке, не артефактом).
+    out = list(_requirements_approved(snapshot, ctx))
+    out.extend(_plan_release(snapshot, ctx))
+    return out
 
 
 def check_needs_arch(snapshot, action, ctx, flow):
@@ -690,6 +914,14 @@ def check_dev_task(snapshot, action, ctx, flow):
     # (review-001 R4: dev_task при draft requirements молчаливо ALLOW).
     out = list(_requirements_approved(snapshot, ctx))
     out.extend(_arch_review_done(snapshot, ctx))
+    # J41 (транзитивная защита): dev не стартует без плана релиза даже при
+    # проскоченном СА-этапе — план обязан существовать на КАЖДОМ этапе работы
+    # change-пакета, а не «всплывать» к релизу (урок P15 add-wiki).
+    out.extend(_plan_release(snapshot, ctx))
+    # J46 (вердикт-ворота архитектора): продуктовый пакет не стартует dev
+    # без architecture-ревью с вердиктом approve (транзитивно с этапа
+    # architecture_review — тот же транзитивный принцип, что у плана J41).
+    out.extend(_arch_review_gate(snapshot, action, ctx))
     out.extend(_require_task(snapshot, action, ctx))
     out.extend(_deps_findings(action, ctx))
     if action.task_parallel:
@@ -711,6 +943,25 @@ def check_dev_task(snapshot, action, ctx, flow):
                 "маркера отсутствует в снимке (координация с поставкой 02) → "
                 "UNKNOWN честнее доверия флагу (контракт §2, §9; design D3)",
                 True))
+    return out
+
+
+def check_design_task(snapshot, action, ctx, flow):
+    """design_task (ui_designer, Флоу 1) — решение 2026-10-05-design-task-flow1.
+
+    Тот же транзитивный порядок предшественников, что dev_task (requirements
+    approved + arch review + задача существует); параллель-блока нет —
+    [design]-мокапы не воюют за стенд. J10 не применяется (мокап не код,
+    приемка — утверждение Заказчиком; реш. 2026-10-05-design-task-flow1 п.4).
+    """
+    out = list(_requirements_approved(snapshot, ctx))
+    out.extend(_arch_review_done(snapshot, ctx))
+    out.extend(_require_task(snapshot, action, ctx))
+    out.extend(_deps_findings(action, ctx))
+    ctx.setdefault("checked", {}).update({
+        "zones.admit_session": True,
+        "task.parallel_marker": True,
+    })
     return out
 
 
@@ -1098,7 +1349,15 @@ def _test_model_sub(snapshot, ctx, sub, deny_detail):
     return out
 
 
-def check_qa_checklist(snapshot, action, ctx, flow):
+# remove-qa-checklist: этап qa_checklist упразднен — check_qa_checklist и
+# его Stage удалены (PLAN-remove-qa-checklist.md; матрица Заказчика 2026-10-12).
+
+
+def check_qa_cases(snapshot, action, ctx, flow):
+    """Вход этапа qa_cases — от merge_task/design_validation, без чеклиста
+    (remove-qa-checklist): кейсы пишутся по спеке НАПРЯМУЮ, трассировка
+    TC → ### Requirement:/#### Scenario:. Источник требований обязан
+    существовать: дельты change или существующие спеки (контракт 4)."""
     out: list = []
     deltas, d_status, out0 = _fact_ready(snapshot, "change.spec_deltas", ctx)
     out.extend(out0)
@@ -1111,16 +1370,10 @@ def check_qa_checklist(snapshot, action, ctx, flow):
     )
     if not has_source and not (out0 or out1):
         out.append(Finding(INVALID_GATE,
-                           "чеклист требует спеку/дельты — источника нет "
-                           "(контракт 3/4; evidence: openspec/specs/, "
+                           "кейсы требуют спеку/дельту — источника нет "
+                           "(контракт 4; evidence: openspec/specs/, "
                            "openspec/changes/<id>/specs/)"))
     return out
-
-
-def check_qa_cases(snapshot, action, ctx, flow):
-    return list(_test_model_sub(
-        snapshot, ctx, "checklists",
-        "кейсы требуют чеклист — test-model/checklists/ пуст (контракт 4)"))
 
 
 def check_qa_review(snapshot, action, ctx, flow):
@@ -1177,6 +1430,18 @@ def check_qa_automation(snapshot, action, ctx, flow):
                 "(решение Заказчика 3.1-А; контракт 6; evidence: "
                 "test-model/approved/<change-id>/)"))
     return out
+
+
+def check_design_validation(snapshot, action, ctx, flow):
+    """Решение Заказчика 2026-10-07-design-validation-flow1: design_validation
+    (design_validator, Флоу 1, этап QA) — сверка реализованного UI с
+    утвержденными мокапами дизайн-фазы. Требует задачу tasks.md (как
+    code_review flow=1); содержательная сверка с мокапами — работа агента
+    (agents/design_validator_agent.md), ядро проверяет только скоуп.
+    Артефакт — review-файл вердикта в зоне роли
+    (test-model/reviews/*/review-*-design.md).
+    """
+    return list(_require_task(snapshot, action, ctx))
 
 
 def check_archive_change(snapshot, action, ctx, flow):
@@ -1285,13 +1550,35 @@ def check_release(snapshot, action, ctx, flow):
 
 def check_bug_fix(snapshot, action, ctx, flow):
     out: list = []
+    # J43.1 (матрица Заказчика 2026-10-12): Флоу 2 — план релиза ОБЯЗАТЕЛЕН
+    # (легкий: PLAN-BUG-NNN.md в корне или общий test-model/bugs/PLAN.md).
+    # Транзитивно с первого этапа: фикс не стартует без плана (урок P15).
+    out.extend(_plan_release(snapshot, ctx))
+    scope = snapshot.get("scope", {})
+    bug_id = str(scope.get("change") or "")
+    repo = scope.get("repo")
     value, status, out0 = _fact_ready(snapshot, "test_model.present", ctx)
     out.extend(out0)
     if status == "ready" and isinstance(value, dict) and not value.get("bugs"):
         out.append(Finding(
             MISSING_INPUT,
-            f"баг-репорт test-model/bugs/{snapshot.get('scope', {}).get('change', '')}.md "
+            f"баг-репорт test-model/bugs/{bug_id}.md "
             f"отсутствует — Флоу 2 требует BUG-NNN репорт (ТЗ 03 п.3)"))
+    elif (status == "ready" and repo and bug_id and not any(
+            p.get("code") == "FLOW_ID_INVALID"
+            for p in snapshot.get("problems", []))
+            and not (Path(repo) / "test-model" / "bugs" /
+                     f"{bug_id}.md").is_file()):
+        # J43.1: легальный общий план test-model/bugs/PLAN.md делает каталог
+        # bugs/ непустым (факт test_model.present грубый: dir non-empty) —
+        # требуем репорт ИМЕННО этого BUG-NNN. При невалидном scope-id
+        # (FLOW_ID_INVALID) точная проверка не применяется — scope и так
+        # дает AMBIGUOUS_STATE/UNKNOWN.
+        out.append(Finding(
+            MISSING_INPUT,
+            f"баг-репорт test-model/bugs/{bug_id}.md "
+            f"отсутствует — Флоу 2 требует BUG-NNN репорт (ТЗ 03 п.3; "
+            f"план каталога не считается репортом)"))
     specs_value, specs_status, out1 = _fact_ready(snapshot, "specs.present", ctx)
     out.extend(out1)
     if specs_status != "ready" or (
@@ -1338,6 +1625,9 @@ def check_deploy_rollback(snapshot, action, ctx, flow):
 
 def check_chore_task(snapshot, action, ctx, flow):
     out: list = []
+    # J43.1 (матрица Заказчика 2026-10-12): Флоу 4 — план релиза ОБЯЗАТЕЛЕН
+    # (легкий: PLAN-<slug>.md в корне репо; та же «Флоу: N»-строка).
+    out.extend(_plan_release(snapshot, ctx))
     ctx["checked"].add("protected paths (J3)")
     protected = [
         p for p in action.paths
@@ -1417,10 +1707,16 @@ STAGE_TABLE: dict[int, tuple[Stage, ...]] = {
               ("flow_check C1/E3",), check_approve_requirements),
         Stage("create_change", ("sa",), True,
               ("openspec validate --strict",), check_create_change),
-        Stage("architecture_review", ("pm",), False,
+        # J46 (решение Заказчика 2026-10-12: «Давай. Но ты еще забыл про map»):
+        # architecture_review — этап роли architect, не pm (легаси; реальных
+        # вызовов архитектора — 1 за историю). Зона роли в политике уже есть
+        # (architecture/** + test-model/reviews/*/review-*-architecture.md).
+        Stage("architecture_review", ("architect",), False,
               ("flow_check (контракт 2)",), check_needs_arch),
         Stage("dev_task", ("dev",), False,
               ("flow_check", "pm_bounds_check (J9/J10)"), check_dev_task),
+        Stage("design_task", ("ui_designer",), False,
+              ("flow_check", "pm_bounds_check (J9/J10)"), check_design_task),
         Stage("code_review", ("code_reviewer",), False,
               ("review-файл с вердиктом (agents/code_reviewer_agent.md)",),
               check_code_review),
@@ -1429,12 +1725,10 @@ STAGE_TABLE: dict[int, tuple[Stage, ...]] = {
         Stage("merge_task", ("dev_lead", "integrator"), False,
               ("pm_bounds_check --require-review", "pr_validate",
                "branch protection (внеш.)"), check_merge_task),
-        Stage("qa_checklist", ("qa_checklist",), False,
-              ("flow_check (контракт 3)",), check_qa_checklist),
-        # Решение Заказчика 3.1 (S5, 2026-10-02): роли практики из
-        # agents/README.md добавлены в граф — раньше имена qa_case_author /
-        # qa (как в сценарии shadow-R6) давали MISSING_INPUT, хотя
-        # agents/README.md определяет их как легальные роли конвейера.
+        # Решение Заказчика 3.1 (S5): роли практики qa_author/qa_case_author —
+        # легальные роли конвейера (agents/README.md). remove-qa-checklist:
+        # этап qa_checklist удален из Флоу 1, qa_cases принимает вход напрямую
+        # от merge_task/design_validation (PLAN-remove-qa-checklist.md).
         Stage("qa_cases", ("qa_author", "qa_case_author"), False,
               ("flow_check (контракт 4)",), check_qa_cases),
         Stage("qa_review", ("qa_case_reviewer",), False,
@@ -1444,6 +1738,16 @@ STAGE_TABLE: dict[int, tuple[Stage, ...]] = {
               check_qa_impact_analysis),
         Stage("qa_automation", ("qa_automation",), False,
               ("flow_check (контракт 6)",), check_qa_automation),
+        # Решение Заказчика 2026-10-07-design-validation-flow1: design_validator
+        # (сверка реализованного UI с утвержденными мокапами, этап QA) получил
+        # ПАРУ действие+роль в графе Флоу 1. До этого зона роли была в политике
+        # (test-model/reviews/*/review-*-design.md), но действия не было —
+        # enforcing DENY все подстановки (code_review→code_reviewer,
+        # qa_automation→qa_automation, qa_review→INVALID_GATE), и проход шел
+        # обходом (R7: в составе qa-задачи ролью dev).
+        Stage("design_validation", ("design_validator",), False,
+              ("flow_check (контракт 5: review-файл вердикта)",),
+              check_design_validation),
         # Решение Заказчика 3.3 (S7, 2026-10-02): sa добавлен как легальная роль
         # архивации — контракт 7: автор спек сливает дельты (практика Р6: sa
         # заархивировал f925a57). dev_lead/integrator остаются допустимыми.
@@ -1454,6 +1758,13 @@ STAGE_TABLE: dict[int, tuple[Stage, ...]] = {
     2: (
         Stage("bug_fix", ("dev",), False,
               ("pr_validate [BUG-NNN]",), check_bug_fix),
+        # Решение Заказчика 2026-10-07-code-review-flow2: независимое ревью
+        # багфикса — до этого «написать ревью» во Флоу 2 было нечем
+        # (accept_review требует уже существующий approve — замкнутый круг),
+        # инцидент BUG-010: фикс влит без независимого ревью.
+        Stage("code_review", ("code_reviewer",), False,
+              ("review-файл с вердиктом (agents/code_reviewer_agent.md)",),
+              check_code_review),
         Stage("accept_review", ("code_reviewer",), False,
               ("provenance-блок (поставка 05)",), check_accept_review),
         Stage("merge_task", ("dev_lead", "integrator"), False,
@@ -1743,13 +2054,26 @@ def _task_lines(tasks_text: str) -> dict[str, dict]:
 
 def _dep_evidence(repo: Path, change_id: str, deps: tuple) -> dict:
     """Evidence по зависимостям: чекбокс (flow_check.closed_dev_tasks) + approve
-    (flow_check.approved_review_tasks) — J10-логика, без дублирования парсеров."""
+    (flow_check.approved_review_tasks) — J10-логика, без дублирования парсеров.
+
+    MIN-4 ревью BUG-AF-RECHECK: warns парсера вердиктов пробрасываются в
+    evidence каждой зависимости (review_warning) — ворота выводят их в
+    диагностику отказа, вместо молчаливого «не покрыта».
+    """
     tasks_file = repo / "openspec" / "changes" / change_id / "tasks.md"
     text = ""
     if tasks_file.is_file():
         text = tasks_file.read_text(encoding="utf-8", errors="replace")
     closed = set(flow_check.closed_dev_tasks(text))
-    approved = flow_check.approved_review_tasks(repo, change_id)
+    review_warns: list[str] = []
+    approved = flow_check.approved_review_tasks(repo, change_id, review_warns)
+
+    def _dep_warn(d: str) -> str | None:
+        for w in review_warns:
+            if f"задача {d}:" in w:
+                return w
+        return None
+
     ev = {}
     for d in deps:
         ev[d] = {
@@ -1757,6 +2081,7 @@ def _dep_evidence(repo: Path, change_id: str, deps: tuple) -> dict:
             "review_approved": any(
                 d in re.findall(r"\d+(?:\.\d+)*", name) for name in approved
             ),
+            "review_warning": _dep_warn(d),
         }
     return ev
 
