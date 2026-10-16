@@ -1,7 +1,8 @@
 <!doctype html>
 <!-- «Оставить отзыв» — кабинет ученика. Спринт 4, Партия A, задача 2
      (change add-s3-frontend-links). Вёрстка 1в1 по согласованному мокапу
-     design/mocks/review-form.html; единственные отличия — wiring:
+     design/mocks/review-form.html; отличия — wiring и задокументированные
+     отклонения (design-guard: снятый элемент = строка в шапке):
      - контекст инструктора — GET /api/student/instructors/{id}
        (?instructor=<id> в URL; без id → редирект на /my-requests);
      - отправка — POST /api/student/instructors/{id}/reviews {rating, text}:
@@ -9,6 +10,12 @@
        rating/text → 422; повторный отзыв (UNIQUE пара) → 409 → состояние
        «уже оставлен» (демо-переключатель мокапа снят — состояние выбирается
        данными сервера);
+     - отклонение от мокапа: в done-состоянии сняты done-stars, done-text
+       и дата «Отправлен 12.10.2026…» — свой отзыв из API не возвращается,
+       после reload отрисовать его неоткуда (подтверждение — заголовок и
+       note; текст/оценку видит сам отправитель только до ухода со страницы);
+     - отклонение от мокапа: ссылка «Вернуться к моим заявкам» (в мокапе
+       «Вернуться к инструктору») — страница открывается из «Моих заявок»;
      - 401/403 сессии → редирект на главную, к модалке входа.
      Пользовательские строки — только через textContent (stored XSS запрещен). -->
 <html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#071015"><title>СберАвтошкола — Кабинет ученика · Отзыв об инструкторе</title>
@@ -67,10 +74,6 @@ textarea:focus{outline:none;border-color:#35d87966}
 .done-card h2{font-size:16px;font-weight:600;letter-spacing:-.02em;margin:0 0 6px;display:flex;align-items:center;gap:9px}
 .done-card .ok{width:26px;height:26px;flex:none;border-radius:50%;border:2px solid #2c8651;color:#7fe3a3;display:grid;place-items:center;font-size:13px}
 .done-note{font-size:12px;color:#8fa0aa;line-height:1.6}
-.done-stars{display:flex;gap:5px;margin:16px 0 10px}
-.done-stars i{font-style:normal;font-size:18px;color:#ffd479}
-.done-stars i.off{color:#3a4a52}
-.done-text{border:1px solid #ffffff12;border-radius:13px;background:#ffffff04;padding:14px 16px;font-size:13px;color:#c9d6db;line-height:1.6}
 .done-date{font-size:11px;color:#637681;margin-top:10px}
 footer{margin-top:32px;padding-top:18px;border-top:1px solid #ffffff10;display:flex;justify-content:space-between;gap:14px;font-size:11px;color:#5f717b;flex-wrap:wrap}
 .toast{position:fixed;bottom:22px;right:22px;max-width:360px;background:#143323;border:1px solid #367b50;color:#b5f8cc;padding:13px 16px;border-radius:13px;font-size:12px;box-shadow:0 10px 40px #0008;display:none;z-index:20}
@@ -198,7 +201,13 @@ api('/api/student/instructors/'+instructorId,{},function(res){
 var rating=0;
 var LABELS={0:'Выберите оценку от 1 до 5',1:'1 — плохо',2:'2 — так себе',3:'3 — нормально',4:'4 — хорошо',5:'5 — отлично!'};
 var stars=document.querySelectorAll('.star');
-function paint(n){stars.forEach(function(s){s.classList.toggle('on',+s.dataset.v<=n)});document.getElementById('stars-lab').innerHTML=n?('Оценка: <b>'+LABELS[n]+'</b>'):LABELS[0]}
+function paint(n){
+  stars.forEach(function(s){s.classList.toggle('on',+s.dataset.v<=n)});
+  var lab=document.getElementById('stars-lab');lab.textContent='';
+  if(n){lab.appendChild(document.createTextNode('Оценка: '));
+    lab.appendChild(el('b',null,LABELS[n]));}
+  else{lab.textContent=LABELS[0]}
+}
 stars.forEach(function(s){
   s.addEventListener('mouseenter',function(){paint(+s.dataset.v)});
   s.addEventListener('mouseleave',function(){paint(rating)});

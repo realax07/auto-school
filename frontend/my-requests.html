@@ -1,7 +1,8 @@
 <!doctype html>
 <!-- «Мои заявки» — раздел кабинета ученика. Спринт 4, Партия A, задача 3
      (change add-s3-frontend-links). Вёрстка 1в1 по согласованному мокапу
-     design/mocks/my-requests.html; единственные отличия — wiring:
+     design/mocks/my-requests.html; отличия — wiring и задокументированные
+     отклонения (design-guard: снятый элемент = строка в шапке):
      - GET /api/student/requests — свои заявки: статус, дата, инструктор,
        deny_comment (вкл. системный «Заявка закрыта: ученик принят другим
        инструктором», ОВ-1), авто принятой заявки (FR-38);
@@ -11,6 +12,15 @@
        {instructor_id} (повторная после отказа допустима, ОВ-2; дубликат
        активной — 409 → тост);
      - «Оставить отзыв» у принятых — переход на /review?instructor=<id>;
+     - отклонение от мокапа: «Стаж вождения: N лет» под ФИО инструктора
+       снято — стажа нет в контракте GET /api/student/requests (снятие
+       элемента, не недоделка; вернется с расширением контракта);
+     - отклонение от мокапа: состояние «вы уже оставляли отзыв»
+       (reviewed:true) не различается — флага reviewed нет в API; кнопка
+       «Оставить отзыв» у принятых всегда активна, повторный вход ведет
+       на /review, где сервер 409 → состояние «уже оставлен»;
+     - инициалы инструктора — 2 буквы ФИО (консистентно с другими
+       страницами), в мокапе 3;
      - 401/403 сессии → редирект на главную, к модалке входа.
      Пользовательские строки — только через textContent (stored XSS запрещен). -->
 <html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#071015"><title>СберАвтошкола — Кабинет ученика · Мои заявки</title>
@@ -181,7 +191,7 @@ function render(filter){
   var box=document.getElementById('list');box.innerHTML='';
   var list=reqs.filter(function(r){return filter==='all'||r.status===filter});
   document.getElementById('noreq').style.display=list.length?'none':'block';
-  reqs.forEach(function(r){
+  list.forEach(function(r){
     var instructor=r.instructor_full_name||'Инструктор';
     var art=el('article','req');
     var top=el('div','req-top');

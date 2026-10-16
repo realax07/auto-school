@@ -27,6 +27,7 @@ import time
 import urllib.error
 import urllib.request
 import uuid
+from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -1287,6 +1288,11 @@ def test_s4_review_submit_then_repeat_blocked_409(page, server):
                                   car_id)
     _seed_session(page, "session_token", stu_token)
 
+    # /review без ?instructor= → редирект на /my-requests (NIT-5 review-001)
+    page.goto(f"{server}/review")
+    page.wait_for_url("**/my-requests")
+    expect(page.locator("h1")).to_have_text("Заявки инструкторам")
+
     page.goto(f"{server}/review?instructor={instructor_id}")
 
     # контекст: карточка инструктора с реальным ФИО из API
@@ -1358,6 +1364,16 @@ def test_s4_my_requests_badges_deny_comment_retry_and_review_link(
         "el => getComputedStyle(el).backgroundColor") == "rgb(51, 42, 20)"
     assert "Автомобиль занятий" not in req.inner_text()
 
+    # фильтры (F1 review-001): «Отказанные» при единственной новой заявке —
+    # пустой результат: empty-блок виден, карточек НЕТ (раньше рендер
+    # игнорировал фильтр и показывал полный список вместе с empty)
+    page.locator(".filters button[data-f='denied']").click()
+    expect(page.locator("#noreq")).to_be_visible()
+    expect(page.locator(".req")).to_have_count(0)
+    page.locator(".filters button[data-f='all']").click()
+    expect(page.locator("#noreq")).to_be_hidden()
+    expect(page.locator(".req")).to_have_count(1)
+
     # инструктор отказывает с комментарием → красный бейдж + комментарий виден
     status, data = api("GET", "/api/instructor/requests", base=server,
                        token=instructor_token)
@@ -1404,6 +1420,18 @@ def test_s4_my_requests_badges_deny_comment_retry_and_review_link(
         "el => getComputedStyle(el).backgroundColor") == "rgb(20, 51, 34)"
     expect(req.locator(".pill.car")).to_have_text("🚗 Škoda Rapid 2020 · автомат")
 
+    # фильтры (F1 review-001): «Отказанные» → только отказанная заявка,
+    # «Принятые» → только принятая, «Все» → полный список
+    page.locator(".filters button[data-f='denied']").click()
+    expect(page.locator(".req")).to_have_count(1)
+    expect(page.locator(".req .status")).to_have_text("Отказана")
+    expect(page.locator("#noreq")).to_be_hidden()
+    page.locator(".filters button[data-f='accepted']").click()
+    expect(page.locator(".req")).to_have_count(1)
+    expect(page.locator(".req .status")).to_have_text("Принята")
+    page.locator(".filters button[data-f='all']").click()
+    expect(page.locator(".req")).to_have_count(2)
+
     # переход из «Моих заявок» у принятой заявки → форма отзыва
     review_btn = req.locator(".act.review")
     expect(review_btn).to_be_visible()
@@ -1418,3 +1446,37 @@ def test_s4_my_requests_badges_deny_comment_retry_and_review_link(
     assert mine["status"] == "accepted" and mine["car"]["id"] == car_id, mine
     # комментарий отказа остался виден у старой отказанной заявки
     assert "группа на этот сезон" in (data["requests"][1]["deny_comment"] or "")
+
+
+# ------------------------------------------------------------- design-guard
+@pytest.mark.parametrize("filename", [
+    "my-cars.html", "review-form.html", "my-requests.html"])
+def test_s4_pages_tag_balance(filename):
+    """NIT-4 review-001 (change add-s3-frontend-links): баланс тегов
+    S4-страниц — параметризованный pytest-наследник одноразового
+    scripts/check_tag_balance_s4.py: лишний/незакрытый тег роняет тест
+    при любом следующем редактировании страницы."""
+    VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input",
+            "link", "meta", "param", "source", "track", "wbr"}
+
+    class _Balance(HTMLParser):
+        def __init__(self):
+            super().__init__(convert_charrefs=True)
+            self.stack: list = []
+            self.errs: list = []
+
+        def handle_starttag(self, tag, attrs):
+            if tag not in VOID:
+                self.stack.append((tag, self.getpos()))
+
+        def handle_endtag(self, tag):
+            if tag in VOID:
+                return
+            if not self.stack or self.stack[-1][0] != tag:
+                self.errs.append(f"mismatch </{tag}> at {self.getpos()}")
+                return
+            self.stack.pop()
+
+    p = _Balance()
+    p.feed((ROOT / "frontend" / filename).read_text(encoding="utf-8"))
+    assert not p.errs and not p.stack, (p.errs, p.stack)

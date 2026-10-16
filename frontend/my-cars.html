@@ -11,7 +11,12 @@
      - POST+GET /api/instructor/cars/{id}/photo        — фото (upload с прогрессом
        + превью, JPEG/PNG ≤5 МБ по magic bytes → иначе 422);
      - 401/403 → редирект на главную, к модалке входа;
-     - поле «Цвет» мокапа снято: в контракте instructor_cars (design.md) цвета нет.
+     - отклонение от мокапа: поле «Цвет» снято — в контракте
+       instructor_cars (design.md) цвета нет;
+     - отклонение от мокапа: min года выпуска 1950 — по бэкенд-контракту
+       (_YEAR_MIN=1950), в мокапе 1980;
+     - отклонение от мокапа: из подстроки карточки снято «· ученик: N» —
+       ученика нет в контракте GET /api/instructor/cars;
      Пользовательские строки — только через textContent (stored XSS запрещен). -->
 <html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#071015"><title>СберАвтошкола — Кабинет инструктора · Мои автомобили</title>
 <style>
@@ -272,7 +277,6 @@ function render(){
       img.alt='Фото автомобиля';
       if(objectUrls[c.id])img.src=objectUrls[c.id];
       photo.appendChild(img);
-      var inner=el('div','ph-inner');inner.style.display='none';photo.appendChild(inner);
     }else{
       var ph=el('div','ph-inner');
       ph.appendChild(el('b',null,'⌗'));
