@@ -80,6 +80,11 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
     <p>Подбор инструктора: рейтинги, отзывы и свободные окна расписания.</p>
     <span class="go">→</span>
   </button>
+  <button class="tile" id="tile-requests"><span class="soon">В КАБИНЕТЕ</span>
+    <div class="tile-icon">✉</div><b>Мои заявки</b>
+    <p>Статусы заявок инструкторам, комментарий отказа и повторная подача.</p>
+    <span class="go">→</span>
+  </button>
 </div>
 
 <footer><span>СберАвтошкола · кабинет ученика</span><span>Спринт 1 · визуал</span></footer>
@@ -144,10 +149,19 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
     });
   }
 
+  // Плитка «Мои заявки» (спринт 4, change add-s3-frontend-links):
+  // переход в раздел «Мои заявки» (страница /my-requests)
+  var tileRequests = document.getElementById('tile-requests');
+  if (tileRequests) {
+    tileRequests.addEventListener('click', function () {
+      location.href = '/my-requests';
+    });
+  }
+
   // заглушки спринта-1 (как в мокапе, FR-6): плитки и чат не подключены;
   // .logout выведен из заглушек — у него реальный wiring выше;
-  // плитка «Найти водителя» — реальный переход на /instructor-choice
-  document.querySelectorAll('.tile:not(#tile-instructor),.quick button,.send').forEach(function (b) {
+  // плитки «Найти водителя»/«Мои заявки» — реальные переходы
+  document.querySelectorAll('.tile:not(#tile-instructor):not(#tile-requests),.quick button,.send').forEach(function (b) {
     b.addEventListener('click', function () { alert('Заглушка: сервис появится в следующем спринте'); });
   });
 })();
