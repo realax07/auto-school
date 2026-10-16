@@ -384,9 +384,12 @@ def test_instructor_login_approved_dashboard_layout(page, server):
     expect(page.locator(".user b")).to_have_text("Громов Борис Арсеньевич")
 
 
-def test_admin_moderation_approve_reflects_status(server):
-    """TC-UI-006 (change add-instructor-cabinet): админ-модерация через API —
-    approve заявки, статус отражается в списке заявок."""
+def test_admin_moderation_approve_reflects_status(page, server):
+    """TC-UI-006 (change add-instructor-student-loop, BUG-046): админ-модерация
+    через UI на реальном бэкенде — колонки «Действия» в таблице заявок нет
+    (решение Заказчика: действия только в модалке); клик по строке заявки
+    waiting открывает модальную карточку, «Одобрить» → статус отражается
+    в списке (waiting → approved)."""
     email = unique_email("moderated")
     status, data = api("POST", "/api/instructors/apply", base=server, body={
         "surname": "Кузнецов", "name": "Пётр", "patronymic": "Игнатьевич",
@@ -398,29 +401,121 @@ def test_admin_moderation_approve_reflects_status(server):
     })
     assert status == 200 and data and data["ok"], (status, data)
 
-    token = admin_login(server)
+    _seed_session(page, "admin_token", admin_login(server))
+    page.goto(f"{server}/admin-dashboard")
+    page.locator(".nav button", has_text="Заявки инструкторов").click()
 
-    # заявка в списке со статусом waiting
-    status, data = api("GET", "/api/admin/instructor-applications",
-                       base=server, admin_token=token)
-    assert status == 200 and data, (status, data)
-    found = [a for a in data["applications"] if a["email"] == email]
-    assert len(found) == 1, "заявка не найдена в списке админа"
-    app_id, status_before = found[0]["id"], found[0]["status"]
-    assert status_before == "waiting", status_before
+    row = page.locator("#app-rows tr", has_text=email)
+    expect(row).to_have_count(1)
+    # колонки «Действия» больше нет (BUG-046)
+    assert page.locator("th", has_text="Действия").count() == 0
+    assert page.locator("#app-rows .btn-export").count() == 0, \
+        "inline-кнопки «Одобрить/Отклонить» должны быть убраны из строк"
 
-    # approve → ok
-    status, data = api(
-        "POST", f"/api/admin/instructor-applications/{app_id}/approve",
-        base=server, admin_token=token)
-    assert status == 200 and data and data.get("ok") is True, (status, data)
+    # клик по строке → модальная карточка
+    row.click()
+    expect(page.locator("#ic-backdrop")).to_be_visible()
+    expect(page.locator("#ic-name")).to_have_text("Кузнецов Пётр Игнатьевич")
 
-    # статус отражается в списке: waiting → approved
-    status, data = api("GET", "/api/admin/instructor-applications",
-                       base=server, admin_token=token)
-    assert status == 200 and data, (status, data)
-    after = [a for a in data["applications"] if a["id"] == app_id][0]
-    assert after["status"] == "approved", after["status"]
+    # «Одобрить» в модалке (confirm-диалог подтверждения — авто-accept)
+    page.on("dialog", lambda d: d.accept())
+    page.locator("#ic-approve").click()
+
+    # карточка закрылась, список перезагрузился: статус отражен
+    expect(page.locator("#ic-backdrop")).to_be_hidden()
+    after_row = page.locator("#app-rows tr", has_text=email)
+    expect(after_row.locator(".badge")).to_have_text("Одобрена")
+    # кнопки действий в модалке для решенной заявки скрыты
+    after_row.click()
+    expect(page.locator("#ic-backdrop")).to_be_visible()
+    expect(page.locator("#ic-approve")).to_be_hidden()
+    expect(page.locator("#ic-deny")).to_be_hidden()
+
+
+def test_admin_deny_modal_locked_until_comment_and_waiting_badge_yellow(
+        page, server):
+    """TC-UI-013 (change add-instructor-student-loop, BUG-046): строка заявки
+    waiting открывает модальную карточку; бейдж «На рассмотрении» — желтый;
+    «Отклонить» в модалке открывает панель причины, подтверждение заблокировано
+    до непустого комментария (BUG-045-паттерн); отклонение → статус «Отклонена»
+    и причина отражены в списке. Реальный бэкенд."""
+    email = unique_email("denied")
+    status, data = api("POST", "/api/instructors/apply", base=server, body={
+        "surname": "Нечаева", "name": "Ольга", "patronymic": "Павловна",
+        "phone": "+7 904 555-66-77", "email": email,
+        "address": "г. Москва, ул. Осенняя, д. 9", "work_format": "school",
+        "license_number": "9955667788", "license_category": "B",
+        "password": "Dr1vePass!", "password_confirm": "Dr1vePass!",
+        "consent": True,
+    })
+    assert status == 200 and data and data["ok"], (status, data)
+
+    _seed_session(page, "admin_token", admin_login(server))
+    page.goto(f"{server}/admin-dashboard")
+    page.locator(".nav button", has_text="Заявки инструкторов").click()
+
+    row = page.locator("#app-rows tr", has_text=email)
+    expect(row).to_have_count(1)
+
+    # желтый бейдж waiting: фон #3a2f14, текст #ffc76e, бордер #8a6d1f
+    badge = row.locator(".badge")
+    expect(badge).to_have_text("На рассмотрении")
+    style = badge.evaluate(
+        "el => { const s = getComputedStyle(el);"
+        " return { bg: s.backgroundColor, color: s.color, border: s.borderColor }; }")
+    assert style["bg"] == "rgb(58, 47, 20)", style    # #3a2f14
+    assert style["color"] == "rgb(255, 199, 110)", style  # #ffc76e
+    assert style["border"] == "rgb(138, 109, 31)", style  # #8a6d1f
+
+    # клик по строке → модалка; «Отклонить» → панель причины в той же модалке
+    row.click()
+    expect(page.locator("#ic-backdrop")).to_be_visible()
+    expect(page.locator("#ic-name")).to_have_text("Нечаева Ольга Павловна")
+    page.locator("#ic-deny").click()
+    expect(page.locator("#ic-deny-box")).to_be_visible()
+
+    # подтверждение заблокировано до непустого комментария
+    confirm = page.locator("#ic-deny-confirm")
+    expect(confirm).to_be_disabled()
+    page.fill("#ic-deny-comment", " ")  # только пробел — всё еще блокировано
+    expect(confirm).to_be_disabled()
+    page.fill("#ic-deny-comment", "Не подтверждена квалификация")
+    expect(confirm).to_be_enabled()
+    confirm.click()
+
+    # карточка закрылась; статус и причина отражены в списке
+    expect(page.locator("#ic-backdrop")).to_be_hidden()
+    after_row = page.locator("#app-rows tr", has_text=email)
+    expect(after_row.locator(".badge")).to_have_text("Отклонена")
+    expect(after_row).to_contain_text("Не подтверждена квалификация")
+
+
+def test_admin_dashboard_bug046_mock_sync_fragments():
+    """TC-UI-014 (change add-instructor-student-loop, BUG-046): design-guard —
+    фрагменты verbatim frontend/admin-dashboard.html ↔ design/mocks/
+    admin-dashboard.html: таблица заявок без колонки «Действия», желтый
+    wait-бейдж, клик-подсказка, панель отказа в модалке."""
+    page_html = (ROOT / "frontend" / "admin-dashboard.html").read_text(
+        encoding="utf-8")
+    mock_html = (ROOT / "design" / "mocks" / "admin-dashboard.html").read_text(
+        encoding="utf-8")
+    fragments = [
+        # желтый статус «На рассмотрении»
+        ".badge.wait{background:#3a2f14;color:#ffc76e;border:1px solid #8a6d1f}",
+        # таблица заявок без колонки «Действия»
+        "<thead><tr><th>ФИО</th><th>Email</th><th>Телефон</th><th>Формат</th>"
+        "<th>ВУ</th><th>Стаж</th><th>Статус</th><th>Причина отказа</th></tr></thead>",
+        # клик-подсказка под таблицей
+        '<div class="rowhint">Строка кликабельна — откроется карточка заявки</div>',
+        # панель отказа внутри модальной карточки (BUG-045-паттерн)
+        '<button class="btn-export" id="ic-deny-confirm" disabled>Отклонить</button>',
+    ]
+    for fragment in fragments:
+        assert fragment in page_html, f"нет во фронте: {fragment!r}"
+        assert fragment in mock_html, f"нет в мокапе: {fragment!r}"
+    # колонка «Действия» (th) нигде не осталась
+    assert "<th>Действия</th>" not in page_html
+    assert "<th>Действия</th>" not in mock_html
 
 
 # =========================================================================

@@ -1,5 +1,8 @@
 <!doctype html>
-<!-- Админка: дашборд с сайдбаром (заглушка). Раздел «Пользователи»: таблица + выгрузка CSV. Данные демо, в базе не хранятся -->
+<!-- Админка: дашборд с сайдбаром (заглушка). Разделы «Пользователи» (таблица +
+     выгрузка CSV) и «Заявки инструкторов» (BUG-046: без колонки «Действия» —
+     одобрение/отклонение только в модальной карточке по клику на строку;
+     «На рассмотрении» — желтый бейдж). Данные демо, в базе не хранятся -->
 <html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>СберАвтошкола — Админка · Пользователи</title><style>
 *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#020b13;color:#f7fbfa;font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 .app{display:grid;grid-template-columns:250px 1fr;min-height:100svh}
@@ -28,14 +31,38 @@ td{padding:13px 14px;border-bottom:1px solid rgba(217,239,238,.07);color:#dcebe9
 tr:hover td{background:rgba(73,236,154,.04)}
 .badge{padding:3px 12px;border-radius:999px;font-size:12px;background:rgba(73,236,154,.14);color:#5cf0a4}
 .badge.red{background:rgba(255,107,107,.14);color:#ffb28e;border:1px solid rgba(255,107,107,.35)}
+.badge.wait{background:#3a2f14;color:#ffc76e;border:1px solid #8a6d1f}
+.rowhint{font-size:11px;color:#6f818b;padding:12px 14px;text-align:right}
 .empty{display:none;padding:60px 0;text-align:center;color:#7d939a;font-size:14px}
+/* Карточка инструктора (модально, мокап design/mocks/instructor-card-admin.html,
+   change add-instructor-student-loop, FR-24/FR-25) */
+.ic-backdrop{position:fixed;inset:0;background:#02070bd0;backdrop-filter:blur(6px);display:none;place-items:center;padding:24px;z-index:30}
+.ic-backdrop.open{display:grid}
+.ic-modal{width:min(880px,100%);max-height:calc(100vh - 60px);overflow:auto;border:1px solid #ffffff20;border-radius:22px;background:linear-gradient(150deg,#16242c,#0b1418);box-shadow:0 30px 80px #000c;padding:26px 28px 28px}
+.ic-head{display:flex;align-items:start;gap:14px;margin-bottom:4px}
+.ic-head h2{font-size:22px;letter-spacing:-.04em;font-weight:600;margin:0}
+.ic-head .sub{font-size:12px;color:#8fa0aa;margin-top:7px}
+.ic-close{margin-left:auto;flex:none;width:36px;height:36px;border-radius:11px;border:1px solid #ffffff18;background:#ffffff06;color:#b9c8ce;font-size:17px;cursor:pointer}
+.ic-close:hover{border-color:#ff6b6b66;color:#ffb28e}
+.ic-grid2{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(240px,1fr);gap:16px;margin-top:18px}
+.ic-panel{border:1px solid #ffffff12;border-radius:15px;background:#ffffff04;padding:17px}
+.ic-panel h3{font-size:10px;color:#8fa0aa;text-transform:uppercase;letter-spacing:.14em;margin:0 0 13px;font-weight:500}
+.ic-rows{display:grid;gap:11px}
+.ic-row{display:flex;justify-content:space-between;gap:12px;font-size:12px}
+.ic-row span{color:#8fa0aa}
+.ic-row b{font-weight:550;text-align:right;color:#e4eef0;word-break:break-word}
+.ic-img-ph{aspect-ratio:16/10;border:1.5px dashed #35d87955;border-radius:13px;background:#0d2b1c55;display:grid;place-items:center;text-align:center;color:#7fe3a3;font-size:11px;line-height:1.7;padding:12px}
+.ic-note{font-size:10px;color:#8fa0aa;line-height:1.6;border:1px solid #ffffff12;border-radius:11px;background:#ffffff04;padding:10px 12px;margin-top:12px}
+.ic-note b{color:#a3efbd}
+@media(max-width:860px){.ic-grid2{grid-template-columns:1fr}.ic-modal{padding:18px}}
 @media(max-width:860px){.app{grid-template-columns:1fr}aside{display:none}main{padding:20px}}
 </style></head><body>
 <div class="app">
 <aside>
   <div class="logo"><span class="check">✓</span><span><em>Сбер</em>Автошкола</span></div>
   <nav class="nav">
-    <button class="active">◉ Пользователи</button>
+    <button class="active" onclick="showSection('users',this)">◉ Пользователи</button>
+    <button onclick="showSection('applications',this)">⧉ Заявки инструкторов</button>
     <button class="soon" onclick="soon()" title="Появится в следующем спринте">▦ Отношения</button>
     <button class="soon" onclick="soon()" title="Появится в следующем спринте">⌗ Расписания</button>
     <button class="soon" onclick="soon()" title="Появится в следующем спринте">₽ Платежи</button>
@@ -54,8 +81,66 @@ tr:hover td{background:rgba(73,236,154,.04)}
     <tbody id="rows"></tbody>
   </table>
   <div class="empty" id="empty">Записей пока нет</div>
+
+  <!-- Раздел «Заявки инструкторов» (BUG-046, решение Заказчика): колонки
+       «Действия» НЕТ — одобрение/отклонение только в модальной карточке,
+       открывающейся по клику на строку; «На рассмотрении» — желтый бейдж. -->
+  <div id="sec-applications" style="display:none">
+    <div class="top"><h1>Заявки инструкторов</h1><div class="spacer"></div></div>
+    <div class="toolbar"><span class="count" id="app-count"></span></div>
+    <table>
+      <thead><tr><th>ФИО</th><th>Email</th><th>Телефон</th><th>Формат</th><th>ВУ</th><th>Стаж</th><th>Статус</th><th>Причина отказа</th></tr></thead>
+      <tbody id="app-rows"></tbody>
+    </table>
+    <div class="rowhint">Строка кликабельна — откроется карточка заявки</div>
+  </div>
 </main>
 </div>
+
+<!-- Карточка инструктора (модально, мокап instructor-card-admin): открытие
+     по клику на строку. Демо-данные, в базе не хранятся. -->
+<div class="ic-backdrop" id="ic-backdrop" role="dialog" aria-modal="true" aria-labelledby="ic-name">
+  <div class="ic-modal">
+    <div class="ic-head">
+      <div><h2 id="ic-name">—</h2><div class="sub" id="ic-sub">Заявка инструктора № —</div></div>
+      <button class="ic-close" id="ic-close" aria-label="Закрыть">×</button>
+    </div>
+    <div class="ic-grid2">
+      <div class="ic-panel">
+        <h3>Данные анкеты</h3>
+        <div class="ic-rows">
+          <div class="ic-row"><span>Фамилия</span><b id="ic-last">—</b></div>
+          <div class="ic-row"><span>Имя</span><b id="ic-first">—</b></div>
+          <div class="ic-row"><span>Отчество</span><b id="ic-pat">—</b></div>
+          <div class="ic-row"><span>Email</span><b id="ic-email">—</b></div>
+          <div class="ic-row"><span>Телефон</span><b id="ic-phone">—</b></div>
+          <div class="ic-row"><span>Стаж вождения</span><b id="ic-exp">—</b></div>
+          <div class="ic-row"><span>Автомобиль</span><b id="ic-car">—</b></div>
+          <div class="ic-row"><span>Статус</span><b id="ic-status">—</b></div>
+          <div class="ic-row"><span>Причина отказа</span><b id="ic-review">—</b></div>
+        </div>
+      </div>
+      <div class="ic-panel">
+        <h3>Водительское удостоверение</h3>
+        <div class="ic-img-ph" id="ic-license"><span>Плейсхолдер изображения ВУ<br>JPEG/PNG · до 5 МБ</span></div>
+        <div class="ic-note"><b>Доступ к изображению:</b> файл хранится вне раздаваемой статики и выдаётся только по эндпоинту с валидным админ-токеном. Без токена — отказ, изображение не возвращается.</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap">
+      <button class="btn-export" id="ic-approve" style="flex:1">✓ Одобрить заявку</button>
+      <button class="btn-export" id="ic-deny" style="flex:1">✕ Отклонить</button>
+    </div>
+    <div id="ic-deny-box" style="display:none;margin-top:14px">
+      <label style="display:block;font-size:12px;color:#9eabb4;margin-bottom:7px">Причина отказа (обязательно):</label>
+      <textarea id="ic-deny-comment" rows="3" style="width:100%;background:#0a1117;border:1px solid #ffffff1c;color:#f1f5f6;border-radius:10px;padding:10px;font:inherit;font-size:13px;resize:vertical"></textarea>
+      <div style="margin-top:10px;display:flex;gap:10px">
+        <button class="btn-export" id="ic-deny-confirm" disabled>Отклонить</button>
+        <button class="btn-export" id="ic-deny-cancel">Отмена</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
 <script>
 // Демо-данные (в бэкенд не уходят; реальная база появится в следующем спринте)
 var users=[
@@ -79,5 +164,94 @@ function exportCsv(){
   a.download='users.csv';a.click();
 }
 function soon(){alert('Заглушка: раздел появится в следующем спринте');}
+function toast(m){var t=document.getElementById('toast');if(!t)return;t.textContent=m;t.classList.add('show');clearTimeout(window._tt);window._tt=setTimeout(function(){t.classList.remove('show')},2800)}
+
+// --- Раздел «Заявки инструкторов» (BUG-046, решение Заказчика): колонки
+// «Действия» НЕТ — одобрение/отклонение только в модальной карточке,
+// открывающейся по клику на строку; «На рассмотрении» — желтый бейдж.
+function showSection(name, btn){
+  document.querySelectorAll('.nav button:not(.soon)').forEach(function(b){b.classList.remove('active');});
+  if(btn)btn.classList.add('active');
+  document.getElementById('sec-applications').style.display=name==='applications'?'block':'none';
+  document.querySelector('.toolbar').style.display=name==='users'?'':'none';
+  document.querySelector('table').style.display=name==='users'?'':'none';
+  document.getElementById('empty').style.display=name==='users'?'':'none';
+  if(name==='applications')renderApplications();
+}
+// демо-данные (в бэкенд не уходят)
+var apps=[
+ {id:1041,last:'Самойлов',first:'Михаил',pat:'Петрович',email:'samoilov@example.com',phone:'+7 (912) 445-19-08',format:'Свой автомобиль',license:'9912345678',exp:11,car:'Škoda Rapid · 2020 · автомат',status:'waiting',review:null},
+ {id:1040,last:'Гордеева',first:'Анна',pat:'Викторовна',email:'gordeeva@example.com',phone:'+7 (921) 771-30-52',format:'Авто Сбера',license:'9987654321',exp:6,car:'Volkswagen Polo · 2021 · автомат',status:'waiting',review:null},
+ {id:1039,last:'Белов',first:'Артём',pat:'Дмитриевич',email:'belov@example.com',phone:'+7 (903) 208-77-41',format:'Авто Сбера',license:'9911223344',exp:1,car:'Lada Granta · 2021 · механика',status:'approved',review:null},
+ {id:1037,last:'Мищенко',first:'Светлана',pat:'Юрьевна',email:'mishchenko@example.com',phone:'+7 (905) 640-12-96',format:'Свой автомобиль',license:'9900556677',exp:15,car:'Škoda Octavia · 2019 · механика',status:'deny',review:'Стаж не подтвержден документально'}
+];
+function statusText(s){return s==='waiting'?'На рассмотрении':s==='approved'?'Одобрена':'Отклонена';}
+var IC_CURRENT=null;
+function renderApplications(){
+  var tb=document.getElementById('app-rows');
+  tb.innerHTML='';
+  apps.forEach(function(a){
+    var tr=document.createElement('tr');
+    tr.style.cursor='pointer';
+    tr.innerHTML='<td>'+(a.last+' '+a.first+' '+a.pat)+'</td><td>'+a.email+'</td><td>'+a.phone+'</td>'+
+      '<td>'+a.format+'</td><td>'+a.license+'</td><td>'+a.exp+'</td>'+
+      '<td><span class="badge'+(a.status==='deny'?' red':a.status==='waiting'?' wait':'')+'">'+statusText(a.status)+'</span></td>'+
+      '<td>'+(a.review||'—')+'</td>';
+    tr.addEventListener('click',function(){openCard(a.id);});
+    tb.appendChild(tr);
+  });
+  document.getElementById('app-count').textContent='Заявок: '+apps.length;
+}
+function icSet(id,text){document.getElementById(id).textContent=(text==null||text==='')?'—':text;}
+function openCard(id){
+  var a=apps.filter(function(x){return x.id===id;})[0];
+  if(!a)return;
+  IC_CURRENT=id;
+  document.getElementById('ic-name').textContent=a.last+' '+a.first+' '+a.pat;
+  document.getElementById('ic-sub').textContent='Заявка инструктора № '+a.id;
+  icSet('ic-last',a.last);icSet('ic-first',a.first);icSet('ic-pat',a.pat);
+  icSet('ic-email',a.email);icSet('ic-phone',a.phone);
+  icSet('ic-exp',a.exp+' лет');icSet('ic-car',a.car);
+  icSet('ic-status',statusText(a.status));icSet('ic-review',a.review);
+  var waiting=a.status==='waiting';
+  document.getElementById('ic-approve').style.display=waiting?'':'none';
+  document.getElementById('ic-deny').style.display=waiting?'':'none';
+  resetCardDeny();
+  document.getElementById('ic-backdrop').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeCard(){
+  document.getElementById('ic-backdrop').classList.remove('open');
+  document.body.style.overflow='';
+}
+function resetCardDeny(){
+  document.getElementById('ic-deny-box').style.display='none';
+  document.getElementById('ic-deny-comment').value='';
+  document.getElementById('ic-deny-confirm').disabled=true;
+}
+document.getElementById('ic-close').addEventListener('click',closeCard);
+document.getElementById('ic-backdrop').addEventListener('click',function(e){if(e.target===this)closeCard();});
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeCard();});
+document.getElementById('ic-approve').addEventListener('click',function(){
+  var a=apps.filter(function(x){return x.id===IC_CURRENT;})[0];
+  a.status='approved';closeCard();renderApplications();
+  toast('Заявка № '+a.id+' одобрена — инструктор появился в общем списке.');
+});
+document.getElementById('ic-deny').addEventListener('click',function(){
+  document.getElementById('ic-deny-box').style.display='block';
+  document.getElementById('ic-deny-comment').focus();
+});
+document.getElementById('ic-deny-comment').addEventListener('input',function(){
+  document.getElementById('ic-deny-confirm').disabled=!this.value.trim();
+});
+document.getElementById('ic-deny-cancel').addEventListener('click',resetCardDeny);
+document.getElementById('ic-deny-confirm').addEventListener('click',function(){
+  var comment=document.getElementById('ic-deny-comment').value.trim();
+  if(!comment){alert('Причина отказа обязательна');return;}
+  var a=apps.filter(function(x){return x.id===IC_CURRENT;})[0];
+  a.status='deny';a.review=comment;resetCardDeny();closeCard();renderApplications();
+  toast('Заявка № '+a.id+' отклонена. Причина: '+comment);
+});
+renderApplications();
 </script>
 </body></html>
