@@ -7,7 +7,7 @@
 - Объект: рабочее дерево репозитория (изменения не закоммичены: openspec/changes/
   add-instructor-student-loop/design.md, tests/test_s3_backend.py — modified;
   code-reviews/add-s3-frontend-links/, openspec/changes/add-instructor-student-loop/
-  arch-review-s4.md, test-model/qa-auto-report-add-s3-frontend-links.md — untracked).
+  arch-review-s4.md, test-model/reports/qa-auto-report-add-s3-frontend-links.md — untracked).
   Ветка feature/s4-links, HEAD = 8273f45 («fix(s4): итерация 2 по ревью
   add-s3-frontend-links review-001») поверх 5db9cc5 — соответствует ветке ревью.
 - Вмешательство в материалы: нулевое (ничего не правлено, артефакт только этот).
@@ -68,7 +68,7 @@ review-form, my-requests}.html + маршруты backend/app.py (_PAGE_ROUTES, 
   deleg_spawn2026101618510128ecea — на месте. Per-finding сверен с рабочим
   деревом: F1 фиксен по существу (frontend/my-requests.html, render() строит
   список из `list`, не `reqs` — проверено чтением кода, стр. 187–190).
-- test-model/qa-auto-report-add-s3-frontend-links.md — на месте; независимо
+- test-model/reports/qa-auto-report-add-s3-frontend-links.md — на месте; независимо
   воспроизведен полный сьют (см. п.4): 270 passed — совпадает с отчетом.
 - Design check — согласование мокапов Заказчиком 2026-10-16: отдельного
   standalone-артефакта не обнаружено; фактические свидетельства — мокапы в
