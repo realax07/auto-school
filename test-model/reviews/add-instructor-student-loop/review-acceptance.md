@@ -71,7 +71,7 @@
 | code-reviews/…/review-002.md | APPROVE | «Вердикт: APPROVE», все #1–#8 FIXED, прогон 53 passed (+3 backend, +2 e2e ровно новые) |
 | test-model/reviews/…/review-001-design.md | approve-with-notes | «Вердикт: approve-with-notes», 3 MATCH + заметки N1–N3 (не блокируют) |
 | test-model/reviews/…/review-001-cases.md | RETURN → итерация 2 APPROVE | Итерация 1: «RETURN» (1 blocker, 1 major); итерация 2: «APPROVE» партия из 44 кейсов |
-| test-model/qa-auto-report-add-instructor-student-loop.md | есть | Полный прогон 257 passed, 1 warning, 249.84s; точечно 39 backend + 14 e2e; расхождение «48/15 vs 39/14» зафиксировано в отчете |
+| test-model/reports/qa-auto-report-add-instructor-student-loop.md | есть | Полный прогон 257 passed, 1 warning, 249.84s; точечно 39 backend + 14 e2e; расхождение «48/15 vs 39/14» зафиксировано в отчете |
 | test-model/approved/ == test-model/new/ | 44 == 44, diff -r чистый | diff -r — без различий; 44 файла в каждой (CAL 4, CAR 8, CHO 5, REQ 15, REV 6, VUD 6) |
 
 Выборочное открытие кейсов (6 файлов): TC-REQ-005, TC-CAL-002, TC-CAR-004,
