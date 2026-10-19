@@ -984,6 +984,21 @@ def test_student_choice_xss_instructor_name_not_executed(page, server):
         f"{payload} Пейлоад Оттовна")
 
 
+def test_back_links_lead_to_role_home(page, server):
+    """TC-UI-019 (change add-s3-frontend-links): возвратные ссылки вторичных
+    экранов ведут на главные экраны ролей (инструктор → /instructor/dashboard,
+    ученик → /cabinet)."""
+    # страницы защищены сессией — проверяем ссылки в разметке (файлы страницы)
+    import pathlib
+    base = pathlib.Path(__file__).parent.parent / "frontend"
+    for fname, back in (("my-cars.html", "/instructor/dashboard"),
+                        ("my-requests.html", "/cabinet"),
+                        ("instructor-choice.html", "/cabinet"),
+                        ("review-form.html", "/cabinet")):
+        html = (base / fname).read_text(encoding="utf-8")
+        assert f'href="{back}"' in html, f"{fname}: нет возврата на {back}"
+
+
 def test_instructor_logout_redirects_to_instructors(page, server):
     """TC-UI-010 (change add-instructor-student-loop): выход из кабинета
     инструктора — POST /api/auth/logout, затем редирект на /instructors
