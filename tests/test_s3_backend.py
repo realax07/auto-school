@@ -1621,35 +1621,43 @@ def test_new_modules_no_sql_concatenation():
             assert bad not in src, (name, bad)
 
 
-# --- Спринт 4, Партия A (change add-s3-frontend-links): статика ------------
+# --- Спринт 4, Партия A (change add-s3-frontend-links); BUG-047 ------------
 
 
-@pytest.mark.parametrize("path,marker", [
-    ("/my-cars", "Мои автомобили"),
-    ("/review", "Оставить отзыв"),
-    ("/my-requests", "Заявки инструкторам"),
+def test_s4_static_route_review(client):
+    """TC-S3BE-040 (change add-s3-frontend-links): статический маршрут формы
+    отзыва отдается из backend/app.py — /review → 200 text/html."""
+    resp = client.get("/review")
+    assert resp.status_code == 200
+    assert "text/html" in resp.headers["content-type"]
+    assert "Оставить отзыв" in resp.text
+
+
+@pytest.mark.parametrize("path,target", [
+    ("/my-cars", "/instructor/dashboard#/my-cars"),
+    ("/my-requests", "/cabinet#/my-requests"),
 ])
-def test_s4_static_routes_new_pages(client, path, marker):
-    """TC-S3BE-040 (change add-s3-frontend-links): статические маршруты
-    модульных страниц-разделов Спринта 4 отдаются из backend/app.py —
-    /my-cars, /review, /my-requests → 200 text/html с заголовком страницы."""
-    resp = client.get(path)
-    assert resp.status_code == 200, path
-    assert "text/html" in resp.headers["content-type"], path
-    assert marker in resp.text, path
+def test_bug047_old_routes_redirect_301(client, path, target):
+    """BUG-047: standalone-страниц нет — старые маршруты /my-cars и
+    /my-requests отдают 301 на разделы внутри кабинетов (решение
+    Заказчика 2026-10-17)."""
+    resp = client.get(path, follow_redirects=False)
+    assert resp.status_code == 301, path
+    assert resp.headers["location"] == target, path
 
 
 def test_s4_pages_wired_to_real_api_shapes():
-    """TC-S3BE-041 (change add-s3-frontend-links): новые страницы ссылаются
-    на РЕАЛЬНЫЕ контракты Спринта 3 (design.md), а не на вымышленные пути:
-    /my-cars — /api/instructor/cars (+ фото); /review — POST
-    /api/student/instructors/{{id}}/reviews; /my-requests — GET/POST
-    /api/student/requests."""
+    """TC-S3BE-041 (change add-s3-frontend-links; BUG-047): носители разделов
+    ссылаются на РЕАЛЬНЫЕ контракты Спринта 3 (design.md), а не на вымышленные
+    пути: дашборд («Мои автомобили») — /api/instructor/cars (+ фото); /review —
+    POST /api/student/instructors/{{id}}/reviews; кабинет ученика («Мои
+    заявки») — GET/POST /api/student/requests."""
     checks = {
-        "my-cars.html": ["api/instructor/cars", "cars/'+carId+'/photo"],
+        "instructor-dashboard.html": ["api/instructor/cars",
+                                      "cars/'+carId+'/photo"],
         "review-form.html": ["instructors/'+instructorId+'/reviews"],
-        "my-requests.html": ["api/student/requests",
-                             "instructor_id:r.instructor_id"],
+        "cabinet.html": ["api/student/requests",
+                         "instructor_id:r.instructor_id"],
     }
     for filename, needles in checks.items():
         src = (ROOT / "frontend" / filename).read_text(encoding="utf-8")

@@ -99,6 +99,73 @@ main{padding:28px clamp(20px,3vw,44px) 45px;max-width:1600px;width:100%;margin:a
 .rq-decided{font-size:11px;color:#8fa0aa;margin-top:14px}
 .rq-none{margin-top:6px;border:1px dashed #ffffff1c;border-radius:12px;padding:16px 14px;font-size:11px;color:#8fa0aa;text-align:center}
 .rq-no-cars{margin-top:14px;border:1px dashed #6b5426;border-radius:12px;padding:12px 14px;font-size:11px;color:#ffd479;background:#2a201040}
+/* Раздел «Мои автомобили» (BUG-047: верстка перенесена из frontend/my-cars.html
+   внутрь дашборда как таб; имена классов сохранены 1в1 — коллизий со стилями
+   дашборда нет, вкладка прячется/показывается вместе с секцией #sec-cars) */
+.toolbar{display:flex;align-items:center;gap:12px;margin:0 0 14px}
+.count{font-size:12px;color:#8fa0aa}
+.addbtn{margin-left:auto;display:flex;align-items:center;gap:8px;border:1px solid #2b9c62;background:#123524;color:#c9ffdd;border-radius:11px;padding:11px 20px;font-size:12px;font-weight:550}
+.addbtn:hover{filter:brightness(1.12)}
+.cars{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.car{border:1px solid var(--line);border-radius:19px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:15px;display:flex;flex-direction:column;min-width:0;transition:border-color .15s}
+.car:hover{border-color:#35d87944}
+.photo{position:relative;overflow:hidden;aspect-ratio:16/9;border:1.5px dashed #35d87955;border-radius:13px;background:#0d2b1c55;display:grid;place-items:center;text-align:center;color:#7fe3a3;font-size:11px;line-height:1.7;padding:12px;margin-bottom:13px}
+.photo b{font-size:24px;display:block;margin-bottom:5px}
+.photo .up{margin-top:7px;border:1px solid #2a5c40;background:#143322;border-radius:9px;padding:6px 12px;font-size:10px;color:#a3efbd}
+.photo .up:hover{filter:brightness(1.15)}
+.photo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:11px}
+.photo .ph-inner{position:relative;z-index:1}
+.car b.title{font-size:16px;font-weight:600;letter-spacing:-.02em;display:block}
+.car small.sub{display:block;font-size:11px;color:#8fa0aa;margin-top:4px}
+.pill{font-size:10px;padding:6px 10px;border-radius:999px;border:1px solid #ffffff12;background:#ffffff05;color:#b9c8ce}
+.meta{display:flex;gap:7px;flex-wrap:wrap;margin:13px 0}
+.pill.plate{background:#0b161c;border-color:#ffffff22;color:#e4eef0;font-weight:600;letter-spacing:.06em}
+.pill.green{background:#143322;border-color:#2a5c40;color:#91efb1}
+.cactions{margin-top:auto;display:flex;gap:9px}
+.cactions .edit{flex:1;border:1px solid #ffffff16;background:#ffffff05;color:#aab8c0;border-radius:11px;padding:10px;font-size:12px}
+.cactions .edit:hover{border-color:#4bcb7c66;color:#c9ffdd}
+.cactions .del{flex:0 0 auto;border:1px solid #8a3c3c66;background:transparent;color:#ffb28e;border-radius:11px;padding:10px 14px;font-size:12px}
+.cactions .del:hover{background:#33201a55}
+.prog{display:none;margin-top:9px;height:6px;border-radius:999px;background:#ffffff0d;overflow:hidden}
+.prog.on{display:block}
+.prog i{display:block;height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,#1c6b41,var(--green));transition:width .2s}
+.prog-lab{display:none;margin-top:6px;font-size:10px;color:#8fa0aa}
+.prog-lab.on{display:block}
+.empty{display:none;border:1px dashed #ffffff22;border-radius:19px;padding:46px 20px;text-align:center;color:#8fa0a9}
+.empty b{display:block;font-size:15px;color:#c9d6db;margin-bottom:8px}
+.backdrop{position:fixed;inset:0;background:#02070bd0;backdrop-filter:blur(6px);display:none;place-items:center;padding:24px;z-index:30}
+.backdrop.open{display:grid}
+.modal{width:min(520px,100%);max-height:calc(100vh - 60px);overflow:auto;border:1px solid #ffffff20;border-radius:22px;background:linear-gradient(150deg,#16242c,#0b1418);box-shadow:0 30px 80px #000c;padding:24px 26px 26px}
+.modal-head{display:flex;align-items:start;gap:14px;margin-bottom:6px}
+.modal-head h2{font-size:20px;letter-spacing:-.03em;font-weight:600;margin:0}
+.modal-head .sub{font-size:12px;color:#8fa0aa;margin-top:7px}
+.close{margin-left:auto;flex:none;width:36px;height:36px;border-radius:11px;border:1px solid #ffffff18;background:#ffffff06;color:#b9c8ce;font-size:17px}
+.close:hover{border-color:#ff6b6b66;color:#ffb28e}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:14px}
+.field{display:flex;flex-direction:column;gap:7px}
+.field.wide{grid-column:1/-1}
+.field span{font-size:10px;color:#8fa0aa;text-transform:uppercase;letter-spacing:.12em}
+.field input{border:1px solid #ffffff16;background:#0b161c;border-radius:11px;padding:11px 13px;font-size:13px;color:#dcebe9}
+.field input:focus{outline:none;border-color:#35d87966}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.seg button{border:1px solid #ffffff14;background:#ffffff05;color:#b9c8ce;border-radius:10px;padding:10px;font-size:12px}
+.seg button.on{background:#143322;border-color:#2c8651;color:#a3efbd}
+.up-zone{border:1.5px dashed #35d87955;border-radius:13px;background:#0d2b1c33;padding:16px;text-align:center;font-size:11px;color:#7fe3a3;line-height:1.7;cursor:pointer}
+.up-zone:hover{border-color:#35d87999}
+.up-zone input{display:none}
+.up-zone b{color:#c9ffdd}
+.form-note{margin-top:12px;font-size:10px;color:#8fa0aa;line-height:1.6;border:1px solid #ffffff12;border-radius:11px;background:#ffffff04;padding:10px 12px}
+.form-actions{display:flex;gap:10px;margin-top:16px}
+.btn{flex:1;border-radius:12px;padding:12px;font-size:13px;font-weight:550;border:1px solid}
+.btn.primary{background:#123524;border-color:#2b9c62;color:#c9ffdd}
+.btn.primary:hover{filter:brightness(1.12)}
+.btn.primary:disabled{opacity:.45;cursor:not-allowed;filter:none}
+.btn.ghost{background:transparent;border-color:#ffffff16;color:#aab8c0;flex:0 0 40%}
+.confirm-box{text-align:center}
+.confirm-box .warn-ic{width:52px;height:52px;margin:6px auto 14px;border-radius:16px;border:1px solid #5c3030;background:#24131366;display:grid;place-items:center;font-size:24px;color:#ffb28e}
+.confirm-box p{font-size:13px;color:#c9d6db;line-height:1.6;margin:0 0 6px}
+.confirm-box .note{font-size:11px;color:#8fa0aa;line-height:1.6}
+.confirm-box .note b{color:#ffd479}
 footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content:space-between;gap:15px}
 .toast{position:fixed;bottom:22px;right:22px;max-width:330px;background:#143323;border:1px solid #367b50;color:#b5f8cc;padding:13px 16px;border-radius:13px;font-size:12px;box-shadow:0 10px 40px #0008;display:none;z-index:10}.toast.show{display:block}
 @media(max-width:1100px){.app{grid-template-columns:200px 1fr}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.content-grid{grid-template-columns:1fr}.right-col{grid-template-columns:1fr 1fr}.bottom-grid{grid-template-columns:1fr}}
@@ -234,6 +301,67 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
     <div class="rq-list" id="rq-list"></div>
   </section>
 
+  <!-- Раздел «Мои автомобили» (BUG-047: верстка перенесена из
+       frontend/my-cars.html внутрь дашборда как таб; wiring прежний:
+       CRUD /api/instructor/cars + фото; модалки живут внутри секции и
+       прячутся вместе с ней при уходе на другой таб) -->
+  <section class="card panel" id="sec-cars" style="display:none">
+    <div class="toolbar">
+      <span class="count" id="count"></span>
+      <button class="addbtn" id="open-add" type="button">＋ Добавить автомобиль</button>
+    </div>
+    <div class="cars" id="cars"></div>
+    <div class="empty" id="empty"><b>Автомобилей пока нет</b>Добавьте автомобиль — без него нельзя принять заявку ученика (нужен выбор авто).</div>
+
+    <!-- модалка: добавить / редактировать автомобиль -->
+    <div class="backdrop" id="m-add" role="dialog" aria-modal="true" aria-labelledby="add-title">
+      <div class="modal">
+        <div class="modal-head">
+          <div><h2 id="add-title">Новый автомобиль</h2><div class="sub">Появится в списке и в выборе авто при принятии заявки</div></div>
+          <button class="close" data-close="m-add" aria-label="Закрыть">×</button>
+        </div>
+        <div class="fgrid">
+          <label class="field"><span>Марка *</span><input id="f-brand" placeholder="Škoda"></label>
+          <label class="field"><span>Модель *</span><input id="f-model" placeholder="Rapid"></label>
+          <label class="field"><span>Год выпуска *</span><input id="f-year" type="number" min="1950" max="2027" placeholder="2020"></label>
+          <label class="field"><span>Госномер *</span><input id="f-plate" placeholder="А 123 АА 777"></label>
+          <div class="field wide"><span>Коробка передач *</span>
+            <div class="seg" id="f-trans">
+              <button class="on" data-v="manual" type="button">Механика</button>
+              <button data-v="automatic" type="button">Автомат</button>
+            </div>
+          </div>
+          <div class="field wide"><span>Фото автомобиля (необязательно)</span>
+            <label class="up-zone" id="up-zone">📷 <b>Выберите файл</b> или перетащите сюда<br>JPEG/PNG · до 5 МБ
+              <input type="file" id="f-photo" accept="image/jpeg,image/png">
+            </label>
+            <div class="prog" id="up-prog"><i></i></div>
+            <div class="prog-lab" id="up-lab">Загрузка… 0%</div>
+          </div>
+        </div>
+        <div class="form-note">Тип и размер файла проверяются по содержимому (magic bytes), лимит 5 МБ — файл больше или не JPEG/PNG вернёт ошибку 422. Фото хранится вне раздачи статики и выдаётся только вам по сессии.</div>
+        <div class="form-actions">
+          <button class="btn primary" id="save-car" disabled type="button">Сохранить автомобиль</button>
+          <button class="btn ghost" data-close="m-add" type="button">Отмена</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- модалка: подтверждение удаления -->
+    <div class="backdrop" id="m-del" role="dialog" aria-modal="true" aria-labelledby="del-title">
+      <div class="modal confirm-box">
+        <div class="warn-ic">⚠</div>
+        <h2 id="del-title" style="font-size:19px;margin:0 0 10px;letter-spacing:-.03em">Удалить автомобиль?</h2>
+        <p id="del-what">Škoda Rapid · А 123 АА 777</p>
+        <div class="note">У привязанных учеников автомобиль будет снят, но связь «ученик ↔ инструктор» <b>сохранится</b> — перекрепите авто в разделе «Ученики». Само удаление отменить нельзя.</div>
+        <div class="form-actions">
+          <button class="btn ghost" id="del-cancel" type="button">Отмена</button>
+          <button class="btn primary" id="del-confirm" style="background:#33201a;border-color:#8a3c3c;color:#ffb28e" type="button">Да, удалить</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <footer><span>СберАвтошкола · Кабинет инструктора</span><span>Демонстрационный интерфейс · Все данные вымышлены</span></footer>
 </main>
 </div>
@@ -280,22 +408,28 @@ let weekShift=0;
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>t.classList.remove('show'),2600)}
 function navTo(name){
   if(name==='__logout__'){logout();return}
-  // Спринт 4, Партия A (change add-s3-frontend-links): «Мои автомобили» —
-  // отдельная модульная страница /my-cars (не раздел этого дашборда)
-  if(name==='Мои автомобили'){location.href='/my-cars';return}
+  // BUG-047 (скрины Заказчика 2026-10-17): «Мои автомобили» — раздел этого
+  // дашборда (таб), отдельной страницы /my-cars больше нет (301 →
+  // /instructor/dashboard#/my-cars открывает этот же раздел)
   // Спринт 3: реальные разделы «Календарь» и «Запросы учеников»
-  var isCal=(name==='Календарь'),isReq=(name==='Запросы учеников');
-  document.querySelectorAll('.day-content').forEach(function(el){el.style.display=(isCal||isReq)?'none':''});
+  var isCal=(name==='Календарь'),isReq=(name==='Запросы учеников'),isCars=(name==='Мои автомобили');
+  document.querySelectorAll('.day-content').forEach(function(el){el.style.display=(isCal||isReq||isCars)?'none':''});
   document.getElementById('sec-calendar').style.display=isCal?'block':'none';
   document.getElementById('sec-requests').style.display=isReq?'block':'none';
+  document.getElementById('sec-cars').style.display=isCars?'block':'none';
   if(isCal)openCalendar();
   if(isReq)openRequests();
+  if(isCars)openCars();
   var pp=document.getElementById('profile-panel');
   if(pp)pp.style.display='none';
   document.getElementById('page-title').textContent=name;
   document.getElementById('crumb').textContent=name;
   document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
-  if(name!=='Мой день'&&!isCal&&!isReq)toast('Раздел «'+name+'» — демо-данные, следующий экран в концепции кабинета')
+  // BUG-047: хеш раздела синхронизируется с табом — reload не сбрасывает
+  // раздел, старые ссылки#/my-cars открывают его напрямую
+  var wantHash=isCars?'#/my-cars':'';
+  if(location.hash!==wantHash){try{history.replaceState(null,'',location.pathname+location.search+(wantHash||''))}catch(e){}}
+  if(name!=='Мой день'&&!isCal&&!isReq&&!isCars)toast('Раздел «'+name+'» — демо-данные, следующий экран в концепции кабинета')
 }
 
 // --- Виджеты главной (change add-instructor-student-loop, FR-40/FR-41):
@@ -660,6 +794,213 @@ function bindRequests(){
     b.classList.add('on');rqState.filter=b.dataset.f;rqState.open=null;renderRequests();
   })});
 }
+
+// --- Раздел «Мои автомобили» (BUG-047: JS перенесен из frontend/my-cars.html;
+// CRUD /api/instructor/cars, PATCH-редактирование, удаление с подтверждением,
+// фото с прогрессом (POST /api/instructor/cars/{id}/photo). Имена с префиксом
+// mc* — чтобы не пересекаться с уже существующими функциями скрипта;
+// пользовательские строки — только через textContent (stored XSS запрещен)) ---
+var mcTransLabel={manual:'механика',automatic:'автомат'};
+var mcCars=[],mcEditing=null,mcDeleting=null,mcTransVal='manual';
+var mcPhotoFile=null;   // выбранный в модалке файл (загрузка после сохранения)
+var mcObjectUrls={};    // car_id -> blob URL превью
+function openCars(){
+  apiGet('/api/instructor/cars',function(d){
+    if(!d){toast('Не удалось загрузить автомобили');return}
+    mcCars=d.cars||[];
+    mcRender();
+    mcCars.forEach(function(c){if(c.has_photo)mcLoadPreview(c.id)});
+  });
+}
+function mcLoadPreview(id){
+  var xhr=new XMLHttpRequest();
+  xhr.open('GET','/api/instructor/cars/'+id+'/photo');
+  xhr.setRequestHeader('X-Session-Token',token||'');
+  xhr.responseType='blob';
+  xhr.onload=function(){
+    if(xhr.status!==200)return;
+    if(mcObjectUrls[id])URL.revokeObjectURL(mcObjectUrls[id]);
+    mcObjectUrls[id]=URL.createObjectURL(xhr.response);
+    var img=document.querySelector('.photo img[data-car="'+id+'"]');
+    if(img)img.src=mcObjectUrls[id];
+  };
+  xhr.send();
+}
+function mcRender(){
+  var box=el('cars');box.innerHTML='';
+  el('empty').style.display=mcCars.length?'none':'block';
+  el('count').textContent='Автомобилей: '+mcCars.length;
+  mcCars.forEach(function(c){
+    var art=node('article','car');
+    var photo=node('div','photo');
+    if(c.has_photo){
+      var img=document.createElement('img');
+      img.dataset.car=String(c.id);
+      img.alt='Фото автомобиля';
+      if(mcObjectUrls[c.id])img.src=mcObjectUrls[c.id];
+      photo.appendChild(img);
+    }else{
+      var ph=node('div','ph-inner');
+      ph.appendChild(node('b',null,'⌗'));
+      ph.appendChild(document.createTextNode('Плейсхолдер фото авто'));
+      ph.appendChild(document.createElement('br'));
+      var up=node('button','up','Загрузить фото');up.type='button';
+      up.addEventListener('click',function(){
+        mcOpenAdd(c);
+        el('f-photo').click();
+      });
+      ph.appendChild(up);
+      photo.appendChild(ph);
+    }
+    art.appendChild(photo);
+    art.appendChild(node('b','title',(c.brand||'')+' '+(c.model||'')));
+    art.appendChild(node('small','sub',(c.year||'')+' год выпуска'));
+    var meta=node('div','meta');
+    meta.appendChild(node('span','pill green',mcTransLabel[c.transmission]||c.transmission||''));
+    meta.appendChild(node('span','pill plate',c.plate||''));
+    art.appendChild(meta);
+    var act=node('div','cactions');
+    var edit=node('button','edit','Редактировать');edit.type='button';
+    edit.addEventListener('click',function(){mcOpenAdd(c)});
+    var del=node('button','del','Удалить');del.type='button';
+    del.addEventListener('click',function(){mcOpenDelete(c)});
+    act.appendChild(edit);act.appendChild(del);
+    art.appendChild(act);
+    box.appendChild(art);
+  });
+}
+// ── модалка добавления/редактирования ──
+function mcOpenAdd(c){
+  mcEditing=c||null;
+  el('add-title').textContent=c?'Редактирование автомобиля':'Новый автомобиль';
+  el('f-brand').value=c?(c.brand||''):'';
+  el('f-model').value=c?(c.model||''):'';
+  el('f-year').value=c?(c.year||''):'';
+  el('f-plate').value=c?(c.plate||''):'';
+  mcSetTrans(c?(c.transmission||'manual'):'manual');
+  mcResetUpload();
+  mcValidate();
+  el('m-add').classList.add('open');document.body.style.overflow='hidden';
+  el('f-brand').focus();
+}
+function mcSetTrans(v){mcTransVal=v;document.querySelectorAll('#f-trans button').forEach(function(b){b.classList.toggle('on',b.dataset.v===v)})}
+document.querySelectorAll('#f-trans button').forEach(function(b){b.addEventListener('click',function(){mcSetTrans(b.dataset.v)})});
+function mcCloseModal(id){el(id).classList.remove('open');document.body.style.overflow=''}
+document.querySelectorAll('#sec-cars [data-close]').forEach(function(b){b.addEventListener('click',function(){mcCloseModal(b.dataset.close)})});
+el('m-del').addEventListener('click',function(e){if(e.target===this)mcCloseModal('m-del')});
+el('m-add').addEventListener('click',function(e){if(e.target===this)mcCloseModal('m-add')});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){mcCloseModal('m-add');mcCloseModal('m-del')}});
+// валидация формы (поля * обязательны; бэкенд вернёт 422 по конкретному полю)
+['f-brand','f-model','f-year','f-plate'].forEach(function(id){
+  el(id).addEventListener('input',mcValidate);
+});
+function mcValidate(){
+  var ok=el('f-brand').value.trim()
+        &&el('f-model').value.trim()
+        &&el('f-year').value.trim()
+        &&el('f-plate').value.trim();
+  el('save-car').disabled=!ok;
+}
+// ── загрузка фото с прогрессом ──
+function mcResetUpload(){
+  var p=el('up-prog'),l=el('up-lab');
+  p.classList.remove('on');l.classList.remove('on');p.firstElementChild.style.width='0';
+  el('f-photo').value='';
+  mcPhotoFile=null;
+}
+function mcUploadPhoto(carId,file,onDone){
+  var p=el('up-prog'),bar=p.firstElementChild,l=el('up-lab');
+  p.classList.add('on');l.classList.add('on');
+  var fd=new FormData();fd.append('photo',file);
+  var xhr=new XMLHttpRequest();
+  xhr.open('POST','/api/instructor/cars/'+carId+'/photo');
+  xhr.setRequestHeader('X-Session-Token',token||'');
+  xhr.upload.onprogress=function(e){
+    if(!e.lengthComputable)return;
+    var v=Math.round(e.loaded/e.total*100);
+    bar.style.width=v+'%';l.textContent='Загрузка… '+v+'%';
+  };
+  xhr.onload=function(){
+    p.classList.remove('on');l.classList.remove('on');
+    if(xhr.status===200){
+      l.textContent='Фото загружено ✓';
+      toast('Фото сохранено (JPEG/PNG проверен по содержимому).');
+      onDone(null);
+    }else{
+      var msg='Не удалось загрузить фото';
+      try{var d=JSON.parse(xhr.responseText);if(d&&d.error)msg=d.error}catch(e){}
+      toast(msg);
+      onDone(msg);
+    }
+  };
+  xhr.onerror=function(){p.classList.remove('on');l.classList.remove('on');toast('Не удалось загрузить фото');onDone('network')};
+  xhr.send(fd);
+}
+el('f-photo').addEventListener('change',function(){
+  if(!this.files.length)return;
+  mcPhotoFile=this.files[0];
+  var p=el('up-prog'),l=el('up-lab');
+  p.classList.add('on');l.classList.add('on');
+  p.firstElementChild.style.width='100%';
+  l.textContent='Файл выбран: '+mcPhotoFile.name+' — сохраните автомобиль';
+});
+// сохранить (POST/PATCH /api/instructor/cars + фото)
+el('save-car').addEventListener('click',function(){
+  var data={
+    brand:el('f-brand').value.trim(),
+    model:el('f-model').value.trim(),
+    year:+el('f-year').value,
+    plate:el('f-plate').value.trim(),
+    transmission:mcTransVal
+  };
+  var btn=this;btn.disabled=true;
+  function finish(carId){
+    btn.disabled=false;
+    mcCloseModal('m-add');openCars();
+    if(!mcPhotoFile&&carId)toast('Автомобиль добавлен. Теперь его можно выбрать при принятии заявки.');
+    else if(!mcPhotoFile)toast('Изменения сохранены.');
+  }
+  if(mcEditing){
+    apiSend('PATCH','/api/instructor/cars/'+mcEditing.id,data,function(res){
+      if(res.status===401||res.status===403){btn.disabled=false;return}
+      if(!res.data||!res.data.ok){btn.disabled=false;toast((res.data&&res.data.error)||'Не удалось сохранить');return}
+      if(mcPhotoFile)mcUploadPhoto(mcEditing.id,mcPhotoFile,function(){finish(null)});
+      else finish(null);
+    });
+  }else{
+    apiSend('POST','/api/instructor/cars',data,function(res){
+      if(res.status===401||res.status===403){btn.disabled=false;return}
+      if(!res.data||!res.data.ok){btn.disabled=false;toast((res.data&&res.data.error)||'Не удалось добавить автомобиль');return}
+      var carId=res.data.car_id;
+      if(mcPhotoFile)mcUploadPhoto(carId,mcPhotoFile,function(){finish(carId)});
+      else finish(carId);
+    });
+  }
+});
+// ── удаление с подтверждением (DELETE /api/instructor/cars/{id}) ──
+function mcOpenDelete(c){
+  mcDeleting=c;
+  el('del-what').textContent=(c.brand||'')+' '+(c.model||'')+' · '+(c.plate||'');
+  el('m-del').classList.add('open');document.body.style.overflow='hidden';
+}
+el('del-cancel').addEventListener('click',function(){mcCloseModal('m-del')});
+el('del-confirm').addEventListener('click',function(){
+  if(!mcDeleting)return;
+  var id=mcDeleting.id;
+  apiSend('DELETE','/api/instructor/cars/'+id,null,function(res){
+    mcCloseModal('m-del');
+    if(res.status===401||res.status===403)return;
+    if(!res.data||!res.data.ok){toast((res.data&&res.data.error)||'Не удалось удалить автомобиль');return}
+    if(mcObjectUrls[id]){URL.revokeObjectURL(mcObjectUrls[id]);delete mcObjectUrls[id]}
+    toast('Автомобиль удалён. car_id у принятых заявок сброшен, связь с учениками сохранена (ОВ-3).');
+    openCars();
+  });
+});
+el('open-add').addEventListener('click',function(){mcOpenAdd(null)});
+
+// Хвост старых ссылок (BUG-047): /my-cars теперь 301 на этот дашборд с
+// хешем — открываем раздел «Мои автомобили» напрямую
+if(location.hash==='#/my-cars')navTo('Мои автомобили');
 
 // Выход (FR-22): POST /api/auth/logout -> по любому ответу очистка
 // sessionStorage -> редирект на лендинг инструкторов (спринт 3, правка:

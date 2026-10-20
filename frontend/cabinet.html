@@ -4,7 +4,16 @@
      Wiring (единственные отличия от мокапа): GET /api/auth/me с X-Session-Token
      из sessionStorage (401 -> редирект на главную, к модалке входа), 200 ->
      подстановка ФИО; «Выйти» -> POST /api/auth/logout -> очистка sessionStorage ->
-     редирект на главную. Плитки/чат-бар/quick — заглушки (alert из мокапа). -->
+     редирект на главную. Плитки/чат-бар/quick — заглушки (alert из мокапа).
+     BUG-047 (решение Заказчика 2026-10-17): кабинет ученика — ЕДИНЫЙ лейаут
+     (сайдбар слева: «Главная», «Мои заявки», «Выбрать инструктора»; контент
+     справа; шапка сверху). Раздел «Мои заявки» перенесен из frontend/
+     my-requests.html внутрь кабинета как таб (бейджи желтый/зеленый/красный,
+     комментарии отказов, «Повторить заявку», переход на /review — форма отзыва
+     остается отдельной целевой страницей). Отдельной страницы /my-requests
+     больше нет: 301 → /cabinet#/my-requests открывает этот же раздел.
+     Стили мокапа не изменялись (design-guard test_cabinet_page.py) —
+     новые правила только добавлены в конце <style>. -->
 <html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>СберАвтошкола — Кабинет ученика (мокап)</title><style>
 *{box-sizing:border-box}html,body{margin:0;min-width:320px;background:#020b13;color:#f7fbfa;font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}button{font:inherit;color:inherit;cursor:pointer}
 .hero{position:relative;min-height:100svh;overflow:hidden;background:radial-gradient(1100px 600px at 80% 10%,rgba(20,90,60,.4),transparent 55%),radial-gradient(800px 500px at 10% 90%,rgba(12,60,80,.35),transparent 55%),#020b13}
@@ -42,7 +51,74 @@ header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;height
 .soon{position:absolute;right:22px;top:22px;font-size:11px;letter-spacing:.1em;color:#7d939a;border:1px solid rgba(125,147,154,.35);border-radius:999px;padding:4px 12px}
 footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.12);display:flex;justify-content:space-between;font-size:13px;color:#7d939a}
 @media(max-width:760px){header{grid-template-columns:1fr auto}.crumb{display:none}.greet b{font-size:28px}.prompt{font-size:15px;height:60px}.quick{overflow-x:auto}.quick button{flex:0 0 auto}}
+/* BUG-047: единый лейаут кабинета — сайдбар слева, контент справа, шапка сверху
+   (fixed-стиль как у инструктора). Ниже только ДОБАВЛЕННЫЕ правила — строки
+   стилей мокапа выше не изменялись (design-guard test_cabinet_page.py). */
+.app{display:grid;grid-template-columns:236px minmax(0,1fr);min-height:100svh}
+.side{padding:25px 17px;border-right:1px solid rgba(234,255,249,.12);background:rgba(4,16,24,.72);display:flex;flex-direction:column;gap:26px}
+.side-brand{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:700;letter-spacing:-.04em;padding:0 8px}
+.side-brand em{font-style:normal;color:#55ed9c}
+.side-brand small{display:block;font-size:9px;color:#7d939a;letter-spacing:.12em;text-transform:uppercase;margin-top:3px}
+.snav{display:grid;gap:5px}
+.snav button{border:1px solid transparent;background:transparent;color:#aab8c0;text-align:left;padding:12px;border-radius:12px;font-size:13px;display:flex;align-items:center;gap:12px}
+.snav button .ico{width:20px;text-align:center;font-size:16px}
+.snav button.on{color:#8ff2b5;background:#143023;border-color:#286445}
+.snav button:hover{background:rgba(255,255,255,.05)}
+.hero{min-height:auto}
+/* раздел «Мои заявки» (перенесен из my-requests.html; классы 1в1) */
+.page-head{margin:26px 0 6px}
+.kicker{font-size:10px;color:#79eaa5;text-transform:uppercase;letter-spacing:.18em}
+.page-head h1{font-size:28px;letter-spacing:-.05em;font-weight:600;margin:9px 0 8px}
+.page-head p{font-size:12px;color:#93a6b1;margin:0}
+.filters{display:flex;gap:6px;margin:18px 0 14px}
+.filters button{border:1px solid rgba(234,255,249,.14);background:rgba(255,255,255,.05);color:#b9c8ce;border-radius:999px;padding:8px 15px;font-size:11px}
+.filters button.on{background:#143322;border-color:#2c8651;color:#a3efbd}
+.filters button .n{color:#ffd479}
+.list{display:grid;gap:11px}
+.req{border:1px solid rgba(234,255,249,.16);border-radius:18px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:18px 19px}
+.req-top{display:flex;gap:13px;align-items:center}
+.sic{width:44px;height:44px;flex:none;border-radius:13px;background:linear-gradient(145deg,#2c4f3d,#132119);display:grid;place-items:center;color:#a0f2bd;font-size:12px;font-weight:700}
+.req-top b{font-size:15px;font-weight:600;letter-spacing:-.02em;display:block}
+.req-top small{display:block;font-size:11px;color:#8fa0aa;margin-top:4px}
+.status{margin-left:auto;flex:none;font-size:10px;padding:6px 12px;border-radius:999px;white-space:nowrap}
+.st-new{background:#332a14;color:#ffd479;border:1px solid #6b5426}   /* на рассмотрении */
+.st-acc{background:#143322;color:#91efb1;border:1px solid #2a5c40}   /* принята */
+.st-den{background:#33201a;color:#ffb28e;border:1px solid #5c3030}   /* отказана */
+.meta-pills{display:flex;gap:7px;flex-wrap:wrap;margin:13px 0 0}
+.pill{font-size:10px;padding:6px 10px;border-radius:999px;border:1px solid rgba(234,255,249,.12);background:rgba(255,255,255,.05);color:#b9c8ce}
+.pill.car{background:#0b161c;border-color:rgba(234,255,249,.18);color:#dcebe9}
+.comment{margin:13px 0 0;padding:11px 14px;border:1px solid #5c303055;background:#24131340;border-radius:12px;font-size:12px;color:#e8cdbd;line-height:1.55}
+.comment span{display:block;font-size:10px;color:#e8b877;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+.comment.system span{color:#e8b877}
+.note{font-size:11px;color:#8fa0aa;margin-top:13px;line-height:1.6}
+.note a{color:#7fe3a3;text-decoration:none;border-bottom:1px dashed #2a5c40}
+.note a:hover{color:#c9ffdd}
+.actions{display:flex;gap:9px;margin-top:15px;flex-wrap:wrap}
+.act{border-radius:11px;padding:11px 20px;font-size:12px;font-weight:550;border:1px solid}
+.act.retry{background:#123524;border-color:#2b9c62;color:#c9ffdd}
+.act.retry:hover{filter:brightness(1.12)}
+.act.retry:disabled{opacity:.45;cursor:not-allowed;filter:none}
+.act.review{background:transparent;border-color:#2a5c40;color:#91efb1}
+.act.review:hover{background:#14332266}
+.no-req{display:none;border:1px dashed rgba(234,255,249,.22);border-radius:19px;padding:46px 20px;text-align:center;color:#8fa0a9}
+.no-req b{display:block;font-size:15px;color:#c9d6db;margin-bottom:8px}
+.no-req button{margin-top:16px;border:1px solid #2b9c62;background:#123524;color:#c9ffdd;border-radius:11px;padding:10px 18px;font-size:12px}
+.toast{position:fixed;bottom:22px;right:22px;max-width:360px;background:#143323;border:1px solid #367b50;color:#b5f8cc;padding:13px 16px;border-radius:13px;font-size:12px;box-shadow:0 10px 40px #0008;display:none;z-index:20}
+.toast.show{display:block}
+@media(max-width:850px){.req-top{flex-wrap:wrap}.status{margin-left:57px;order:3}}
+@media(max-width:760px){.app{grid-template-columns:1fr}.side{flex-direction:row;align-items:center;padding:10px 14px;border-right:0;border-bottom:1px solid rgba(234,255,249,.12)}.snav{display:flex;overflow:auto;gap:5px}.snav button{white-space:nowrap;padding:9px 10px;font-size:11px}.snav button .ico{display:none}}
+@media(max-width:560px){.filters{overflow-x:auto}.act{flex:1}}
 </style></head><body>
+<div class="app">
+<aside class="side">
+  <div class="side-brand"><span class="check">✓</span><div><em>Сбер</em>Автошкола<small>Кабинет ученика</small></div></div>
+  <!-- BUG-047: примитивная навигация ученика; активный раздел подсвечивается -->
+  <nav class="snav">
+    <button class="on" data-tab="Главная" type="button"><span class="ico">⌂</span>Главная</button>
+    <button data-tab="Мои заявки" type="button"><span class="ico">✉</span>Мои заявки</button>
+    <button data-goto="/instructor-choice" type="button"><span class="ico">▤</span>Выбрать инструктора</button>
+  </nav>
+</aside>
 <div class="hero"><div class="frame">
 <header>
   <div class="brand"><span class="check">✓</span><span><em>Сбер</em>Автошкола</span></div>
@@ -50,6 +126,8 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
   <div class="user"><span class="uname">Иван Иванов</span><button class="logout">Выйти</button></div>
 </header>
 
+<!-- раздел «Главная» (единственный контент кабинета до BUG-047) -->
+<div id="sec-home">
 <div class="greet">ЛИЧНЫЙ КАБИНЕТ<b>Добро пожаловать, Иван!</b></div>
 
 <!-- чат-бар (как на главной) -->
@@ -86,9 +164,33 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
     <span class="go">→</span>
   </button>
 </div>
+</div>
+
+<!-- раздел «Мои заявки» (BUG-047: перенесен из frontend/my-requests.html;
+     бейджи статусов желтый/зеленый/красный, комментарии отказов,
+     «Повторить заявку», «Оставить отзыв» → /review — отдельная форма) -->
+<div id="sec-requests" style="display:none">
+  <div class="page-head">
+    <div class="kicker">Мои заявки</div>
+    <h1>Заявки инструкторам</h1>
+    <p>Инструктор рассматривает заявку сам: у отказа обязателен комментарий — вы увидите его здесь. Повторить заявку отказанному инструктору можно в любой момент.</p>
+  </div>
+
+  <div class="filters">
+    <button class="on" data-f="all" type="button">Все</button>
+    <button data-f="new" type="button">На рассмотрении <span class="n" id="n-new"></span></button>
+    <button data-f="accepted" type="button">Принятые <span class="n" id="n-accepted"></span></button>
+    <button data-f="denied" type="button">Отказанные <span class="n" id="n-denied"></span></button>
+  </div>
+
+  <div class="list" id="list"></div>
+  <div class="no-req" id="noreq"><b>Заявок пока нет</b>Найдите инструктора в каталоге и подайте первую заявку.<button id="go-catalog" type="button">Перейти к выбору инструктора</button></div>
+</div>
 
 <footer><span>СберАвтошкола · кабинет ученика</span><span>Спринт 1 · визуал</span></footer>
 </div></div>
+</div>
+<div class="toast" id="toast"></div>
 <script>
 (function(){
   // Wiring Спринта 1 (sdd §10.2–10.4): токен сессии — sessionStorage,
@@ -141,7 +243,8 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
   });
 
   // Плитка «Найти водителя» (спринт 3, change add-instructor-student-loop):
-  // переход в раздел «Выбор инструктора» (страница /instructor-choice)
+  // переход в раздел «Выбор инструктора» (страница /instructor-choice —
+  // по решению BUG-047 остается отдельной целевой страницей)
   var tileInstructor = document.getElementById('tile-instructor');
   if (tileInstructor) {
     tileInstructor.addEventListener('click', function () {
@@ -149,18 +252,176 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
     });
   }
 
-  // Плитка «Мои заявки» (спринт 4, change add-s3-frontend-links):
-  // переход в раздел «Мои заявки» (страница /my-requests)
+  // =====================================================================
+  // BUG-047: единый лейаут кабинета — переключение разделов «Главная» /
+  // «Мои заявки»; «Выбрать инструктора» — переход на /instructor-choice.
+  // Активный пункт сайдбара подсвечивается. Хвост старых ссылок:
+  // /my-requests теперь 301 на /cabinet#/my-requests — хеш открывает
+  // раздел напрямую.
+  function navTo(name) {
+    var isReq = (name === 'Мои заявки');
+    document.getElementById('sec-home').style.display = isReq ? 'none' : 'block';
+    document.getElementById('sec-requests').style.display = isReq ? 'block' : 'none';
+    document.querySelectorAll('.snav button[data-tab]').forEach(function (b) {
+      b.classList.toggle('on', b.dataset.tab === name);
+    });
+    // BUG-047: хеш раздела синхронизируется с табом — reload не сбрасывает
+    // раздел, старые ссылки #/my-requests открывают его напрямую
+    var wantHash = isReq ? '#/my-requests' : '';
+    if (location.hash !== wantHash) {
+      try { history.replaceState(null, '', location.pathname + location.search + (wantHash || '')); } catch (e) {}
+    }
+    if (isReq) loadRequests();
+  }
+  document.querySelectorAll('.snav button[data-tab]').forEach(function (b) {
+    b.addEventListener('click', function () { navTo(b.dataset.tab); });
+  });
+  document.querySelectorAll('.snav button[data-goto]').forEach(function (b) {
+    b.addEventListener('click', function () { location.href = b.dataset.goto; });
+  });
+  if (location.hash === '#/my-requests') navTo('Мои заявки');
+
+  // --- Раздел «Мои заявки» (перенесен из my-requests.html) --------------
+  // сессия ученика — токен/clearSession/toLogin выше (единый паттерн)
+  function api(path,opts,cb){
+    opts=opts||{};
+    opts.headers=Object.assign({'X-Session-Token':token||''},opts.headers||{});
+    if(opts.body)opts.headers['Content-Type']='application/json';
+    fetch(path,opts).then(function(r){
+      return r.json().then(function(d){cb({status:r.status,data:d})},function(){cb({status:r.status,data:null})});
+    },function(){cb({status:0,data:null})});
+  }
+  function handleAuthFail(res){
+    if(res.status===401||res.status===403){toLogin();return true}
+    return false;
+  }
+  function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(window._tt);window._tt=setTimeout(function(){t.classList.remove('show')},3000)}
+  // DOM-хелпер: пользовательские строки — только через textContent (stored XSS)
+  function el(tag,cls,text){var n=document.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=text;return n}
+
+  // данные: GET /api/student/requests (реальный шейп backend/student_requests.py)
+  var reqs=[];
+  var STATUS={new:['На рассмотрении','st-new'],accepted:['Принята','st-acc'],denied:['Отказана','st-den']};
+  // системный комментарий автозакрытия (ОВ-1) — тот же текст, что в бэкенде
+  var SYSTEM_COMMENT='Заявка закрыта: ученик принят другим инструктором';
+  function fmtDate(s){
+    // '2026-10-16 10:22:00' → '16.10.2026'
+    if(!s)return '';
+    var m=String(s).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m?(m[3]+'.'+m[2]+'.'+m[1]):String(s);
+  }
+  function loadRequests(){
+    api('/api/student/requests',{},function(res){
+      if(handleAuthFail(res))return;
+      if(!res.data||!res.data.ok){toast((res.data&&res.data.error)||'Не удалось загрузить заявки');return}
+      reqs=res.data.requests||[];
+      renderFilters();
+      render(cur);
+    });
+  }
+  function renderFilters(){
+    document.getElementById('n-new').textContent=reqs.filter(function(r){return r.status==='new'}).length?'·'+reqs.filter(function(r){return r.status==='new'}).length:'';
+    document.getElementById('n-accepted').textContent=reqs.filter(function(r){return r.status==='accepted'}).length?'·'+reqs.filter(function(r){return r.status==='accepted'}).length:'';
+    document.getElementById('n-denied').textContent=reqs.filter(function(r){return r.status==='denied'}).length?'·'+reqs.filter(function(r){return r.status==='denied'}).length:'';
+  }
+  function carText(c){
+    if(!c)return '';
+    var tr=c.transmission==='automatic'?'автомат':c.transmission==='manual'?'механика':(c.transmission||'');
+    return [c.brand,c.model].filter(Boolean).join(' ')+(c.year?' '+c.year:'')+(tr?' · '+tr:'');
+  }
+  function render(filter){
+    var box=document.getElementById('list');box.innerHTML='';
+    var list=reqs.filter(function(r){return filter==='all'||r.status===filter});
+    document.getElementById('noreq').style.display=list.length?'none':'block';
+    list.forEach(function(r){
+      var instructor=r.instructor_full_name||'Инструктор';
+      var art=el('article','req');
+      var top=el('div','req-top');
+      top.appendChild(el('span','sic',instructor.split(' ').slice(0,2).map(function(w){return (w[0]||'').toUpperCase()}).join('')));
+      var who=el('div');
+      who.appendChild(el('b',null,instructor));
+      who.appendChild(el('small',null,'заявка от '+fmtDate(r.created_at)));
+      top.appendChild(who);
+      var st=STATUS[r.status]||['?','st-new'];
+      top.appendChild(el('span','status '+st[1],st[0]));
+      art.appendChild(top);
+      if(r.car) {
+        var pills=el('div','meta-pills');
+        pills.appendChild(el('span','pill','Автомобиль занятий:'));
+        pills.appendChild(el('span','pill car','🚗 '+carText(r.car)));
+        art.appendChild(pills);
+      }
+      if(r.status==='new'){
+        art.appendChild(el('div','note','Заявка ждёт решения инструктора. Пока она активна, новую этому же инструктору подать нельзя.'));
+      }
+      if(r.status==='accepted'){
+        var note=el('div','note');
+        note.appendChild(document.createTextNode('Вы приняты'+(r.decided_at?' '+fmtDate(r.decided_at):'')+'. Отзыв можно оставить один раз: '));
+        var a=el('a',null,'оставить отзыв →');
+        a.href='/review?instructor='+(r.instructor_id||'');
+        note.appendChild(a);
+        art.appendChild(note);
+        var act=el('div','actions');
+        var rv=el('button','act review','★ Оставить отзыв');rv.type='button';
+        rv.addEventListener('click',function(){location.href='/review?instructor='+(r.instructor_id||'')});
+        act.appendChild(rv);
+        art.appendChild(act);
+      }
+      if(r.status==='denied'){
+        var isSystem=r.deny_comment===SYSTEM_COMMENT;
+        var com=el('div','comment'+(isSystem?' system':''));
+        com.appendChild(el('span',null,isSystem?'Системный комментарий':'Комментарий инструктора'));
+        com.appendChild(document.createTextNode(r.deny_comment||''));
+        art.appendChild(com);
+        var act2=el('div','actions');
+        var rt=el('button','act retry','↻ Повторить заявку');rt.type='button';
+        rt.dataset.rid=String(r.id);
+        rt.addEventListener('click',function(){retry(r,rt)});
+        act2.appendChild(rt);
+        art.appendChild(act2);
+      }
+      box.appendChild(art);
+    });
+    bind();
+  }
+  function bind(){
+    document.getElementById('go-catalog').onclick=function(){location.href='/instructor-choice'};
+  }
+  // «Повторить заявку» (ОВ-2): POST /api/student/requests {instructor_id}
+  function retry(r,btn){
+    btn.disabled=true;
+    api('/api/student/requests',{method:'POST',body:JSON.stringify({instructor_id:r.instructor_id})},function(res){
+      if(handleAuthFail(res)){btn.disabled=false;return}
+      if(res.status===200&&res.data&&res.data.ok){
+        toast('Заявка отправлена повторно: инструктор увидит её в своём кабинете.');
+        loadRequests();
+      }else if(res.status===409){
+        btn.disabled=false;
+        toast('У вас уже есть активная заявка этому инструктору.');
+      }else{
+        btn.disabled=false;
+        toast((res.data&&res.data.error)||'Не удалось отправить заявку');
+      }
+    });
+  }
+  var cur='all';
+  document.querySelectorAll('.filters button').forEach(function(b){b.addEventListener('click',function(){
+    document.querySelectorAll('.filters button').forEach(function(x){x.classList.remove('on')});
+    b.classList.add('on');cur=b.dataset.f;render(cur);
+  })});
+
+  // Плитка «Мои заявки» (BUG-047): открывает раздел внутри кабинета
+  // (отдельной страницы /my-requests больше нет — 301 на /cabinet#/my-requests)
   var tileRequests = document.getElementById('tile-requests');
   if (tileRequests) {
     tileRequests.addEventListener('click', function () {
-      location.href = '/my-requests';
+      navTo('Мои заявки');
     });
   }
 
   // заглушки спринта-1 (как в мокапе, FR-6): плитки и чат не подключены;
   // .logout выведен из заглушек — у него реальный wiring выше;
-  // плитки «Найти водителя»/«Мои заявки» — реальные переходы
+  // плитки «Найти водителя»/«Мои заявки» — реальные переходы/раздел
   document.querySelectorAll('.tile:not(#tile-instructor):not(#tile-requests),.quick button,.send').forEach(function (b) {
     b.addEventListener('click', function () { alert('Заглушка: сервис появится в следующем спринте'); });
   });
