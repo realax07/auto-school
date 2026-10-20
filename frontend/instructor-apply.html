@@ -10,10 +10,6 @@ label.upload{border:1px dashed #ffffff2c;border-radius:13px;padding:14px;display
 .upload #license-thumb{display:none;width:100%;max-height:230px;object-fit:contain;border-radius:10px;cursor:pointer;background:#00000033}
 .upload.has-file .upload-icon,.upload.has-file .upload-text,.upload.has-file #pick-file{display:none}
 .upload.has-file #license-thumb{display:block}
-.upload #license-pdf{display:none;align-items:center;gap:10px;font-size:11px;color:#eaf1f3;cursor:pointer}
-.upload #license-pdf b{font-size:12px;word-break:break-all}
-.upload.has-file.pdf #license-pdf{display:flex}
-.upload.has-file.pdf #license-thumb{display:none}
 .upload-error{display:none;margin-top:7px;color:#ff9c9c;font-size:10px;line-height:1.5}
 .upload-error.show{display:block}
 @media(max-width:850px){.layout{grid-template-columns:1fr;gap:30px;padding-top:35px}.intro p{max-width:650px}.path{grid-template-columns:repeat(3,1fr);gap:12px}.path-row{gap:9px}.side-note{margin-top:20px}.form-card{max-width:none}}@media(max-width:560px){.wrap{width:calc(100% - 30px)}header{height:70px}.brand{font-size:17px}.check{width:27px;height:27px;font-size:17px;border-width:3px}.back{font-size:11px}.layout{padding:30px 0 45px;gap:24px}.intro h1{font-size:42px}.intro p{font-size:13px}.path{grid-template-columns:1fr;gap:14px}.path-row span{font-size:10px}.form-card{padding:19px;border-radius:20px}.form-head h2{font-size:21px}.badge{font-size:9px}.grid{grid-template-columns:1fr}.field.full{grid-column:auto}.choice{flex-direction:column}.choice label{width:100%}.submit-row{align-items:flex-start;flex-direction:column}.submit{width:100%}.foot{flex-direction:column}}
@@ -32,7 +28,7 @@ label.upload{border:1px dashed #ffffff2c;border-radius:13px;padding:14px;display
 <div class="section-title"><em>02</em> Формат работы и автомобиль</div><div class="choice"><label><input type="radio" name="format" value="own" checked> У меня есть свой автомобиль</label><label><input type="radio" name="format" value="sber"> Хочу работать на автомобиле Сбера</label></div>
 <div class="grid" style="margin-top:14px"><div class="field full" id="plate-wrap"><label for="plate">Государственный регистрационный номер автомобиля</label><input id="plate" name="plate" placeholder="Например, А123АА 777"><div class="hint">Если автомобиля нет, оставь поле пустым.</div></div><div class="field"><label for="license-number">Номер водительского удостоверения <span class="req">*</span></label><input id="license-number" name="license-number" placeholder="Серия и номер" required></div><div class="field"><label for="license-date">Дата выдачи удостоверения</label><input id="license-date" name="license-date" type="date"></div><div class="field"><label for="license-category">Категория прав <span class="req">*</span></label><select id="license-category" name="license-category" required><option value="">Выбери категорию</option><option>B</option><option>A</option><option>C</option><option>D</option><option>BE</option><option>Другая</option></select></div><div class="field"><label for="experience">Стаж вождения</label><select id="experience" name="experience"><option value="">Выбери стаж</option><option>3–4 года</option><option>5–9 лет</option><option>10 лет и больше</option></select></div></div>
 <div class="section-title"><em>02.1</em> Пароль для входа</div><div class="grid"><div class="field"><label for="password">Пароль <span class="req">*</span></label><input id="password" name="password" type="password" autocomplete="new-password" placeholder="Минимум 8 символов" required><div class="hint">Понадобится для входа и проверки статуса заявки.</div></div><div class="field"><label for="password-confirm">Подтверждение пароля <span class="req">*</span></label><input id="password-confirm" name="password-confirm" type="password" autocomplete="new-password" placeholder="Повтори пароль" required></div></div>
-<div class="section-title"><em>03</em> Документы</div><div class="grid"><div class="field full"><label>Водительское удостоверение</label><label class="upload" for="license-file"><span class="upload-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M4 15v4h16v-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="upload-text" style="flex:1"><strong id="file-name">Прикрепить фото или скан</strong><span>JPG, PNG или PDF · до 5 МБ</span></span><button type="button" id="pick-file">Выбрать файл</button><img id="license-thumb" alt="Миниатюра водительского удостоверения"><span id="license-pdf">📄 <b id="pdf-name"></b> — клик, чтобы заменить</span><input type="file" id="license-file" accept="image/jpeg,image/png,image/*,.pdf"></label><div class="upload-error" id="license-error" role="alert"></div><div class="hint">Дополнительные документы о квалификации и праве обучать вождению можно запросить на следующем этапе.</div></div></div>
+<div class="section-title"><em>03</em> Документы</div><div class="grid"><div class="field full"><label>Водительское удостоверение</label><label class="upload" for="license-file"><span class="upload-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M4 15v4h16v-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="upload-text" style="flex:1"><strong id="file-name">Прикрепить фото или скан</strong><span>JPG или PNG · до 5 МБ</span></span><button type="button" id="pick-file">Выбрать файл</button><img id="license-thumb" alt="Миниатюра водительского удостоверения"><input type="file" id="license-file" accept="image/jpeg,image/png"></label><div class="upload-error" id="license-error" role="alert"></div><div class="hint">Дополнительные документы о квалификации и праве обучать вождению можно запросить на следующем этапе.</div></div></div>
 <label class="checkline"><input type="checkbox" required><span>Я подтверждаю, что указал(а) корректные данные, и соглашаюсь на обработку персональных данных для рассмотрения заявки. <span class="req">*</span> <br><span style="color:#6f828b">Перед запуском здесь должна быть ссылка на утверждённую политику и текст согласия.</span></span></label>
 <div class="submit-row"><button class="submit" type="submit">Продолжить →</button><div class="secure">После анкеты — проверка данных и документов.<br>Заявка уйдет на рассмотрение сразу после отправки.</div></div><div class="notice" id="notice">Не удалось отправить заявку. Проверь заполнение полей и попробуй ещё раз.</div></form></section></main><footer><div class="wrap foot"><span>© СберАвтошкола · Концепция экрана регистрации</span><span>Защита персональных данных должна быть настроена до запуска</span></div></footer>
 <script>
@@ -40,20 +36,20 @@ const radios=[...document.querySelectorAll('input[name="format"]')],plateWrap=do
 // BUG-048 (1): реальная загрузка ВУ. Выбор файла -> мгновенная миниатюра
 // (objectURL) вместо области загрузки (иконка+подпись+кнопка скрываются;
 // клик по миниатюре снова открывает выбор — label for=license-file).
-// Клиентская валидация: JPEG/PNG/PDF, <=5 МБ; иначе красный текст ошибки
-// и отправка заблокирована. PDF без растровой миниатюры — карточка файла.
-var licenseInput=document.getElementById('license-file'),licenseZone=licenseInput.closest('.upload'),licenseThumb=document.getElementById('license-thumb'),licensePdf=document.getElementById('license-pdf'),pdfName=document.getElementById('pdf-name'),licenseError=document.getElementById('license-error'),fileName=document.getElementById('file-name'),licenseObjectUrl=null,licenseFileError=null;
+// Клиентская валидация: JPEG/PNG, <=5 МБ; иначе красный текст ошибки
+// и отправка заблокирована (тексты совпадают с серверными — 422 контракт).
+var licenseInput=document.getElementById('license-file'),licenseZone=licenseInput.closest('.upload'),licenseThumb=document.getElementById('license-thumb'),licenseError=document.getElementById('license-error'),fileName=document.getElementById('file-name'),licenseObjectUrl=null,licenseFileError=null;
 function showLicenseError(msg){licenseError.textContent=msg;licenseError.classList.add('show');}
-function clearLicenseError(msg){licenseError.textContent='';licenseError.classList.remove('show');}
+function clearLicenseError(){licenseError.textContent='';licenseError.classList.remove('show');}
 function validateLicenseFile(file){
  if(file.size>5*1024*1024)return 'Файл: изображение больше 5 МБ';
  var type=(file.type||'').toLowerCase(),ext=(file.name.split('.').pop()||'').toLowerCase();
- var okType=['image/jpeg','image/jpg','image/png','application/pdf'].indexOf(type)!==-1;
- var okExt=['jpg','jpeg','png','pdf'].indexOf(ext)!==-1;
- if(!okType&&!okExt)return 'Файл: допустимы только изображения JPEG, PNG или PDF';
+ var okType=['image/jpeg','image/jpg','image/png'].indexOf(type)!==-1;
+ var okExt=['jpg','jpeg','png'].indexOf(ext)!==-1;
+ if(!okType&&!okExt)return 'Файл: допустимы только изображения JPEG или PNG';
  return null;
 }
-function resetLicensePreview(){licenseZone.classList.remove('has-file','pdf');if(licenseObjectUrl){URL.revokeObjectURL(licenseObjectUrl);licenseObjectUrl=null;}}
+function resetLicensePreview(){licenseZone.classList.remove('has-file');if(licenseObjectUrl){URL.revokeObjectURL(licenseObjectUrl);licenseObjectUrl=null;}}
 licenseInput.addEventListener('change',function(){
  var file=this.files[0];
  resetLicensePreview();licenseFileError=null;clearLicenseError();
@@ -64,13 +60,9 @@ licenseInput.addEventListener('change',function(){
    fileName.textContent='Прикрепить фото или скан';return;
  }
  fileName.textContent=file.name;
- if((file.type||'').toLowerCase().indexOf('pdf')!==-1||/\.pdf$/i.test(file.name)){
-   licenseZone.classList.add('has-file','pdf');pdfName.textContent=file.name;
- }else{
-   licenseObjectUrl=URL.createObjectURL(file);
-   licenseThumb.src=licenseObjectUrl;
-   licenseZone.classList.add('has-file');
- }
+ licenseObjectUrl=URL.createObjectURL(file);
+ licenseThumb.src=licenseObjectUrl;
+ licenseZone.classList.add('has-file');
 });
 // Wiring (BUG-048, задача 1): сабмит -> POST /api/instructors/apply,
 // multipart/form-data (все поля анкеты + license_photo). Токен сессии
@@ -116,7 +108,7 @@ document.getElementById('registration').addEventListener('submit',function(e){
       else{
         var msg=(res.data&&res.data.error)
           ||(res.status===413?'Файл: изображение больше 5 МБ'
-          :res.status===415?'Файл: допустимы только изображения JPEG, PNG или PDF'
+          :res.status===415?'Файл: допустимы только изображения JPEG или PNG'
           :'Ошибка отправки заявки');
         if(res.status===413||res.status===415||res.status===422||msg.indexOf('Файл')===0){
           showLicenseError(msg); // видимое сообщение у поля загрузки
