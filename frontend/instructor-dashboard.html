@@ -154,6 +154,14 @@ main{padding:28px clamp(20px,3vw,44px) 45px;max-width:1600px;width:100%;margin:a
 .up-zone:hover{border-color:#35d87999}
 .up-zone input{display:none}
 .up-zone b{color:#c9ffdd}
+/* BUG-048 (3): миниатюра выбранного фото вместо текста зоны загрузки;
+   клик по миниатюре открывает выбор другого файла (label for=f-photo) */
+.up-zone img{display:none;width:100%;max-height:190px;object-fit:contain;border-radius:10px;background:#00000033}
+.up-zone.has-thumb{padding:10px}
+.up-zone.has-thumb .up-txt{display:none}
+.up-zone.has-thumb img{display:block}
+.up-photo-err{display:none;margin-top:7px;color:#ff9c9c;font-size:10px;line-height:1.5}
+.up-photo-err.show{display:block}
 .form-note{margin-top:12px;font-size:10px;color:#8fa0aa;line-height:1.6;border:1px solid #ffffff12;border-radius:11px;background:#ffffff04;padding:10px 12px}
 .form-actions{display:flex;gap:10px;margin-top:16px}
 .btn{flex:1;border-radius:12px;padding:12px;font-size:13px;font-weight:550;border:1px solid}
@@ -332,9 +340,11 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
             </div>
           </div>
           <div class="field wide"><span>Фото автомобиля (необязательно)</span>
-            <label class="up-zone" id="up-zone">📷 <b>Выберите файл</b> или перетащите сюда<br>JPEG/PNG · до 5 МБ
+            <label class="up-zone" id="up-zone"><span class="up-txt">📷 <b>Выберите файл</b> или перетащите сюда<br>JPEG/PNG · до 5 МБ</span>
+              <img id="up-thumb" alt="Миниатюра фото автомобиля">
               <input type="file" id="f-photo" accept="image/jpeg,image/png">
             </label>
+            <div class="up-photo-err" id="up-photo-err" role="alert"></div>
             <div class="prog" id="up-prog"><i></i></div>
             <div class="prog-lab" id="up-lab">Загрузка… 0%</div>
           </div>
@@ -902,11 +912,29 @@ function mcValidate(){
   el('save-car').disabled=!ok;
 }
 // ── загрузка фото с прогрессом ──
+var upThumbUrl=null;
 function mcResetUpload(){
   var p=el('up-prog'),l=el('up-lab');
   p.classList.remove('on');l.classList.remove('on');p.firstElementChild.style.width='0';
+  l.textContent='Загрузка… 0%';
   el('f-photo').value='';
   mcPhotoFile=null;
+  // BUG-048 (3): миниатюра и ошибка сбрасываются при открытии/закрытии модалки
+  el('up-zone').classList.remove('has-thumb');
+  if(upThumbUrl){URL.revokeObjectURL(upThumbUrl);upThumbUrl=null}
+  el('up-thumb').removeAttribute('src');
+  var errBox=el('up-photo-err');errBox.textContent='';errBox.classList.remove('show');
+}
+function mcShowPhotoError(msg){
+  var errBox=el('up-photo-err');
+  errBox.textContent=msg;errBox.classList.add('show');toast(msg);
+}
+// Клиентская предварительная проверка (как на бэкенде): JPEG/PNG, <=5 МБ.
+// Неверный формат/размер — понятное сообщение, файл не отправляется.
+function mcValidatePhoto(file){
+  if(file.size>5*1024*1024)return 'Файл: изображение больше 5 МБ';
+  if(file.type!=='image/jpeg'&&file.type!=='image/png')return 'Фото: допустимы только изображения JPEG или PNG';
+  return null;
 }
 function mcUploadPhoto(carId,file,onDone){
   var p=el('up-prog'),bar=p.firstElementChild,l=el('up-lab');
@@ -927,8 +955,11 @@ function mcUploadPhoto(carId,file,onDone){
       toast('Фото сохранено (JPEG/PNG проверен по содержимому).');
       onDone(null);
     }else{
+      // 413 (лимит размера) / 415 (формат) / 422 — внятный тост
       var msg='Не удалось загрузить фото';
       try{var d=JSON.parse(xhr.responseText);if(d&&d.error)msg=d.error}catch(e){}
+      if(xhr.status===413)msg=msg||'Файл: изображение больше 5 МБ';
+      if(xhr.status===415)msg=msg||'Фото: допустимы только изображения JPEG или PNG';
       toast(msg);
       onDone(msg);
     }
@@ -937,8 +968,21 @@ function mcUploadPhoto(carId,file,onDone){
   xhr.send(fd);
 }
 el('f-photo').addEventListener('change',function(){
+  var zone=el('up-zone'),thumb=el('up-thumb');
+  zone.classList.remove('has-thumb');
+  if(upThumbUrl){URL.revokeObjectURL(upThumbUrl);upThumbUrl=null}
+  var errBox=el('up-photo-err');errBox.textContent='';errBox.classList.remove('show');
   if(!this.files.length)return;
-  mcPhotoFile=this.files[0];
+  var file=this.files[0];
+  var err=mcValidatePhoto(file);
+  if(err){ // неверный формат/размер: сообщение, файл не выбирается
+    this.value='';mcPhotoFile=null;mcShowPhotoError(err);return;
+  }
+  mcPhotoFile=file;
+  // BUG-048 (3): мгновенная миниатюра вместо зоны загрузки — до отправки
+  upThumbUrl=URL.createObjectURL(file);
+  thumb.src=upThumbUrl;
+  zone.classList.add('has-thumb');
   var p=el('up-prog'),l=el('up-lab');
   p.classList.add('on');l.classList.add('on');
   p.firstElementChild.style.width='100%';
