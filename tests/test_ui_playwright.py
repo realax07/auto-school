@@ -97,6 +97,35 @@ def api(method: str, path: str, *, base: str, body: dict | None = None,
         return exc.code, (json.loads(raw) if raw else None)
 
 
+def api_multipart(path, *, base, fields, files=None):
+    """multipart/form-data POST (urllib, BUG-048): fields — текстовые поля,
+    files — {name: (filename, bytes, content_type)}. Возвращает (status, dict).
+    Заявка инструктора с файлом ВУ — так ее отправляет фронт (FormData)."""
+    boundary = "----uitest" + uuid.uuid4().hex
+    body = bytearray()
+    for key, value in fields.items():
+        body += (
+            f"--{boundary}\r\nContent-Disposition: form-data; "
+            f"name=\"{key}\"\r\n\r\n{value}\r\n").encode("utf-8")
+    for key, (fname, data, ctype) in (files or {}).items():
+        body += (
+            f"--{boundary}\r\nContent-Disposition: form-data; "
+            f"name=\"{key}\"; filename=\"{fname}\"\r\n"
+            f"Content-Type: {ctype}\r\n\r\n").encode("utf-8")
+        body += data + b"\r\n"
+    body += f"--{boundary}--\r\n".encode("utf-8")
+    req = urllib.request.Request(
+        base + path, data=bytes(body), method="POST",
+        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"})
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            raw = resp.read()
+            return resp.status, (json.loads(raw) if raw else None)
+    except urllib.error.HTTPError as exc:  # контрактные 4xx/5xx
+        raw = exc.read()
+        return exc.code, (json.loads(raw) if raw else None)
+
+
 def admin_login(base: str) -> str:
     """Токен админа (POST /api/admin/login) для модерации через API."""
     status, data = api("POST", "/api/admin/login", base=base, body={
@@ -1521,6 +1550,208 @@ def test_s4_my_requests_badges_deny_comment_retry_and_review_link(
     assert mine["status"] == "accepted" and mine["car"]["id"] == car_id, mine
     # комментарий отказа остался виден у старой отказанной заявки
     assert "группа на этот сезон" in (data["requests"][1]["deny_comment"] or "")
+
+
+# =========================================================================
+# BUG-048 (Заказчик 2026-10-21): загрузка фото — ВУ при регистрации,
+# отображение в админ-карточке, фото автомобилей. Живой бэкенд.
+# =========================================================================
+
+def _fill_apply_form(page, email):
+    """Заполнение анкеты инструктора валидными данными (без файла ВУ)."""
+    page.fill("#surname", "Смирнова")
+    page.fill("#name", "Ольга")
+    page.fill("#patronymic", "Павловна")
+    page.fill("#phone", "+7 901 222-33-44")
+    page.fill("#email", email)
+    page.fill("#address", "г. Москва, ул. Полярная, д. 3, кв. 12")
+    page.fill("#plate", "А123АА 777")  # формат 'own' по умолчанию
+    page.fill("#license-number", "9912345678")
+    page.select_option("#license-category", "B")
+    page.fill("#password", "Dr1vePass!")
+    page.fill("#password-confirm", "Dr1vePass!")
+    page.locator(".checkline input").check()
+
+
+def test_bug048_apply_license_thumbnail_and_submit(page, server, tmp_path):
+    """TC-UI-020 (change add-instructor-student-loop, BUG-048): анкета
+    инструктора — выбор файла ВУ показывает мгновенную миниатюру ВМЕСТО
+    области загрузки (иконка/подпись/кнопка скрыты); сабмит (multipart
+    FormData с license_photo) → /instructors/pending; на бэкенде заявка
+    создана с файлом, изображение выдается админ-эндпоинтом (image/png)."""
+    png_file = tmp_path / "license.png"
+    png_file.write_bytes(PNG_1PX)
+    page.goto(f"{server}/instructors/apply")
+    email = unique_email("bug048doc")
+    _fill_apply_form(page, email)
+
+    # до выбора файла: область загрузки видна, миниатюры нет
+    expect(page.locator(".upload-icon")).to_be_visible()
+    expect(page.locator("#license-thumb")).to_be_hidden()
+
+    page.locator("#license-file").set_input_files(str(png_file))
+    # миниатюра вместо области загрузки
+    expect(page.locator("#license-thumb")).to_be_visible()
+    expect(page.locator(".upload-icon")).to_be_hidden()
+    expect(page.locator("#pick-file")).to_be_hidden()
+    expect(page.locator("#license-error")).to_be_hidden()
+
+    page.locator("#registration button.submit").click()
+    page.wait_for_url("**/instructors/pending")
+
+    # бэкенд: заявка с файлом ВУ; изображение — по админ-эндпоинту
+    admin_token = admin_login(server)
+    status, listing = api("GET", "/api/admin/instructor-applications",
+                          base=server, admin_token=admin_token)
+    assert status == 200, (status, listing)
+    app_row = next(a for a in listing["applications"] if a["email"] == email)
+    status, card = api(
+        "GET", f"/api/admin/instructor-applications/{app_row['id']}",
+        base=server, admin_token=admin_token)
+    assert status == 200 and card["application"]["license_photo_path"], card
+    req = urllib.request.Request(
+        f"{server}/api/admin/instructor-applications/{app_row['id']}/license-image",
+        headers={"X-Admin-Token": admin_token})
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        assert resp.status == 200
+        assert resp.headers["Content-Type"] == "image/png"
+        assert resp.read() == PNG_1PX
+
+
+def test_bug048_apply_license_format_error_visible(page, server, tmp_path):
+    """TC-UI-021 (change add-instructor-student-loop, BUG-048): ошибки файла
+    ВУ видны и блокируют отправку: 1) >5 МБ отсекается на клиенте (красный
+    текст у поля, сабмит не уходит); 2) файл .png с не-изображением проходит
+    клиент, сервер отвечает 422 (аналог 415 по формату) → текст ошибки виден
+    у поля и под формой, заявка не создается."""
+    page.goto(f"{server}/instructors/apply")
+    email = unique_email("bug048bad")
+    _fill_apply_form(page, email)
+    err = page.locator("#license-error")
+
+    # 1) >5 МБ — клиентская валидация: красный текст, миниатюры нет
+    big = tmp_path / "big.png"
+    big.write_bytes(PNG_1PX + b"\x00" * (5 * 1024 * 1024 + 1))
+    page.locator("#license-file").set_input_files(str(big))
+    expect(err).to_be_visible()
+    expect(err).to_contain_text("больше 5 МБ")
+    expect(page.locator("#license-thumb")).to_be_hidden()
+    page.locator("#registration button.submit").click()
+    # отправка заблокирована: редиректа нет, notice не показывался
+    assert page.url.endswith("/instructors/apply")
+    expect(page.locator("#notice")).to_be_hidden()
+
+    # 2) не-изображение с расширением .png — серверная 422 у поля
+    fake = tmp_path / "fake.png"
+    fake.write_bytes(b"this is definitely not an image")
+    page.locator("#license-file").set_input_files(str(fake))
+    expect(err).to_be_hidden()  # клиентский формат (.png) пройден
+    page.locator("#registration button.submit").click()
+    expect(err).to_be_visible()
+    expect(err).to_contain_text("допустимы только изображения JPEG или PNG")
+    expect(page.locator("#notice")).to_contain_text(
+        "допустимы только изображения JPEG или PNG")
+    assert page.url.endswith("/instructors/apply")
+
+    # заявка с битым файлом НЕ создана (валидация ДО записи, NFR-6)
+    admin_token = admin_login(server)
+    status, listing = api("GET", "/api/admin/instructor-applications",
+                          base=server, admin_token=admin_token)
+    assert status == 200
+    assert all(a["email"] != email for a in listing["applications"])
+
+
+def test_bug048_admin_card_license_photo_real_backend(page, server, tmp_path):
+    """TC-UI-022 (change add-instructor-student-loop, BUG-048): админ-карточка
+    заявки на ЖИВОМ бэкенде — ВУ, приложенное при регистрации (multipart
+    license_photo), отображается (GET …/license-image с X-Admin-Token);
+    у заявки без ВУ — явный плейсхолдер «Файл ВУ не приложен», не битая
+    картинка."""
+    base_body = {
+        "surname": "Документов", "name": "Дмитрий", "patronymic": "Олегович",
+        "phone": "+7 905 111-22-33",
+        "address": "г. Москва, ул. Осенняя, д. 9", "work_format": "school",
+        "license_number": "9911555444", "license_category": "B",
+        "password": "Dr1vePass!", "password_confirm": "Dr1vePass!",
+    }
+    email_with, email_no = unique_email("bug048yes"), unique_email("bug048no")
+    status, data = api_multipart(
+        "/api/instructors/apply", base=server,
+        fields={**base_body, "email": email_with, "consent": "true"},
+        files={"license_photo": ("license.png", PNG_1PX, "image/png")})
+    assert status == 200 and data and data["ok"], (status, data)
+    status, data = api("POST", "/api/instructors/apply", base=server, body={
+        **base_body, "email": email_no, "consent": True})
+    assert status == 200 and data and data["ok"], (status, data)
+
+    _seed_session(page, "admin_token", admin_login(server))
+    page.goto(f"{server}/admin-dashboard")
+    page.locator(".nav button", has_text="Заявки инструкторов").click()
+
+    # заявка С ВУ: изображение отображается в карточке
+    page.locator("#app-rows tr", has_text=email_with).click()
+    expect(page.locator("#ic-backdrop")).to_be_visible()
+    expect(page.locator("#ic-license img")).to_be_visible()
+    page.locator("#ic-close").click()
+    expect(page.locator("#ic-backdrop")).to_be_hidden()
+
+    # заявка БЕЗ ВУ: явный плейсхолдер, картинки нет
+    page.locator("#app-rows tr", has_text=email_no).click()
+    expect(page.locator("#ic-backdrop")).to_be_visible()
+    expect(page.locator("#ic-license")).to_contain_text("Файл ВУ не приложен")
+    assert page.locator("#ic-license img").count() == 0
+
+
+def test_bug048_mycars_photo_thumbnail_before_send_and_errors(
+        page, server, tmp_path):
+    """TC-UI-023 (change add-instructor-student-loop, BUG-048): «Мои
+    автомобили» — выбранное фото показывает миниатюру ДО отправки; неверный
+    формат отсекается на клиенте (красный текст + тост, файл не выбирается);
+    битый .png проходит клиент, серверная 422 (аналог 415) — внятный тост;
+    валидный PNG сохраняется и отображается в карточке авто."""
+    token, _ = _approve_instructor(server)
+    _add_car(server, token)
+    _seed_session(page, "session_token", token)
+    page.goto(f"{server}/instructor/dashboard#/my-cars")
+    expect(page.locator("#sec-cars")).to_be_visible()
+    card = page.locator(".car")
+    expect(card).to_have_count(1)
+
+    # 1) неверный формат (.txt) — клиент: красный текст + тост, без миниатюры
+    card.locator(".edit").click()
+    expect(page.locator("#m-add")).to_be_visible()
+    bad = tmp_path / "note.txt"
+    bad.write_bytes(b"hello")
+    page.locator("#f-photo").set_input_files(str(bad))
+    expect(page.locator("#up-photo-err")).to_be_visible()
+    expect(page.locator("#up-photo-err")).to_contain_text("JPEG или PNG")
+    expect(page.locator("#toast")).to_contain_text("JPEG или PNG")
+    expect(page.locator("#up-zone.has-thumb")).to_have_count(0)
+
+    # 2) битый .png — клиент пройден, сервер 422 → внятный тост, фото нет
+    fake = tmp_path / "fake.png"
+    fake.write_bytes(b"not an image at all")
+    page.locator("#f-photo").set_input_files(str(fake))
+    expect(page.locator("#up-zone.has-thumb")).to_have_count(1)
+    page.locator("#save-car").click()
+    expect(page.locator("#toast")).to_contain_text(
+        "допустимы только изображения JPEG или PNG")
+    status, data = api("GET", "/api/instructor/cars", base=server, token=token)
+    assert data["cars"][0]["has_photo"] is False, data
+
+    # 3) валидный PNG: миниатюра до отправки → сохранение → фото на карточке
+    expect(page.locator("#m-add")).to_be_hidden()  # модалка закрылась после save
+    card.locator(".edit").click()
+    expect(page.locator("#m-add")).to_be_visible()
+    expect(page.locator("#up-zone.has-thumb")).to_have_count(0)  # сброшено
+    good = tmp_path / "car.png"
+    good.write_bytes(PNG_1PX)
+    page.locator("#f-photo").set_input_files(str(good))
+    expect(page.locator("#up-zone.has-thumb")).to_have_count(1)
+    page.locator("#save-car").click()
+    expect(card.locator(".photo img")).to_be_visible()
+    status, data = api("GET", "/api/instructor/cars", base=server, token=token)
+    assert data["cars"][0]["has_photo"] is True, data
 
 
 # ------------------------------------------------------------- design-guard

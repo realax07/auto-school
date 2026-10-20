@@ -143,7 +143,6 @@ def test_apply_page_texts_verbatim():
         "Стаж вождения",
         "Документы",
         "Прикрепить фото или скан",
-        "макет без реальной загрузки",
         "Я подтверждаю, что указал(а) корректные данные, и соглашаюсь на обработку персональных данных для рассмотрения заявки.",
         "Продолжить →",
         "© СберАвтошкола · Концепция экрана регистрации",
@@ -151,6 +150,9 @@ def test_apply_page_texts_verbatim():
     for fragment in fragments:
         assert fragment in html, fragment
         assert fragment in mockup, f"фрагмент не из мокапа: {fragment}"
+    # BUG-048: реальная загрузка вместо макета — дословная подпись макета
+    # «макет без реальной загрузки» убрана (Заказчик 2026-10-21)
+    assert "макет без реальной загрузки" not in html
 
     mockup_css = mockup.split("<style>", 1)[1].split("</style>", 1)[0]
     page_css = html.split("<style>", 1)[1].split("</style>", 1)[0]
@@ -193,20 +195,27 @@ def test_apply_work_format_toggles_plate():
 
 
 def test_apply_submit_wiring():
-    """FR-11/FR-12: сабмит -> POST /api/instructors/apply по контракту
-    sdd §15.1; 200 -> редирект /instructors/pending; 422 -> сообщение под
-    формой (текст из ответа); sessionStorage НЕ используется; файл ВУ в тело
-    запроса не входит."""
+    """FR-11/FR-12 + BUG-048 (Заказчик 2026-10-21): сабмит -> POST
+    /api/instructors/apply, multipart/form-data со всеми полями анкеты и
+    файлом ВУ (license_photo); 200 -> редирект /instructors/pending;
+    413/415/422 -> видимое сообщение у поля загрузки и под формой;
+    sessionStorage НЕ используется; клиентская валидация файла
+    (JPEG/PNG/PDF <= 5 МБ) блокирует отправку."""
     html = page("instructor-apply.html")
     js = html.split("<script>", 1)[1]
     assert "fetch('/api/instructors/apply'" in js
     assert "method:'POST'" in js
-    assert "'Content-Type':'application/json'" in js
+    # BUG-048: multipart FormData с файлом ВУ (JSON больше не используется)
+    assert "new FormData()" in js
+    assert "fd.append('license_photo'" in js
     # поля контракта sdd §15.1 в теле запроса
     for field in (
-        "surname:", "phone:", "email:", "address:", "work_format:", "plate:",
-        "license_number:", "license_date:", "license_category:", "experience:",
-        "password:", "password_confirm:", "consent:",
+        "fd.append('surname'", "fd.append('phone'", "fd.append('email'",
+        "fd.append('address'", "fd.append('work_format'", "fd.append('plate'",
+        "fd.append('license_number'", "fd.append('license_date'",
+        "fd.append('license_category'", "fd.append('experience'",
+        "fd.append('password'", "fd.append('password_confirm'",
+        "fd.append('consent'",
     ):
         assert field in js, field
     # 200 -> редирект на экран ожидания
@@ -218,10 +227,9 @@ def test_apply_submit_wiring():
     assert ".checkline input" in js
     # sessionStorage не нужен (сессия по заявке не выдается)
     assert "sessionStorage" not in html
-    # файл ВУ не входит в тело запроса: FormData не используется,
-    # license-file в payload отсутствует
-    assert "FormData" not in js
-    assert "license-file" not in js.split("payload={", 1)[1].split("};", 1)[0]
+    # клиентская валидация файла: тип и размер до отправки
+    assert "5*1024*1024" in js
+    assert "validateLicenseFile" in js
     # id полей совпадают с макетом (кроме добавленных password-полей)
     for element_id in (
         "surname", "name", "patronymic", "phone", "email", "address", "plate", "license-number",
