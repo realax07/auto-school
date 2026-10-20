@@ -110,8 +110,8 @@ document.getElementById('registration').addEventListener('submit',function(e){
           ||(res.status===413?'Файл: изображение больше 5 МБ'
           :res.status===415?'Файл: допустимы только изображения JPEG или PNG'
           :'Ошибка отправки заявки');
-        if(res.status===413||res.status===415||res.status===422||msg.indexOf('Файл')===0){
-          showLicenseError(msg); // видимое сообщение у поля загрузки
+        if(res.status===413||res.status===415||(res.status===422&&msg.indexOf('Файл')===0)){
+          showLicenseError(msg); // только файловые ошибки — у поля загрузки
         }
         notice.textContent=msg;
         notice.classList.add('show');

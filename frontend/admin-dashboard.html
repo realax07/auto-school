@@ -307,11 +307,20 @@ function openInstructorCard(id){
 }
 function loadLicenseImage(id,hasPhoto){
   var ph=document.getElementById('ic-license');
+  function phText(lines){ // гигиена: без innerHTML (review-002)
+    ph.innerHTML='';
+    lines.forEach(function(t,i){
+      var sp=document.createElement('span');
+      if(i)sp.appendChild(document.createElement('br'));
+      sp.appendChild(document.createTextNode(t));
+      ph.appendChild(sp);
+    });
+  }
   if(!hasPhoto){
-    ph.innerHTML='<span>Файл ВУ не приложен<br>заявка без изображения</span>';
+    phText(['Файл ВУ не приложен','заявка без изображения']);
     return;
   }
-  ph.innerHTML='<span>Загрузка…</span>';
+  phText(['Загрузка…']);
   fetch('/api/admin/instructor-applications/'+id+'/license-image',{headers:{'X-Admin-Token':TOKEN}})
     .then(function(r){
       if(!r.ok){ // 401 без/с неверным токеном, 404 без файла — изображение не возвращается
@@ -327,10 +336,10 @@ function loadLicenseImage(id,hasPhoto){
         img.src=URL.createObjectURL(res.blob);
         ph.appendChild(img);
       }else{
-        ph.innerHTML='<span>Изображение недоступно'+(res.error?'<br>'+res.error:'')+'</span>';
+        phText(res.error?['Изображение недоступно',res.error]:['Изображение недоступно']);
       }
     })
-    .catch(function(){ph.innerHTML='<span>Изображение недоступно</span>';});
+    .catch(function(){phText(['Изображение недоступно']);});
 }
 function closeInstructorCard(){
   var img=document.querySelector('#ic-license img');
