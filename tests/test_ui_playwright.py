@@ -985,18 +985,62 @@ def test_student_choice_xss_instructor_name_not_executed(page, server):
 
 
 def test_back_links_lead_to_role_home(page, server):
-    """TC-UI-019 (change add-s3-frontend-links): возвратные ссылки вторичных
-    экранов ведут на главные экраны ролей (инструктор → /instructor/dashboard,
-    ученик → /cabinet)."""
-    # страницы защищены сессией — проверяем ссылки в разметке (файлы страницы)
+    """TC-UI-019 (BUG-047): после встраивания разделов в кабинеты —
+    у дашборда инструктора есть раздел «Мои автомобили», у кабинета ученика —
+    «Мои заявки»; standalone-страниц my-cars.html/my-requests.html больше нет;
+    целевые страницы (выбор инструктора, форма отзыва) ведут назад в кабинет
+    ученика (у отзыва — кнопкой «Назад к заявкам» в форме)."""
+    # страницы защищены сессией — проверяем навигацию в разметке (файлы страницы)
     import pathlib
     base = pathlib.Path(__file__).parent.parent / "frontend"
-    for fname, back in (("my-cars.html", "/instructor/dashboard"),
-                        ("my-requests.html", "/cabinet"),
-                        ("instructor-choice.html", "/cabinet"),
-                        ("review-form.html", "/cabinet")):
-        html = (base / fname).read_text(encoding="utf-8")
-        assert f'href="{back}"' in html, f"{fname}: нет возврата на {back}"
+    assert not (base / "my-cars.html").exists(), \
+        "BUG-047: my-cars.html должен быть встроен в дашборд и удален"
+    assert not (base / "my-requests.html").exists(), \
+        "BUG-047: my-requests.html должен быть встроен в кабинет и удален"
+    dash = (base / "instructor-dashboard.html").read_text(encoding="utf-8")
+    cab = (base / "cabinet.html").read_text(encoding="utf-8")
+    assert 'data-tab="Мои автомобили"' in dash, "нет раздела «Мои автомобили» в дашборде"
+    assert 'data-tab="Мои заявки"' in cab, "нет раздела «Мои заявки» в кабинете"
+    choice = (base / "instructor-choice.html").read_text(encoding="utf-8")
+    assert 'href="/cabinet"' in choice, "instructor-choice: нет возврата в /cabinet"
+    review = (base / "review-form.html").read_text(encoding="utf-8")
+    assert 'href="/my-requests"' in review, \
+        "review-form: нет кнопки «Назад к заявкам» (/my-requests → 301 в кабинет)"
+
+
+def test_bug047_mycars_route_redirects_into_dashboard(page, server):
+    """BUG-047: /my-cars больше не отдает standalone-страницу — 301 на
+    /instructor/dashboard#/my-cars; хеш открывает раздел, сайдбар на месте,
+    активный пункт подсвечен."""
+    _seed_session(page, "session_token", INSTRUCTOR_TOKEN)
+    _route_json(page, server, "/api/auth/me", lambda req: (
+        200, {"ok": True, "user": {"surname": "Громов", "name": "Борис"}}))
+    _route_json(page, server, "/api/instructor/dashboard", lambda req: (
+        200, {"ok": True, "instructor": {"surname": "Громов", "name": "Борис"}}))
+    _route_json(page, server, "/api/instructor/cars", lambda req: (
+        200, {"ok": True, "cars": []}))
+
+    page.goto(f"{server}/my-cars")
+    page.wait_for_url("**/instructor/dashboard#/my-cars")
+    expect(page.locator(".sidebar")).to_be_visible()
+    expect(page.locator("#sec-cars")).to_be_visible()
+    expect(page.locator('.nav button[data-tab="Мои автомобили"]')).to_have_class("active")
+    expect(page.locator("#page-title")).to_have_text("Мои автомобили")
+
+
+def test_bug047_myrequests_route_redirects_into_cabinet(page, server):
+    """BUG-047: /my-requests больше не отдает standalone-страницу — 301 на
+    /cabinet#/my-requests; хеш открывает раздел «Мои заявки» внутри кабинета
+    (сайдбар на месте, активный пункт подсвечен, «Главная» скрыта)."""
+    stu_token = _student_token(server)
+    _seed_session(page, "session_token", stu_token)
+    page.goto(f"{server}/my-requests")
+    page.wait_for_url("**/cabinet#/my-requests")
+    expect(page.locator(".side")).to_be_visible()
+    expect(page.locator("#sec-requests")).to_be_visible()
+    expect(page.locator('.snav button[data-tab="Мои заявки"]')).to_have_class("on")
+    expect(page.locator("#sec-home")).to_be_hidden()
+    expect(page.locator("#sec-requests h1")).to_have_text("Заявки инструкторам")
 
 
 def test_instructor_logout_redirects_to_instructors(page, server):
@@ -1178,15 +1222,22 @@ def _accepted_request(server, instructor_token, instructor_id, car_id):
 
 
 def test_s4_my_cars_add_edit_delete_car(page, server):
-    """TC-UI-015 (change add-s3-frontend-links): «Мои автомобили» на живом
-    бэкенде — добавил авто → виден в списке (карточка + GET API); PATCH
+    """TC-UI-015 (change add-s3-frontend-links; BUG-047): «Мои автомобили» на
+    живом бэкенде — раздел ВНУТРИ дашборда (сайдбар на месте, активный пункт
+    подсвечен): добавил авто → виден в списке (карточка + GET API); PATCH
     редактирование отражается; удаление с подтверждением (отмена работает,
     подтверждение удаляет) → в списке и API авто больше нет."""
     token, _ = _approve_instructor(server)
     _seed_session(page, "session_token", token)
 
-    page.goto(f"{server}/my-cars")
-    expect(page.locator("h1")).to_have_text("Мои автомобили")
+    page.goto(f"{server}/instructor/dashboard")
+    page.locator('.nav button[data-tab="Мои автомобили"]').click()
+    # BUG-047: единый лейаут — сайдбар на месте, активный пункт подсвечен,
+    # заголовок шапки дашборда переключился на раздел
+    expect(page.locator(".sidebar")).to_be_visible()
+    expect(page.locator('.nav button[data-tab="Мои автомобили"]')).to_have_class("active")
+    expect(page.locator("#page-title")).to_have_text("Мои автомобили")
+    expect(page.locator("#sec-cars")).to_be_visible()
     expect(page.locator("#empty")).to_be_visible()
     expect(page.locator("#count")).to_have_text("Автомобилей: 0")
 
@@ -1260,7 +1311,9 @@ def test_s4_my_cars_photo_upload_progress_and_preview(page, server, tmp_path):
     car_id = _add_car(server, token)
     _seed_session(page, "session_token", token)
 
-    page.goto(f"{server}/my-cars")
+    # BUG-047: раздел открывается хешем старой ссылки — внутри дашборда
+    page.goto(f"{server}/instructor/dashboard#/my-cars")
+    expect(page.locator("#sec-cars")).to_be_visible()
     card = page.locator(".car")
     expect(card).to_have_count(1)
     # плейсхолдер до загрузки
@@ -1303,10 +1356,12 @@ def test_s4_review_submit_then_repeat_blocked_409(page, server):
                                   car_id)
     _seed_session(page, "session_token", stu_token)
 
-    # /review без ?instructor= → редирект на /my-requests (NIT-5 review-001)
+    # /review без ?instructor= → /my-requests → 301 → /cabinet#/my-requests:
+    # раздел «Мои заявки» открывается ВНУТРИ кабинета (BUG-047)
     page.goto(f"{server}/review")
-    page.wait_for_url("**/my-requests")
-    expect(page.locator("h1")).to_have_text("Заявки инструкторам")
+    page.wait_for_url("**/cabinet#/my-requests")
+    expect(page.locator("#sec-requests")).to_be_visible()
+    expect(page.locator("#sec-requests h1")).to_have_text("Заявки инструкторам")
 
     page.goto(f"{server}/review?instructor={instructor_id}")
 
@@ -1366,8 +1421,13 @@ def test_s4_my_requests_badges_deny_comment_retry_and_review_link(
     assert status == 200 and data and data["ok"], (status, data)
     _seed_session(page, "session_token", stu_token)
 
-    page.goto(f"{server}/my-requests")
-    expect(page.locator("h1")).to_have_text("Заявки инструкторам")
+    # BUG-047: «Мои заявки» — раздел кабинета ученика (сайдбар на месте,
+    # активный пункт подсвечен); reload (ниже) сохраняет раздел через хеш
+    page.goto(f"{server}/cabinet#/my-requests")
+    expect(page.locator(".side")).to_be_visible()
+    expect(page.locator('.snav button[data-tab="Мои заявки"]')).to_have_class("on")
+    expect(page.locator("#sec-requests")).to_be_visible()
+    expect(page.locator("#sec-requests h1")).to_have_text("Заявки инструкторам")
     req = page.locator(".req")
     expect(req).to_have_count(1)
     expect(page.locator(".uname")).to_have_text("Смирнова Ольга Павловна")
@@ -1465,12 +1525,13 @@ def test_s4_my_requests_badges_deny_comment_retry_and_review_link(
 
 # ------------------------------------------------------------- design-guard
 @pytest.mark.parametrize("filename", [
-    "my-cars.html", "review-form.html", "my-requests.html"])
+    "instructor-dashboard.html", "cabinet.html",
+    "review-form.html", "instructor-choice.html"])
 def test_s4_pages_tag_balance(filename):
-    """NIT-4 review-001 (change add-s3-frontend-links): баланс тегов
-    S4-страниц — параметризованный pytest-наследник одноразового
-    scripts/check_tag_balance_s4.py: лишний/незакрытый тег роняет тест
-    при любом следующем редактировании страницы."""
+    """NIT-4 review-001 (change add-s3-frontend-links); BUG-047: баланс тегов
+    правленых страниц (my-cars.html/my-requests.html встроены в кабинеты и
+    удалены — проверяются их новые носители: дашборд и кабинет ученика).
+    Лишний/незакрытый тег роняет тест при любом следующем редактировании."""
     VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input",
             "link", "meta", "param", "source", "track", "wbr"}
 

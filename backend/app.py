@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 
 import backend.db as db
 from backend.admin import router as admin_router
@@ -46,12 +46,18 @@ _PAGE_ROUTES = {
     # Спринт 3 (change add-instructor-student-loop):
     # выбор инструктора учеником
     "/instructor-choice": "instructor-choice.html",
-    # Спринт 4, Партия A (change add-s3-frontend-links): модульные
-    # страницы-разделы кабинетов (связываются навигацией, не раздувая
-    # instructor-dashboard.html/cabinet.html)
-    "/my-cars": "my-cars.html",
+    # Спринт 4, Партия A (change add-s3-frontend-links): форма отзыва —
+    # целевая страница (открывается из раздела «Мои заявки» кабинета)
     "/review": "review-form.html",
-    "/my-requests": "my-requests.html",
+}
+
+# BUG-047 (решение Заказчика 2026-10-17): отдельных standalone-страниц больше
+# нет — все разделы живут внутри кабинетов с единым лейаутом (сайдбар слева +
+# контент). Старые ссылки получают 301 на соответствующий раздел кабинета
+# (хеш открывает таб напрямую).
+_PAGE_REDIRECTS = {
+    "/my-cars": ("/instructor/dashboard#/my-cars", 301),
+    "/my-requests": ("/cabinet#/my-requests", 301),
 }
 
 
@@ -93,6 +99,12 @@ def create_app() -> FastAPI:
             return FileResponse(path, media_type="text/html; charset=utf-8")
 
         app.get(route)(_page)
+
+    for route, (target, status) in _PAGE_REDIRECTS.items():
+        def _redirect(target: str = target, status: int = status):
+            return RedirectResponse(target, status_code=status)
+
+        app.get(route)(_redirect)
 
     return app
 

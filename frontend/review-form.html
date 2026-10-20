@@ -16,6 +16,9 @@
        note; текст/оценку видит сам отправитель только до ухода со страницы);
      - отклонение от мокапа: ссылка «Вернуться к моим заявкам» (в мокапе
        «Вернуться к инструктору») — страница открывается из «Моих заявок»;
+     - BUG-047: back-ссылки из шапки убраны (навигация — кнопкой
+       «Назад к заявкам» в форме), крошка выровнена влево (без
+       центрирования), user справа — flex space-between;
      - 401/403 сессии → редирект на главную, к модалке входа.
      Пользовательские строки — только через textContent (stored XSS запрещен). -->
 <html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#071015"><title>СберАвтошкола — Кабинет ученика · Отзыв об инструкторе</title>
@@ -25,12 +28,13 @@
 body{background:radial-gradient(ellipse at 78% 0%,#123b2c4d,transparent 38%),radial-gradient(ellipse at 8% 90%,#27465f26,transparent 40%),var(--bg);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh}
 button,textarea{font:inherit;color:inherit}button{cursor:pointer}
 .frame{max-width:760px;margin:auto;padding:26px 24px 46px}
-header{display:flex;justify-content:space-between;align-items:center;height:48px;margin-bottom:6px;position:relative}
+header{display:flex;justify-content:space-between;align-items:center;height:48px;margin-bottom:6px}
+.hgroup{display:flex;align-items:center;gap:18px;min-width:0}
 .brand{display:flex;align-items:center;gap:10px;font-size:22px;font-weight:650;letter-spacing:-1px}
 .brand em{font-style:normal;color:var(--green)}
 .check{width:32px;height:32px;flex:none;display:grid;place-items:center;border:3px solid var(--green);border-radius:50%;color:var(--green);font-size:20px;transform:rotate(-8deg)}
 .brand small{display:block;font-size:9px;color:#80919b;letter-spacing:.14em;text-transform:uppercase;margin-top:3px;font-weight:500}
-.crumb{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:12px;color:#8fa2ad;white-space:nowrap}
+.crumb{font-size:12px;color:#8fa2ad;white-space:nowrap}
 .user{justify-self:end;display:flex;align-items:center;gap:13px;white-space:nowrap}
 .uname{font-size:13px;color:#d6e4e2}
 .avatar{width:34px;height:34px;border-radius:11px;background:linear-gradient(145deg,#315744,#14261e);display:grid;place-items:center;color:#a0f2bd;font-size:11px;font-weight:700}
@@ -84,8 +88,10 @@ footer{margin-top:32px;padding-top:18px;border-top:1px solid #ffffff10;display:f
 <body>
 <div class="frame">
 <header>
-  <div class="brand"><span class="check">✓</span><span><em>Сбер</em>Автошкола<small>Кабинет ученика</small></span></div>
-  <div class="crumb">Отзыв об инструкторе</div>
+  <div class="hgroup">
+    <div class="brand"><span class="check">✓</span><span><em>Сбер</em>Автошкола<small>Кабинет ученика</small></span></div>
+    <div class="crumb">Отзыв об инструкторе</div>
+  </div>
   <div class="user"><span class="uname" id="uname">…</span><span class="avatar" id="avatar">—</span><button class="logout" id="logout">Выйти</button></div>
 </header>
 
@@ -94,8 +100,6 @@ footer{margin-top:32px;padding-top:18px;border-top:1px solid #ffffff10;display:f
   <h1>Оставить отзыв</h1>
   <p>Рейтинг и текст отзыва видны другим ученикам в карточке инструктора и влияют на фильтр «рейтинг не ниже».</p>
 </div>
-
-<a class="back" href="/cabinet">← В кабинет</a><a class="back" href="/my-requests">← К моим заявкам</a>
 
 <!-- контекст: инструктор, о котором отзыв -->
 <div class="icard">
@@ -122,6 +126,7 @@ footer{margin-top:32px;padding-top:18px;border-top:1px solid #ffffff10;display:f
     <span class="counter" id="counter">0 / 1000</span>
   </div>
   <button class="send" id="send" disabled>Отправить отзыв</button>
+  <a class="back" href="/my-requests">← Назад к заявкам</a>
   <div class="hint">🔒 Отзыв может оставить только ученик с принятой заявкой у этого инструктора. Повторный отзыв оставить нельзя.</div>
 </section>
 
