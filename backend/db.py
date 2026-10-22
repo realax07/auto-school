@@ -101,6 +101,29 @@ CREATE INDEX IF NOT EXISTS idx_student_requests_student
 CREATE UNIQUE INDEX IF NOT EXISTS uq_student_requests_active
   ON student_requests(student_id, instructor_id)
   WHERE status IN ('new','accepted');
+
+-- Спринт 5 (add-booking-docs, задача 4.1): бронирование слотов.
+-- Гарантия единственности (NFR-8) — частичный UNIQUE-индекс ниже.
+CREATE TABLE IF NOT EXISTS booking (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  student_id INTEGER NOT NULL,
+  instructor_id INTEGER NOT NULL,
+  availability_id INTEGER NOT NULL,
+  lesson_date TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'new'
+    CHECK (status IN ('new','confirmed','rejected')),
+  reject_comment TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  decided_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_booking_instructor
+  ON booking(instructor_id, status);
+CREATE INDEX IF NOT EXISTS idx_booking_student
+  ON booking(student_id, status);
+-- Максимум одна АКТИВНАЯ (new/confirmed) бронь на слот; отклоненные
+-- не мешают повторному запросу (ОВ-5).
+CREATE UNIQUE INDEX IF NOT EXISTS uq_booking_active_slot
+  ON booking(availability_id) WHERE status IN ('new','confirmed');
 """
 
 # Спринт 0–1: users.role (add-instructor-flow, задача 1.2, sdd.md §16).
@@ -119,6 +142,23 @@ _COLUMN_MIGRATIONS = (
      "ALTER TABLE instructor_applications ADD COLUMN experience_years INTEGER"),
     ("instructor_applications", "license_photo_path",
      "ALTER TABLE instructor_applications ADD COLUMN license_photo_path TEXT"),
+    # Спринт 5 (add-booking-docs, задача 2.1): фото 5 ракурсов + СТС +
+    # блокировка админом. photo_path — устаревшая (новые эндпоинты ее
+    # не читают и не пишут), данные не мигрируют (design.md MIN-4).
+    ("instructor_cars", "photo_front",
+     "ALTER TABLE instructor_cars ADD COLUMN photo_front TEXT"),
+    ("instructor_cars", "photo_rear",
+     "ALTER TABLE instructor_cars ADD COLUMN photo_rear TEXT"),
+    ("instructor_cars", "photo_interior",
+     "ALTER TABLE instructor_cars ADD COLUMN photo_interior TEXT"),
+    ("instructor_cars", "photo_left",
+     "ALTER TABLE instructor_cars ADD COLUMN photo_left TEXT"),
+    ("instructor_cars", "photo_right",
+     "ALTER TABLE instructor_cars ADD COLUMN photo_right TEXT"),
+    ("instructor_cars", "photo_sts",
+     "ALTER TABLE instructor_cars ADD COLUMN photo_sts TEXT"),
+    ("instructor_cars", "blocked",
+     "ALTER TABLE instructor_cars ADD COLUMN blocked INTEGER NOT NULL DEFAULT 0"),
 )
 
 

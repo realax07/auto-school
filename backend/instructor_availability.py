@@ -16,6 +16,7 @@ from fastapi import APIRouter, Header
 from pydantic import BaseModel
 
 import backend.db as db
+from backend.booking import blocking_bookings, conflict_error_response
 from backend.guards import _error, require_role
 
 router = APIRouter()
@@ -89,7 +90,9 @@ def put_availability(
     x_session_token: str | None = Header(default=None, alias="X-Session-Token"),
 ):
     """Полная замена графика (FR-29/FR-30): DELETE + INSERT уникальных
-    интервалов в одной транзакции; валидация до записи → 422."""
+    интервалов в одной write-транзакции BEGIN IMMEDIATE (M-3 review-001:
+    проверка конфликтов внутри той же транзакции — сериализация с
+    create_booking, бронь-сирота невозможна); валидация до записи → 422."""
     instructor_id, err = require_role(x_session_token, "instructor")
     if err is not None:
         return err
@@ -100,7 +103,22 @@ def put_availability(
 
     conn: sqlite3.Connection = db.get_conn()
     try:
-        # Одна транзакция: полная замена графика (design.md блок 3)
+        # MAJ-1 (Спринт 5, задача 4.1): замена графика отклоняется 409,
+        # если удаляемые слоты имеют брони 'new'/'confirmed'; график НЕ
+        # изменяется — инструктор сначала решает брони (booking.py).
+        # M-3 (review-001, NFR-8): BEGIN IMMEDIATE ДО проверки конфликтов —
+        # проверка (blocking_bookings) и запись (DELETE/INSERT) в одной
+        # write-транзакции, сериализуется с create_booking (тоже BEGIN
+        # IMMEDIATE): окно TOCTOU «проверка → удаление» закрыто, бронь на
+        # удаляемый слот не может появиться после проверки (иначе была бы
+        # бронь-сирота без FK booking→availability).
+        conn.isolation_level = None
+        conn.execute("BEGIN IMMEDIATE")
+        conflicts = blocking_bookings(conn, instructor_id or 0, intervals)
+        if conflicts:
+            conn.execute("ROLLBACK")
+            return conflict_error_response(conflicts)
+        # Та же транзакция: полная замена графика (design.md блок 3)
         conn.execute(
             "DELETE FROM availability WHERE instructor_id = ?", (instructor_id,)
         )
@@ -109,7 +127,7 @@ def put_availability(
             " end_time) VALUES (?, ?, ?, ?)",
             [(instructor_id, wd, start, end) for wd, start, end in intervals],
         )
-        conn.commit()
+        conn.execute("COMMIT")
     finally:
         conn.close()
     return {"ok": True, "intervals": [

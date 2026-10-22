@@ -771,3 +771,69 @@ SQLite data/app.db (WAL) — users (§4 + role §16): схема НЕ меняе
 3. Полнота: все артефакты Партии A (3 страницы + 3 маршрута + 3 навигационные
    связки + 1 пограничное дополнение контракта) имеют строки трассировки
    выше; ни одна строка не ссылается на отсутствующие файлы/тесты.
+
+---
+
+# SDD (дополнение): Трассировка (Спринт 5, Партия A)
+
+> Источники: requirements-booking-docs.md (УТВЕРЖДЕН, FR-42…FR-50,
+> NFR-7…NFR-10; docs/ba/), design.md и arch-review.md пакета
+> openspec/changes/add-booking-docs/ (MAJ-1, MIN-1…MIN-4; решение по
+> усиленному фидбеку review-001 — M-1…M-3). Дельты спеки:
+> specs/booking/, specs/instructor-cars/, specs/instructor-documents/.
+> Колонка тестов — по маппингу test-model/reports/
+> qa-auto-report-add-booking-docs.md: backend tests/test_s5_backend.py
+> (TC-S5BE-001…025 + 011b, TC-ID в docstring, правило 6), UI
+> tests/test_ui_playwright.py TC-UI-015/016/019/023/024/025 (живой
+> сервер). Модульность (директива Заказчика): домен booking — отдельный
+> backend/booking.py; разделы UI встроены в существующие страницы
+> (BUG-047), новые страницы не заводились.
+
+## 29. Трассировка (Спринт 5, Партия A)
+
+| Требование / сценарий | Реализация (файл / эндпоинт / функция) | Тесты |
+|---|---|---|
+| Дельта booking: расписание только принятым (FR-46, NFR-7) — не принятому (нет заявки / «новая» / «отказана») недоступно при прямом вызове API; гость 401, иная роль 403; несуществующий/не одобренный инструктор 404 | backend/booking.py GET /api/student/instructors/{instructor_id}/slots (instructor_slots — _pair_accepted: серверная проверка student_requests «accepted» при каждом запросе; UI-скрытие проверкой не считается) | tests/test_s5_backend.py::test_s5_slots_access_guard (TC-S5BE-013) |
+| Дельта booking: принятый ученик видит актуальный график; занятость видна как «занято» без раскрытия, кем (FR-50) | backend/booking.py GET /api/student/instructors/{id}/slots (состояния free/pending/busy — busy без student_id) + frontend/cabinet.html раздел «Мои брони» (слоты целиком, занятые приглушены) | tests/test_s5_backend.py::test_s5_slots_states (TC-S5BE-014); tests/test_ui_playwright.py::test_s5_booking_flow_slots_request_confirm_and_409 (TC-UI-025) |
+| Дельта booking: запрос брони — статус «новая», виден инструктору; слот целиком без нарезки (ОВ-3); lesson_date — ближайшая будущая дата weekday по ЛОКАЛЬНОЙ дате сервера (MIN-1) | backend/booking.py POST /api/student/bookings (create_booking — materialize_lesson_date, сверка availability.instructor_id с парой) + GET /api/instructor/bookings (instructor_bookings) + frontend/cabinet.html (клик свободного слота) | tests/test_s5_backend.py::test_s5_booking_create_and_lesson_date_boundary (TC-S5BE-015); tests/test_ui_playwright.py::test_s5_booking_flow_slots_request_confirm_and_409 (TC-UI-025) |
+| Дельта booking: занятый слот не бронируется повторно — 409 без записи; параллельные запросы — максимум одна бронь (NFR-8, гарантия на уровне хранилища) | backend/booking.py create_booking (409) + backend/db.py частичный уникальный индекс uq_booking_active_slot(availability_id) | tests/test_s5_backend.py::test_s5_booking_conflict_409_no_record (TC-S5BE-016), ::test_s5_booking_race_two_students_one_409 (TC-S5BE-017); tests/test_ui_playwright.py::test_s5_booking_flow_slots_request_confirm_and_409 (TC-UI-025 — 409 без записи) |
+| Дельта booking: повторный запрос после отклонения допустим, без ограничений (ОВ-5) | backend/booking.py reject_booking (слот освобождается) + create_booking | tests/test_s5_backend.py::test_s5_booking_conflict_409_no_record (TC-S5BE-016), ::test_s5_reject_requires_comment_and_frees_slot (TC-S5BE-019) |
+| Дельта booking: подтверждение без комментария → «подтверждена»; бронь в календарях обоих — дата/время/инструктор/авто у ученика, ФИО ученика/авто пары у инструктора; перекрепление/удаление авто пары меняет (обнуляет) авто в отображении (FR-49, ОВ-6, MIN-3) | backend/booking.py POST /api/instructor/bookings/{id}/confirm (confirm_booking + decided_at) + GET /api/student/bookings (my_bookings) + GET /api/instructor/bookings (авто берется из пары на лету — _car_brief/_pair_car) + frontend/instructor-dashboard.html раздел «Бронирования» | tests/test_s5_backend.py::test_s5_confirm_flow (TC-S5BE-018), ::test_s5_calendars_survive_car_deletion (TC-S5BE-021); tests/test_ui_playwright.py::test_s5_booking_flow_slots_request_confirm_and_409 (TC-UI-025) |
+| Дельта booking: отклонение — с обязательным комментарием (пустой/отсутствующий → 422), статус и комментарий видны ученику; чужую бронь решить нельзя (FR-48, ОВ-2) | backend/booking.py POST /api/instructor/bookings/{id}/reject (reject_booking — reject_comment, инвариант «rejected → комментарий»; адресат по instructor_id сессии) + my_bookings (reject_comment виден) | tests/test_s5_backend.py::test_s5_reject_requires_comment_and_frees_slot (TC-S5BE-019) |
+| Дельта booking: виджет «Занятия на сегодня» — реальные подтвержденные брони на текущую дату (локальная дата сервера, MIN-1); без броней — пустое состояние «Сегодня занятий нет» (FR-49, ОВ-6) | backend/instructor_summary.py GET /api/instructor/summary (today_lessons — JOIN booking × availability по lesson_date = local_today; заглушка FR-41 Спринта 3 закрыта) + frontend/cabinet.html / instructor-dashboard.html (рендер виджета) | tests/test_s5_backend.py::test_s5_summary_today_lessons (TC-S5BE-022); tests/test_ui_playwright.py::test_instructor_summary_today_lessons_widget_renders_real_shape (TC-UI-024, M-1 review-001) |
+| Дельта booking: замена графика при активных бронях («новая»/«подтверждена») отклоняется 409 с перечнем затронутых слотов, график прежний; после решения броней сохраняется; слоты с только «отклонена» не мешают (MAJ-1, NFR-8; гонка PUT × создание брони — сирот нет, M-3) | backend/instructor_availability.py PUT /api/instructor/availability (put_availability — проверка перед заменой) + backend/booking.py blocking_bookings/_slot_conflict_text/conflict_error_response (переиспользуемые блокировки и 409-перечень) | tests/test_s5_backend.py::test_s5_put_availability_blocked_by_active_bookings (TC-S5BE-020), ::test_s5_put_availability_vs_booking_race_no_orphan (TC-S5BE-025, M-3 review-001) |
+| Дельта instructor-cars: фото 5 ракурсов хранится и заменяется независимо (ОВ-1); недопустимый ракурс/чужой авто/незагруженный → 404 | backend/instructor_cars.py POST+GET /api/instructor/cars/{car_id}/photo/{angle} (angle ∈ front/rear/interior/left/right) + backend/uploads.py kind car_photo | tests/test_s5_backend.py::test_s5_car_photo_angles_upload_replace (TC-S5BE-005), ::test_s5_car_photo_angle_errors (TC-S5BE-006); tests/test_ui_playwright.py::test_s4_my_cars_photo_upload_progress_and_preview (TC-UI-016) |
+| Дельта instructor-cars: загруженное фото отображается владельцу после перезагрузки страницы и повторного входа без повторной загрузки (снятие бага 5.2); при отсутствии фото — плейсхолдер | backend/instructor_cars.py GET /api/instructor/cars (URL эндпоинта фото в плитках, не файловый путь) + frontend/instructor-dashboard.html раздел «Мои автомобили» (плитки ракурсов, плейсхолдеры) | tests/test_s5_backend.py::test_s5_bug_5_2_photo_survives_relogin (TC-S5BE-008); tests/test_ui_playwright.py::test_s4_my_cars_photo_upload_progress_and_preview (TC-UI-016) |
+| Дельта instructor-cars: матрица доступа к фото ракурсов — владелец + ученики ПАРЫ (серверная проверка accepted-связи); не из пары → 403, чужой авто → 404, гость → 401 (FR-42, NFR-7, MIN-2) | backend/instructor_cars.py GET /api/instructor/cars/{car_id}/photo/{angle} (проверка пары на сервере) | tests/test_s5_backend.py::test_s5_car_photo_access_matrix_and_sts (TC-S5BE-007), ::test_s5_admin_block_car_min2 (TC-S5BE-010 — заблокированное авто скрыто); tests/test_ui_playwright.py::test_s5_car_full_kit_completeness_and_student_sees_car (TC-UI-024 — ученик пары видит авто) |
+| Дельта instructor-cars: новые фото — изображения JPEG/PNG по содержимому, ≤ 5 МБ; отклонение с ошибкой валидации, авто не создается (NFR-9) | backend/uploads.py sniff_image (magic bytes) + лимит до записи — единая механика для car_photo и car_sts | tests/test_s5_backend.py::test_s5_car_sts_file_validation (TC-S5BE-004); tests/test_ui_playwright.py::test_bug048_mycars_photo_thumbnail_before_send_and_errors (TC-UI-023 — ошибки файла в форме) |
+| Дельта instructor-cars: обязательное фото СТС при создании авто — без него автомобиль не создается (FR-44) | backend/instructor_cars.py POST /api/instructor/cars → multipart с обязательным sts_photo (нет файла → 422) + frontend/instructor-dashboard.html форма создания с превью СТС до отправки | tests/test_s5_backend.py::test_s5_car_creation_requires_sts (TC-S5BE-003); tests/test_ui_playwright.py::test_bug048_mycars_photo_thumbnail_before_send_and_errors (TC-UI-023) |
+| Дельта instructor-cars: СТС хранится отдельно от ракурсов и ученику не публикуется — доступ только у владельца | backend/instructor_cars.py GET /api/instructor/cars/{car_id}/sts (только владелец; СТС отсутствует в ученических ответах) | tests/test_s5_backend.py::test_s5_car_photo_access_matrix_and_sts (TC-S5BE-007); tests/test_ui_playwright.py::test_s5_car_full_kit_completeness_and_student_sees_car (TC-UI-024 — СТС ученику НЕ выдается, FR-42/FR-44) |
+| Дельта instructor-cars: комплектность (5 ракурсов + СТС) валидирует человек в админке — видна комплектность каждого авто (ОВ-1) | backend/instructor_cars.py GET /api/admin/cars/completeness (X-Admin-Token: владелец, флаги 5 ракурсов + СТС, blocked; без/с неверным токеном → 401) | tests/test_s5_backend.py::test_s5_admin_cars_completeness (TC-S5BE-009); tests/test_ui_playwright.py::test_s5_car_full_kit_completeness_and_student_sees_car (TC-UI-024 — полный комплект = комплектность админа) |
+| Дельта instructor-cars: блокировка авто админом — идемпотентна; заблокированное недоступно ученикам (фото → 404); НЕ ретроактивна для существующих броней (MIN-2) | backend/instructor_cars.py POST /api/admin/cars/{car_id}/block (blocked=1; эффект — фильтрация blocked в ученической выдаче фото/карточек) | tests/test_s5_backend.py::test_s5_admin_block_car_min2 (TC-S5BE-010) |
+| Дельта instructor-documents: раздел «Мои документы» — ВУ анкеты + СТС всех авто: тип, привязка (марка/модель/госномер), дата загрузки; анкета без ВУ — корректное пустое состояние с подсказкой (FR-45) | backend/instructor_documents.py GET /api/instructor/documents + frontend/instructor-dashboard.html раздел «Мои документы» | tests/test_s5_backend.py::test_s5_documents_list_with_license_and_two_cars (TC-S5BE-011), ::test_s5_documents_empty_license_state (TC-S5BE-011b) |
+| Дельта instructor-documents: просмотр и скачивание файла документа; доступ только самому владельцу — чужой инструктор/ученик (в т.ч. пары)/гость → отказ (NFR-7) | backend/instructor_documents.py GET /api/instructor/documents/{doc_id}/file (выдача только по сессии владельца) | tests/test_s5_backend.py::test_s5_documents_file_access (TC-S5BE-012) |
+| Сквозное: миграции idempotent — таблица booking (индексы по (instructor_id, status)/(student_id, status), частичный UNIQUE слота, CHECK статусов), колонки instructor_cars photo_front/rear/interior/left/right + photo_sts + blocked (NFR-10←NFR-5) | backend/db.py init_db (механика idempotent-миграций Спринта 3) | tests/test_s5_backend.py::test_s5_migration_booking_table_and_indexes (TC-S5BE-001), ::test_s5_migration_idempotent_keeps_rows (TC-S5BE-002) |
+| Сквозное: в новых модулях Спринта 5 нет SQL-конкатенаций — `?`-плейсхолдеры (NFR-10←NFR-3) | backend/booking.py, backend/instructor_documents.py, расширение backend/instructor_cars.py | tests/test_s5_backend.py::test_s5_new_modules_no_sql_concatenation (TC-S5BE-023) |
+| Сквозное (M-2 review-001): легаси-JSON путь create_car не 500-ит на клиентском вводе — невалидное значение → 422 | backend/instructor_cars.py create_car (ветка JSON-multipart) | tests/test_s5_backend.py::test_s5_create_car_json_invalid_body_422_not_500 (TC-S5BE-024) |
+| Frontend (BUG-047): разделы «Мои автомобили» / «Мои документы» / «Бронирования» встроены в дашборд инструктора (дашборды не раздуваем), «Мои брони» — в кабинет ученика; back-ссылки ведут на ролевую домашнюю | frontend/instructor-dashboard.html (три раздела), frontend/cabinet.html (раздел «Мои брони»; мокапы design/mocks/{booking-student,booking-instructor,my-cars,my-documents}.html) | tests/test_ui_playwright.py::test_s4_my_cars_add_edit_delete_car (TC-UI-015), ::test_back_links_lead_to_role_home (TC-UI-019) |
+
+Примечания:
+
+1. Диапазон TC-UI-012…014 из task-постановки к Партии A Спринта 5 не
+   относится: TC-UI-013/014 — итерация BUG-046 change
+   add-instructor-student-loop (Спринт 3); TC-UI-012 как литеральный ID
+   в tests/ отсутствует (разведено в §28, прим. 2, и
+   test-model/reviews/add-s3-frontend-links/review-acceptance.md п.4).
+   Партия A Спринта 5 — TC-UI-015/016/019/023/024/025 (сверено с QA-отчетом).
+2. Коллизия TC-UI-024 (два теста в tests/test_ui_playwright.py несут один
+   ID: виджет M-1 review-001 и интеграция «авто») зафиксирована в QA-отчете
+   (раздел TC-UI, замечание 1); выше обе строки ссылаются на имена функций,
+   биекция кейсов — на усмотрение ПМ/ретро (кандидат TC-UI-026).
+3. Сценарий «Недопустимый файл ракурса» и визуальная приемка мокапов —
+   ручные хвосты (QA-отчет «Неавтоматизированное»): pixel-perfect и
+   design-чек мокапов автотестами не покрываются; валидация содержимого —
+   единая механика uploads.py, покрытая на СТС-пути (TC-S5BE-004).
+4. Полнота: все ADDED/MODIFIED Requirements трех дельт specs/ имеют строки
+   трассировки выше; ни одна строка не ссылается на отсутствующие
+   файлы/тесты. TC-S5BE-001…025 (+011b) и TC-UI Партии A покрыты
+   полностью, биекция кейс↔тест backend-сьюта — 26/26 (QA-отчет §TC-S5BE).

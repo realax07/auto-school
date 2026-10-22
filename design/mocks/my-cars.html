@@ -1,10 +1,14 @@
 <!doctype html>
-<!-- Мокап: «Мои автомобили» — раздел кабинета инструктора. Спринт 4, Партия A, задача 4.1
-     (change add-instructor-student-loop). Домен instructor-cars: сетка карточек авто
-     (фото-плейсхолдер, марка/модель/цвет/госномер), кнопка «Добавить автомобиль» — модалка
-     формы (поля + загрузка фото с прогрессом), удаление с подтверждением.
-     API: GET/POST /api/instructor/cars · PATCH/DELETE /api/instructor/cars/{id} ·
-     POST /api/instructor/cars/{id}/photo (JPEG/PNG по magic bytes, ≤5 МБ → иначе 422).
+<!-- Мокап: «Мои автомобили» — раздел кабинета инструктора. Спринт 5, задача 1
+     (change add-booking-docs, переработка мокапа Спринта 4). Домен instructor-cars:
+     карточка авто с 5 фото-слотами ракурсов (спереди/сзади/слева/справа/салон) +
+     отдельный слот СТС; клик по слоту — загрузка (POST /api/instructor/cars/{id}/photo/{angle},
+     СТС: обязательный файл при создании — POST /api/instructor/cars, multipart sts_photo),
+     после загрузки — миниатюра (баг 5.2 исправлен: фото отображаются в карточке —
+     GET /api/instructor/cars/{id}/photo/{angle}, выдача image/* владельцу и ученикам пары).
+     Индикатор комплектности: все 5 ракурсов + СТС = «Комплект полный», иначе
+     «Не хватает: …»; комплектность проверяет админ (GET /api/admin/cars/completeness,
+     POST /api/admin/cars/{id}/block — скрытие авто от учеников при неполном комплекте).
      Данные демо. -->
 <html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#071015"><title>СберАвтошкола — Кабинет инструктора · Мои автомобили</title>
 <style>
@@ -37,30 +41,60 @@ h1{font-size:28px;letter-spacing:-.05em;font-weight:600;margin:9px 0 8px}
 .addbtn{margin-left:auto;display:flex;align-items:center;gap:8px;border:1px solid #2b9c62;background:#123524;color:#c9ffdd;border-radius:11px;padding:11px 20px;font-size:12px;font-weight:550}
 .addbtn:hover{filter:brightness(1.12)}
 /* сетка карточек авто */
-.cars{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.cars{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px}
 .car{border:1px solid var(--line);border-radius:19px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:15px;display:flex;flex-direction:column;min-width:0;transition:border-color .15s}
 .car:hover{border-color:#35d87944}
-.photo{aspect-ratio:16/9;border:1.5px dashed #35d87955;border-radius:13px;background:#0d2b1c55;display:grid;place-items:center;text-align:center;color:#7fe3a3;font-size:11px;line-height:1.7;padding:12px;margin-bottom:13px}
-.photo b{font-size:24px;display:block;margin-bottom:5px}
-.photo .up{margin-top:7px;border:1px solid #2a5c40;background:#143322;border-radius:9px;padding:6px 12px;font-size:10px;color:#a3efbd}
-.photo .up:hover{filter:brightness(1.15)}
+.car-head{display:flex;align-items:start;gap:12px}
 .car b.title{font-size:16px;font-weight:600;letter-spacing:-.02em;display:block}
 .car small.sub{display:block;font-size:11px;color:#8fa0aa;margin-top:4px}
-.meta{display:flex;gap:7px;flex-wrap:wrap;margin:13px 0}
+.car-head .status{margin-left:auto;flex:none;font-size:10px;padding:6px 11px;border-radius:999px;white-space:nowrap}
+.st-full{background:#143322;color:#91efb1;border:1px solid #2a5c40}
+.st-miss{background:#2a2010;color:#ffd479;border:1px solid #6b5426}
+.meta{display:flex;gap:7px;flex-wrap:wrap;margin:11px 0 13px}
 .pill{font-size:10px;padding:6px 10px;border-radius:999px;border:1px solid #ffffff12;background:#ffffff05;color:#b9c8ce}
 .pill.plate{background:#0b161c;border-color:#ffffff22;color:#e4eef0;font-weight:600;letter-spacing:.06em}
 .pill.green{background:#143322;border-color:#2a5c40;color:#91efb1}
-.cactions{margin-top:auto;display:flex;gap:9px}
+/* фото-слоты: 5 ракурсов */
+.slots-label{font-size:10px;color:#8fa0aa;text-transform:uppercase;letter-spacing:.12em;margin:0 0 9px}
+.angles{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.slot{position:relative;border:1.5px dashed #35d87955;border-radius:11px;background:#0d2b1c33;aspect-ratio:4/3;display:grid;place-items:center;cursor:pointer;padding:0;transition:border-color .12s,background .12s;overflow:hidden}
+.slot:hover{border-color:#35d879aa;background:#0d2b1c66}
+.slot.has{background:linear-gradient(160deg,#1d3a4a,#0c1a24 55%,#14333d)}
+.slot img,.slot .ph{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.slot.has:after,.slot.has:before{content:none}
+.slot .ph{display:grid;place-items:center;color:#7fe3a3;font-size:19px}
+.slot.empty:hover .ph{filter:brightness(1.25)}
+.slot .tag{position:absolute;left:0;right:0;bottom:0;padding:3px 4px;font-size:8.5px;color:#d6e4e2;background:#02070bb8;text-align:center;letter-spacing:.03em}
+.slot .plus{position:absolute;top:4px;right:5px;width:17px;height:17px;border-radius:50%;background:#12331f;border:1px solid #2c8651;color:#a3efbd;font-size:10px;line-height:16px;text-align:center;display:none}
+.slot.empty .plus{display:block}
+.slot.busy{border-style:solid;border-color:#ffffff22;pointer-events:none}
+.slot.busy:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,#35d87922,transparent);animation:sweep 1s infinite}
+@keyframes sweep{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+/* СТС — отдельный широкий слот */
+.sts-row{display:flex;gap:10px;align-items:stretch;margin-top:11px}
+.sts-slot{position:relative;flex:1;border:1.5px dashed #c9a24b66;border-radius:11px;background:#2a201040;min-height:58px;display:flex;align-items:center;gap:11px;cursor:pointer;padding:9px 12px;transition:border-color .12s;overflow:hidden}
+.sts-slot:hover{border-color:#c9a24baa}
+.sts-slot img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.sts-slot .ic{position:relative;flex:none;width:34px;height:34px;border-radius:10px;background:#2a2010;border:1px solid #6b5426;display:grid;place-items:center;font-size:15px;color:#ffd479}
+.sts-slot .txt{position:relative;min-width:0}
+.sts-slot .txt b{display:block;font-size:11.5px;font-weight:550;color:#ead9b0}
+.sts-slot .txt small{display:block;font-size:10px;color:#a3906b;margin-top:3px}
+.sts-slot .ok{position:absolute;top:6px;right:8px;font-size:10px;color:#91efb1;display:none}
+.sts-slot.has{border-style:solid;border-color:#2a5c40;background:#0d241766}
+.sts-slot.has:before{content:"";position:absolute;inset:0;background:linear-gradient(160deg,#243b2c,#0c1a12 55%,#1b3a26)}
+.sts-slot.has .ok{display:block}
+/* прогресс на слоте */
+.prog{position:absolute;left:0;right:0;bottom:0;height:4px;background:#ffffff0d;display:none}
+.prog.on{display:block}
+.prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,#1c6b41,var(--green));transition:width .15s}
+/* действия карточки */
+.cactions{margin-top:14px;display:flex;gap:9px}
 .cactions .edit{flex:1;border:1px solid #ffffff16;background:#ffffff05;color:#aab8c0;border-radius:11px;padding:10px;font-size:12px}
 .cactions .edit:hover{border-color:#4bcb7c66;color:#c9ffdd}
 .cactions .del{flex:0 0 auto;border:1px solid #8a3c3c66;background:transparent;color:#ffb28e;border-radius:11px;padding:10px 14px;font-size:12px}
 .cactions .del:hover{background:#33201a55}
-/* прогресс загрузки */
-.prog{display:none;margin-top:9px;height:6px;border-radius:999px;background:#ffffff0d;overflow:hidden}
-.prog.on{display:block}
-.prog i{display:block;height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,#1c6b41,var(--green));transition:width .2s}
-.prog-lab{display:none;margin-top:6px;font-size:10px;color:#8fa0aa}
-.prog-lab.on{display:block}
+.compl-note{margin-top:9px;font-size:10px;color:#7e909a;line-height:1.55}
+.compl-note b{color:#ffd479;font-weight:500}
 /* пусто */
 .empty{display:none;border:1px dashed #ffffff22;border-radius:19px;padding:46px 20px;text-align:center;color:#8fa0a9}
 .empty b{display:block;font-size:15px;color:#c9d6db;margin-bottom:8px}
@@ -82,10 +116,10 @@ h1{font-size:28px;letter-spacing:-.05em;font-weight:600;margin:9px 0 8px}
 .seg{display:grid;grid-template-columns:1fr 1fr;gap:5px}
 .seg button{border:1px solid #ffffff14;background:#ffffff05;color:#b9c8ce;border-radius:10px;padding:10px;font-size:12px}
 .seg button.on{background:#143322;border-color:#2c8651;color:#a3efbd}
-.up-zone{border:1.5px dashed #35d87955;border-radius:13px;background:#0d2b1c33;padding:16px;text-align:center;font-size:11px;color:#7fe3a3;line-height:1.7;cursor:pointer}
-.up-zone:hover{border-color:#35d87999}
+.up-zone{border:1.5px dashed #c9a24b66;border-radius:13px;background:#2a201040;padding:16px;text-align:center;font-size:11px;color:#e8cf96;line-height:1.7;cursor:pointer}
+.up-zone:hover{border-color:#c9a24baa}
 .up-zone input{display:none}
-.up-zone b{color:#c9ffdd}
+.up-zone b{color:#ead9b0}
 .form-note{margin-top:12px;font-size:10px;color:#8fa0aa;line-height:1.6;border:1px solid #ffffff12;border-radius:11px;background:#ffffff04;padding:10px 12px}
 .form-actions{display:flex;gap:10px;margin-top:16px}
 .btn{flex:1;border-radius:12px;padding:12px;font-size:13px;font-weight:550;border:1px solid}
@@ -102,8 +136,8 @@ h1{font-size:28px;letter-spacing:-.05em;font-weight:600;margin:9px 0 8px}
 footer{margin-top:32px;padding-top:18px;border-top:1px solid #ffffff10;display:flex;justify-content:space-between;gap:14px;font-size:11px;color:#5f717b;flex-wrap:wrap}
 .toast{position:fixed;bottom:22px;right:22px;max-width:360px;background:#143323;border:1px solid #367b50;color:#b5f8cc;padding:13px 16px;border-radius:13px;font-size:12px;box-shadow:0 10px 40px #0008;display:none;z-index:40}
 .toast.show{display:block}
-@media(max-width:850px){.frame{padding:20px 16px 36px}.crumb{display:none}h1{font-size:24px}.cars{grid-template-columns:1fr 1fr}.addbtn{margin-left:0;width:100%;justify-content:center}.toolbar{flex-wrap:wrap}}
-@media(max-width:560px){header{grid-template-columns:1fr auto}.brand{font-size:19px}.uname{display:none}.tabs{width:100%;overflow-x:auto}.cars{grid-template-columns:1fr}.fgrid{grid-template-columns:1fr}.form-actions{flex-direction:column}.form-actions .ghost{flex:auto}}
+@media(max-width:850px){.frame{padding:20px 16px 36px}.crumb{display:none}h1{font-size:24px}.cars{grid-template-columns:1fr}.addbtn{margin-left:0;width:100%;justify-content:center}.toolbar{flex-wrap:wrap}.angles{gap:6px}}
+@media(max-width:560px){header{grid-template-columns:1fr auto}.brand{font-size:19px}.uname{display:none}.tabs{width:100%;overflow-x:auto}.fgrid{grid-template-columns:1fr}.form-actions{flex-direction:column}.form-actions .ghost{flex:auto}.slot .tag{font-size:7.5px;padding:2px 2px}.slot .ph{font-size:15px}}
 </style></head>
 <body>
 <div class="frame">
@@ -117,13 +151,14 @@ footer{margin-top:32px;padding-top:18px;border-top:1px solid #ffffff10;display:f
   <div>
     <div class="kicker">Автомобили</div>
     <h1>Мои автомобили</h1>
-    <p>Автомобили, на которых вы ведёте занятия. Ученик получает авто при принятии заявки; на публичной карточке видны характеристики без фото и госномера.</p>
+    <p>Загрузите фото всех ракурсов и СТС для каждого автомобиля. Фото видны вам и вашим ученикам; комплектность проверяет администратор.</p>
   </div>
   <div class="tabs">
     <button>Календарь</button>
     <button class="on">Автомобили</button>
     <button>Запросы <span style="color:#ffd479">·2</span></button>
     <button>Ученики</button>
+    <button>Документы</button>
   </div>
 </div>
 
@@ -133,7 +168,7 @@ footer{margin-top:32px;padding-top:18px;border-top:1px solid #ffffff10;display:f
 </div>
 
 <div class="cars" id="cars"></div>
-<div class="empty" id="empty"><b>Автомобилей пока нет</b>Добавьте автомобиль — без него нельзя принять заявку ученика (нужен выбор авто).</div>
+<div class="empty" id="empty"><b>Автомобилей пока нет</b>Добавьте автомобиль — без него нельзя принять заявку ученика (нужен выбор авто). При создании обязательно фото СТС.</div>
 
 <footer><span>СберАвтошкола · мокап «Мои автомобили»</span><span>Демонстрационный интерфейс · данные вымышлены</span></footer>
 </div>
@@ -142,7 +177,7 @@ footer{margin-top:32px;padding-top:18px;border-top:1px solid #ffffff10;display:f
 <div class="backdrop" id="m-add" role="dialog" aria-modal="true" aria-labelledby="add-title">
   <div class="modal">
     <div class="modal-head">
-      <div><h2 id="add-title">Новый автомобиль</h2><div class="sub">Появится в списке и в выборе авто при принятии заявки</div></div>
+      <div><h2 id="add-title">Новый автомобиль</h2><div class="sub">Появится в списке и в выборе авто при принятии заявки. Без фото СТС создать нельзя.</div></div>
       <button class="close" data-close="m-add" aria-label="Закрыть">×</button>
     </div>
     <div class="fgrid">
@@ -157,15 +192,15 @@ footer{margin-top:32px;padding-top:18px;border-top:1px solid #ffffff10;display:f
           <button data-v="automatic">Автомат</button>
         </div>
       </div>
-      <div class="field wide"><span>Фото автомобиля (необязательно)</span>
-        <label class="up-zone" id="up-zone">📷 <b>Выберите файл</b> или перетащите сюда<br>JPEG/PNG · до 5 МБ
-          <input type="file" id="f-photo" accept="image/jpeg,image/png">
+      <div class="field wide"><span>Фото СТС * (обязательно)</span>
+        <label class="up-zone" id="up-zone">🪪 <b>Выберите фото СТС</b> или перетащите сюда<br>JPEG/PNG · до 5 МБ
+          <input type="file" id="f-sts" accept="image/jpeg,image/png">
         </label>
-        <div class="prog" id="up-prog"><i></i></div>
-        <div class="prog-lab" id="up-lab">Загрузка… 0%</div>
+        <div class="prog on" id="up-prog" style="position:static;margin-top:9px;border-radius:999px;overflow:hidden"><i></i></div>
+        <div class="prog-lab" id="up-lab" style="margin-top:6px;font-size:10px;color:#8fa0aa"></div>
       </div>
     </div>
-    <div class="form-note">Тип и размер файла проверяются по содержимому (magic bytes), лимит 5 МБ — файл больше или не JPEG/PNG вернёт ошибку 422. Фото хранится вне раздачи статики и выдаётся только вам по сессии.</div>
+    <div class="form-note">Без файла СТС автомобиль не создаётся — вернётся ошибка «загрузите фото СТС». Тип и размер файла проверяются по содержимому (magic bytes), лимит 5 МБ. Ракурсы (спереди/сзади/слева/справа/салон) загрузите в карточке после создания. Файлы хранятся вне раздачи статики и выдаются только вам и вашим ученикам по сессии.</div>
     <div class="form-actions">
       <button class="btn primary" id="save-car" disabled>Сохранить автомобиль</button>
       <button class="btn ghost" data-close="m-add">Отмена</button>
@@ -189,37 +224,74 @@ footer{margin-top:32px;padding-top:18px;border-top:1px solid #ffffff10;display:f
 
 <div class="toast" id="toast"></div>
 <script>
-// автомобили (GET /api/instructor/cars) — демо
+// автомобили (GET /api/instructor/cars) — демо.
+// photos: null = не загружен; true = загружен (в карточке — <img src="/api/instructor/cars/{id}/photo/{angle}">).
+var ANGLES=[['front','Спереди'],['rear','Сзади'],['left','Слева'],['right','Справа'],['interior','Салон']];
 var cars=[
- {id:11,brand:'Škoda',model:'Rapid',year:2020,color:'Белый',plate:'А 123 АА 777',trans:'automatic',photo:false,students:1},
- {id:12,brand:'Kia',model:'Rio',year:2022,color:'Серый',plate:'В 456 ВВ 777',trans:'manual',photo:false,students:1}
+ {id:11,brand:'Škoda',model:'Rapid',year:2020,color:'Белый',plate:'А 123 АА 777',trans:'automatic',students:1,
+  photos:{front:true,rear:true,left:true,right:true,interior:true},sts:true},
+ {id:12,brand:'Kia',model:'Rio',year:2022,color:'Серый',plate:'В 456 ВВ 777',trans:'manual',students:1,
+  photos:{front:true,rear:null,left:true,right:null,interior:null},sts:true},
+ {id:13,brand:'Lada',model:'Vesta',year:2021,color:'Синий',plate:'Е 789 ЕЕ 777',trans:'manual',students:0,
+  photos:{front:null,rear:null,left:null,right:null,interior:null},sts:null}
 ];
-var editing=null,deleting=null,transVal='manual';
+var editing=null,deleting=null,transVal='manual',stsFile=false;
 var transLabel={manual:'механика',automatic:'автомат'};
 function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(window._tt);window._tt=setTimeout(function(){t.classList.remove('show')},3200)}
 function esc(s){return String(s).replace(/[<>&"]/g,function(c){return{'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]})}
+function missing(c){
+  var miss=[];
+  ANGLES.forEach(function(a){if(!c.photos[a[0]])miss.push(a[1].toLowerCase())});
+  if(!c.sts)miss.push('СТС');
+  return miss;
+}
 function render(){
   var box=document.getElementById('cars');box.innerHTML='';
   document.getElementById('empty').style.display=cars.length?'none':'block';
   document.getElementById('count').textContent='Автомобилей: '+cars.length;
   cars.forEach(function(c){
+    var miss=missing(c),full=!miss.length;
     var art=document.createElement('article');art.className='car';
-    art.innerHTML=
-      '<div class="photo">'+(c.photo?'🖼 <b></b>Фото загружено':
-        '<span><b>⌗</b>Плейсхолдер фото авто<br><button class="up" data-photo="'+c.id+'">Загрузить фото</button></span>')+'</div>'+
-      '<b class="title">'+esc(c.brand)+' '+esc(c.model)+'</b>'+
-      '<small class="sub">'+c.year+' год выпуска'+(c.color?' · '+esc(c.color):'')+(c.students?' · ученик: '+c.students:'')+'</small>'+
+    var h='<div class="car-head"><div><b class="title">'+esc(c.brand)+' '+esc(c.model)+'</b>'+
+      '<small class="sub">'+c.year+' год выпуска'+(c.color?' · '+esc(c.color):'')+(c.students?' · ученик: '+c.students:'')+'</small></div>'+
+      '<span class="status '+(full?'st-full':'st-miss')+'">'+(full?'Комплект полный':'Не хватает: '+miss.join(', '))+'</span></div>'+
       '<div class="meta"><span class="pill green">'+transLabel[c.trans]+'</span><span class="pill plate">'+esc(c.plate)+'</span></div>'+
+      '<p class="slots-label">Фото ракурсы · клик по слоту — загрузка / замена</p><div class="angles">';
+    ANGLES.forEach(function(a){
+      var has=c.photos[a[0]];
+      // миниатюра после загрузки: <img src="/api/instructor/cars/{id}/photo/'+a[0]+'"> (баг 5.2 исправлен)
+      h+='<button class="slot'+(has?' has':' empty')+'" data-angle="'+a[0]+'" data-car="'+c.id+'" title="'+(has?'Заменить фото':'Загрузить фото')+' — '+a[1]+'">'+
+        (has?'<span class="ph">🚗</span><img src="/api/instructor/cars/'+c.id+'/photo/'+a[0]+'" alt="'+a[1]+'" onerror="this.remove()">':'<span class="ph">🚗</span>')+
+        '<span class="plus">＋</span><span class="tag">'+a[1]+'</span><span class="prog"><i></i></span></button>';
+    });
+    h+='</div><div class="sts-row"><div class="sts-slot'+(c.sts?' has':'')+'" data-sts="'+c.id+'" title="'+(c.sts?'Заменить фото СТС':'Загрузить фото СТС')+'">'+
+      (c.sts?'<img src="/api/instructor/cars/'+c.id+'/sts" alt="СТС" onerror="this.remove()">':'')+
+      '<span class="ic">🪪</span><span class="txt"><b>СТС — свидетельство о регистрации</b><small>'+(c.sts?'загружено · просмотр по клику':'не загружено · клик для загрузки')+'</small></span>'+
+      '<span class="ok">✓</span><span class="prog"><i></i></span></div></div>'+
+      '<div class="compl-note">Комплектность (5 ракурсов + СТС) проверяет <b>администратор</b>; при неполном комплекте авто может быть скрыто от учеников.</div>'+
       '<div class="cactions"><button class="edit" data-edit="'+c.id+'">Редактировать</button>'+
       '<button class="del" data-del="'+c.id+'">Удалить</button></div>';
+    art.innerHTML=h;
     box.appendChild(art);
   });
   bind();
 }
 function bind(){
-  document.querySelectorAll('[data-photo]').forEach(function(b){b.addEventListener('click',function(e){
-    e.preventDefault();openAdd(cars.find(function(c){return c.id===+b.dataset.photo}));
-    document.getElementById('f-photo').click();
+  // загрузка ракурса: POST /api/instructor/cars/{id}/photo/{angle} (front|rear|left|right|interior)
+  document.querySelectorAll('.slot').forEach(function(b){b.addEventListener('click',function(){
+    simulateUpload(b,function(){
+      var c=cars.find(function(x){return x.id===+b.dataset.car});
+      c.photos[b.dataset.angle]=true;render();
+      toast('Фото ракурса сохранено. Остальные ракурсы не тронуты (замена одного — точечная).');
+    });
+  })});
+  // загрузка СТС: POST /api/instructor/cars/{id}/photo — вид sts=sts / GET …/sts
+  document.querySelectorAll('.sts-slot').forEach(function(b){b.addEventListener('click',function(){
+    simulateUpload(b,function(){
+      var c=cars.find(function(x){return x.id===+b.dataset.sts});
+      c.sts=true;render();
+      toast('Фото СТС сохранено. СТС виден только вам — ученикам он не выдаётся.');
+    });
   })});
   document.querySelectorAll('[data-edit]').forEach(function(b){b.addEventListener('click',function(){
     openAdd(cars.find(function(c){return c.id===+b.dataset.edit}));
@@ -230,17 +302,28 @@ function bind(){
     document.getElementById('m-del').classList.add('open');document.body.style.overflow='hidden';
   })});
 }
+// демо-загрузка с прогрессом; после 100% — миниатюра в слоте
+function simulateUpload(slot,done){
+  var prog=slot.querySelector('.prog'),bar=prog.querySelector('i');
+  slot.classList.add('busy');prog.classList.add('on');
+  var v=0;
+  var t=setInterval(function(){
+    v=Math.min(100,v+10+Math.random()*16);bar.style.width=v+'%';
+    if(v>=100){clearInterval(t);prog.classList.remove('on');bar.style.width='0';slot.classList.remove('busy');done()}
+  },130);
+}
 // ── модалка добавления/редактирования ──
 function openAdd(c){
   editing=c||null;
   document.getElementById('add-title').textContent=c?'Редактирование автомобиля':'Новый автомобиль';
+  document.querySelector('#m-add .sub').textContent=c?'Поля и СТС сохраняются; ракурсы меняются в карточке':'Появится в списке и в выборе авто при принятии заявки. Без фото СТС создать нельзя.';
   document.getElementById('f-brand').value=c?c.brand:'';
   document.getElementById('f-model').value=c?c.model:'';
   document.getElementById('f-year').value=c?c.year:'';
   document.getElementById('f-color').value=c?(c.color||''):'';
   document.getElementById('f-plate').value=c?c.plate:'';
   setTrans(c?c.trans:'manual');
-  resetUpload();
+  stsFile=!!c;resetUpload();
   validate();
   document.getElementById('m-add').classList.add('open');document.body.style.overflow='hidden';
   document.getElementById('f-brand').focus();
@@ -252,7 +335,7 @@ document.querySelectorAll('[data-close]').forEach(function(b){b.addEventListener
 document.getElementById('m-del').addEventListener('click',function(e){if(e.target===this)closeModal('m-del')});
 document.getElementById('m-add').addEventListener('click',function(e){if(e.target===this)closeModal('m-add')});
 document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal('m-add');closeModal('m-del')}});
-// валидация формы (поля * обязательны; бэкенд вернёт 422 по конкретному полю)
+// валидация формы (поля * + файл СТС; бэкенд вернёт 422 по конкретному нарушению)
 ['f-brand','f-model','f-year','f-plate'].forEach(function(id){
   document.getElementById(id).addEventListener('input',validate);
 });
@@ -260,26 +343,27 @@ function validate(){
   var ok=document.getElementById('f-brand').value.trim()
         &&document.getElementById('f-model').value.trim()
         &&document.getElementById('f-year').value.trim()
-        &&document.getElementById('f-plate').value.trim();
+        &&document.getElementById('f-plate').value.trim()
+        &&stsFile;
   document.getElementById('save-car').disabled=!ok;
 }
-// ── загрузка фото с прогрессом (POST /api/instructor/cars/{id}/photo) ──
 function resetUpload(){
   var p=document.getElementById('up-prog'),l=document.getElementById('up-lab');
-  p.classList.remove('on');l.classList.remove('on');p.firstElementChild.style.width='0';
-  document.getElementById('f-photo').value='';
+  p.firstElementChild.style.width='0';l.textContent='';
+  document.getElementById('f-sts').value='';
 }
-document.getElementById('f-photo').addEventListener('change',function(){
+// ── загрузка СТС с прогрессом (multipart поле sts_photo, magic bytes JPEG/PNG, ≤5 МБ) ──
+document.getElementById('f-sts').addEventListener('change',function(){
   if(!this.files.length)return;
   var p=document.getElementById('up-prog'),bar=p.firstElementChild,l=document.getElementById('up-lab');
-  p.classList.add('on');l.classList.add('on');var v=0;
+  var v=0;
   var t=setInterval(function(){
-    v=Math.min(100,v+8+Math.random()*14);bar.style.width=v+'%';
+    v=Math.min(100,v+9+Math.random()*15);bar.style.width=v+'%';
     l.textContent='Загрузка… '+Math.round(v)+'%';
-    if(v>=100){clearInterval(t);l.textContent='Фото загружено ✓';toast('Фото сохранено (JPEG/PNG проверен по содержимому).')}
-  },140);
+    if(v>=100){clearInterval(t);l.textContent='Фото СТС загружено ✓';stsFile=true;validate();toast('Фото СТС проверено по содержимому (JPEG/PNG, ≤5 МБ).')}
+  },130);
 });
-// сохранить (POST/PATCH /api/instructor/cars)
+// сохранить (POST /api/instructor/cars — multipart c sts_photo)
 document.getElementById('save-car').addEventListener('click',function(){
   var data={
     brand:document.getElementById('f-brand').value.trim(),
@@ -289,8 +373,14 @@ document.getElementById('save-car').addEventListener('click',function(){
     plate:document.getElementById('f-plate').value.trim(),
     trans:transVal
   };
-  if(editing){Object.assign(editing,data);toast('Изменения сохранены (PATCH /api/instructor/cars/'+editing.id+').')}
-  else{data.id=Date.now();data.photo=false;data.students=0;cars.push(data);toast('Автомобиль добавлен. Теперь его можно выбрать при принятии заявки.')}
+  if(editing){Object.assign(editing,data);toast('Изменения сохранены.')}
+  else{
+    data.id=Date.now();data.students=0;
+    data.photos={front:null,rear:null,left:null,right:null,interior:null};
+    data.sts=true; // файл sts_photo уже загружен формой
+    cars.push(data);
+    toast('Автомобиль создан. Теперь загрузите 5 фото ракурсов в его карточке.');
+  }
   closeModal('m-add');render();
 });
 // ── удаление с подтверждением (DELETE /api/instructor/cars/{id}) ──
@@ -298,7 +388,7 @@ document.getElementById('del-cancel').addEventListener('click',function(){closeM
 document.getElementById('del-confirm').addEventListener('click',function(){
   cars=cars.filter(function(c){return c!==deleting});
   closeModal('m-del');render();
-  toast('Автомобиль удалён. car_id у принятых заявок сброшен, связь с учениками сохранена (ОВ-3).');
+  toast('Автомобиль удалён. car_id у принятых заявок сброшен, связь с учениками сохранена.');
 });
 render();
 </script></body></html>

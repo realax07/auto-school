@@ -184,6 +184,121 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
 .side-logout{color:#ffb28e}
 .side-logout:hover{background:#34251f33}
 .today-empty{display:none;padding:14px;border:1px dashed #ffffff1c;border-radius:12px;color:#8fa0a9;font-size:12px;text-align:center}
+/* Спринт 5 (change add-booking-docs): разделы «Мои автомобили» (5 ракурсов +
+   СТС + комплектность), «Мои документы», «Бронирования» — внутри дашборда
+   (BUG-047-прецедент: standalone-страницы запрещены). Имена классов — 1в1 из
+   мокапов design/mocks/my-cars.html, my-documents.html, booking-instructor.html;
+   коллизий с правилами выше нет (проверено: .slot/.doc/.req/.filters здесь
+   не определены, .status переопределяется точечно в .req-top). */
+.car-head{display:flex;align-items:start;gap:12px}
+.car-head .status{margin-left:auto;flex:none;font-size:10px;padding:6px 11px;border-radius:999px;white-space:nowrap}
+.st-full{background:#143322;color:#91efb1;border:1px solid #2a5c40}
+.st-miss{background:#2a2010;color:#ffd479;border:1px solid #6b5426}
+.pill.blocked{background:#33201a;border-color:#8a3c3c66;color:#ffb28e}
+.slots-label{font-size:10px;color:#8fa0aa;text-transform:uppercase;letter-spacing:.12em;margin:0 0 9px}
+.angles{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.slot{position:relative;border:1.5px dashed #35d87955;border-radius:11px;background:#0d2b1c33;aspect-ratio:4/3;display:grid;place-items:center;cursor:pointer;padding:0;transition:border-color .12s,background .12s;overflow:hidden}
+.slot:hover{border-color:#35d879aa;background:#0d2b1c66}
+.slot.has{background:linear-gradient(160deg,#1d3a4a,#0c1a24 55%,#14333d)}
+.slot img,.slot .ph{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.slot .ph{display:grid;place-items:center;color:#7fe3a3;font-size:19px}
+.slot.empty:hover .ph{filter:brightness(1.25)}
+.slot .tag{position:absolute;left:0;right:0;bottom:0;padding:3px 4px;font-size:8.5px;color:#d6e4e2;background:#02070bb8;text-align:center;letter-spacing:.03em;z-index:2}
+.slot .plus{position:absolute;top:4px;right:5px;width:17px;height:17px;border-radius:50%;background:#12331f;border:1px solid #2c8651;color:#a3efbd;font-size:10px;line-height:16px;text-align:center;display:none;z-index:2}
+.slot.empty .plus{display:block}
+.slot.busy{border-style:solid;border-color:#ffffff22;pointer-events:none}
+.slot .prog{position:absolute;left:0;right:0;bottom:0;height:4px;background:#ffffff0d;display:none;z-index:3}
+.slot .prog.on{display:block}
+.slot .prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,#1c6b41,var(--green));transition:width .15s}
+.sts-row{display:flex;gap:10px;align-items:stretch;margin-top:11px}
+.sts-slot{position:relative;flex:1;border:1.5px dashed #c9a24b66;border-radius:11px;background:#2a201040;min-height:58px;display:flex;align-items:center;gap:11px;cursor:pointer;padding:9px 12px;transition:border-color .12s;overflow:hidden}
+.sts-slot:hover{border-color:#c9a24baa}
+.sts-slot img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.sts-slot .ic{position:relative;flex:none;width:34px;height:34px;border-radius:10px;background:#2a2010;border:1px solid #6b5426;display:grid;place-items:center;font-size:15px;color:#ffd479}
+.sts-slot .txt{position:relative;min-width:0}
+.sts-slot .txt b{display:block;font-size:11.5px;font-weight:550;color:#ead9b0}
+.sts-slot .txt small{display:block;font-size:10px;color:#a3906b;margin-top:3px}
+.sts-slot .ok{position:absolute;top:6px;right:8px;font-size:10px;color:#91efb1;display:none}
+.sts-slot.has{border-style:solid;border-color:#2a5c40;background:#0d241766}
+.sts-slot.has .ok{display:block}
+.compl-note{margin-top:9px;font-size:10px;color:#7e909a;line-height:1.55}
+.compl-note b{color:#ffd479;font-weight:500}
+/* «Мои документы» (мокап my-documents.html) */
+.sect{margin-top:20px}
+.sect:first-of-type{margin-top:0}
+.sect-head{display:flex;align-items:center;gap:12px;margin-bottom:13px}
+.sect-head b{font-size:15px;font-weight:600;letter-spacing:-.02em}
+.sect-head .n{font-size:10px;color:#91efb1;border:1px solid #2a5c40;background:#143322;border-radius:999px;padding:3px 9px}
+.sect-head .hint{font-size:11px;color:#7e909a;margin-left:auto}
+.docs{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.doc{border:1px solid var(--line);border-radius:18px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:14px;text-align:left;transition:border-color .15s,transform .15s;cursor:zoom-in;display:flex;flex-direction:column;min-width:0;font:inherit;color:inherit}
+.doc:hover{border-color:#35d87966;transform:translateY(-2px)}
+.thumb{position:relative;aspect-ratio:16/10;border-radius:12px;overflow:hidden;border:1px solid #ffffff14;margin-bottom:12px;flex:none;background:#0d2b1c33}
+.thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.thumb .zoom{position:absolute;right:8px;bottom:8px;font-size:10px;color:#c9ffdd;background:#02070bc0;border:1px solid #2c8651;border-radius:999px;padding:4px 10px;z-index:2}
+.doc b.name{font-size:13px;font-weight:600;letter-spacing:-.01em;display:block}
+.doc small.meta{display:block;font-size:11px;color:#8fa0aa;margin-top:5px;line-height:1.6}
+.doc .pill{align-self:flex-start;font-size:10px;padding:5px 10px;border-radius:999px;border:1px solid #2a5c40;background:#143322;color:#91efb1;margin-top:10px}
+.doc .pill.warn{border-color:#6b5426;background:#2a201040;color:#ffd479}
+.no-license{display:none;border:1px dashed #ffffff22;border-radius:18px;padding:34px 20px;text-align:center;color:#8fa0a9;font-size:12px;line-height:1.7}
+.no-license b{display:block;font-size:14px;color:#c9d6db;margin-bottom:7px}
+.viewer{width:min(760px,100%);max-height:calc(100vh - 60px);overflow:auto;border:1px solid #ffffff20;border-radius:22px;background:linear-gradient(150deg,#16242c,#0b1418);box-shadow:0 30px 80px #000c;padding:20px 22px 22px}
+.viewer-head{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.viewer-head h2{font-size:16px;letter-spacing:-.02em;font-weight:600;margin:0}
+.viewer-head small{display:block;font-size:11px;color:#8fa0aa;margin-top:5px}
+.viewer .full{position:relative;aspect-ratio:16/10;border-radius:14px;overflow:hidden;border:1px solid #ffffff14;background:#060d12}
+.viewer .full img{width:100%;height:100%;object-fit:contain}
+.viewer-foot{margin-top:12px;font-size:10px;color:#7e909a;line-height:1.6}
+/* «Бронирования» (мокап booking-instructor.html) */
+.filters{display:flex;gap:6px;margin:16px 0 14px;flex-wrap:wrap}
+.filters button{border:1px solid #ffffff14;background:#ffffff05;color:#b9c8ce;border-radius:999px;padding:8px 15px;font-size:11px}
+.filters button.on{background:#143322;border-color:#2c8651;color:#a3efbd}
+.filters button .n{color:#ffd479}
+.bk-list{display:grid;gap:11px}
+.req{border:1px solid var(--line);border-radius:18px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:17px 19px}
+.req-top{display:flex;gap:13px;align-items:center;flex-wrap:wrap}
+.req-top .status{margin-left:auto;flex:none;font-size:10px;padding:6px 12px;border-radius:999px;white-space:nowrap}
+.st-new{background:#2a2010;color:#ffd479;border:1px solid #6b5426}
+.st-ok{background:#143322;color:#91efb1;border:1px solid #2a5c40}
+.st-den{background:#33201a;color:#ffb28e;border:1px solid #5c3030}
+.slotpill{display:inline-flex;align-items:center;gap:7px;font-size:11px;color:#c9ffdd;border:1px solid #2a5c40;background:#0d241766;border-radius:999px;padding:6px 12px;margin-top:7px}
+.slotpill i{font-style:normal;color:#7fe3a3}
+.comment{margin:12px 0 0;padding:11px 14px;border:1px solid #ffffff10;background:#ffffff04;border-radius:12px;font-size:12px;color:#c9d6db;line-height:1.55}
+.comment span{display:block;font-size:10px;color:#8fa0aa;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+.comment.denied span{color:#e8b877}
+.bk-actions{display:flex;gap:9px;margin-top:14px;flex-wrap:wrap}
+.act{border-radius:11px;padding:11px 20px;font-size:12px;font-weight:550;border:1px solid;cursor:pointer}
+.act.accept{background:#123524;border-color:#2b9c62;color:#c9ffdd}
+.act.accept:hover{filter:brightness(1.12)}
+.act.deny{background:transparent;border-color:#8a3c3c66;color:#ffb28e}
+.act.deny:hover{background:#33201a55}
+.deny-panel{display:none;margin-top:14px;border:1px solid #5c3030;border-radius:13px;background:#24131366;padding:15px}
+.deny-panel.open{display:block}
+.deny-panel h4{margin:0 0 11px;font-size:10px;color:#e8b877;text-transform:uppercase;letter-spacing:.12em;font-weight:500}
+.deny-panel textarea{width:100%;min-height:74px;resize:vertical;border:1px solid #ffffff16;background:#0b161c;border-radius:11px;padding:11px 13px;font:inherit;font-size:12px;color:#dcebe9;line-height:1.5}
+.deny-panel textarea:focus{outline:none;border-color:#35d87966}
+.deny-actions{display:flex;align-items:center;gap:11px;margin-top:11px;flex-wrap:wrap}
+.deny-confirm{border:1px solid #8a3c3c;background:#33201a;color:#ffb28e;border-radius:11px;padding:11px 20px;font-size:12px;font-weight:550;cursor:pointer}
+.deny-confirm:disabled{opacity:.4;cursor:not-allowed}
+.deny-note{font-size:10px;color:#8fa0aa}
+.bk-cal{border:1px solid var(--line);border-radius:19px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:19px;margin-top:24px}
+.bk-cal .grid{display:grid;grid-template-columns:64px repeat(7,minmax(0,1fr));gap:6px}
+.bk-cal .corner{font-size:9px;color:#637681;display:grid;place-items:end center;padding-bottom:6px;text-transform:uppercase;letter-spacing:.08em}
+.bk-cal .dh{text-align:center;padding:7px 2px;border-radius:10px;background:#ffffff04;border:1px solid #ffffff0e}
+.bk-cal .dh small{display:block;font-size:9px;color:#84959e;text-transform:uppercase;letter-spacing:.08em}
+.bk-cal .dh b{display:block;font-size:14px;margin-top:4px;font-weight:600}
+.bk-cal .dh.today{background:#143322;border-color:#2c8651}
+.bk-cal .dh.today small{color:#a3efbd}
+.bk-cal .tlabel{font-size:10px;color:#7e909a;display:flex;align-items:center;justify-content:flex-end;padding-right:6px}
+.bk-cal .slot{height:44px;aspect-ratio:auto;border-radius:9px;border:1px solid #ffffff10;background:#ffffff03;font-size:9px;line-height:1.35;display:grid;place-items:center;text-align:center;padding:2px 3px;overflow:hidden;cursor:default}
+.bk-cal .slot.on{background:#143322;border-color:#2c8651;color:#a3efbd}
+.bk-cal .slot.booked{background:#17283a;border-color:#2d4a68;color:#cfe6ff}
+.bk-cal .slot.booked small{display:block;color:#9bc5ff;font-weight:600;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bk-cal .slot.reqslot{background:#2a2010;border-color:#6b5426;color:#ffe4a3;cursor:pointer}
+.bk-cal .slot.reqslot:hover{filter:brightness(1.15)}
+.bk-cal .slot.reqslot small{display:block;color:#ffd479;font-weight:600;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bk-hint{margin-top:14px;font-size:11px;color:#7e909a;line-height:1.7}
+.bk-none{border:1px dashed #ffffff1c;border-radius:12px;padding:16px 14px;font-size:11px;color:#8fa0aa;text-align:center}
 </style>
 </head>
 <body>
@@ -197,7 +312,9 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
     <button data-tab="Календарь"><span class="ico">▦</span>Календарь</button>
     <button data-tab="Мои ученики"><span class="ico">♧</span>Мои ученики<small class="demo-tag">демо</small></button>
     <button data-tab="Запросы учеников"><span class="ico">✉</span>Запросы учеников<small class="demo-tag" id="nav-req-badge" style="display:none">0</small></button>
+    <button data-tab="Бронирования"><span class="ico">◷</span>Бронирования<small class="demo-tag" id="nav-bk-badge" style="display:none">0</small></button>
     <button data-tab="Мои автомобили"><span class="ico">▰</span>Мои автомобили</button>
+    <button data-tab="Мои документы"><span class="ico">▤</span>Мои документы</button>
     <button data-tab="Доходы и выплаты"><span class="ico">₽</span>Доходы и выплаты<small class="demo-tag">демо</small></button>
     <button data-tab="Мой автомобиль"><span class="ico">▰</span>Мой автомобиль<small class="demo-tag">демо</small></button>
     <button data-tab="Материалы и обучение"><span class="ico">◈</span>Материалы и обучение<small class="demo-tag">демо</small></button>
@@ -317,15 +434,18 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
     <div class="toolbar">
       <span class="count" id="count"></span>
       <button class="addbtn" id="open-add" type="button">＋ Добавить автомобиль</button>
+      <!-- скрытый input слота ракурса: клик по слоту открывает выбор файла -->
+      <input type="file" id="slot-file" accept="image/jpeg,image/png" style="display:none">
     </div>
     <div class="cars" id="cars"></div>
-    <div class="empty" id="empty"><b>Автомобилей пока нет</b>Добавьте автомобиль — без него нельзя принять заявку ученика (нужен выбор авто).</div>
+    <div class="empty" id="empty"><b>Автомобилей пока нет</b>Добавьте автомобиль — без него нельзя принять заявку ученика (нужен выбор авто). При создании обязательно фото СТС.</div>
 
-    <!-- модалка: добавить / редактировать автомобиль -->
+    <!-- модалка: добавить / редактировать автомобиль (мокап my-cars.html:
+         СТС — обязательный файл при создании, multipart sts_photo) -->
     <div class="backdrop" id="m-add" role="dialog" aria-modal="true" aria-labelledby="add-title">
       <div class="modal">
         <div class="modal-head">
-          <div><h2 id="add-title">Новый автомобиль</h2><div class="sub">Появится в списке и в выборе авто при принятии заявки</div></div>
+          <div><h2 id="add-title">Новый автомобиль</h2><div class="sub" id="add-sub">Появится в списке и в выборе авто при принятии заявки. Без фото СТС создать нельзя.</div></div>
           <button class="close" data-close="m-add" aria-label="Закрыть">×</button>
         </div>
         <div class="fgrid">
@@ -339,17 +459,17 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
               <button data-v="automatic" type="button">Автомат</button>
             </div>
           </div>
-          <div class="field wide"><span>Фото автомобиля (необязательно)</span>
-            <label class="up-zone" id="up-zone"><span class="up-txt">📷 <b>Выберите файл</b> или перетащите сюда<br>JPEG/PNG · до 5 МБ</span>
-              <img id="up-thumb" alt="Миниатюра фото автомобиля">
-              <input type="file" id="f-photo" accept="image/jpeg,image/png">
+          <div class="field wide" id="sts-field"><span>Фото СТС * (обязательно)</span>
+            <label class="up-zone" id="up-zone"><span class="up-txt">🪪 <b>Выберите фото СТС</b> или перетащите сюда<br>JPEG/PNG · до 5 МБ</span>
+              <img id="up-thumb" alt="Миниатюра фото СТС">
+              <input type="file" id="f-sts" accept="image/jpeg,image/png">
             </label>
             <div class="up-photo-err" id="up-photo-err" role="alert"></div>
             <div class="prog" id="up-prog"><i></i></div>
             <div class="prog-lab" id="up-lab">Загрузка… 0%</div>
           </div>
         </div>
-        <div class="form-note">Тип и размер файла проверяются по содержимому (magic bytes), лимит 5 МБ — файл больше или не JPEG/PNG вернёт ошибку 422. Фото хранится вне раздачи статики и выдаётся только вам по сессии.</div>
+        <div class="form-note">Без файла СТС автомобиль не создаётся — вернётся ошибка «загрузите фото СТС». Тип и размер файла проверяются по содержимому (magic bytes), лимит 5 МБ. Ракурсы (спереди/сзади/слева/справа/салон) загрузите в карточке после создания. Файлы хранятся вне раздачи статики и выдаются только вам и вашим ученикам по сессии.</div>
         <div class="form-actions">
           <button class="btn primary" id="save-car" disabled type="button">Сохранить автомобиль</button>
           <button class="btn ghost" data-close="m-add" type="button">Отмена</button>
@@ -371,6 +491,60 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
       </div>
     </div>
   </section>
+
+  <!-- Раздел «Мои документы» (мокап my-documents.html, change add-booking-docs):
+       ВУ из анкеты + СТС по каждому авто; просмотр полного размера —
+       GET /api/instructor/documents/{doc_id}/file (только владелец) -->
+  <section class="card panel" id="sec-docs" style="display:none">
+    <section class="sect">
+      <div class="sect-head"><b>Водительское удостоверение</b><span class="n" id="lic-n">0</span><span class="hint">из анкеты инструктора</span></div>
+      <div class="docs" id="lic-docs"></div>
+      <div class="no-license" id="no-license"><b>ВУ не найдено</b><span id="no-license-hint">В вашей анкете не было фото водительского удостоверения. Досыл документа появится позже — обратитесь в поддержку.</span></div>
+    </section>
+    <section class="sect">
+      <div class="sect-head"><b>СТС автомобилей</b><span class="n" id="sts-count">0</span><span class="hint">по одному на каждый автомобиль</span></div>
+      <div class="docs" id="sts-docs"></div>
+    </section>
+  </section>
+
+  <!-- Раздел «Бронирования» (мокап booking-instructor.html, change add-booking-docs):
+       входящие запросы — Принять (без комментария) / Отклонить (комментарий
+       обязателен, иначе 422); подтверждённые — в сетке недели поверх графика -->
+  <section class="card panel" id="sec-bookings" style="display:none">
+    <div class="panel-head"><div><div class="panel-title">Запросы на занятия</div><div class="panel-sub">Ученики бронируют слоты вашего графика. Принять можно одним нажатием; при отказе обязателен комментарий — его увидит ученик, и слот освободится.</div></div></div>
+    <div class="filters" id="bk-filters">
+      <button class="on" data-f="all" type="button">Все</button>
+      <button data-f="new" type="button">Новые <span class="n" id="bk-new-n"></span></button>
+      <button data-f="confirmed" type="button">Подтверждённые</button>
+      <button data-f="rejected" type="button">Отклонённые</button>
+    </div>
+    <div class="bk-list" id="bk-list"></div>
+    <div class="bk-cal">
+      <div class="cal-head">
+        <div><b>Календарь на неделю</b><div class="sub">Ваш график + подтверждённые брони</div></div>
+      </div>
+      <div class="legend">
+        <span><i class="green"></i>В графике — свободно</span>
+        <span><i class="blue"></i>Подтверждённая бронь</span>
+        <span><i class="orange"></i>Новый запрос</span>
+      </div>
+      <div class="grid" id="bk-grid"></div>
+      <div class="bk-hint">Слот бронируется целиком. Отклонение освобождает слот — ученик сможет отправить запрос на него снова. Подтверждённые брони попадают в «Занятия на сегодня» на главной.</div>
+    </div>
+  </section>
+
+  <!-- просмотр документа в полном размере (общий для «Мои автомобили» — СТС —
+       и «Мои документы»; вне секций, чтобы открываться из любого раздела) -->
+  <div class="backdrop" id="m-view" role="dialog" aria-modal="true" aria-labelledby="view-title">
+    <div class="viewer">
+      <div class="viewer-head">
+        <div><h2 id="view-title">Документ</h2><small id="view-sub"></small></div>
+        <button class="close" id="view-close" aria-label="Закрыть">×</button>
+      </div>
+      <div class="full" id="view-full"></div>
+      <div class="viewer-foot">Выдача — авторизованный эндпоинт GET /api/instructor/documents/{doc_id}/file (Content-Type image/*). Чужой или несуществующий документ вернёт 404 — документы других инструкторов недоступны.</div>
+    </div>
+  </div>
 
   <footer><span>СберАвтошкола · Кабинет инструктора</span><span>Демонстрационный интерфейс · Все данные вымышлены</span></footer>
 </main>
@@ -422,14 +596,21 @@ function navTo(name){
   // дашборда (таб), отдельной страницы /my-cars больше нет (301 →
   // /instructor/dashboard#/my-cars открывает этот же раздел)
   // Спринт 3: реальные разделы «Календарь» и «Запросы учеников»
+  // Спринт 5 (change add-booking-docs): разделы «Бронирования», «Мои документы»
+  // — тоже ВНУТРИ дашборда (BUG-047-прецедент: standalone-страницы запрещены)
   var isCal=(name==='Календарь'),isReq=(name==='Запросы учеников'),isCars=(name==='Мои автомобили');
-  document.querySelectorAll('.day-content').forEach(function(el){el.style.display=(isCal||isReq||isCars)?'none':''});
+  var isDocs=(name==='Мои документы'),isBk=(name==='Бронирования');
+  document.querySelectorAll('.day-content').forEach(function(el){el.style.display=(isCal||isReq||isCars||isDocs||isBk)?'none':''});
   document.getElementById('sec-calendar').style.display=isCal?'block':'none';
   document.getElementById('sec-requests').style.display=isReq?'block':'none';
   document.getElementById('sec-cars').style.display=isCars?'block':'none';
+  document.getElementById('sec-docs').style.display=isDocs?'block':'none';
+  document.getElementById('sec-bookings').style.display=isBk?'block':'none';
   if(isCal)openCalendar();
   if(isReq)openRequests();
   if(isCars)openCars();
+  if(isDocs)openDocs();
+  if(isBk)openBookings();
   var pp=document.getElementById('profile-panel');
   if(pp)pp.style.display='none';
   document.getElementById('page-title').textContent=name;
@@ -437,9 +618,9 @@ function navTo(name){
   document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
   // BUG-047: хеш раздела синхронизируется с табом — reload не сбрасывает
   // раздел, старые ссылки#/my-cars открывают его напрямую
-  var wantHash=isCars?'#/my-cars':'';
+  var wantHash=isCars?'#/my-cars':isDocs?'#/my-docs':isBk?'#/bookings':'';
   if(location.hash!==wantHash){try{history.replaceState(null,'',location.pathname+location.search+(wantHash||''))}catch(e){}}
-  if(name!=='Мой день'&&!isCal&&!isReq&&!isCars)toast('Раздел «'+name+'» — демо-данные, следующий экран в концепции кабинета')
+  if(name!=='Мой день'&&!isCal&&!isReq&&!isCars&&!isDocs&&!isBk)toast('Раздел «'+name+'» — демо-данные, следующий экран в концепции кабинета')
 }
 
 // --- Виджеты главной (change add-instructor-student-loop, FR-40/FR-41):
@@ -483,8 +664,10 @@ function loadSummary(){
       lessons.forEach(function(l){
         var row=node('div','w-req');
         var div=node('div');
-        div.appendChild(node('b',null,l.student||'Занятие'));
-        div.appendChild(node('small',null,l.time||''));
+        // шейп бэка (instructor_summary.py): student_full_name, start_time/
+        // end_time «ЧЧ:ММ:СС» — рендерим ФИО и окно «ЧЧ:ММ–ЧЧ:ММ» (FR-49)
+        div.appendChild(node('b',null,l.student_full_name||'Занятие'));
+        div.appendChild(node('small',null,(l.start_time||'').slice(0,5)+'–'+(l.end_time||'').slice(0,5)));
         row.appendChild(div);
         el('w-today-list').appendChild(row);
       });
@@ -760,16 +943,19 @@ function openRequests(){
   });
 }
 function bindRequests(){
-  document.querySelectorAll('[data-accept]').forEach(function(b){b.addEventListener('click',function(){
+  // селекторы скоуплены #rq-list: атрибуты data-accept/denypanel/deny/confirm
+  // используются и разделом «Бронирования» (спринт 5) — без скоупа
+  // обработчики навесились бы на чужие кнопки
+  document.querySelectorAll('#rq-list [data-accept]').forEach(function(b){b.addEventListener('click',function(){
     rqState.open=rqState.open==='accept-'+b.dataset.accept?null:'accept-'+b.dataset.accept;
     renderRequests();
   })});
-  document.querySelectorAll('[data-denypanel]').forEach(function(b){b.addEventListener('click',function(){
+  document.querySelectorAll('#rq-list [data-denypanel]').forEach(function(b){b.addEventListener('click',function(){
     rqState.open=rqState.open==='deny-'+b.dataset.denypanel?null:'deny-'+b.dataset.denypanel;
     renderRequests();
     var ta=el('rq-ta-'+b.dataset.denypanel);if(ta)ta.focus();
   })});
-  document.querySelectorAll('[data-deny]').forEach(function(b){
+  document.querySelectorAll('#rq-list [data-deny]').forEach(function(b){
     var id=b.dataset.deny,ta=el('rq-ta-'+id);
     ta.addEventListener('input',function(){b.disabled=!ta.value.trim()}); // FR-38: без комментария заблокировано
     b.addEventListener('click',function(){
@@ -784,7 +970,7 @@ function bindRequests(){
       });
     });
   });
-  document.querySelectorAll('[data-confirm]').forEach(function(b){b.addEventListener('click',function(){
+  document.querySelectorAll('#rq-list [data-confirm]').forEach(function(b){b.addEventListener('click',function(){
     var id=b.dataset.confirm;
     var radio=document.querySelector('input[name="car-'+id+'"]:checked');
     if(!radio){toast('Выберите автомобиль');return}
@@ -806,69 +992,125 @@ function bindRequests(){
 }
 
 // --- Раздел «Мои автомобили» (BUG-047: JS перенесен из frontend/my-cars.html;
-// CRUD /api/instructor/cars, PATCH-редактирование, удаление с подтверждением,
-// фото с прогрессом (POST /api/instructor/cars/{id}/photo). Имена с префиксом
-// mc* — чтобы не пересекаться с уже существующими функциями скрипта;
-// пользовательские строки — только через textContent (stored XSS запрещен)) ---
+// Спринт 5 (change add-booking-docs): новый контракт — 5 фото-слотов ракурсов
+// + СТС (multipart sts_photo обязателен при создании), комплектность,
+// миниатюры после выбора/загрузки (баг 5.2), ошибки 413/415/422 тостами.
+// CRUD /api/instructor/cars, PATCH-редактирование, удаление с подтверждением.
+// Пользовательские строки — только через textContent (stored XSS запрещен)) ---
 var mcTransLabel={manual:'механика',automatic:'автомат'};
+// Ракурсы — контракт backend/instructor_cars.py (ANGLES) + подписи мокапа
+var mcAngles=[['front','Спереди'],['rear','Сзади'],['left','Слева'],['right','Справа'],['interior','Салон']];
 var mcCars=[],mcEditing=null,mcDeleting=null,mcTransVal='manual';
-var mcPhotoFile=null;   // выбранный в модалке файл (загрузка после сохранения)
-var mcObjectUrls={};    // car_id -> blob URL превью
+var mcStsFile=null;     // выбранный в модалке файл СТС (multipart sts_photo)
+var mcObjectUrls={};    // URL эндпоинта -> blob URL (фото выдаются только с сессией — обычный <img src> получит 401)
+var mcSlotTarget=null;  // {carId, angle} — слот, для которого выбран файл
+// Загрузка авторизованного изображения в blob (X-Session-Token); кэш по URL
+function mcLoadImg(url,img){
+  if(!url)return;
+  if(mcObjectUrls[url]){img.src=mcObjectUrls[url];return}
+  var xhr=new XMLHttpRequest();
+  xhr.open('GET',url);
+  xhr.setRequestHeader('X-Session-Token',token||'');
+  xhr.responseType='blob';
+  xhr.onload=function(){
+    if(xhr.status!==200)return; // 404 «не загружено» — плейсхолдер, не битая картинка
+    mcObjectUrls[url]=URL.createObjectURL(xhr.response);
+    img.src=mcObjectUrls[url];
+  };
+  xhr.send();
+}
 function openCars(){
   apiGet('/api/instructor/cars',function(d){
     if(!d){toast('Не удалось загрузить автомобили');return}
     mcCars=d.cars||[];
     mcRender();
-    mcCars.forEach(function(c){if(c.has_photo)mcLoadPreview(c.id)});
   });
 }
-function mcLoadPreview(id){
-  var xhr=new XMLHttpRequest();
-  xhr.open('GET','/api/instructor/cars/'+id+'/photo');
-  xhr.setRequestHeader('X-Session-Token',token||'');
-  xhr.responseType='blob';
-  xhr.onload=function(){
-    if(xhr.status!==200)return;
-    if(mcObjectUrls[id])URL.revokeObjectURL(mcObjectUrls[id]);
-    mcObjectUrls[id]=URL.createObjectURL(xhr.response);
-    var img=document.querySelector('.photo img[data-car="'+id+'"]');
-    if(img)img.src=mcObjectUrls[id];
-  };
-  xhr.send();
+// Комплектность (ОВ-1): 5 ракурсов + СТС; недостающее — по-русски
+function mcMissing(c){
+  var miss=[];
+  var photos=c.photos||{};
+  mcAngles.forEach(function(a){if(!photos[a[0]])miss.push(a[1].toLowerCase())});
+  if(!c.has_sts)miss.push('СТС');
+  return miss;
 }
 function mcRender(){
   var box=el('cars');box.innerHTML='';
   el('empty').style.display=mcCars.length?'none':'block';
   el('count').textContent='Автомобилей: '+mcCars.length;
   mcCars.forEach(function(c){
+    var miss=mcMissing(c),full=!miss.length;
+    var photos=c.photos||{};
     var art=node('article','car');
-    var photo=node('div','photo');
-    if(c.has_photo){
-      var img=document.createElement('img');
-      img.dataset.car=String(c.id);
-      img.alt='Фото автомобиля';
-      if(mcObjectUrls[c.id])img.src=mcObjectUrls[c.id];
-      photo.appendChild(img);
-    }else{
-      var ph=node('div','ph-inner');
-      ph.appendChild(node('b',null,'⌗'));
-      ph.appendChild(document.createTextNode('Плейсхолдер фото авто'));
-      ph.appendChild(document.createElement('br'));
-      var up=node('button','up','Загрузить фото');up.type='button';
-      up.addEventListener('click',function(){
-        mcOpenAdd(c);
-        el('f-photo').click();
-      });
-      ph.appendChild(up);
-      photo.appendChild(ph);
+    art.dataset.carId=String(c.id);
+    var head=node('div','car-head');
+    var hd=node('div');
+    hd.appendChild(node('b','title',(c.brand||'')+' '+(c.model||'')));
+    hd.appendChild(node('small','sub',(c.year||'')+' год выпуска'));
+    head.appendChild(hd);
+    head.appendChild(node('span','status '+(full?'st-full':'st-miss'),
+      full?'Комплект полный':('Не хватает: '+miss.join(', '))));
+    art.appendChild(head);
+    if(c.blocked){
+      var bm=node('div','meta');
+      bm.appendChild(node('span','pill blocked','⚠ Заблокирован администратором — скрыт от учеников'));
+      art.appendChild(bm);
     }
-    art.appendChild(photo);
-    art.appendChild(node('b','title',(c.brand||'')+' '+(c.model||'')));
-    art.appendChild(node('small','sub',(c.year||'')+' год выпуска'));
     var meta=node('div','meta');
     meta.appendChild(node('span','pill green',mcTransLabel[c.transmission]||c.transmission||''));
     meta.appendChild(node('span','pill plate',c.plate||''));
     art.appendChild(meta);
+    // 5 фото-слотов ракурсов: клик — загрузка/замена (баг 5.2: миниатюра
+    // после загрузки — blob из авторизованного GET …/photo/{angle})
+    art.appendChild(node('p','slots-label','Фото ракурсы · клик по слоту — загрузка / замена'));
+    var angles=node('div','angles');
+    mcAngles.forEach(function(a){
+      var url=photos[a[0]]||null;
+      var b=document.createElement('button');
+      b.type='button';
+      b.className='slot '+(url?'has':'empty');
+      b.dataset.angle=a[0];
+      b.dataset.car=String(c.id);
+      b.title=(url?'Заменить фото':'Загрузить фото')+' — '+a[1];
+      if(url){
+        var img=document.createElement('img');img.alt=a[1];
+        b.appendChild(img);
+        mcLoadImg(url,img);
+      }else{
+        b.appendChild(node('span','ph','🚗'));
+      }
+      b.appendChild(node('span','plus','＋'));
+      b.appendChild(node('span','tag',a[1]));
+      var pr=node('span','prog');pr.appendChild(node('i'));b.appendChild(pr);
+      b.addEventListener('click',function(){mcPickSlot(c,a[0],b)});
+      angles.appendChild(b);
+    });
+    art.appendChild(angles);
+    // СТС — отдельный широкий слот (FR-44: обязателен при создании);
+    // загружен → просмотр по клику; ученикам СТС не выдается
+    var stsRow=node('div','sts-row');
+    var sts=document.createElement('button');
+    sts.type='button';
+    sts.className='sts-slot'+(c.has_sts?' has':'');
+    sts.dataset.sts=String(c.id);
+    if(c.sts_url){
+      var simg=document.createElement('img');simg.alt='СТС';
+      sts.appendChild(simg);
+      mcLoadImg(c.sts_url,simg);
+    }
+    sts.appendChild(node('span','ic','🪪'));
+    var stx=node('span','txt');
+    stx.appendChild(node('b',null,'СТС — свидетельство о регистрации'));
+    stx.appendChild(node('small',null,c.has_sts?'загружено · просмотр по клику':'не загружено · загрузите при создании'));
+    sts.appendChild(stx);
+    sts.appendChild(node('span','ok','✓'));
+    sts.addEventListener('click',function(){
+      if(c.sts_url)mcOpenView({title:'СТС · '+(c.brand||'')+' '+(c.model||''),sub:(c.plate||'')+' · '+((c.created_at||'').split(' ')[0]||''),url:c.sts_url});
+      else toast('СТС загружается при создании автомобиля — создать без него нельзя');
+    });
+    stsRow.appendChild(sts);
+    art.appendChild(stsRow);
+    art.appendChild(node('div','compl-note','Комплектность (5 ракурсов + СТС) проверяет администратор; при неполном комплекте авто может быть скрыто от учеников.'));
     var act=node('div','cactions');
     var edit=node('button','edit','Редактировать');edit.type='button';
     edit.addEventListener('click',function(){mcOpenAdd(c)});
@@ -879,10 +1121,19 @@ function mcRender(){
     box.appendChild(art);
   });
 }
+// ── выбор файла для слота ракурса (единый скрытый input) ──
+function mcPickSlot(car,angle,slotBtn){
+  mcSlotTarget={carId:car.id,angle:angle,btn:slotBtn};
+  el('slot-file').value='';
+  el('slot-file').click();
+}
 // ── модалка добавления/редактирования ──
 function mcOpenAdd(c){
   mcEditing=c||null;
   el('add-title').textContent=c?'Редактирование автомобиля':'Новый автомобиль';
+  el('add-sub').textContent=c?'Поля и СТС сохраняются; ракурсы меняются в карточке':'Появится в списке и в выборе авто при принятии заявки. Без фото СТС создать нельзя.';
+  // СТС меняется только при создании (замена контрактом не предусмотрена)
+  el('sts-field').style.display=c?'none':'flex';
   el('f-brand').value=c?(c.brand||''):'';
   el('f-model').value=c?(c.model||''):'';
   el('f-year').value=c?(c.year||''):'';
@@ -908,17 +1159,19 @@ function mcValidate(){
   var ok=el('f-brand').value.trim()
         &&el('f-model').value.trim()
         &&el('f-year').value.trim()
-        &&el('f-plate').value.trim();
+        &&el('f-plate').value.trim()
+        // FR-44: при создании СТС обязателен — кнопка заблокирована без файла
+        &&(mcEditing||mcStsFile);
   el('save-car').disabled=!ok;
 }
-// ── загрузка фото с прогрессом ──
+// ── загрузка файла с прогрессом (модалка СТС / слот ракурса) ──
 var upThumbUrl=null;
 function mcResetUpload(){
   var p=el('up-prog'),l=el('up-lab');
   p.classList.remove('on');l.classList.remove('on');p.firstElementChild.style.width='0';
   l.textContent='Загрузка… 0%';
-  el('f-photo').value='';
-  mcPhotoFile=null;
+  el('f-sts').value='';
+  mcStsFile=null;
   // BUG-048 (3): миниатюра и ошибка сбрасываются при открытии/закрытии модалки
   el('up-zone').classList.remove('has-thumb');
   if(upThumbUrl){URL.revokeObjectURL(upThumbUrl);upThumbUrl=null}
@@ -936,38 +1189,36 @@ function mcValidatePhoto(file){
   if(file.type!=='image/jpeg'&&file.type!=='image/png')return 'Фото: допустимы только изображения JPEG или PNG';
   return null;
 }
-function mcUploadPhoto(carId,file,onDone){
-  var p=el('up-prog'),bar=p.firstElementChild,l=el('up-lab');
-  p.classList.add('on');l.classList.add('on');
-  var fd=new FormData();fd.append('photo',file);
+// multipart-загрузка с прогрессом; 413 (размер) / 415 (формат) / 422 — тосты
+function mcUpload(path,fieldName,file,bar,lab,onDone){
+  var fd=new FormData();fd.append(fieldName,file);
   var xhr=new XMLHttpRequest();
-  xhr.open('POST','/api/instructor/cars/'+carId+'/photo');
+  xhr.open('POST',path);
   xhr.setRequestHeader('X-Session-Token',token||'');
   xhr.upload.onprogress=function(e){
     if(!e.lengthComputable)return;
     var v=Math.round(e.loaded/e.total*100);
-    bar.style.width=v+'%';l.textContent='Загрузка… '+v+'%';
+    if(bar)bar.style.width=v+'%';
+    if(lab)lab.textContent='Загрузка… '+v+'%';
   };
   xhr.onload=function(){
-    p.classList.remove('on');l.classList.remove('on');
     if(xhr.status===200){
-      l.textContent='Фото загружено ✓';
-      toast('Фото сохранено (JPEG/PNG проверен по содержимому).');
+      if(lab)lab.textContent='Фото загружено ✓';
       onDone(null);
     }else{
-      // 413 (лимит размера) / 415 (формат) / 422 — внятный тост
-      var msg='Не удалось загрузить фото';
+      var msg='';
       try{var d=JSON.parse(xhr.responseText);if(d&&d.error)msg=d.error}catch(e){}
       if(xhr.status===413)msg=msg||'Файл: изображение больше 5 МБ';
       if(xhr.status===415)msg=msg||'Фото: допустимы только изображения JPEG или PNG';
-      toast(msg);
-      onDone(msg);
+      toast(msg||'Не удалось загрузить фото ('+xhr.status+')');
+      onDone(msg||'error');
     }
   };
-  xhr.onerror=function(){p.classList.remove('on');l.classList.remove('on');toast('Не удалось загрузить фото');onDone('network')};
+  xhr.onerror=function(){toast('Не удалось загрузить фото');onDone('network')};
   xhr.send(fd);
 }
-el('f-photo').addEventListener('change',function(){
+// СТС в модалке: миниатюра до отправки (BUG-048), ошибки — у поля + тост
+el('f-sts').addEventListener('change',function(){
   var zone=el('up-zone'),thumb=el('up-thumb');
   zone.classList.remove('has-thumb');
   if(upThumbUrl){URL.revokeObjectURL(upThumbUrl);upThumbUrl=null}
@@ -976,9 +1227,9 @@ el('f-photo').addEventListener('change',function(){
   var file=this.files[0];
   var err=mcValidatePhoto(file);
   if(err){ // неверный формат/размер: сообщение, файл не выбирается
-    this.value='';mcPhotoFile=null;mcShowPhotoError(err);return;
+    this.value='';mcStsFile=null;mcShowPhotoError(err);return;
   }
-  mcPhotoFile=file;
+  mcStsFile=file;
   // BUG-048 (3): мгновенная миниатюра вместо зоны загрузки — до отправки
   upThumbUrl=URL.createObjectURL(file);
   thumb.src=upThumbUrl;
@@ -986,9 +1237,29 @@ el('f-photo').addEventListener('change',function(){
   var p=el('up-prog'),l=el('up-lab');
   p.classList.add('on');l.classList.add('on');
   p.firstElementChild.style.width='100%';
-  l.textContent='Файл выбран: '+mcPhotoFile.name+' — сохраните автомобиль';
+  l.textContent='Файл выбран: '+mcStsFile.name+' — сохраните автомобиль';
+  mcValidate();
 });
-// сохранить (POST/PATCH /api/instructor/cars + фото)
+// слот ракурса: файл выбран → POST /api/instructor/cars/{id}/photo/{angle};
+// замена одного ракурса остальные не трогает (FR-43)
+el('slot-file').addEventListener('change',function(){
+  if(!mcSlotTarget||!this.files.length)return;
+  var t=mcSlotTarget;mcSlotTarget=null;
+  var file=this.files[0];
+  var err=mcValidatePhoto(file);
+  if(err){mcShowPhotoError(err);return}
+  var prog=t.btn.querySelector('.prog'),bar=prog.firstElementChild;
+  t.btn.classList.add('busy');prog.classList.add('on');
+  mcUpload('/api/instructor/cars/'+t.carId+'/photo/'+t.angle,'photo',file,bar,null,function(e){
+    t.btn.classList.remove('busy');prog.classList.remove('on');bar.style.width='0';
+    if(e)return;
+    // перезагрузка карточек: слот стал «has» с миниатюрой, комплектность
+    // и остальные ракурсы — без изменений
+    openCars();
+    toast('Фото ракурса сохранено. Остальные ракурсы не тронуты (замена одного — точечная).');
+  });
+});
+// сохранить (POST multipart с sts_photo / PATCH JSON-поля)
 el('save-car').addEventListener('click',function(){
   var data={
     brand:el('f-brand').value.trim(),
@@ -1001,24 +1272,38 @@ el('save-car').addEventListener('click',function(){
   function finish(carId){
     btn.disabled=false;
     mcCloseModal('m-add');openCars();
-    if(!mcPhotoFile&&carId)toast('Автомобиль добавлен. Теперь его можно выбрать при принятии заявки.');
-    else if(!mcPhotoFile)toast('Изменения сохранены.');
+    if(carId)toast('Автомобиль создан. Теперь загрузите 5 фото ракурсов в его карточке.');
+    else toast('Изменения сохранены.');
   }
   if(mcEditing){
     apiSend('PATCH','/api/instructor/cars/'+mcEditing.id,data,function(res){
       if(res.status===401||res.status===403){btn.disabled=false;return}
       if(!res.data||!res.data.ok){btn.disabled=false;toast((res.data&&res.data.error)||'Не удалось сохранить');return}
-      if(mcPhotoFile)mcUploadPhoto(mcEditing.id,mcPhotoFile,function(){finish(null)});
-      else finish(null);
+      finish(null);
     });
   }else{
-    apiSend('POST','/api/instructor/cars',data,function(res){
-      if(res.status===401||res.status===403){btn.disabled=false;return}
-      if(!res.data||!res.data.ok){btn.disabled=false;toast((res.data&&res.data.error)||'Не удалось добавить автомобиль');return}
-      var carId=res.data.car_id;
-      if(mcPhotoFile)mcUploadPhoto(carId,mcPhotoFile,function(){finish(carId)});
-      else finish(carId);
-    });
+    // FR-44: multipart с обязательным sts_photo; без файла авто НЕ создается
+    var fd=new FormData();
+    Object.keys(data).forEach(function(k){fd.append(k,String(data[k]))});
+    fd.append('sts_photo',mcStsFile);
+    var xhr=new XMLHttpRequest();
+    xhr.open('POST','/api/instructor/cars');
+    xhr.setRequestHeader('X-Session-Token',token||'');
+    var p=el('up-prog'),bar=p.firstElementChild,l=el('up-lab');
+    xhr.upload.onprogress=function(e){
+      if(!e.lengthComputable)return;
+      var v=Math.round(e.loaded/e.total*100);
+      bar.style.width=v+'%';l.textContent='Сохранение… '+v+'%';
+    };
+    xhr.onload=function(){
+      btn.disabled=false;
+      var d=null;try{d=JSON.parse(xhr.responseText)}catch(e){}
+      if(xhr.status===200&&d&&d.ok){finish(d.car_id);return}
+      // 422 «загрузите фото СТС» / валидация полей — внятный тост, авто не создан
+      toast((d&&d.error)||'Не удалось добавить автомобиль');
+    };
+    xhr.onerror=function(){btn.disabled=false;toast('Не удалось добавить автомобиль')};
+    xhr.send(fd);
   }
 });
 // ── удаление с подтверждением (DELETE /api/instructor/cars/{id}) ──
@@ -1042,9 +1327,258 @@ el('del-confirm').addEventListener('click',function(){
 });
 el('open-add').addEventListener('click',function(){mcOpenAdd(null)});
 
+// --- Раздел «Мои документы» (мокап my-documents.html, FR-45):
+// GET /api/instructor/documents → ВУ (анкета; без ВУ — пустое состояние
+// с подсказкой) + СТС по каждому авто; просмотр — GET
+// /api/instructor/documents/{doc_id}/file, только владелец ---
+function mcOpenView(doc){
+  el('view-title').textContent=doc.title;
+  el('view-sub').textContent=(doc.sub||'')+(doc.doc_id?(' · doc_id '+doc.doc_id):'');
+  var full=el('view-full');full.innerHTML='';
+  var img=document.createElement('img');img.alt=doc.title;
+  mcLoadImg(doc.url,img);
+  full.appendChild(img);
+  el('m-view').classList.add('open');document.body.style.overflow='hidden';
+}
+function mcCloseView(){el('m-view').classList.remove('open');document.body.style.overflow=''}
+el('view-close').addEventListener('click',mcCloseView);
+el('m-view').addEventListener('click',function(e){if(e.target===this)mcCloseView()});
+function docCardNode(d){
+  var card=document.createElement('button');
+  card.type='button';card.className='doc';card.dataset.docId=d.doc_id;
+  var thumb=node('span','thumb');
+  var img=document.createElement('img');img.alt=d.title;
+  thumb.appendChild(img);
+  thumb.appendChild(node('span','zoom','⤢ Смотреть'));
+  mcLoadImg('/api/instructor/documents/'+d.doc_id+'/file',img);
+  card.appendChild(thumb);
+  card.appendChild(node('b','name',d.title));
+  var meta=node('small','meta');
+  meta.appendChild(document.createTextNode(d.meta||''));
+  meta.appendChild(document.createElement('br'));
+  meta.appendChild(document.createTextNode('загружено '+((d.uploaded_at||'').split(' ')[0]||'—')));
+  card.appendChild(meta);
+  card.appendChild(node('span','pill'+(d.type==='car_sts'?'':' warn'),
+    d.type==='car_sts'?'привязан к авто':'основной документ'));
+  card.addEventListener('click',function(){mcOpenView({
+    title:d.title,doc_id:d.doc_id,url:'/api/instructor/documents/'+d.doc_id+'/file',
+    sub:d.meta||''})});
+  return card;
+}
+function openDocs(){
+  apiGet('/api/instructor/documents',function(res){
+    if(!res){toast('Не удалось загрузить документы');return}
+    var docs=res.documents||[];
+    var lic=docs.filter(function(d){return d.type==='license'});
+    var sts=docs.filter(function(d){return d.type==='car_sts'});
+    var licBox=el('lic-docs');licBox.innerHTML='';
+    lic.forEach(function(d){
+      var meta=[d.license_number?'ВУ № '+d.license_number:''];
+      d.meta=meta.filter(Boolean).join(' · ');
+      licBox.appendChild(docCardNode(d));
+    });
+    el('lic-n').textContent=lic.length;
+    el('no-license').style.display=lic.length?'none':'block';
+    if(!lic.length&&res.license_hint)el('no-license-hint').textContent=res.license_hint;
+    var stsBox=el('sts-docs');stsBox.innerHTML='';
+    sts.forEach(function(d){
+      var c=d.car||{};
+      d.meta=[c.brand,c.model].filter(Boolean).join(' ')
+        +(c.plate?' · '+c.plate:'');
+      stsBox.appendChild(docCardNode(d));
+    });
+    el('sts-count').textContent=sts.length;
+  });
+}
+
+// --- Раздел «Бронирования» (мокап booking-instructor.html, FR-48/FR-49):
+// GET /api/instructor/bookings: новые — Принять (без комментария, ОВ-2) /
+// Отклонить (комментарий обязателен — 422, иначе слот не освободится);
+// подтверждённые — в сетке недели поверх графика availability ---
+var bkState={list:[],filter:'all',open:null,intervals:[]};
+var BK_DAYS=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+function bkWhen(b){
+  return BK_DAYS[b.weekday]||''
+    +' '+String(b.lesson_date||'').split('-').reverse().join('.')
+    +' · '+(b.start_time||'')+'–'+(b.end_time||'');
+}
+function bkCarText(c){return c?[c.brand,c.model].filter(Boolean).join(' ')+(c.year?' '+c.year:''):'—'}
+function openBookings(){
+  apiGet('/api/instructor/availability',function(res){
+    bkState.intervals=res?(res.intervals||[]):[];
+    apiGet('/api/instructor/bookings',function(res2){
+      bkState.list=res2?(res2.bookings||[]):[];
+      bkRenderList();
+      bkRenderGrid();
+      var n=bkState.list.filter(function(b){return b.status==='new'}).length;
+      var badge=el('nav-bk-badge');
+      badge.style.display=n?'inline-block':'none';
+      badge.textContent='+'+n;
+    });
+  });
+}
+function bkRenderList(){
+  var box=el('bk-list');box.innerHTML='';
+  el('bk-new-n').textContent=(function(){
+    var n=bkState.list.filter(function(b){return b.status==='new'}).length;
+    return n?('·'+n):'';
+  })();
+  var list=bkState.list.filter(function(b){return bkState.filter==='all'||b.status===bkState.filter});
+  if(!list.length){box.innerHTML='<div class="bk-none">Броней в этой категории нет.</div>';return}
+  var BK_ST={new:['Новый запрос','st-new'],confirmed:['Подтверждена','st-ok'],rejected:['Отклонена','st-den']};
+  list.forEach(function(b){
+    var art=node('article','req');
+    var top=node('div','req-top');
+    top.appendChild(node('span','sic',stuInitials(b.student_full_name)));
+    var who=node('div');
+    who.appendChild(node('b',null,b.student_full_name||'Ученик'));
+    who.appendChild(node('small',null,bkWhen(b)+' · авто: '+bkCarText(b.car)));
+    top.appendChild(who);
+    var st=BK_ST[b.status]||BK_ST.new;
+    top.appendChild(node('span','status '+st[1],st[0]));
+    art.appendChild(top);
+    if(b.reject_comment){
+      var com=node('div','comment'+(b.status==='rejected'?' denied':''));
+      com.appendChild(node('span',null,b.status==='rejected'?'Ваш комментарий при отказе':'Комментарий ученика'));
+      com.appendChild(document.createTextNode(b.reject_comment));
+      art.appendChild(com);
+    }
+    if(b.decided_at)art.appendChild(node('div','bk-hint','Решение: '+String(b.decided_at).split('.')[0]));
+    if(b.status==='new'){
+      var actions=node('div','bk-actions');
+      var acc=node('button','act accept','✓ Принять');acc.type='button';acc.dataset.confirm=String(b.id);
+      var den=node('button','act deny','✕ Отклонить…');den.type='button';den.dataset.denypanel=String(b.id);
+      actions.appendChild(acc);actions.appendChild(den);
+      art.appendChild(actions);
+      // панель отказа: подтверждение заблокировано до непустого комментария
+      // (ОВ-2; пустой комментарий на сервере → 422)
+      var panel=node('div','deny-panel'+(bkState.open===b.id?' open':''));
+      panel.id='bk-deny-'+b.id;
+      panel.appendChild(node('h4',null,'Комментарий при отказе — обязателен (без него действие заблокировано)'));
+      var ta=document.createElement('textarea');
+      ta.id='bk-ta-'+b.id;
+      ta.placeholder='Например: в это время пересдача экзамена, выберите другой слот';
+      panel.appendChild(ta);
+      var da=node('div','deny-actions');
+      var dbt=node('button','deny-confirm','✕ Отклонить запрос');dbt.type='button';dbt.dataset.senddeny=String(b.id);dbt.disabled=true;
+      da.appendChild(dbt);
+      da.appendChild(node('span','deny-note','Комментарий увидит ученик; слот освободится для повторного запроса.'));
+      panel.appendChild(da);
+      art.appendChild(panel);
+    }
+    box.appendChild(art);
+  });
+  bkBindList();
+}
+function bkBindList(){
+  // селекторы скоуплены #bk-list: те же data-атрибуты использует
+  // раздел «Запросы учеников» — глобальный querySelectorAll дважды
+  // навесил бы обработчики (см. bindRequests)
+  document.querySelectorAll('#bk-list [data-confirm]').forEach(function(b){b.addEventListener('click',function(){
+    // ОВ-2: подтверждение — БЕЗ комментария, атомарно
+    apiSend('POST','/api/instructor/bookings/'+b.dataset.confirm+'/confirm',{},function(res){
+      if(res.status===200&&res.data&&res.data.ok){
+        toast('Бронь подтверждена. Слот закреплён в календаре и попадёт в «Занятия на сегодня».');
+        openBookings();loadSummary();
+      }else{
+        toast((res.data&&res.data.error)||'Не удалось подтвердить бронь');
+      }
+    });
+  })});
+  document.querySelectorAll('#bk-list [data-denypanel]').forEach(function(b){b.addEventListener('click',function(){
+    var id=b.dataset.denypanel;
+    bkState.open=bkState.open===id?null:id;
+    bkRenderList();
+    var ta=el('bk-ta-'+id);if(ta)ta.focus();
+  })});
+  document.querySelectorAll('#bk-list [data-senddeny]').forEach(function(btn){
+    var id=btn.dataset.senddeny,ta=el('bk-ta-'+id);
+    ta.addEventListener('input',function(){btn.disabled=!ta.value.trim()});
+    btn.addEventListener('click',function(){
+      if(!ta.value.trim())return;
+      apiSend('POST','/api/instructor/bookings/'+id+'/reject',{comment:ta.value.trim()},function(res){
+        if(res.status===200&&res.data&&res.data.ok){
+          bkState.open=null;
+          toast('Запрос отклонён. Слот снова свободен — ученик может запросить его повторно.');
+          openBookings();
+        }else{
+          toast((res.data&&res.data.error)||'Не удалось отклонить запрос');
+        }
+      });
+    });
+  });
+  document.querySelectorAll('#bk-filters button').forEach(function(b){b.addEventListener('click',function(){
+    document.querySelectorAll('#bk-filters button').forEach(function(x){x.classList.remove('on')});
+    b.classList.add('on');bkState.filter=b.dataset.f;bkRenderList();
+  })});
+}
+// сетка недели: интервалы графика × дни; поверх — брони (confirmed — синяя
+// с учеником, new — жёлтый запрос, клик ведёт к решению)
+function bkRenderGrid(){
+  var grid=el('bk-grid');grid.innerHTML='';
+  var now=new Date(new Date().toLocaleString('en-US',{timeZone:'Europe/Moscow'}));
+  var mon=new Date(now);mon.setDate(mon.getDate()-((mon.getDay()+6)%7));
+  var todayIdx=(now.getDay()+6)%7;
+  var corner=node('span','corner','время');grid.appendChild(corner);
+  for(var d=0;d<7;d++){
+    var dt=new Date(mon);dt.setDate(mon.getDate()+d);
+    var dh=node('div','dh'+(d===todayIdx?' today':''));
+    dh.appendChild(node('small',null,BK_DAYS[d]));
+    dh.appendChild(node('b',null,String(dt.getDate())));
+    grid.appendChild(dh);
+  }
+  var rows={};
+  bkState.intervals.forEach(function(iv){
+    rows[iv.start_time+'-'+iv.end_time]={start_time:iv.start_time,end_time:iv.end_time};
+  });
+  var keys=Object.keys(rows).sort();
+  if(!keys.length){
+    grid.appendChild(node('div','bk-none','График на неделю пуст — задайте его в разделе «Календарь».'));
+    return;
+  }
+  keys.forEach(function(k){
+    var iv=rows[k];
+    var tl=node('span','tlabel',iv.start_time.slice(0,5)+'–'+iv.end_time.slice(0,5));
+    grid.appendChild(tl);
+    for(var d2=0;d2<7;d2++){
+      var booking=null;
+      bkState.list.forEach(function(b){
+        if(b.weekday===d2&&b.start_time===iv.start_time&&b.end_time===iv.end_time
+           &&(b.status==='confirmed'||b.status==='new'))booking=b;
+      });
+      var cell=document.createElement('button');
+      cell.type='button';
+      if(booking&&booking.status==='confirmed'){
+        cell.className='slot booked';
+        cell.appendChild(node('small',null,booking.student_full_name||''));
+        cell.appendChild(document.createTextNode('подтверждено'));
+        cell.title='Подтверждённая бронь: '+(booking.student_full_name||'');
+      }else if(booking){
+        cell.className='slot reqslot';
+        cell.appendChild(node('small',null,booking.student_full_name||''));
+        cell.appendChild(document.createTextNode('запрос'));
+        cell.title='Новый запрос: '+(booking.student_full_name||'')+' (нажмите для перехода к решению)';
+        cell.addEventListener('click',function(){
+          bkState.filter='new';
+          document.querySelectorAll('#bk-filters button').forEach(function(x){x.classList.toggle('on',x.dataset.f==='new')});
+          bkRenderList();
+          window.scrollTo({top:0,behavior:'smooth'});
+        });
+      }else{
+        cell.className='slot on';
+        cell.textContent='свободно';
+        cell.title='В графике — свободно';
+      }
+      grid.appendChild(cell);
+    }
+  });
+}
+
 // Хвост старых ссылок (BUG-047): /my-cars теперь 301 на этот дашборд с
 // хешем — открываем раздел «Мои автомобили» напрямую
 if(location.hash==='#/my-cars')navTo('Мои автомобили');
+if(location.hash==='#/my-docs')navTo('Мои документы');
+if(location.hash==='#/bookings')navTo('Бронирования');
 
 // Выход (FR-22): POST /api/auth/logout -> по любому ответу очистка
 // sessionStorage -> редирект на лендинг инструкторов (спринт 3, правка:
