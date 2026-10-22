@@ -22,13 +22,14 @@
 | 12 | Спринт-2 контур, часть 1 (CAD-003) | **Поток инструктора: заявка (instructor_applications, bcrypt-хэш пароля в заявке) → модерация админом (approve переносит хэш в users) → вход через общий /api/auth/login; роли — флаг role в users ('student'/'instructor')** — ADR-003 | bcrypt-хэш хранится и в заявке, и в users (две копии до архивации заявок — решение Заказчика FR-11.1/FR-14); login при отсутствующей записи users делает bcrypt-проверку против хэша заявки (второй bcrypt-вызов в худшем пути); single-worker-инвариант без изменений |
 | 13 | Спринт-2 контур, часть 2 (add-instructor-cabinet, arch-review approved-with-notes) | **Кабинет инструктора — демо-визуал по утвержденному макету; доступ — через новый защищенный эндпоинт GET /api/instructor/me (require_session + серверная проверка role='instructor', 403 при иной роли); содержимое — статика макета, из данных только ФИО/инициалы учетки; схема БД и существующие контракты не меняются** | Реального расписания/доходов/учеников нет — все цифры кабинета фиктивны (макет «Все данные вымышлены»); страница (HTML) по-прежнему доставляется всем — защита на уровне API + клиентский редирект (паттерн статики без сборки, спринт-1) |
 | 14 | Спринт-3 контур, Партия A (add-instructor-student-loop, arch-review needs-rework — MAJ-1…3 в работе СА) | **Контур «инструктор ↔ ученик»: профиль инструктора (авто 1-ко-многим instructor_cars + интервалы availability) → каталог одобренных для ученика (карточки + фильтры) → заявки student_requests (new/accepted/denied) → принять (с car_id) / отказать (обязательный комментарий) → отзывы reviews (UNIQUE пара, рейтинг агрегатом AVG/COUNT на лету); ФИО — только в users (JOIN по id, без дублирования); файлы — data/uploads/ вне статики, выдача авторизованными эндпоинтами (ВУ — X-Admin-Token, фото авто — владельцу)** — ADR-004 | Авто-закрытие заявок при чужом accept → denied + системный комментарий (допущение proposal; объем закрытия — MAJ-1 ревью); стаж для карточки/фильтра — MAJ-3 (материализация в схеме не завершена); правило префиксов /api/instructors|instructor|student|admin — закрытие MIN-3 ревью 2.2 |
+| 15 | Спринт-5 контур (add-booking-docs, arch-review needs-rework — MAJ-1 в работе СА) | **Бронирование ПОВЕРХ сущностей Спринта 3: таблица booking (student_id, instructor_id, availability_id — слот ЦЕЛИКОМ, ОВ-3; lesson_date материализован; статусы new/confirmed/rejected) с частичным UNIQUE-индексом по availability_id WHERE status IN ('new','confirmed') + BEGIN IMMEDIATE — «один слот = одна активная/подтвержденная бронь» гарантией хранилища (NFR-8), проигравший в гонке получает 409; ракурсы фото и СТС — kinds существующего uploads.py (car_photo/car_sts, механика magic bytes/5 МБ/uuid без изменений) + фиксированные колонки instructor_cars; комплектность фотонабора валидирует ЧЕЛОВЕК в админке (ОВ-1: completeness + block, флаг blocked); домены booking и «Мои документы» — отдельные модули booking.py/instructor_documents.py (директива Заказчика: существующие не раздувать); пара = student_requests.status='accepted' без новой сущности** — ADR-005 | Повторение слота по неделям/завершение занятия — точки расширения (слот с подтвержденной бронью закрыт в объеме); lesson_date не следует за заменой графика — взаимодействие PUT availability с активными бронями доопределяет СА (MAJ-1 ревью); блокировка авто необратима в объеме (разблокировка — точка расширения) |
 
 Паттерны 1, 2, 4 в спринте-0 не задействованы: nginx/TLS, gateway,
 контейнеры/оркестрация **отложены Заказчиком** (решение 2026-10-06 — все три
 вопроса решаются параллельно с первым этапом, когда поступит первое ТЗ на
 сервис). Это отложенные, НЕ решенные вопросы (см. «Долг / открытые вопросы»).
 
-## Компоненты (спринт-0 контур + спринт-1 auth//cabinet + спринт-2 поток инструктора + спринт-2.2 кабинет инструктора + спринт-3A контур инструктор↔ученик)
+## Компоненты (спринт-0 контур + спринт-1 auth//cabinet + спринт-2 поток инструктора + спринт-2.2 кабинет инструктора + спринт-3A контур инструктор↔ученик + спринт-5 бронирование и документы)
 
 ```
 Клиент (браузер)
@@ -63,14 +64,40 @@ FastAPI-сервис (uvicorn, single-worker)          ← единственн�
    │                        техдолг 2.1)
    ├── uploads.py          — СПРИНТ-3A (add-instructor-student-loop): helper
    │                        файлов — magic bytes JPEG/PNG + ≤5 МБ до записи,
-   │                        data/uploads/{license,cars}/<uuid>.<ext>
+   │                        data/uploads/{license,cars}/<uuid>.<ext>;
+   │                        СПРИНТ-5 (ADR-005): расширение перечня kinds —
+   │                        car_photo (ракурсы) → data/uploads/car_photo/,
+   │                        car_sts (СТС) → data/uploads/car_sts/, механика
+   │                        без изменений
+   ├── instructor_documents.py — СПРИНТ-5 (ADR-005, новый модуль): GET
+   │                        /api/instructor/documents (ВУ из анкеты + СТС
+   │                        всех своих авто — «Мои документы», FR-45) +
+   │                        GET …/{doc_id}/file (просмотр/скачивание,
+   │                        только владелец)
+   ├── booking.py          — СПРИНТ-5 (ADR-005, новый модуль): GET
+   │                        /api/student/instructors/{id}/slots (серверная
+   │                        проверка пары — FR-46), POST/GET
+   │                        /api/student/bookings, GET
+   │                        /api/instructor/bookings, POST
+   │                        …/{id}/confirm|reject (reject — комментарий
+   │                        обязателен, ОВ-2); частичный UNIQUE +
+   │                        BEGIN IMMEDIATE (NFR-8), занятый слот → 409
    ├── instructors.py /    — СПРИНТ-3A РАСШИРЕНИЯ: apply принимает multipart
    │   instructor_admin.py   с ВУ; admin-API — карточка заявки +
    │                        GET …/{id}/license-image (только X-Admin-Token)
    ├── instructor_cars.py  — СПРИНТ-3A: GET/POST /api/instructor/cars,
    │                        PATCH/DELETE …/{id}, POST+GET …/{id}/photo
    │                        (владелец; ОВ-3: DELETE снимает car_id принятых
-   │                        заявок, связь сохраняется)
+   │                        заявок, связь сохраняется);
+   │                        СПРИНТ-5 (add-booking-docs, ADR-005): POST
+   │                        /api/instructor/cars → multipart с обязательным
+   │                        sts_photo (без СТС → 422, авто не создается);
+   │                        POST+GET …/{id}/photo/{angle} (5 ракурсов,
+   │                        владелец + ученики пары); GET …/{id}/sts
+   │                        (только владелец); GET
+   │                        /api/admin/cars/completeness + POST
+   │                        /api/admin/cars/{id}/block (X-Admin-Token,
+   │                        ОВ-1 — комплектность валидирует человек)
    ├── instructor_availability.py — СПРИНТ-3A: GET/PUT
    │                        /api/instructor/availability (полная замена
    │                        графика в одной транзакции)
@@ -89,7 +116,10 @@ FastAPI-сервис (uvicorn, single-worker)          ← единственн�
    │                        ОВ-1; deny: комментарий обязателен)
    ├── instructor_summary.py — СПРИНТ-3A: GET /api/instructor/summary
    │                        («Привязанные ученики», today_lessons = [] —
-   │                        честная заглушка FR-41)
+   │                        честная заглушка FR-41); СПРИНТ-5: today_lessons
+   │                        из реальных подтвержденных броней на текущую
+   │                        дату (пусто → прежнее «Сегодня занятий нет»,
+   │                        FR-49)
    └── frontend/   — статика из design/mocks (/, /registered, /admin-login,
                      /admin-dashboard) + спринт-1: /cabinet → cabinet.html
                      (модалка «Вход» m-login на /, wiring: X-Session-Token
@@ -103,6 +133,14 @@ FastAPI-сервис (uvicorn, single-worker)          ← единственн�
                      редирект на `/`; route='cabinet' логина ведет сюда,
                      было /instructor/cabinet-stub) — отдается
                      тем же сервисом (ADR-001)
+                     + спринт-5: /instructor/documents → documents.html
+                     («Мои документы»), /booking → booking.html (слоты +
+                     запрос брони + календарь ученика),
+                     /instructor/bookings → instructor-bookings.html
+                     (запросы брони + календарь инструктора),
+                     /admin/cars → admin-cars.html (комплектность +
+                     блокировка) — дашборды не раздуваем, новые разделы
+                     на новых страницах (ADR-005)
    ▼
 SQLite data/app.db (WAL, в .gitignore) — только хранение (паттерн 5);
 учетные данные — таблица users (email UNIQUE + role), заявки инструкторов —
@@ -120,6 +158,7 @@ instructor_applications (email UNIQUE, password_hash, status), сессии — 
 | [002-auth-service](adr/002-auth-service.md) | Авторизация учеников (Спринт 1): отдельный модуль-сервис backend/auth.py, одна таблица users (bcrypt), in-memory сессии TTL 12 ч, email-only логин (телефон — атрибут) | Принято (Заказчик, 2026-10-09; допущения подтверждены — 2294a4a) |
 | [003-instructor-flow](adr/003-instructor-flow.md) | Поток инструктора (Спринт 2, часть 1): bcrypt-хэш пароля хранится в заявке, approve переносит его в users без повторного хэширования, вход — общий /api/auth/login, роли — флаг role в users | Принято (Заказчик, 2026-10-12; ревью — arch-review add-instructor-flow, changes-required: MAJ-1 UNIQUE email заявок) |
 | [004-instructor-student-loop](adr/004-instructor-student-loop.md) | Контур «инструктор ↔ ученик» (Спринт 3, Партия A): ФИО — гранулярно в users, новые таблицы не дублируют; файлы — data/uploads/ вне статики, выдача только авторизованными эндпоинтами; рейтинг — агрегат AVG/COUNT на лету без денормализации; связь «принят» = статус accepted заявки | Принято (Заказчик — «Дефолты принимаю», 2026-10-15; ревью — arch-review add-instructor-student-loop, needs-rework: MAJ-1…3 — не касаются решений ADR) |
+| [005-booking-slots](adr/005-booking-slots.md) | Бронирование и документы (Спринт 5): booking поверх availability (слот целиком) с частичным UNIQUE + BEGIN IMMEDIATE против гонок NFR-8; ракурсы фото/СТС — kinds uploads.py + фиксированные колонки instructor_cars; комплектность фотонабора валидирует человек в админке (флаг blocked); домены booking/«Мои документы» — отдельные модули по директиве Заказчика | Принято (Заказчик — дословная цитата ОВ-1…ОВ-6, 2026-10-22; ревью — arch-review add-booking-docs, needs-rework: MAJ-1 согласование PUT availability с бронями — не касается решений ADR) |
 
 ## Долг / открытые вопросы
 
@@ -217,3 +256,26 @@ instructor_applications (email UNIQUE, password_hash, status), сессии — 
   (ADR-001/002), статика без серверной защиты страниц (спринт-1 паттерн),
   нет rate-limit на публичных эндпоинтах (публичная анкета теперь multipart
   с файлом — поверхность выросла; анти-брутфорс/лимиты — Релиз 1 за Gateway).
+
+## Техдолг спринта-5 (контур бронирования и документы; arch-review add-booking-docs needs-rework — устраняется СА до передачи в разработку)
+
+- Открытый MAJ ревью add-booking-docs: MAJ-1 — PUT /api/instructor/availability
+  (полная замена графика) не согласован с booking: удаление/замена слота
+  под активной/подтвержденной бронью оставляет висячую ссылку
+  (календари FR-49 ломаются); стратегия (запрет 409 — рекомендовано — или
+  каскадный reject) за СА в design.md + сценарий + тест 4.1.
+- Minor ревью: MIN-1 — часовой пояс/правило даты для lesson_date и
+  «Занятия на сегодня» (наследует MIN-4 review-001: UTC vs локальная дата);
+  MIN-2 — blocked-автомобиль × отображение в существующих бронях; MIN-3 —
+  пустое состояние «автомобиль» в календарях при car_id NULL (авто удален);
+  MIN-4 — судьба устаревшего /photo-маршрута и photo_path Спринта 3.
+- Слот с подтвержденной бронью закрыт навсегда в этом объеме (повторение
+  по неделям/завершение занятия — точки расширения; уникальность слота,
+  а не даты — по букве NFR-8/ОВ-4); блокировка авто необратима в объеме
+  (разблокировка — точка расширения); колонка instructor_cars.photo_path
+  устаревает без миграции данных (файлы-сироты — унаследованный техдолг
+  MIN-3 ревью 3A).
+- Наследуются без изменений: single-worker + in-memory сессии/токены
+  (ADR-001/002), статика без серверной защиты страниц (спринт-1 паттерн),
+  нет rate-limit на публичных эндпоинтах, файлы-сироты в data/uploads/
+  (cleanup вне объема).
