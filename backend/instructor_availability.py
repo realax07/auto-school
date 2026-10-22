@@ -16,6 +16,7 @@ from fastapi import APIRouter, Header
 from pydantic import BaseModel
 
 import backend.db as db
+from backend.booking import blocking_bookings, conflict_error_response
 from backend.guards import _error, require_role
 
 router = APIRouter()
@@ -100,6 +101,12 @@ def put_availability(
 
     conn: sqlite3.Connection = db.get_conn()
     try:
+        # MAJ-1 (Спринт 5, задача 4.1): замена графика отклоняется 409,
+        # если удаляемые слоты имеют брони 'new'/'confirmed'; график НЕ
+        # изменяется — инструктор сначала решает брони (booking.py).
+        conflicts = blocking_bookings(conn, instructor_id or 0, intervals)
+        if conflicts:
+            return conflict_error_response(conflicts)
         # Одна транзакция: полная замена графика (design.md блок 3)
         conn.execute(
             "DELETE FROM availability WHERE instructor_id = ?", (instructor_id,)

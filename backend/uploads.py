@@ -23,6 +23,10 @@ _PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 
 _DEFAULT_UPLOADS_DIR = os.path.join("data", "uploads")
 
+# Спринт 5 (задача 2.1): новые kinds — ракурсы авто и СТС; механика
+# (magic bytes JPEG/PNG + ≤5 МБ + <uuid>.<ext>) — без изменений (NFR-9).
+_ALLOWED_KINDS = frozenset({"license", "cars", "car_photo", "car_sts"})
+
 
 def uploads_dir() -> Path:
     """Корень каталога загрузок (env AUTOSCHOOL_UPLOADS_DIR | data/uploads)."""
@@ -47,8 +51,14 @@ def sniff_image(data: bytes) -> tuple[str | None, str | None]:
 
 def save_image(kind: str, data: bytes, ext: str) -> str:
     """Сохранение валидного изображения: <uploads>/<kind>/<uuid>.<ext>;
-    возвращает сохраненный путь (хранится в БД). kind — 'license' | 'cars'.
+    возвращает сохраненный путь (хранится в БД).
+
+    kinds: 'license' (ВУ анкеты), 'cars' (одиночное фото, Спринт 3 —
+    устаревший путь совместимости), 'car_photo' (ракурсы 1–5, Спринт 5),
+    'car_sts' (фото СТС, Спринт 5).
     """
+    if kind not in _ALLOWED_KINDS:
+        raise ValueError(f"unknown upload kind: {kind}")
     directory = uploads_dir() / kind
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"{uuid.uuid4().hex}.{ext}"
