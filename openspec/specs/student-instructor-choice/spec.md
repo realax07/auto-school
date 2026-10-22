@@ -1,7 +1,8 @@
 # student-instructor-choice Specification
 
 ## Purpose
-TBD - created by archiving change add-instructor-student-loop. Update Purpose after archive.
+
+Возможность дает ученику каталог одобренных инструкторов с фильтрами (авто, рейтинг, стаж, свободное время) и подачу заявки на выбор инструктора.
 
 ## Requirements
 

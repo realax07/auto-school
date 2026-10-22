@@ -1,7 +1,8 @@
 # instructor-documents Specification
 
 ## Purpose
-TBD - created by archiving change add-instructor-student-loop. Update Purpose after archive.
+
+Возможность обеспечивает загрузку и хранение документов инструктора (ВУ при регистрации, СТС автомобилей) с доступом: админ — полный, владелец — к своим; прямые URL исключены.
 
 ## Requirements
 

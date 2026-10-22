@@ -1,7 +1,8 @@
 # instructor-availability Specification
 
 ## Purpose
-TBD - created by archiving change add-instructor-student-loop. Update Purpose after archive.
+
+Возможность дает инструктору управлять рабочими интервалами недели (календарь часов работы): сохранение графика, валидация интервалов. График служит источником слотов для бронирования учениками (Спринт 5).
 
 ## Requirements
 

@@ -1,7 +1,8 @@
 # reviews Specification
 
 ## Purpose
-TBD - created by archiving change add-instructor-student-loop. Update Purpose after archive.
+
+Возможность позволяет реальным ученикам (с принятой заявкой) оставлять отзывы инструкторам и формирует агрегированный рейтинг, используемый в каталоге и фильтрах.
 
 ## Requirements
 

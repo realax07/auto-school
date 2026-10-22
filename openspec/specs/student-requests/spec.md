@@ -1,7 +1,8 @@
 # student-requests Specification
 
 ## Purpose
-TBD - created by archiving change add-instructor-student-loop. Update Purpose after archive.
+
+Возможность управляет жизненным циклом заявок учеников на инструкторов: подача, решение инструктора (принятие с привязкой авто / отказ с комментарием), автозакрытие остальных заявок при принятии.
 
 ## Requirements
 

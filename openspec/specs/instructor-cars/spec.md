@@ -1,7 +1,8 @@
 # instructor-cars Specification
 
 ## Purpose
-TBD - created by archiving change add-instructor-student-loop. Update Purpose after archive.
+
+Возможность дает инструктору вести свои автомобили (CRUD, фото, СТС), используемые в занятиях; карточки авто отображаются ученикам в каталоге и в принятых парах.
 
 ## Requirements
 
