@@ -2020,10 +2020,29 @@ def test_s5_booking_flow_slots_request_confirm_and_409(browser, server):
         expect(page.locator("#bk-pair-name")).to_have_text("Громов Борис Арсеньевич")
         expect(page.locator(".bk-slot.free")).to_have_count(2)
 
+        # D-1 review-001-design: модалка бронирования скрыта при загрузке
+        # раздела (backdrop display:none по умолчанию)
+        expect(page.locator("#m-book")).to_be_hidden()
+        assert page.locator("#m-book").evaluate(
+            "el => getComputedStyle(el).display") == "none"
+
         # клик по свободному слоту → модалка → отправка запроса
         page.locator(".bk-slot.free").first.click()
         expect(page.locator("#m-book")).to_be_visible()
         expect(page.locator("#bk-time")).to_have_text("10:00–12:00")
+        # D-1: закрытие — Esc / клик по фону / крестик, затем открытие заново
+        page.keyboard.press("Escape")
+        expect(page.locator("#m-book")).to_be_hidden()
+        page.locator(".bk-slot.free").first.click()
+        expect(page.locator("#m-book")).to_be_visible()
+        page.mouse.click(5, 5)  # фон (вне центрированной модалки)
+        expect(page.locator("#m-book")).to_be_hidden()
+        page.locator(".bk-slot.free").first.click()
+        expect(page.locator("#m-book")).to_be_visible()
+        page.locator("#m-book .close").click()
+        expect(page.locator("#m-book")).to_be_hidden()
+        page.locator(".bk-slot.free").first.click()
+        expect(page.locator("#m-book")).to_be_visible()
         page.locator("#bk-send").click()
         expect(page.locator("#toast")).to_contain_text("Запрос отправлен")
         # слот стал «запрос отправлен» (желтый), в списке броней — статус new

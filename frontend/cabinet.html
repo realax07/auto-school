@@ -105,6 +105,11 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
 .no-req button{margin-top:16px;border:1px solid #2b9c62;background:#123524;color:#c9ffdd;border-radius:11px;padding:10px 18px;font-size:12px}
 .toast{position:fixed;bottom:22px;right:22px;max-width:360px;background:#143323;border:1px solid #367b50;color:#b5f8cc;padding:13px 16px;border-radius:13px;font-size:12px;box-shadow:0 10px 40px #0008;display:none;z-index:20}
 .toast.show{display:block}
+/* D-1 review-001-design (change add-booking-docs): модалка #m-book скрыта
+   по умолчанию, открывается классом .open (дословно из мокапа
+   booking-student.html; референс — instructor-dashboard.html). */
+.backdrop{position:fixed;inset:0;background:#02070bd0;backdrop-filter:blur(6px);display:none;place-items:center;padding:24px;z-index:30}
+.backdrop.open{display:grid}
 /* Спринт 5 (change add-booking-docs): раздел «Мои брони» (мокап
    booking-student.html) — ВНУТРИ кабинета (BUG-047-прецедент). Префикс bk-:
    классы .filters/.list/.req/.status/.comment заняты разделом «Мои заявки»
@@ -716,7 +721,8 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
       var art = el('article', 'bk-req');
       var top = el('div', 'bk-req-top');
       var who = el('div');
-      who.appendChild(el('b', null, (b.lesson_date || '') + ' · ' + (b.start_time || '') + '–' + (b.end_time || '')));
+      var dayName = BK_DAYS[b.weekday] ? BK_DAYS[b.weekday] + ', ' : '';  // N-9: день недели читаемо
+      who.appendChild(el('b', null, dayName + (b.lesson_date || '') + ' · ' + (b.start_time || '') + '–' + (b.end_time || '')));
       who.appendChild(el('small', null, (b.instructor_full_name || '') + ' · авто: ' + bkCarText(b.car)));
       top.appendChild(who);
       top.appendChild(el('span', 'bk-status ' + st[1], st[0]));
