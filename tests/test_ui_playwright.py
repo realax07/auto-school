@@ -787,6 +787,41 @@ def test_instructor_calendar_slot_toggle_and_put_availability(page, server):
                    (3, "14:00", "16:00")}, got
 
 
+def test_instructor_summary_today_lessons_widget_renders_real_shape(
+        page, server):
+    """TC-UI-024 (change add-booking-docs, M-1 review-001): виджет «Занятия
+    на сегодня» рендерит НЕпустой today_lessons по РЕАЛЬНОМУ шейпу бэка
+    (backend/instructor_summary.py): student_full_name, start_time/end_time
+    «ЧЧ:ММ:СС» → строка вида ФИО + «ЧЧ:ММ–ЧЧ:ММ». Оба прежних e2e мокали
+    today_lessons: [] — шейп-мисматч (l.student/l.time из старого кода)
+    не был покрыт ни одним тестом."""
+    _seed_session(page, "session_token", INSTRUCTOR_TOKEN)
+    _route_json(page, server, "/api/auth/me", lambda req: (
+        200, {"ok": True, "user": {"surname": "Самойлов", "name": "Михаил"}}))
+    _route_json(page, server, "/api/instructor/dashboard", lambda req: (
+        200, {"ok": True, "instructor": {"surname": "Самойлов",
+                                         "name": "Михаил"}}))
+    # мок — СТРОГО шейп today_lessons из instructor_summary.py
+    _route_json(page, server, "/api/instructor/summary", lambda req: (
+        200, {"ok": True, "students": [], "today_lessons": [
+            {"booking_id": 71, "student_full_name": "Ольга Нечаева",
+             "lesson_date": "2026-10-22", "start_time": "10:00:00",
+             "end_time": "11:30:00",
+             "car": {"id": 11, "brand": "Škoda", "model": "Rapid",
+                     "year": 2020, "transmission": "automatic"}},
+        ]}))
+    _route_json(page, server, "/api/instructor/requests", lambda req: (
+        200, {"ok": True, "requests": []}))
+
+    page.goto(f"{server}/instructor/dashboard")
+    # заглушка «Сегодня занятий нет» скрыта, список отрисован
+    expect(page.locator("#w-today-list")).to_be_visible()
+    expect(page.locator("#w-today-empty")).to_be_hidden()
+    row = page.locator("#w-today-list .w-req").first
+    expect(row.locator("b")).to_have_text("Ольга Нечаева")
+    expect(row.locator("small")).to_have_text("10:00–11:30")
+
+
 def test_instructor_requests_deny_locked_until_comment_accept_with_car(
         page, server):
     """TC-UI-009 (change add-instructor-student-loop): «Запросы учеников» —

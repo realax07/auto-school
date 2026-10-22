@@ -48,7 +48,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Header, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 import backend.auth as auth
 import backend.db as db
@@ -60,6 +60,35 @@ router = APIRouter()
 
 _YEAR_MIN = 1950
 _YEAR_MAX = datetime.date.today().year + 1
+
+# 422 по первому полю на легаси-JSON пути (M-2 review-001): человекочитаемая
+# метка поля вместо traceback ValidationError/TypeError (было 500).
+_CAR_FIELD_LABELS = {
+    "brand": "Марка",
+    "model": "Модель",
+    "year": "Год",
+    "plate": "Госномер",
+    "transmission": "КПП",
+}
+
+
+def _car_payload_from_body(body) -> tuple[CarPayload | None, str]:
+    """Разбор JSON-тела create_car (путь совместимости Спринта 3): не-объект
+    (список/строка/null) или невалидное значение поля (например
+    year:"abc") → (None, 422-ошибка по первому полю), не исключение."""
+    if not isinstance(body, dict):
+        return None, "Тело: ожидается JSON-объект автомобиля"
+    try:
+        return CarPayload(**body), ""
+    except ValidationError as exc:
+        first = exc.errors()[0] if exc.errors() else None
+        loc = first.get("loc", ()) if first else ()
+        field = str(loc[0]) if loc else ""
+        label = _CAR_FIELD_LABELS.get(field, field or "Тело")
+        return None, f"{label}: некорректное значение"
+    except TypeError:
+        return None, "Тело: ожидается JSON-объект автомобиля"
+
 
 # Спринт 5 (задача 2.1, ОВ-1): фиксированный набор ракурсов.
 ANGLES = ("front", "rear", "interior", "left", "right")
@@ -280,7 +309,13 @@ async def create_car(
             body = await request.json()
         except Exception:
             return _error(422, "Файл: загрузите фото СТС")
-        data = CarPayload(**body)
+        # M-2 (review-001): легаси-JSON путь не должен 500-ить на
+        # клиентском вводе (year:"abc" → ValidationError, [1,2] →
+        # TypeError) — 422 по первому полю, как докстритит эндпоинт.
+        parsed = _car_payload_from_body(body)
+        if parsed[0] is None:
+            return _error(422, parsed[1])
+        data = parsed[0]
         updates, error = _validate_car(data, require_all=True)
         if error is not None:
             return _error(422, error)
@@ -641,7 +676,7 @@ def get_car_photo(
     x_session_token: str | None = Header(default=None, alias="X-Session-Token"),
 ):
     """Фото автомобиля — только владельцу (MIN-2): гость → 401, чужая
-    роль → 403, чужой/несуществующий/без фото → 404; ответ image/*.»"""
+    роль → 403, чужой/несуществующий/без фото → 404; ответ image/*."""
     instructor_id, err = require_role(x_session_token, "instructor")
     if err is not None:
         return err

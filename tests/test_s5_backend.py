@@ -348,6 +348,38 @@ def test_s5_car_creation_requires_sts(api, client):
     assert count == 1, "авто без СТС не создается"
 
 
+def test_s5_create_car_json_invalid_body_422_not_500(api, client):
+    """TC-S5BE-024 (change add-booking-docs, M-2 review-001): легаси-JSON
+    путь create_car НЕ 500-ит на клиентском вводе: невалидное значение
+    поля ({"year": "abc"} — ValidationError) и не-объект ([1, 2] —
+    TypeError) → 422 по первому полю, авто НЕ создан (как до Спринта 5,
+    когда тело разбирал Pydantic-параметр хендлера)."""
+    instr = create_instructor(client, email="carjson@example.com")
+    headers = _headers(instr["token"])
+
+    bad_year = client.post(
+        "/api/instructor/cars",
+        json={"brand": "Lada", "model": "Vesta", "year": "abc",
+              "plate": "А123АА777", "transmission": "manual"},
+        headers=headers,
+    )
+    assert bad_year.status_code == 422
+    assert "Год" in bad_year.json()["error"]
+
+    not_object = client.post(
+        "/api/instructor/cars", json=[1, 2], headers=headers,
+    )
+    assert not_object.status_code == 422
+
+    conn = sqlite3.connect(db_path())
+    count = conn.execute(
+        "SELECT COUNT(*) FROM instructor_cars WHERE instructor_id = ?",
+        (instr["id"],),
+    ).fetchone()[0]
+    conn.close()
+    assert count == 0, "невалидное тело не создает авто"
+
+
 def test_s5_car_sts_file_validation(api, client):
     """TC-S5BE-004 (change add-booking-docs, задача 2.1, NFR-9): СТС не
     JPEG/PNG (PDF) и больше 5 МБ → 422, авто НЕ создается."""
@@ -1131,6 +1163,14 @@ def test_s5_reject_requires_comment_and_frees_slot(api, client):
     assert view["status"] == "rejected"
     assert view["reject_comment"] == "В это окно не работаю"
 
+    # m-2 review-001: инструкторский список тоже отдает reject_comment —
+    # фронт рендерит «Ваш комментарий при отказе» из этого поля
+    instructor_view = client.get(
+        "/api/instructor/bookings", headers=_headers(instr["token"])
+    ).json()["bookings"][0]
+    assert instructor_view["status"] == "rejected"
+    assert instructor_view["reject_comment"] == "В это окно не работаю"
+
 
 # --- PUT availability × активные брони (MAJ-1) -------------------------------
 
@@ -1207,6 +1247,86 @@ def test_s5_put_availability_blocked_by_active_bookings(api, client):
     )
     assert denied2.status_code == 409
     assert denied2.json()["conflicts"][0]["booking_statuses"] == ["confirmed"]
+
+
+def test_s5_put_availability_vs_booking_race_no_orphan(api, client, monkeypatch):
+    """TC-S5BE-025 (change add-booking-docs, M-3 review-001, NFR-8): бронь,
+    созданная в окне между проверкой конфликтов и удалением слотов, НЕ
+    становится сиротой. BEGIN IMMEDIATE до blocking_bookings сериализует
+    PUT с create_booking (тоже BEGIN IMMEDIATE): «проигравшая» запись
+    брони блокируется write-локом (брони нет), «выигравшая» отклоняет PUT
+    (409, слот сохранен). Комбинация «бронь жива + слот удален» (бронь-
+    сирота без FK) невозможна."""
+    env = setup_pair(
+        client,
+        intervals=[
+            {"weekday": 0, "start_time": "10:00", "end_time": "11:00"},
+            {"weekday": 1, "start_time": "12:00", "end_time": "13:00"},
+        ],
+    )
+    instr, student = env["instr"], env["student"]
+    conn = sqlite3.connect(db_path())
+    slot_mon = conn.execute(
+        "SELECT id FROM availability WHERE instructor_id = ? AND weekday = 0",
+        (instr["id"],),
+    ).fetchone()[0]
+    conn.close()
+
+    import backend.instructor_availability as ia
+
+    orig = ia.blocking_bookings
+    race: dict = {}
+
+    def check_then_race(conn_, instructor_id_, intervals_):
+        # Окно M-3: сразу после проверки конфликтов ученик создает бронь
+        # на удаляемый слот ОТДЕЛЬНЫМ соединением (короткий busy_timeout).
+        # Без фикса проверка шла в autocommit → INSERT проходит, и PUT
+        # молча удаляет слот под живой бронью (бронь-сирота); с фиксом
+        # write-лок BEGIN IMMEDIATE сериализует — INSERT получает
+        # OperationalError «database is locked».
+        conflicts = orig(conn_, instructor_id_, intervals_)
+        try:
+            rc = sqlite3.connect(db_path(), timeout=0.25)
+            try:
+                rc.execute(
+                    "INSERT INTO booking (student_id, instructor_id,"
+                    " availability_id, lesson_date, status)"
+                    " VALUES (?, ?, ?, ?, 'new')",
+                    (student["id"], instr["id"], slot_mon, "2026-01-05"),
+                )
+                rc.commit()
+                race["created"] = True
+            finally:
+                rc.close()
+        except sqlite3.OperationalError:
+            race["created"] = False
+        return conflicts
+
+    monkeypatch.setattr(ia, "blocking_bookings", check_then_race)
+    resp = put_availability(
+        client, instr["token"],
+        [{"weekday": 1, "start_time": "12:00", "end_time": "13:00"}],
+    )
+
+    conn = sqlite3.connect(db_path())
+    slot_alive = conn.execute(
+        "SELECT COUNT(*) FROM availability WHERE id = ?", (slot_mon,)
+    ).fetchone()[0]
+    bookings = conn.execute(
+        "SELECT COUNT(*) FROM booking WHERE availability_id = ?", (slot_mon,)
+    ).fetchone()[0]
+    conn.close()
+
+    if race["created"]:
+        # бронь успела до захвата лока → PUT обязан отклонить замену
+        assert resp.status_code == 409
+        assert slot_alive == 1 and bookings == 1
+    else:
+        # запись сериализована write-локом PUT'а — брони нет
+        assert resp.status_code == 200, resp.text
+        assert bookings == 0, "заблокированная запись не оставила записи"
+    # главный инвариант: бронь-сирота невозможна ни в одной ветке
+    assert not (bookings and not slot_alive)
 
 
 # --- MIN-3: пустое авто в календарях; FR-49: «Занятия на сегодня» ------------

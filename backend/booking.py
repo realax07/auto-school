@@ -372,7 +372,9 @@ def instructor_bookings(
     x_session_token: str | None = Header(default=None, alias="X-Session-Token"),
 ):
     """Входящие брони ТОЛЬКО этого инструктора (FR-48): ученик (ФИО),
-    слот (дата/время), статус, авто пары (null при удалении — MIN-3)."""
+    слот (дата/время), статус, авто пары (null при удалении — MIN-3);
+    reject_comment при отклонении (ОВ-2) — рендерится в разделе
+    «Бронирования» как «Ваш комментарий при отказе»."""
     instructor_id, err = require_role(x_session_token, "instructor")
     if err is not None:
         return err
@@ -380,8 +382,9 @@ def instructor_bookings(
     conn = db.get_conn()
     try:
         rows = conn.execute(
-            "SELECT b.id, b.student_id, b.status, b.lesson_date,"
-            " b.created_at, b.decided_at, a.weekday, a.start_time, a.end_time"
+            "SELECT b.id, b.student_id, b.status, b.reject_comment,"
+            " b.lesson_date, b.created_at, b.decided_at,"
+            " a.weekday, a.start_time, a.end_time"
             " FROM booking AS b JOIN availability AS a"
             " ON a.id = b.availability_id"
             " WHERE b.instructor_id = ?"
@@ -403,6 +406,9 @@ def instructor_bookings(
                 "end_time": row["end_time"],
                 "student_full_name": full_name(student) if student else "",
                 "car": _pair_car(conn, row["student_id"], instructor_id or 0),
+                "reject_comment": (
+                    row["reject_comment"] if row["status"] == "rejected" else None
+                ),
                 "created_at": row["created_at"],
                 "decided_at": row["decided_at"],
             })

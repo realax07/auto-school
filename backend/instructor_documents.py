@@ -61,7 +61,8 @@ def _license_document(
 
 def _sts_documents(conn: sqlite3.Connection, instructor_id: int) -> list[dict]:
     """СТС по каждому СВОЕМУ авто (привязка марка/модель/госномер, дата);
-    авто без СТС (созданы до миграции) — с флагом has_file=False."""
+    авто БЕЗ СТС (легаси-JSON-путь Спринта 3) ЯВНО пропускаются (continue)
+    — в «Мои документы» не попадают (видимы админу через completeness)."""
     rows = conn.execute(
         "SELECT id, brand, model, plate, photo_sts, created_at"
         " FROM instructor_cars WHERE instructor_id = ? ORDER BY id",

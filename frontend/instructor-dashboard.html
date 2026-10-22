@@ -664,8 +664,10 @@ function loadSummary(){
       lessons.forEach(function(l){
         var row=node('div','w-req');
         var div=node('div');
-        div.appendChild(node('b',null,l.student||'Занятие'));
-        div.appendChild(node('small',null,l.time||''));
+        // шейп бэка (instructor_summary.py): student_full_name, start_time/
+        // end_time «ЧЧ:ММ:СС» — рендерим ФИО и окно «ЧЧ:ММ–ЧЧ:ММ» (FR-49)
+        div.appendChild(node('b',null,l.student_full_name||'Занятие'));
+        div.appendChild(node('small',null,(l.start_time||'').slice(0,5)+'–'+(l.end_time||'').slice(0,5)));
         row.appendChild(div);
         el('w-today-list').appendChild(row);
       });
@@ -1435,10 +1437,10 @@ function bkRenderList(){
     var st=BK_ST[b.status]||BK_ST.new;
     top.appendChild(node('span','status '+st[1],st[0]));
     art.appendChild(top);
-    if(b.comment){
+    if(b.reject_comment){
       var com=node('div','comment'+(b.status==='rejected'?' denied':''));
       com.appendChild(node('span',null,b.status==='rejected'?'Ваш комментарий при отказе':'Комментарий ученика'));
-      com.appendChild(document.createTextNode(b.comment));
+      com.appendChild(document.createTextNode(b.reject_comment));
       art.appendChild(com);
     }
     if(b.decided_at)art.appendChild(node('div','bk-hint','Решение: '+String(b.decided_at).split('.')[0]));
