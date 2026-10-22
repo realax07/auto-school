@@ -1653,8 +1653,11 @@ def test_s4_pages_wired_to_real_api_shapes():
     POST /api/student/instructors/{{id}}/reviews; кабинет ученика («Мои
     заявки») — GET/POST /api/student/requests."""
     checks = {
+        # Спринт 5 (change add-booking-docs): параметризованный маршрут
+        # ракурсов POST /api/instructor/cars/{id}/photo/{angle} + GET …/sts
         "instructor-dashboard.html": ["api/instructor/cars",
-                                      "cars/'+carId+'/photo"],
+                                      "cars/'+t.carId+'/photo/'+t.angle",
+                                      "c.sts_url"],
         "review-form.html": ["instructors/'+instructorId+'/reviews"],
         "cabinet.html": ["api/student/requests",
                          "instructor_id:r.instructor_id"],

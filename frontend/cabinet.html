@@ -105,6 +105,75 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
 .no-req button{margin-top:16px;border:1px solid #2b9c62;background:#123524;color:#c9ffdd;border-radius:11px;padding:10px 18px;font-size:12px}
 .toast{position:fixed;bottom:22px;right:22px;max-width:360px;background:#143323;border:1px solid #367b50;color:#b5f8cc;padding:13px 16px;border-radius:13px;font-size:12px;box-shadow:0 10px 40px #0008;display:none;z-index:20}
 .toast.show{display:block}
+/* Спринт 5 (change add-booking-docs): раздел «Мои брони» (мокап
+   booking-student.html) — ВНУТРИ кабинета (BUG-047-прецедент). Префикс bk-:
+   классы .filters/.list/.req/.status/.comment заняты разделом «Мои заявки»
+   выше — коллизии недопустимы. */
+.page-head.bk-head{margin-top:26px}
+.bk-pair{display:flex;align-items:center;gap:13px;border:1px solid rgba(234,255,249,.16);border-radius:17px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:14px 17px;margin:18px 0 16px;flex-wrap:wrap}
+.bk-pair .sic{width:44px;height:44px;flex:none;border-radius:13px;background:linear-gradient(145deg,#2c4f3d,#132119);display:grid;place-items:center;color:#a0f2bd;font-size:12px;font-weight:700}
+.bk-pair b{font-size:14px;font-weight:600;display:block}
+.bk-pair small{display:block;font-size:11px;color:#8fa0aa;margin-top:4px}
+.bk-pair .car{margin-left:auto;font-size:10px;color:#9db0ba;border:1px solid #ffffff12;background:#ffffff05;border-radius:999px;padding:5px 12px;white-space:nowrap}
+.bk-cal{border:1px solid rgba(234,255,249,.16);border-radius:19px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:19px}
+.bk-cal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:15px;flex-wrap:wrap}
+.bk-cal-head b{font-size:15px;font-weight:600;letter-spacing:-.02em}
+.bk-cal-head .sub{font-size:11px;color:#8799a3;margin-top:5px}
+.bk-legend{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 14px;color:#91a1aa;font-size:10px}
+.bk-legend span{display:flex;align-items:center;gap:6px}
+.bk-legend i{width:7px;height:7px;border-radius:50%;display:inline-block}
+.lg-free{background:#35d879}.lg-busy{background:#3a4a52}.lg-mine{background:#ffd479}
+.bk-grid{display:grid;grid-template-columns:56px repeat(7,minmax(0,1fr));gap:6px}
+.bk-corner{font-size:9px;color:#637681;display:grid;place-items:end center;padding-bottom:6px;text-transform:uppercase;letter-spacing:.08em}
+.bk-dh{text-align:center;padding:7px 2px;border-radius:10px;background:#ffffff04;border:1px solid #ffffff0e}
+.bk-dh small{display:block;font-size:9px;color:#84959e;text-transform:uppercase;letter-spacing:.08em}
+.bk-dh b{display:block;font-size:14px;margin-top:4px;font-weight:600}
+.bk-dh.today{background:#143322;border-color:#2c8651}
+.bk-dh.today small{color:#a3efbd}
+.bk-tlabel{font-size:10px;color:#7e909a;display:flex;align-items:center;justify-content:flex-end;padding-right:6px}
+.bk-slot{height:40px;border-radius:9px;border:1px solid #ffffff10;background:#ffffff03;transition:background .1s,border-color .1s;padding:0;font-size:9px;line-height:1.3;display:grid;place-items:center;color:transparent}
+.bk-slot.free{background:#143322;border-color:#2c8651;color:#a3efbd;cursor:pointer}
+.bk-slot.free:hover{filter:brightness(1.25);border-color:#35d879}
+.bk-slot.free:after{content:"свободно"}
+.bk-slot.taken{background:#0d141a;border-color:#ffffff10;color:#5d707c;text-decoration:line-through;cursor:not-allowed}
+.bk-slot.taken:after{content:"занято"}
+.bk-slot.mine{background:#2a2010;border-color:#6b5426;color:#ffd479;cursor:not-allowed}
+.bk-slot.mine:after{content:"запрос отправлен"}
+.bk-hint{margin-top:14px;font-size:11px;color:#7e909a;line-height:1.7}
+.bk-none{border:1px dashed rgba(234,255,249,.22);border-radius:12px;padding:16px 14px;font-size:11px;color:#8fa0aa;text-align:center}
+.bk-none button{margin-top:12px;border:1px solid #2b9c62;background:#123524;color:#c9ffdd;border-radius:11px;padding:10px 18px;font-size:12px}
+.bk-sect-head{display:flex;align-items:center;gap:12px;margin:24px 0 13px}
+.bk-sect-head b{font-size:15px;font-weight:600;letter-spacing:-.02em}
+.bk-sect-head .n{font-size:10px;color:#91efb1;border:1px solid #2a5c40;background:#143322;border-radius:999px;padding:3px 9px}
+.bk-list{display:grid;gap:11px}
+.bk-req{border:1px solid rgba(234,255,249,.16);border-radius:18px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:16px 19px}
+.bk-req-top{display:flex;gap:13px;align-items:center;flex-wrap:wrap}
+.bk-req-top b{font-size:14px;font-weight:600;display:block}
+.bk-req-top small{display:block;font-size:11px;color:#8fa0aa;margin-top:4px}
+.bk-status{margin-left:auto;flex:none;font-size:10px;padding:6px 12px;border-radius:999px;white-space:nowrap}
+.bk-st-new{background:#2a2010;color:#ffd479;border:1px solid #6b5426}      /* запрос отправлен */
+.bk-st-ok{background:#143322;color:#91efb1;border:1px solid #2a5c40}      /* подтверждена */
+.bk-st-den{background:#33201a;color:#ffb28e;border:1px solid #5c3030}     /* отклонена */
+.bk-comment{margin:12px 0 0;padding:11px 14px;border:1px solid #ffffff10;background:#ffffff04;border-radius:12px;font-size:12px;color:#c9d6db;line-height:1.55}
+.bk-comment span{display:block;font-size:10px;color:#e8b877;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+.bk-actions{display:flex;gap:9px;margin-top:14px;flex-wrap:wrap}
+.bk-act{border-radius:11px;padding:11px 20px;font-size:12px;font-weight:550;border:1px solid;cursor:pointer}
+.bk-act.retry{background:#123524;border-color:#2b9c62;color:#c9ffdd}
+.bk-act.retry:hover{filter:brightness(1.12)}
+.bk-act.retry:disabled{opacity:.45;cursor:not-allowed;filter:none}
+.bk-modal{width:min(460px,100%);border:1px solid #ffffff20;border-radius:22px;background:linear-gradient(150deg,#16242c,#0b1418);box-shadow:0 30px 80px #000c;padding:24px 26px 26px}
+.bk-modal-head{display:flex;align-items:start;gap:14px;margin-bottom:6px}
+.bk-modal-head h2{font-size:19px;letter-spacing:-.03em;font-weight:600;margin:0}
+.bk-modal-head .sub{font-size:12px;color:#8fa0aa;margin-top:7px;line-height:1.6}
+.bk-slotbox{margin:16px 0;border:1px solid #2a5c40;border-radius:13px;background:#0d241766;padding:14px 16px}
+.bk-slotbox .row{display:flex;justify-content:space-between;gap:12px;font-size:12px;padding:5px 0}
+.bk-slotbox .row span{color:#8fa0aa}.bk-slotbox .row b{font-weight:550;color:#dcebe9;text-align:right}
+.bk-form-note{margin-top:12px;font-size:10px;color:#8fa0aa;line-height:1.6;border:1px solid #ffffff12;border-radius:11px;background:#ffffff04;padding:10px 12px}
+.bk-form-actions{display:flex;gap:10px;margin-top:16px}
+.bk-btn{flex:1;border-radius:12px;padding:12px;font-size:13px;font-weight:550;border:1px solid;cursor:pointer}
+.bk-btn.primary{background:#123524;border-color:#2b9c62;color:#c9ffdd}
+.bk-btn.primary:hover{filter:brightness(1.12)}
+.bk-btn.ghost{background:transparent;border-color:#ffffff16;color:#aab8c0;flex:0 0 40%}
 @media(max-width:850px){.req-top{flex-wrap:wrap}.status{margin-left:57px;order:3}}
 @media(max-width:760px){.app{grid-template-columns:1fr}.side{flex-direction:row;align-items:center;padding:10px 14px;border-right:0;border-bottom:1px solid rgba(234,255,249,.12)}.snav{display:flex;overflow:auto;gap:5px}.snav button{white-space:nowrap;padding:9px 10px;font-size:11px}.snav button .ico{display:none}}
 @media(max-width:560px){.filters{overflow-x:auto}.act{flex:1}}
@@ -112,11 +181,13 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
 <div class="app">
 <aside class="side">
   <div class="side-brand"><span class="check">✓</span><div><em>Сбер</em>Автошкола<small>Кабинет ученика</small></div></div>
-  <!-- BUG-047: примитивная навигация ученика; активный раздел подсвечивается -->
+  <!-- BUG-047: примитивная навигация ученика; активный раздел подсвечивается.
+       Спринт 5: добавлен раздел «Мои брони» (booking-student.html) -->
   <nav class="snav">
     <button class="on" data-tab="Главная" type="button"><span class="ico">⌂</span>Главная</button>
     <button data-tab="Мои заявки" type="button"><span class="ico">✉</span>Мои заявки</button>
     <button data-goto="/instructor-choice" type="button"><span class="ico">▤</span>Выбрать инструктора</button>
+    <button data-tab="Мои брони" type="button"><span class="ico">◷</span>Мои брони</button>
   </nav>
 </aside>
 <div class="hero"><div class="frame">
@@ -187,6 +258,64 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
   <div class="no-req" id="noreq"><b>Заявок пока нет</b>Найдите инструктора в каталоге и подайте первую заявку.<button id="go-catalog" type="button">Перейти к выбору инструктора</button></div>
 </div>
 
+<!-- раздел «Мои брони» (Спринт 5, change add-booking-docs; мокап
+     booking-student.html): расписание инструктора по принятой паре —
+     свободные слоты кликабельны, занятые приглушены без раскрытия кем,
+     свой запрос «на рассмотрении» жёлтый; ниже — «Мои брони» со статусами,
+     комментарием отказа и «Повторить» -->
+<div id="sec-bookings" style="display:none">
+  <div class="page-head bk-head">
+    <div class="kicker">Бронирование занятий</div>
+    <h1>Расписание инструктора</h1>
+    <p>Выберите свободный слот из графика вашего инструктора и отправьте запрос брони. Инструктор подтвердит или отклонит его — с комментарием при отказе.</p>
+  </div>
+
+  <!-- пара (серверная проверка student_requests accepted; без пары слоты недоступны — 403) -->
+  <div class="bk-pair" id="bk-pair" style="display:none">
+    <span class="sic" id="bk-pair-sic">—</span>
+    <div><b id="bk-pair-name">—</b><small id="bk-pair-sub">ваш инструктор</small></div>
+    <span class="car" id="bk-pair-car">—</span>
+  </div>
+  <div class="bk-none" id="bk-nopair" style="display:none"><b>Нет принятого инструктора</b>Расписание доступно после того, как инструктор примет вашу заявку.<button id="bk-go-choice" type="button">Перейти к выбору инструктора</button></div>
+
+  <div class="bk-cal" id="bk-cal" style="display:none">
+    <div class="bk-cal-head">
+      <div><b>График на неделю</b><div class="sub">Слоты целиком, без нарезки</div></div>
+    </div>
+    <div class="bk-legend">
+      <span><i class="lg-free"></i>свободно — клик для брони</span>
+      <span><i class="lg-busy"></i>занято</span>
+      <span><i class="lg-mine"></i>ваш запрос на рассмотрении</span>
+    </div>
+    <div class="bk-grid" id="bk-grid"></div>
+    <div class="bk-hint">Занятые слоты скрыты от раскрытия: видно только состояние «занято», кем — нет. Бронь ставится на слот целиком. Если слот займут раньше вас, вернётся ошибка «Слот уже занят» — выберите другой.</div>
+  </div>
+
+  <div class="bk-sect-head"><b>Мои брони</b><span class="n" id="bk-count">0</span></div>
+  <div class="bk-list" id="bk-list"></div>
+</div>
+
+<!-- модалка: подтверждение запроса брони (POST /api/student/bookings) -->
+<div class="backdrop" id="m-book" role="dialog" aria-modal="true" aria-labelledby="bk-title">
+  <div class="bk-modal">
+    <div class="bk-modal-head">
+      <div><h2 id="bk-title">Забронировать занятие?</h2><div class="sub">Запрос уйдёт инструктору; слот закрепится за вами до решения.</div></div>
+      <button class="close" data-close-book aria-label="Закрыть">×</button>
+    </div>
+    <div class="bk-slotbox">
+      <div class="row"><span>Инструктор</span><b id="bk-instr">—</b></div>
+      <div class="row"><span>День недели</span><b id="bk-day">—</b></div>
+      <div class="row"><span>Время</span><b id="bk-time">—</b></div>
+      <div class="row"><span>Автомобиль</span><b id="bk-car">—</b></div>
+    </div>
+    <div class="bk-form-note">Слот бронируется целиком (availability_id). Если инструктор отклонит запрос — слот освободится, и вы сможете отправить его снова; комментарий отказа будет виден здесь, в «Моих бронях».</div>
+    <div class="bk-form-actions">
+      <button class="bk-btn primary" id="bk-send" type="button">Отправить запрос</button>
+      <button class="bk-btn ghost" data-close-book type="button">Отмена</button>
+    </div>
+  </div>
+</div>
+
 <footer><span>СберАвтошкола · кабинет ученика</span><span>Спринт 1 · визуал</span></footer>
 </div></div>
 </div>
@@ -255,23 +384,28 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
   // =====================================================================
   // BUG-047: единый лейаут кабинета — переключение разделов «Главная» /
   // «Мои заявки»; «Выбрать инструктора» — переход на /instructor-choice.
+  // Спринт 5 (change add-booking-docs): раздел «Мои брони» — тоже ВНУТРИ
+  // кабинета (BUG-047-прецедент: standalone-страницы запрещены).
   // Активный пункт сайдбара подсвечивается. Хвост старых ссылок:
   // /my-requests теперь 301 на /cabinet#/my-requests — хеш открывает
   // раздел напрямую.
   function navTo(name) {
     var isReq = (name === 'Мои заявки');
-    document.getElementById('sec-home').style.display = isReq ? 'none' : 'block';
+    var isBk = (name === 'Мои брони');
+    document.getElementById('sec-home').style.display = (isReq || isBk) ? 'none' : 'block';
     document.getElementById('sec-requests').style.display = isReq ? 'block' : 'none';
+    document.getElementById('sec-bookings').style.display = isBk ? 'block' : 'none';
     document.querySelectorAll('.snav button[data-tab]').forEach(function (b) {
       b.classList.toggle('on', b.dataset.tab === name);
     });
     // BUG-047: хеш раздела синхронизируется с табом — reload не сбрасывает
     // раздел, старые ссылки #/my-requests открывают его напрямую
-    var wantHash = isReq ? '#/my-requests' : '';
+    var wantHash = isReq ? '#/my-requests' : isBk ? '#/my-bookings' : '';
     if (location.hash !== wantHash) {
       try { history.replaceState(null, '', location.pathname + location.search + (wantHash || '')); } catch (e) {}
     }
     if (isReq) loadRequests();
+    if (isBk) loadBookingsSection();
   }
   document.querySelectorAll('.snav button[data-tab]').forEach(function (b) {
     b.addEventListener('click', function () { navTo(b.dataset.tab); });
@@ -280,6 +414,7 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
     b.addEventListener('click', function () { location.href = b.dataset.goto; });
   });
   if (location.hash === '#/my-requests') navTo('Мои заявки');
+  if (location.hash === '#/my-bookings') navTo('Мои брони');
 
   // --- Раздел «Мои заявки» (перенесен из my-requests.html) --------------
   // сессия ученика — токен/clearSession/toLogin выше (единый паттерн)
@@ -418,6 +553,221 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
       navTo('Мои заявки');
     });
   }
+
+  // =====================================================================
+  // Спринт 5 (change add-booking-docs): раздел «Мои брони» (мокап
+  // booking-student.html). Слоты — GET /api/student/instructors/{id}/slots
+  // (СЕРВЕРНАЯ проверка пары, иначе 403); бронь — POST /api/student/bookings
+  // {availability_id} (гонки: занято → 409); календарь — GET
+  // /api/student/bookings; «Повторить» после отклонения (ОВ-5) — повторный
+  // POST по слоту, найденному в текущем графике.
+  var BK_DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+  var BK_ST = {new: ['Запрос отправлен', 'bk-st-new'],
+               confirmed: ['Подтверждена', 'bk-st-ok'],
+               rejected: ['Отклонена', 'bk-st-den']};
+  var bkSlots = [];      // ответ slots-эндпоинта: {id,weekday,start_time,end_time,state}
+  var bkPair = null;     // {instructor_id, instructor_full_name, car, decided_at}
+  var bkPicked = null;   // слот, выбранный для брони
+  function bkCarText(c) {
+    if (!c) return '—';
+    var tr = c.transmission === 'automatic' ? 'автомат' : c.transmission === 'manual' ? 'механика' : (c.transmission || '');
+    return [c.brand, c.model].filter(Boolean).join(' ') + (c.year ? ' ' + c.year : '') + (tr ? ' · ' + tr : '');
+  }
+  function loadBookingsSection() {
+    api('/api/student/requests', {}, function (res) {
+      if (handleAuthFail(res)) return;
+      if (!res.data || !res.data.ok) { toast((res.data && res.data.error) || 'Не удалось загрузить заявку пары'); return; }
+      bkPair = null;
+      (res.data.requests || []).forEach(function (r) {
+        if (r.status === 'accepted') bkPair = r;
+      });
+      var pairBox = document.getElementById('bk-pair');
+      var nopair = document.getElementById('bk-nopair');
+      var cal = document.getElementById('bk-cal');
+      if (!bkPair) {
+        pairBox.style.display = 'none';
+        nopair.style.display = 'block';
+        cal.style.display = 'none';
+        renderMyBookings([]);
+        return;
+      }
+      nopair.style.display = 'none';
+      pairBox.style.display = 'flex';
+      var fio = bkPair.instructor_full_name || 'Инструктор';
+      document.getElementById('bk-pair-sic').textContent =
+        fio.split(' ').slice(0, 2).map(function (w) { return (w[0] || '').toUpperCase(); }).join('');
+      document.getElementById('bk-pair-name').textContent = fio;
+      document.getElementById('bk-pair-sub').textContent =
+        'ваш инструктор' + (bkPair.decided_at ? ' с ' + fmtDate(bkPair.decided_at) : '');
+      document.getElementById('bk-pair-car').textContent = bkCarText(bkPair.car);
+      loadSlotsAndBookings();
+    });
+  }
+  function loadSlotsAndBookings() {
+    api('/api/student/instructors/' + bkPair.instructor_id + '/slots', {}, function (res) {
+      if (handleAuthFail(res)) return;
+      if (!res.data || !res.data.ok) {
+        toast((res.data && res.data.error) || 'Не удалось загрузить график');
+        return;
+      }
+      bkSlots = res.data.slots || [];
+      api('/api/student/bookings', {}, function (res2) {
+        if (handleAuthFail(res2)) return;
+        renderSchedule(res2 && res2.data && res2.data.ok ? (res2.data.bookings || []) : []);
+        renderMyBookings(res2 && res2.data && res2.data.ok ? (res2.data.bookings || []) : []);
+      });
+    });
+  }
+  function renderSchedule() {
+    var cal = document.getElementById('bk-cal');
+    var grid = document.getElementById('bk-grid');
+    if (!bkSlots.length) { cal.style.display = 'none'; return; }
+    cal.style.display = 'block';
+    grid.innerHTML = '';
+    var now = new Date(new Date().toLocaleString('en-US', {timeZone: 'Europe/Moscow'}));
+    var todayIdx = (now.getDay() + 6) % 7;
+    grid.appendChild(el('span', 'bk-corner', 'время'));
+    for (var d = 0; d < 7; d++) {
+      var dh = el('div', 'bk-dh' + (d === todayIdx ? ' today' : ''));
+      dh.appendChild(el('small', null, BK_DAYS[d]));
+      grid.appendChild(dh);
+    }
+    // строки — уникальные интервалы графика, столбцы — дни недели
+    var rows = {};
+    bkSlots.forEach(function (s) { rows[s.start_time + '-' + s.end_time] = 1; });
+    Object.keys(rows).sort().forEach(function (k) {
+      var parts = k.split('-');
+      var start = parts[0], end = parts[1];
+      grid.appendChild(el('span', 'bk-tlabel', start.slice(0, 5) + '–' + end.slice(0, 5)));
+      for (var d2 = 0; d2 < 7; d2++) {
+        // let (не var): замыкание клика должно видеть СВОЙ слот строки
+        let slot = null;
+        bkSlots.forEach(function (s) {
+          if (s.weekday === d2 && s.start_time === start && s.end_time === end) slot = s;
+        });
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        // состояния бэкенда free/busy/pending → классы мокапа free/taken/mine
+        var cls = slot ? (slot.state === 'pending' ? 'mine'
+                        : slot.state === 'busy' ? 'taken' : slot.state) : 'off';
+        btn.className = 'bk-slot ' + cls;
+        btn.title = BK_DAYS[d2] + ', ' + start + '–' + end + ' — ' +
+          (slot ? (slot.state === 'free' ? 'свободно, нажмите для брони'
+                : slot.state === 'pending' ? 'ваш запрос на рассмотрении' : 'занято')
+               : 'не в графике');
+        if (slot && slot.state === 'free') {
+          btn.addEventListener('click', function () { openBookModal(slot); });
+        } else {
+          btn.disabled = true;
+        }
+        grid.appendChild(btn);
+      }
+    });
+  }
+  function openBookModal(slot) {
+    bkPicked = slot;
+    document.getElementById('bk-instr').textContent = bkPair.instructor_full_name || '—';
+    document.getElementById('bk-day').textContent = BK_DAYS[slot.weekday] || '—';
+    document.getElementById('bk-time').textContent = slot.start_time.slice(0, 5) + '–' + slot.end_time.slice(0, 5);
+    document.getElementById('bk-car').textContent = bkCarText(bkPair.car);
+    document.getElementById('m-book').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeBookModal() {
+    document.getElementById('m-book').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+  document.querySelectorAll('[data-close-book]').forEach(function (b) {
+    b.addEventListener('click', closeBookModal);
+  });
+  document.getElementById('m-book').addEventListener('click', function (e) {
+    if (e.target === this) closeBookModal();
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeBookModal(); });
+  document.getElementById('bk-send').addEventListener('click', function () {
+    if (!bkPicked) return;
+    var btn = this, slot = bkPicked;
+    btn.disabled = true;
+    api('/api/student/bookings', {method: 'POST', body: JSON.stringify({availability_id: slot.id})}, function (res) {
+      btn.disabled = false;
+      closeBookModal();
+      if (handleAuthFail(res)) return;
+      if (res.status === 200 && res.data && res.data.ok) {
+        toast('Запрос отправлен (статус «на рассмотрении»). Инструктор получит его в разделе «Бронирования».');
+      } else if (res.status === 409) {
+        // NFR-8: слот уже занят (гонки/повтор на свой активный запрос)
+        toast((res.data && res.data.error) || 'Слот уже занят — выберите другой');
+      } else {
+        toast((res.data && res.data.error) || 'Не удалось отправить запрос');
+      }
+      loadSlotsAndBookings();
+    });
+  });
+  function renderMyBookings(bookings) {
+    var box = document.getElementById('bk-list');
+    box.innerHTML = '';
+    document.getElementById('bk-count').textContent = bookings.length;
+    if (!bookings.length) {
+      box.appendChild(el('div', 'bk-none', 'Броней пока нет — выберите свободный слот в графике инструктора.'));
+      return;
+    }
+    bookings.forEach(function (b) {
+      var st = BK_ST[b.status] || BK_ST.new;
+      var art = el('article', 'bk-req');
+      var top = el('div', 'bk-req-top');
+      var who = el('div');
+      who.appendChild(el('b', null, (b.lesson_date || '') + ' · ' + (b.start_time || '') + '–' + (b.end_time || '')));
+      who.appendChild(el('small', null, (b.instructor_full_name || '') + ' · авто: ' + bkCarText(b.car)));
+      top.appendChild(who);
+      top.appendChild(el('span', 'bk-status ' + st[1], st[0]));
+      art.appendChild(top);
+      if (b.status === 'rejected' && b.reject_comment) {
+        var com = el('div', 'bk-comment');
+        com.appendChild(el('span', null, 'Комментарий инструктора'));
+        com.appendChild(document.createTextNode(b.reject_comment));
+        art.appendChild(com);
+      }
+      if (b.status === 'rejected') {
+        // ОВ-5: после отклонения запрос можно повторить (слот освобождён)
+        var act = el('div', 'bk-actions');
+        var rt = el('button', 'bk-act retry', '↻ Повторить запрос');
+        rt.type = 'button';
+        rt.addEventListener('click', function () { retryBooking(b, rt); });
+        act.appendChild(rt);
+        art.appendChild(act);
+      }
+      box.appendChild(art);
+    });
+  }
+  function retryBooking(b, btn) {
+    if (!bkPair) { toast('Нет принятой пары с инструктором'); return; }
+    // availability_id в ответе броней нет — ищем слот графика по
+    // (weekday, start_time, end_time); нет слота — запросить нечего
+    var slotId = null;
+    bkSlots.forEach(function (s) {
+      if (s.weekday === b.weekday && s.start_time === b.start_time && s.end_time === b.end_time) slotId = s.id;
+    });
+    if (!slotId) {
+      toast('Этого слота больше нет в графике инструктора — выберите другой');
+      return;
+    }
+    btn.disabled = true;
+    api('/api/student/bookings', {method: 'POST', body: JSON.stringify({availability_id: slotId})}, function (res) {
+      btn.disabled = false;
+      if (handleAuthFail(res)) return;
+      if (res.status === 200 && res.data && res.data.ok) {
+        toast('Запрос отправлен повторно (статус «на рассмотрении»).');
+      } else if (res.status === 409) {
+        toast((res.data && res.data.error) || 'Слот уже занят — выберите другой');
+      } else {
+        toast((res.data && res.data.error) || 'Не удалось отправить запрос');
+      }
+      loadSlotsAndBookings();
+    });
+  }
+  document.getElementById('bk-go-choice').addEventListener('click', function () {
+    location.href = '/instructor-choice';
+  });
 
   // заглушки спринта-1 (как в мокапе, FR-6): плитки и чат не подключены;
   // .logout выведен из заглушек — у него реальный wiring выше;
