@@ -72,6 +72,16 @@ _CAR_FIELD_LABELS = {
 }
 
 
+class CarPayload(BaseModel):
+    # Дефолты вместо Pydantic-required — валидация в хендлере (MAJ-1).
+    brand: str = ""
+    model: str = ""
+    year: int = 0
+    plate: str = ""
+    transmission: str = ""
+
+
+
 def _car_payload_from_body(body) -> tuple[CarPayload | None, str]:
     """Разбор JSON-тела create_car (путь совместимости Спринта 3): не-объект
     (список/строка/null) или невалидное значение поля (например
@@ -111,14 +121,6 @@ _ANGLE_COLUMNS = {
     "right": "photo_right",
 }
 
-
-class CarPayload(BaseModel):
-    # Дефолты вместо Pydantic-required — валидация в хендлере (MAJ-1).
-    brand: str = ""
-    model: str = ""
-    year: int = 0
-    plate: str = ""
-    transmission: str = ""
 
 
 def _validate_car(
