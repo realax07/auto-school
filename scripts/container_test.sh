@@ -41,6 +41,10 @@ docker compose build app
 # 2) Прогон backend-набора внутри собранного образа:
 #    tests/ — read-only монтирование (MAJ-1), env — переопределения
 #    поверх env_file (изоляция состояния и тестовые креды)
+# git-тесты гигиены (NFR-3) deselect by design: в контейнере нет .git и
+# git-бинарника (ADR-006) — проверяются на bare-metal/CI.
+# ВАЖНО: pytest — АРГУМЕНТЫ к docker compose run (после app), иначе
+# контейнер выполняет CMD (uvicorn) и джоба висит вечно.
 docker compose run --rm \
   -e AUTOSCHOOL_DB_PATH=/tmp/test.db \
   -e AUTOSCHOOL_UPLOADS_DIR=/tmp/uploads \
@@ -48,8 +52,7 @@ docker compose run --rm \
   -e ADMIN_PASSWORD_HASH=x \
   -e SECRET=container-test-secret \
   -v "./${TESTS_DIR}:/app/tests:ro" \
-  app # git-тесты гигиены (NFR-3) deselect by design: в контейнере нет .git и git-бинарника (ADR-006) — проверяются на bare-metal/CI
-python -m pytest /app/tests -q -p no:cacheprovider \
+  app python -m pytest /app/tests -q -p no:cacheprovider \
   --deselect tests/test_qa_sprint1.py::test_nfr003_token_only_in_200_body_not_in_logs_html \
   --deselect tests/test_static.py::test_tc_nfr_003_env_gitignored_and_example_present
 
