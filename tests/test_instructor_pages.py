@@ -85,8 +85,13 @@ def test_instructors_landing_texts_verbatim():
 def test_instructors_cta_wiring_to_apply():
     """FR-10: CTA («Стать инструктором» в шапке/hero, карточки форматов,
     нижний CTA) ведут на /instructors/apply (href, не fetch). Модальное окно
-    сбора контактов не используется (форма заявки — отдельная страница)."""
+    сбора контактов не используется (форма заявки — отдельная страница).
+    Спринт 6 Партия B: клик-редирект нижнего CTA — в модуле js/instructors.js
+    (проверяем HTML + модуль, см. frontend_source)."""
+    from conftest import frontend_source
+
     html = page("instructors.html")
+    src = frontend_source("instructors.html")
     # шапка
     assert '<a class="header-cta" href="/instructors/apply">Стать инструктором ↗</a>' in html
     # hero
@@ -94,9 +99,9 @@ def test_instructors_cta_wiring_to_apply():
     # карточки форматов (обе)
     assert '<a href="/instructors/apply" class="choice" data-type="own">' in html
     assert '<a href="/instructors/apply" class="choice" data-type="sber">' in html
-    # нижний CTA — редирект, не fetch
-    assert "location.href='/instructors/apply'" in html
-    assert "fetch(" not in html
+    # нижний CTA — редирект, не fetch (редирект — в модуле)
+    assert "location.href='/instructors/apply'" in src
+    assert "fetch(" not in src
     # модальное окно мокапа не используется как форма
     assert 'id="lead-form"' not in html
     assert 'id="modal"' not in html
@@ -186,8 +191,11 @@ def test_apply_links_to_landing():
 
 def test_apply_work_format_toggles_plate():
     """FR-11 (поведение мокапа): переключение own/sber управляет полем
-    госномера (disabled при sber, очистка значения)."""
-    js = page("instructor-apply.html").split("<script>", 1)[1]
+    госномера (disabled при sber, очистка значения). Спринт 6 Партия B:
+    JS — в модуле js/apply.js (проверяем HTML + модуль, frontend_source)."""
+    from conftest import frontend_source
+
+    js = frontend_source("instructor-apply.html")
     assert 'input[name="format"]' in js
     assert "updateFormat" in js
     assert "plate.disabled=!own" in js
@@ -200,9 +208,12 @@ def test_apply_submit_wiring():
     файлом ВУ (license_photo); 200 -> редирект /instructors/pending;
     413/415/422 -> видимое сообщение у поля загрузки и под формой;
     sessionStorage НЕ используется; клиентская валидация файла
-    (JPEG/PNG/PDF <= 5 МБ) блокирует отправку."""
+    (JPEG/PNG/PDF <= 5 МБ) блокирует отправку. Спринт 6 Партия B:
+    JS — в модуле js/apply.js (проверяем HTML + модуль, frontend_source)."""
+    from conftest import frontend_source
+
     html = page("instructor-apply.html")
-    js = html.split("<script>", 1)[1]
+    js = frontend_source("instructor-apply.html")
     assert "fetch('/api/instructors/apply'" in js
     assert "method:'POST'" in js
     # BUG-048: multipart FormData с файлом ВУ (JSON больше не используется)
@@ -225,8 +236,9 @@ def test_apply_submit_wiring():
     assert "notice.classList.add('show')" in js
     # consent читается из чекбокса согласия
     assert ".checkline input" in js
-    # sessionStorage не нужен (сессия по заявке не выдается)
-    assert "sessionStorage" not in html
+    # sessionStorage не нужен (сессия по заявке не выдается) — ни в HTML,
+    # ни в модуле
+    assert "sessionStorage" not in js
     # клиентская валидация файла: тип и размер до отправки
     assert "5*1024*1024" in js
     assert "validateLicenseFile" in js
@@ -259,18 +271,24 @@ def test_pending_page_exists_and_text():
 def test_rejected_page_exists_and_reason_wiring():
     """FR-13/FR-17: экран «отклонено» с причиной из ответа логина
     (sessionStorage); пусто/нет — без персональной причины (чужую не
-    раскрываем, design); статус при загрузке НЕ проверяется."""
+    раскрываем, design); статус при загрузке НЕ проверяется. Спринт 6
+    Партия B: JS — в модуле js/instructor-rejected.js (проверяем
+    HTML + модуль, frontend_source)."""
+    from conftest import frontend_source
+
     html = page("instructor-rejected.html")
+    src = frontend_source("instructor-rejected.html")
     assert "Заявка отклонена" in html
     assert "Причина отказа" in html
     assert 'href="/">На главную</a>' in html
-    assert "fetch(" not in html
+    # страница — просто экран: ни fetch, ни статусного запроса при загрузке
+    assert "fetch(" not in src
     # причина — из sessionStorage (пишет модалка входа при route=rejected)
-    assert "sessionStorage" in html
-    assert "instructor_rejected_reason" in html
+    assert "sessionStorage" in src
+    assert "instructor_rejected_reason" in src
     # пусто/нет ключа -> блок причины скрыт
-    assert "reason-block" in html
-    assert "style.display = ''" in html
+    assert "reason-block" in src
+    assert "style.display = ''" in src
 
 
 # --- 4.4: instructor-cabinet-stub -----------------------------------------------
@@ -295,10 +313,16 @@ def test_cabinet_stub_exists_and_text():
 def test_cabinet_stub_session_guard_wiring():
     """FR-13: JS читает токен из sessionStorage, GET /api/auth/me
     (X-Session-Token) -> 401 -> редирект на вход; 200 -> показ заглушки
-    (по паттерну cabinet.html Спринта 1)."""
-    js = page("instructor-cabinet-stub.html").split("<script>", 1)[1]
+    (по паттерну cabinet.html Спринта 1). Спринт 6 Партия B: JS — в модуле
+    js/instructor-cabinet-stub.js (проверяем HTML + модуль с его импортами,
+    frontend_source)."""
+    from conftest import frontend_source
+
+    js = frontend_source("instructor-cabinet-stub.html")
     assert "sessionStorage" in js
     assert "session_token" in js
-    assert "fetch('/api/auth/me'" in js
+    # GET /api/auth/me — через общий клиент js/api.js (api() с токеном)
+    assert "api('/api/auth/me'" in js
+    assert "fetch(path" in js
     assert "'X-Session-Token'" in js
     assert "location.href = '/'" in js
