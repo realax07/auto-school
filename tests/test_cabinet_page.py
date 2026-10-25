@@ -88,10 +88,14 @@ def test_cab_page_structure_matches_mockup_verbatim():
 
 def test_cab_page_keeps_mockup_stub_alert():
     """FR-6: плитки/чат — заглушки без сервисных действий; alert из мокапа
-    сохранен (поведение клика — как в мокапе, design.md поток 2)."""
+    сохранен (поведение клика — как в мокапе, design.md поток 2).
+    Спринт 6 Партия B: JS — в модуле js/cabinet.js (см. frontend_source)."""
+    from conftest import frontend_source
+
     html = cabinet_html()
-    assert "Заглушка: сервис появится в следующем спринте" in html
     assert ".tile" in html and ".quick button" in html and ".send" in html
+    assert "Заглушка: сервис появится в следующем спринте" in frontend_source(
+        "cabinet.html")
 
 
 # --- Wiring (единственные отличия от мокапа) ---------------------------------
@@ -99,36 +103,48 @@ def test_cab_page_keeps_mockup_stub_alert():
 
 def test_cab_wiring_auth_me_with_session_token_header():
     """FR-5/FR-7: wiring /api/auth/me с заголовком X-Session-Token из
-    sessionStorage (sdd §10.3)."""
-    html = cabinet_html()
-    assert "/api/auth/me" in html
-    assert "X-Session-Token" in html
-    assert "sessionStorage" in html
-    assert "session_token" in html
+    sessionStorage (sdd §10.3). Спринт 6 Партия B: wiring — в модуле
+    js/cabinet.js (проверяем HTML + модули, см. frontend_source)."""
+    from conftest import frontend_source
+
+    src = frontend_source("cabinet.html")
+    assert "/api/auth/me" in src
+    assert "X-Session-Token" in src
+    assert "sessionStorage" in src
+    assert "session_token" in src
 
 
 def test_cab_wiring_401_redirect_to_landing():
-    """FR-7: 401 / нет токена → редирект на главную (к модалке входа m-login)."""
-    html = cabinet_html()
-    assert "toLogin" in html
-    assert "location.href = '/'" in html
+    """FR-7: 401 / нет токена → редирект на главную (к модалке входа m-login).
+    Спринт 6 Партия B: wiring — в модуле js/cabinet.js."""
+    from conftest import frontend_source
+
+    src = frontend_source("cabinet.html")
+    assert "toLogin" in src
+    assert "location.href = '/'" in src
 
 
 def test_cab_wiring_fio_substitution():
     """FR-5: 200 → подстановка ФИО: uname = «{surname} {name} {patronymic}»,
-    greet = «Добро пожаловать, {name}!» (sdd §10.3)."""
-    html = cabinet_html()
-    assert "surname" in html and "name" in html and "patronymic" in html
-    assert "Добро пожаловать, " in html
-    assert "querySelector('.uname')" in html
-    assert "querySelector('.greet b')" in html
+    greet = «Добро пожаловать, {name}!» (sdd §10.3). Спринт 6 Партия B:
+    wiring — в модуле js/cabinet.js (fioOf — из js/utils.js)."""
+    from conftest import frontend_source
+
+    src = frontend_source("cabinet.html")
+    assert "surname" in src and "name" in src and "patronymic" in src
+    assert "Добро пожаловать, " in src
+    assert "querySelector('.uname')" in src
+    assert "querySelector('.greet b')" in src
 
 
 def test_cab_wiring_logout_flow():
     """FR-8: «Выйти» → POST /api/auth/logout → очистка sessionStorage →
-    редирект на главную (sdd §10.2, design поток 3: после любого ответа)."""
-    html = cabinet_html()
-    assert "/api/auth/logout" in html
-    assert "method: 'POST'" in html
-    assert "removeItem" in html
-    assert "location.href = '/'" in html
+    редирект на главную (sdd §10.2, design поток 3: после любого ответа).
+    Спринт 6 Партия B: wiring — в модуле js/cabinet.js."""
+    from conftest import frontend_source
+
+    src = frontend_source("cabinet.html")
+    assert "/api/auth/logout" in src
+    assert "method: 'POST'" in src
+    assert "removeItem" in src
+    assert "location.href = '/'" in src

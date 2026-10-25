@@ -280,7 +280,10 @@ def test_dashboard_page_mockup_texts_verbatim():
 def test_dashboard_page_nav_sections_fr19():
     """FR-19/FR-21: сайдбар достроен nav-кнопками разделов (полный перечень
     FR-19), у разделов кроме «Мой день» — пометка «демо»; на готовых
-    .nav-стилях и механике navTo мокапа."""
+    .nav-стилях и механике navTo мокапа. Спринт 6 Партия B: JS — в модуле
+    js/dashboard-instructor.js."""
+    from conftest import frontend_source
+
     html = PAGE.read_text(encoding="utf-8")
     for section in (
         "Мой день",
@@ -292,7 +295,7 @@ def test_dashboard_page_nav_sections_fr19():
         "Профиль и документы",
     ):
         assert f'data-tab="{section}"' in html, section
-    js = html.split("<script>", 1)[1]
+    js = frontend_source("instructor-dashboard.html")
     assert "navTo" in js
     assert "document.querySelectorAll('.nav button')" in js
     # пометка «демо» у разделов (кроме «Мой день»)
@@ -305,9 +308,12 @@ def test_dashboard_page_wiring_fr18_fr20_fr22():
     """Wiring (единственные отличия от мокапа): GET /api/instructor/dashboard
     с X-Session-Token до отрисовки, 401/403 → редирект `/`; ФИО шапки из
     ответа (инициалы — первые буквы фамилии и имени); демо-ФИО заменяется;
-    выход → POST /api/auth/logout → sessionStorage.clear() → `/`."""
-    html = PAGE.read_text(encoding="utf-8")
-    js = html.split("<script>", 1)[1]
+    выход → POST /api/auth/logout → sessionStorage.clear() → `/`.
+    Спринт 6 Партия B: JS — в модулях js/dashboard-instructor.js + общие
+    js/api.js (clearSession) — проверяем объединенный источник."""
+    from conftest import frontend_source
+
+    js = frontend_source("instructor-dashboard.html")
     assert "fetch('/api/instructor/dashboard'" in js
     assert "'X-Session-Token'" in js
     assert "sessionStorage" in js
@@ -321,9 +327,11 @@ def test_dashboard_page_wiring_fr18_fr20_fr22():
     # инициалы аватара — первые буквы фамилии и имени
     assert "document.querySelector('.avatar').textContent=initials" in js
     # выход: logout -> очистка sessionStorage -> редирект
+    # (очистка — общий clearSession из js/api.js: sessionStorage.clear())
     assert "fetch('/api/auth/logout'" in js
     assert "method:'POST'" in js
     assert "sessionStorage.clear()" in js
+    assert "clearSession()" in js
     assert "function logout()" in js
 
 
