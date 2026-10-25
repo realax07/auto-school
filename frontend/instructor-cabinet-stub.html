@@ -52,38 +52,5 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
   <footer><span>СберАвтошкола · Кабинет инструктора</span><span>Заглушка · функциональные разделы появятся позже</span></footer>
 </main>
 </div>
-<script>
-(function(){
-  // Wiring (задача 4.4, sdd §15.6): защита сессией как /cabinet —
-  // GET /api/auth/me (X-Session-Token из sessionStorage['session_token']),
-  // 401/нет токена -> редирект на вход (на главную, к модалке m-login).
-  var TOKEN_KEY = 'session_token';
-  var token = null;
-  try { token = sessionStorage.getItem(TOKEN_KEY); } catch (e) {}
-  function toLogin() {
-    try { sessionStorage.removeItem(TOKEN_KEY); } catch (e) {}
-    location.href = '/';
-  }
-  function initials(fio) {
-    var parts = String(fio || '').trim().split(/\s+/).filter(Boolean);
-    return parts.slice(0, 2).map(function (p) { return p[0].toUpperCase(); }).join('') || 'ИИ';
-  }
-  if (!token) {
-    toLogin();
-  } else {
-    fetch('/api/auth/me', { headers: { 'X-Session-Token': token } })
-      .then(function (r) {
-        return r.json().then(function (d) { return { status: r.status, data: d }; });
-      })
-      .then(function (res) {
-        if (res.status === 401 || !res.data || !res.data.ok) { toLogin(); return; }
-        var u = res.data.user || {};
-        var fio = [u.surname, u.name, u.patronymic].filter(Boolean).join(' ');
-        document.getElementById('uname').textContent = fio || 'Инструктор';
-        document.getElementById('avatar').textContent = initials(fio);
-      })
-      .catch(function () { /* сеть: остаемся на странице */ });
-  }
-})();
-</script>
-</body></html>
+
+<script type="module" src="/js/instructor-cabinet-stub.js"></script></body></html>

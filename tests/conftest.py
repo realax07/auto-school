@@ -28,6 +28,44 @@ ADMIN_LOGIN = "admin"
 ADMIN_PASSWORD = "admin-pass-2026"
 
 
+def frontend_source(name: str) -> str:
+    """HTML страницы + тексты всех подключенных ES-модулей /js/*.
+
+    Спринт 6, Партия B (PLAN; директива Заказчика 2026-10-16): inline-JS
+    вынесен в native ES modules (frontend/js/), в HTML остался только
+    <script type="module" src="/js/...">. Wiring-проверки читают
+    объединенный источник (HTML + модули), чтобы контролировать wiring
+    независимо от того, в каком файле он живет.
+
+    Итерация 2 (регресс wiring-тестов): модуль может сам импортировать
+    общие модули (import ... from './utils.js') — такие ссылки следуются
+    транзитивно (без дублей), иначе фрагменты из js/api.js/js/utils.js
+    выпадали бы из «единицы wiring» страницы.
+    """
+    import re as _re
+
+    html = (ROOT / "frontend" / name).read_text(encoding="utf-8")
+    parts = [html]
+    seen = set()
+    queue = [html]
+    while queue:
+        chunk = queue.pop(0)
+        refs = [m.group(1) or m.group(2)
+                for m in _re.finditer(
+                    r'src="(/js/[^"]+)"|from\s+\'(\./[^\']+)\'', chunk)]
+        for ref in refs:
+            rel = ref.lstrip("/")
+            if not rel.startswith("js/"):
+                rel = "js/" + rel.lstrip("./")
+            if rel in seen:
+                continue
+            seen.add(rel)
+            text = (ROOT / "frontend" / rel).read_text(encoding="utf-8")
+            parts.append(text)
+            queue.append(text)
+    return "\n".join(parts)
+
+
 @lru_cache(maxsize=1)
 def admin_password_hash() -> str:
     """bcrypt-хэш тестового пароля админа (cost 12, как в sdd §5)."""

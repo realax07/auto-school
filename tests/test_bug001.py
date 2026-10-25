@@ -60,8 +60,12 @@ def test_tc_auth_018_register_session_logout_invalidates(tmp_path, monkeypatch):
 
 def test_tc_auth_019_register_wiring_fragments():
     """TC-AUTH-019: wiring регистрационной ветки index.html (rev-002 #5):
-    fetch /api/register, sessionStorage 'session_token', редирект /cabinet."""
-    html = open("frontend/index.html", encoding="utf-8").read()
-    assert "fetch('/api/register'" in html
-    assert "sessionStorage.setItem('session_token'" in html
-    assert "location.href='/cabinet'" in html
+    fetch /api/register, sessionStorage 'session_token', редирект /cabinet.
+    Спринт 6 Партия B: wiring в ES-модуле js/landing.js — общий клиент
+    postJSON (js/api.js), токен — setToken (тот же ключ session_token)."""
+    from conftest import frontend_source
+
+    src = frontend_source("index.html")
+    assert "postJSON('/api/register'" in src
+    assert "setToken(res.data.token)" in src
+    assert "location.href='/cabinet'" in src

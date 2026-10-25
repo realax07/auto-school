@@ -11,17 +11,5 @@
 <div class="actions"><a class="btn primary" href="/">На главную</a><a class="btn ghost" href="/instructors">О лендинге для инструкторов</a></div>
 </section></main>
 <footer><div class="wrap foot"><span>© СберАвтошкола · Концепция экрана регистрации</span><span>Защита персональных данных должна быть настроена до запуска</span></div></footer>
-<script>
-// Экран отказа (задача 4.3, FR-17/FR-13): причина — из ответа логина (sdd §15.5,
-// ключ reason, ключ sessionStorage 'instructor_rejected_reason' — пишет модалка
-// входа при route=rejected, задача 4.5). Статус при загрузке НЕ проверяется.
-// Пусто/нет ключа — экран без персональной причины (чужую не раскрываем, design).
-try {
-  var reason = sessionStorage.getItem('instructor_rejected_reason');
-  if (reason) {
-    document.getElementById('reason-text').textContent = reason;
-    document.getElementById('reason-block').style.display = '';
-  }
-} catch (e) { /* sessionStorage недоступен — без причины */ }
-</script>
-</body></html>
+
+<script type="module" src="/js/instructor-rejected.js"></script></body></html>

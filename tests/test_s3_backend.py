@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 
-from conftest import admin_headers, db_path, register
+from conftest import admin_headers, db_path, frontend_source, register
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -1663,6 +1663,8 @@ def test_s4_pages_wired_to_real_api_shapes():
                          "instructor_id:r.instructor_id"],
     }
     for filename, needles in checks.items():
-        src = (ROOT / "frontend" / filename).read_text(encoding="utf-8")
+        # Спринт 6 Партия B: wiring — в ES-модулях (frontend/js/), единица
+        # проверки — страница + подключенные модули (frontend_source).
+        src = frontend_source(filename)
         for needle in needles:
             assert needle in src, (filename, needle)

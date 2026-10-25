@@ -26,22 +26,5 @@ p{margin:0 0 24px;font-size:14px;color:#a9bcc0}
   </form>
   <p class="hint">Демо-доступ спринта-0: admin / admin</p>
 </div></div>
-<script>
-function doLogin(e){
-  e.preventDefault();
-  var l=document.getElementById('login').value.trim(), p=document.getElementById('pass').value;
-  fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({login:l,password:p})})
-    .then(function(r){return r.json().then(function(d){return {status:r.status,data:d}})})
-    .then(function(res){
-      if(res.status===200&&res.data.ok&&res.data.token){
-        sessionStorage.setItem('admin_token',res.data.token);
-        location.href='/admin-dashboard';
-      }else{
-        document.getElementById('err').classList.add('show');
-      }
-    })
-    .catch(function(){document.getElementById('err').classList.add('show');});
-  return false;
-}
-</script>
-</body></html>
+
+<script type="module" src="/js/admin-login.js"></script></body></html>
