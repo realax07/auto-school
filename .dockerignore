@@ -1,0 +1,20 @@
+# Секреты и состояние — вне контекста сборки (NFR-14, INC-006)
+.env*
+!.env.example
+deploy/tls/
+data/
+
+# Git и локальные окружения
+.git
+.gitignore
+.venv
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Тесты в образ НЕ поставляются (MAJ-1 design.md): доставка —
+# read-only монтирование tests/ на время прогона (container_test.sh/CI)
+tests/
+
+# Прочее, не нужное рантайму
+node_modules/

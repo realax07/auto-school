@@ -94,3 +94,31 @@ jobs:
 # красный из-за 5 самоссылочных ошибок пакета add-deterministic-flow (гигиена P0.6,
 # вне рамок P0.5), поэтому PR могут оставаться красными из-за соседнего job flow —
 # это ожидаемо и не связано с тестами.
+
+  # Задача 4.1 (add-containerization, FR-56): сборка образа на каждый PR —
+  # БЕЗ пуша в registry — и прогон backend-pytest ВНУТРИ собранного образа
+  # (тот же digest, что поставка; MAJ-1 design.md). Механика — та же, что
+  # scripts/container_test.sh: tests/ read-only монтированием, временная БД
+  # /tmp вне томов. Failure сборки/тестов красит PR. Существующие job —
+  # без изменений.
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # F-1 (code-review): ${VAR:?}-интерполяция в docker-compose.yml роняет
+      # любые compose-команды без заданных MINIO_ROOT_USER/MINIO_ROOT_PASSWORD.
+      # Значения — CI-placeholder'ы (НЕ секреты, только чтобы `:?`-guard
+      # прошел на раннере; боевые креды живут в .env на стенде).
+      - name: Create dummy .env for compose interpolation (CI placeholders, not secrets)
+        run: |
+          printf 'MINIO_ROOT_USER=ci-placeholder\nMINIO_ROOT_PASSWORD=ci-placeholder\n' > .env
+
+      - name: Build image
+        run: docker compose build app
+
+      - name: Run backend tests inside the built image
+        run: bash scripts/container_test.sh
