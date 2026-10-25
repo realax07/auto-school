@@ -1,5 +1,6 @@
 # Секреты и состояние — вне контекста сборки (NFR-14, INC-006)
 .env*
+!.env.example
 deploy/tls/
 data/
 
