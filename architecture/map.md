@@ -23,11 +23,48 @@
 | 13 | Спринт-2 контур, часть 2 (add-instructor-cabinet, arch-review approved-with-notes) | **Кабинет инструктора — демо-визуал по утвержденному макету; доступ — через новый защищенный эндпоинт GET /api/instructor/me (require_session + серверная проверка role='instructor', 403 при иной роли); содержимое — статика макета, из данных только ФИО/инициалы учетки; схема БД и существующие контракты не меняются** | Реального расписания/доходов/учеников нет — все цифры кабинета фиктивны (макет «Все данные вымышлены»); страница (HTML) по-прежнему доставляется всем — защита на уровне API + клиентский редирект (паттерн статики без сборки, спринт-1) |
 | 14 | Спринт-3 контур, Партия A (add-instructor-student-loop, arch-review needs-rework — MAJ-1…3 в работе СА) | **Контур «инструктор ↔ ученик»: профиль инструктора (авто 1-ко-многим instructor_cars + интервалы availability) → каталог одобренных для ученика (карточки + фильтры) → заявки student_requests (new/accepted/denied) → принять (с car_id) / отказать (обязательный комментарий) → отзывы reviews (UNIQUE пара, рейтинг агрегатом AVG/COUNT на лету); ФИО — только в users (JOIN по id, без дублирования); файлы — data/uploads/ вне статики, выдача авторизованными эндпоинтами (ВУ — X-Admin-Token, фото авто — владельцу)** — ADR-004 | Авто-закрытие заявок при чужом accept → denied + системный комментарий (допущение proposal; объем закрытия — MAJ-1 ревью); стаж для карточки/фильтра — MAJ-3 (материализация в схеме не завершена); правило префиксов /api/instructors|instructor|student|admin — закрытие MIN-3 ревью 2.2 |
 | 15 | Спринт-5 контур (add-booking-docs, arch-review needs-rework — MAJ-1 в работе СА) | **Бронирование ПОВЕРХ сущностей Спринта 3: таблица booking (student_id, instructor_id, availability_id — слот ЦЕЛИКОМ, ОВ-3; lesson_date материализован; статусы new/confirmed/rejected) с частичным UNIQUE-индексом по availability_id WHERE status IN ('new','confirmed') + BEGIN IMMEDIATE — «один слот = одна активная/подтвержденная бронь» гарантией хранилища (NFR-8), проигравший в гонке получает 409; ракурсы фото и СТС — kinds существующего uploads.py (car_photo/car_sts, механика magic bytes/5 МБ/uuid без изменений) + фиксированные колонки instructor_cars; комплектность фотонабора валидирует ЧЕЛОВЕК в админке (ОВ-1: completeness + block, флаг blocked); домены booking и «Мои документы» — отдельные модули booking.py/instructor_documents.py (директива Заказчика: существующие не раздувать); пара = student_requests.status='accepted' без новой сущности** — ADR-005 | Повторение слота по неделям/завершение занятия — точки расширения (слот с подтвержденной бронью закрыт в объеме); lesson_date не следует за заменой графика — взаимодействие PUT availability с активными бронями доопределяет СА (MAJ-1 ревью); блокировка авто необратима в объеме (разблокировка — точка расширения) |
+| 16 | Спринт-6 контур (add-containerization, arch-review needs-rework — MAJ-1 в работе СА) | **Контейнеризация сервисного контура: multi-stage Dockerfile (pinned python:3.12-slim, .venv из builder-этапа, non-root appuser, HEALTHCHECK по /api/health средствами python stdlib); compose-стек app + nginx (reverse proxy, TLS-файлы монтируются) + MinIO (контур под S3-адаптер uploads.py — задача 6.3); две сети (frontend nginx↔app, backend app↔MinIO), наружу только 80/443; named volumes db/uploads/minio-data; секреты — только env_file/монтирования вне образов (.dockerignore: .env*, deploy/tls/, data/); bare-metal systemd-режим сохраняется — переключение окружением без правок кода (env-изоляция config.py/db.py/uploads.py, FR-57); тесты — внутри того же образа (один digest), CI собирает образ и гоняет pytest на каждый PR** — ADR-006 | Механика доставки tests/ в контейнер (mount vs COPY) — MAJ-1 ревью; nginx в сети backend (лишняя достижимость MinIO) и процедура переключения режимов/переноса data/ в тома — MIN-1/MIN-2 ревью; dev-зависимости в прод-образе и root-обслуживание томов на хосте — принятый техдолг (ADR-006) |
 
-Паттерны 1, 2, 4 в спринте-0 не задействованы: nginx/TLS, gateway,
-контейнеры/оркестрация **отложены Заказчиком** (решение 2026-10-06 — все три
+Паттерны 1, 2 в спринте-0 не задействованы: nginx/TLS, gateway
+**отложены Заказчиком** (решение 2026-10-06 — оба
 вопроса решаются параллельно с первым этапом, когда поступит первое ТЗ на
 сервис). Это отложенные, НЕ решенные вопросы (см. «Долг / открытые вопросы»).
+Паттерн 4 (контейнеры) отложенного статуса больше не имеет: контур
+контейнеризации реализуется Спринтом 6 (add-containerization, ADR-006) —
+compose-режим встает рядом с действующим bare-metal systemd-деплоем.
+
+## Контейнерный контур (Спринт 6, ADR-006; arch-review needs-rework — MAJ-1 в работе СА)
+
+```
+Клиент (браузер)
+   │ HTTP → 443 (TLS self-signed, файлы хоста — монтирование, вне образов)
+   ▼
+nginx (контейнер, pinned образ; ports 80/443 — ЕДИНСТВЕННЫЕ публикуемые)
+   │  сеть frontend (nginx ↔ app)
+   ▼
+app (образ из Dockerfile: pinned python:3.12-slim, multi-stage, non-root appuser)
+   │  uvicorn backend.app:app --host 0.0.0.0 --port 8390 (single-worker —
+   │  наследованный инвариант ADR-001/002); CMD, не entrypoint-скрипт
+   │  HEALTHCHECK → GET /api/health (python stdlib; compose: depends_on
+   │  nginx → app service_healthy); init_db через lifespan (FR-53, без новой
+   │  механики); env_file .env (секреты вне образа и git — INC-006/NFR-3)
+   │  named volume db     ← AUTOSCHOOL_DB_PATH=/data/db/app.db
+   │  named volume uploads← AUTOSCHOOL_UPLOADS_DIR=/data/uploads
+   │  сеть backend (app ↔ MinIO)
+   ▼
+minio (pinned образ; S3-совместимое хранилище — контур под задачу 6.3)
+   │  named volume minio-data; порты 9000/9001 НЕ публикуются
+   ▼  (S3-адаптер uploads.py — отдельная дельта; файловый интерфейс
+       изолирован: AUTOSCHOOL_UPLOADS_DIR — единственная точка путей)
+
+Bare-metal режим (без изменений, FR-57): deploy/autoschool.service
+(uvicorn 127.0.0.1:8390, .venv репо) + nginx хоста + data/ — продолжают
+работать; переключение compose ↔ systemd — окружением, код один и тот же.
+```
+
+Тесты — внутри того же образа (один digest, pytest с временной БД /tmp вне
+томов); CI — сборка образа + pytest в контейнере на каждый PR. Детали
+механики прогона — MAJ-1 arch-review add-containerization (в работе СА).
 
 ## Компоненты (спринт-0 контур + спринт-1 auth//cabinet + спринт-2 поток инструктора + спринт-2.2 кабинет инструктора + спринт-3A контур инструктор↔ученик + спринт-5 бронирование и документы)
 
@@ -159,13 +196,14 @@ instructor_applications (email UNIQUE, password_hash, status), сессии — 
 | [003-instructor-flow](adr/003-instructor-flow.md) | Поток инструктора (Спринт 2, часть 1): bcrypt-хэш пароля хранится в заявке, approve переносит его в users без повторного хэширования, вход — общий /api/auth/login, роли — флаг role в users | Принято (Заказчик, 2026-10-12; ревью — arch-review add-instructor-flow, changes-required: MAJ-1 UNIQUE email заявок) |
 | [004-instructor-student-loop](adr/004-instructor-student-loop.md) | Контур «инструктор ↔ ученик» (Спринт 3, Партия A): ФИО — гранулярно в users, новые таблицы не дублируют; файлы — data/uploads/ вне статики, выдача только авторизованными эндпоинтами; рейтинг — агрегат AVG/COUNT на лету без денормализации; связь «принят» = статус accepted заявки | Принято (Заказчик — «Дефолты принимаю», 2026-10-15; ревью — arch-review add-instructor-student-loop, needs-rework: MAJ-1…3 — не касаются решений ADR) |
 | [005-booking-slots](adr/005-booking-slots.md) | Бронирование и документы (Спринт 5): booking поверх availability (слот целиком) с частичным UNIQUE + BEGIN IMMEDIATE против гонок NFR-8; ракурсы фото/СТС — kinds uploads.py + фиксированные колонки instructor_cars; комплектность фотонабора валидирует человек в админке (флаг blocked); домены booking/«Мои документы» — отдельные модули по директиве Заказчика | Принято (Заказчик — дословная цитата ОВ-1…ОВ-6, 2026-10-22; ревью — arch-review add-booking-docs, needs-rework: MAJ-1 согласование PUT availability с бронями — не касается решений ADR) |
+| [006-containerization](adr/006-containerization.md) | Контейнеризация (Спринт 6): multi-stage образ (pinned python:3.12-slim, .venv, non-root); compose app+nginx+MinIO, две сети, наружу только 80/443; состояние — named volumes (db/uploads/minio-data); секреты — env_file/монтирования вне образов (наследование NFR-3/INC-006); bare-metal systemd сохраняется — переключение окружением без правок кода (INC-001/FR-57); MinIO в стеке сразу, S3-адаптер uploads.py — задача 6.3 | Принято (Заказчик — «контейнеризация + модульный JS», 2026-10-23; решения-дефолты утверждены составом Спринта 6; ревью — arch-review add-containerization, needs-rework: MAJ-1 механика доставки тестов в контейнер — не касается решений ADR) |
 
 ## Долг / открытые вопросы
 
 - [x] ~~Уточнить пункт 6~~ — «девопс»: состояние инфры as is фиксируется после Релиза 1 (RUNBOOK devops)
 - [ ] Выбор реализации API Gateway (nginx-роутинг / отдельный сервис / готовый шлюз) — СА, Релиз 1. Решение Заказчика 2026-10-06: все три вопроса (gateway, схема БД, оркестрация) решаются параллельно с первым этапом, когда поступит первое ТЗ на сервис. **Статус: отложено Заказчиком, НЕ решено** (спринт-0 работает без gateway)
 - [ ] БД: одна на сервис или общая (паттерн 3 намекает на свои данные у сервиса) — СА. **Статус: для спринта-0 де-факто решено** (SQLite у единственного сервиса, ADR-001), финальное решение по схеме БД для последующих сервисов — по-прежнему за первым ТЗ
-- [ ] Оркестрация контейнеров (compose / systemd + docker) — devops, Релиз 1. **Статус: отложено, НЕ решено**
+- [ ] Оркестрация контейнеров (compose / systemd + docker) — devops, Релиз 1. **Статус: для сервисного контура де-факто решено Спринтом 6** (compose выбран — ADR-006, add-containerization; systemd-режим сохраняется, FR-57); оркестрация поверх compose (k8s/swarm) — по-прежнему вне скоупа
 
 ## Техдолг спринта-0 (принят осознанно, зафиксирован ADR-001 и дизайном)
 
@@ -279,3 +317,29 @@ instructor_applications (email UNIQUE, password_hash, status), сессии — 
   (ADR-001/002), статика без серверной защиты страниц (спринт-1 паттерн),
   нет rate-limit на публичных эндпоинтах, файлы-сироты в data/uploads/
   (cleanup вне объема).
+
+## Техдолг спринта-6 (контейнеризация; arch-review add-containerization needs-rework — устраняется СА до передачи в разработку)
+
+- Открытый MAJ ревью add-containerization: MAJ-1 — tests/ исключены из образа
+  (контракт Dockerfile 1.1: «НЕ копируются»), при этом FR-55/tasks 3.1/4.1
+  требуют прогона pytest ВНУТРИ того же образа — механизм доставки тестов
+  (read-only mount при compose run — рекомендовано — либо COPY tests/) не
+  зафиксирован; синхронизировать design/tasks 1.1/3.1/4.1.
+- Minor ревью: MIN-1 — nginx подключен «к обеим» сетям вопреки диаграмме
+  контура (лишняя достижимость MinIO из nginx; рекомендовано — только
+  frontend); MIN-2 — процедура переключения режимов (конфликт портов 80/443/
+  8390) и судьба существующей data/app.db при первом переходе bare-metal →
+  compose не описаны в контракте README 2.1; MIN-3 — unhealthy-сценарий
+  («процесс завершен аварийно» → контейнер exited, unhealthy недостижим;
+  переформулировать на зависание); MIN-4 — параметры HEALTHCHECK
+  (start_period на init_db) не зафиксированы.
+- Принятый техдолг (ADR-006): dev-зависимости (pytest, httpx) в прод-образе —
+  цена «одного digest»; файлы на named volumes принадлежат uid appuser —
+  обслуживание тома на хосте требует root/docker; Docker HEALTHCHECK сам
+  контейнер не рестартует (живость чинит restart: unless-stopped и nginx);
+  теги вместо digest у базового образа и образов nginx/minio (NFR-12 «в
+  идеале digest» — задача dev).
+- Наследуются без изменений: single-worker + in-memory сессии/токены
+  (ADR-001/002), статика тем же сервисом (ADR-001), SQLite WAL, нет
+  rate-limit на публичных эндпоинтах, файлы-сироты в data/uploads/
+  (cleanup вне объема), отсутствующие внешние ключи в схеме (фикс ревью 3A).
