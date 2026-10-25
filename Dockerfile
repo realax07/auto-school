@@ -28,6 +28,8 @@ WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv
 COPY backend/ backend/
 COPY frontend/ frontend/
+COPY design/ design/
+COPY .env.example .env.example
 COPY requirements.txt .
 
 ENV PATH="/opt/venv/bin:$PATH" \

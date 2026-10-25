@@ -48,6 +48,6 @@ docker compose run --rm \
   -e ADMIN_PASSWORD_HASH=x \
   -e SECRET=container-test-secret \
   -v "./${TESTS_DIR}:/app/tests:ro" \
-  app python -m pytest /app/tests -q
+  app python -m pytest /app/tests -q -p no:cacheprovider
 
 echo "OK: backend-набор зеленый внутри образа autoschool:local (тот же digest, что поставка)"
