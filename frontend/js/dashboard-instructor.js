@@ -904,6 +904,15 @@ function bkRenderList(){
       panel.appendChild(da);
       art.appendChild(panel);
     }
+    // BUG-049: у подтвержденной брони должна работать отмена
+    // (POST …/cancel — эндпоинт guard-статусом 'confirmed')
+    if(b.status==='confirmed'){
+      var cact=node('div','bk-actions');
+      var cbtn=node('button','act deny','✕ Отменить бронь');
+      cbtn.type='button';cbtn.dataset.cancel=String(b.id);
+      cact.appendChild(cbtn);
+      art.appendChild(cact);
+    }
     box.appendChild(art);
   });
   bkBindList();
@@ -920,6 +929,17 @@ function bkBindList(){
         openBookings();loadSummary();
       }else{
         toast((res.data&&res.data.error)||'Не удалось подтвердить бронь');
+      }
+    });
+  })});
+  document.querySelectorAll('#bk-list [data-cancel]').forEach(function(b){b.addEventListener('click',function(){
+    // BUG-049: отмена подтвержденной брони — слот освобождается
+    apiSend('POST','/api/instructor/bookings/'+b.dataset.cancel+'/cancel',{},function(res){
+      if(res.status===200&&res.data&&res.data.ok){
+        toast('Бронь отменена. Слот снова свободен — ученик может запросить его повторно.');
+        openBookings();loadSummary();
+      }else{
+        toast((res.data&&res.data.error)||'Не удалось отменить бронь');
       }
     });
   })});

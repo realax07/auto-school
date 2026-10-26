@@ -1172,6 +1172,56 @@ def test_s5_reject_requires_comment_and_frees_slot(api, client):
     assert instructor_view["reject_comment"] == "В это окно не работаю"
 
 
+def test_s5_cancel_confirmed_booking_frees_slot(api, client):
+    """BUG-049 (скрины Заказчика 2026-10-23): cancel подтвержденной брони —
+    по 'new' → 409 (решения по 'new' — confirm/reject); чужая бронь → 404;
+    своя confirmed → 200, статус 'rejected' (CHECK в db.py статуса
+    'cancelled' не знает), decided_at проставлен, reject_comment NULL
+    (отмена без комментария — за инструктора текст не пишем); повторный
+    cancel → 409; слот освобождается — повторный запрос ученика проходит."""
+    env = setup_pair(client)
+    instr, student = env["instr"], env["student"]
+    slot_id = first_slot_id(client, student["token"], instr["id"])
+    booking_id = book(client, student["token"], slot_id).json()["booking_id"]
+
+    # guard-статус 'confirmed': по 'new' отмена недоступна
+    assert client.post(
+        f"/api/instructor/bookings/{booking_id}/cancel",
+        headers=_headers(instr["token"]),
+    ).status_code == 409
+
+    assert client.post(
+        f"/api/instructor/bookings/{booking_id}/confirm",
+        headers=_headers(instr["token"]),
+    ).status_code == 200
+
+    other = create_instructor(client, email="other-cancel@example.com")
+    assert client.post(
+        f"/api/instructor/bookings/{booking_id}/cancel",
+        headers=_headers(other["token"]),
+    ).status_code == 404
+
+    cancelled = client.post(
+        f"/api/instructor/bookings/{booking_id}/cancel",
+        headers=_headers(instr["token"]),
+    )
+    assert cancelled.status_code == 200, cancelled.text
+    row = fetch_booking(booking_id)
+    assert row["status"] == "rejected"
+    assert row["decided_at"] is not None
+    assert row["reject_comment"] is None
+
+    # единственность решения: повторная отмена → 409
+    assert client.post(
+        f"/api/instructor/bookings/{booking_id}/cancel",
+        headers=_headers(instr["token"]),
+    ).status_code == 409
+
+    # ОВ-5: слот освободился — повторный запрос ученика проходит
+    rebook = book(client, student["token"], slot_id)
+    assert rebook.status_code == 200, rebook.text
+
+
 # --- PUT availability × активные брони (MAJ-1) -------------------------------
 
 

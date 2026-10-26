@@ -11,6 +11,8 @@ GET  /api/instructor/bookings            — входящие брони инс�
 POST /api/instructor/bookings/{id}/confirm — подтверждение (FR-48);
 POST /api/instructor/bookings/{id}/reject  — отклонение, комментарий
      обязателен (ОВ-2, FR-48);
+POST /api/instructor/bookings/{id}/cancel  — отмена ПОДТВЕРЖДЕННОЙ брони
+     (BUG-049), без комментария;
 helper blocking_bookings — согласование PUT availability с активными
      бронями (MAJ-1): слоты с бронями 'new'/'confirmed', отсутствующие
      в новом графике, блокируют замену → 409 с перечнем.
@@ -446,6 +448,41 @@ def confirm_booking(
     finally:
         conn.close()
     return {"ok": True, "status": "confirmed"}
+
+
+@router.post("/api/instructor/bookings/{booking_id}/cancel")
+def cancel_booking(
+    booking_id: int,
+    x_session_token: str | None = Header(default=None, alias="X-Session-Token"),
+):
+    """Отмена ПОДТВЕРЖДЕННОЙ брони (BUG-049, скрины Заказчика 2026-10-23):
+    только своя бронь → иначе 404; guard-статус 'confirmed' (решения по
+    'new' — confirm/reject) → иначе 409; БЕЗ комментария (аналог confirm —
+    за инструктора текст не пишем, reject_comment остается NULL).
+    Эффект: status='rejected' (CHECK в db.py статуса 'cancelled' не знает),
+    decided_at; слот освобождается — 'rejected' выпадает из частичного
+    индекса uq_booking_active_slot (ОВ-5). Атомарно: guard
+    AND status='confirmed' + rowcount (0 → 409)."""
+    instructor_id, err = require_role(x_session_token, "instructor")
+    if err is not None:
+        return err
+
+    conn = db.get_conn()
+    try:
+        row = _booking_row(conn, booking_id)
+        if row is None or row["instructor_id"] != instructor_id:
+            return _error(404, "Бронь не найдена")
+        cur = conn.execute(
+            "UPDATE booking SET status = 'rejected',"
+            " decided_at = datetime('now') WHERE id = ? AND status = 'confirmed'",
+            (booking_id,),
+        )
+        if cur.rowcount == 0:
+            return _error(409, "Бронь: решение уже принято")
+        conn.commit()
+    finally:
+        conn.close()
+    return {"ok": True, "status": "rejected"}
 
 
 @router.post("/api/instructor/bookings/{booking_id}/reject")
