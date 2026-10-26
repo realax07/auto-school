@@ -146,7 +146,11 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
 .bk-slot.mine:after{content:"запрос отправлен"}
 .bk-hint{margin-top:14px;font-size:11px;color:#7e909a;line-height:1.7}
 .bk-none{border:1px dashed rgba(234,255,249,.22);border-radius:12px;padding:16px 14px;font-size:11px;color:#8fa0aa;text-align:center}
-.bk-none button{margin-top:12px;border:1px solid #2b9c62;background:#123524;color:#c9ffdd;border-radius:11px;padding:10px 18px;font-size:12px}
+/* BUG-049: пустое состояние «Мои брони» слипалось в одну строку —
+   заголовок/описание/кнопка теперь вертикальный блок с отступами */
+.bk-none h3{margin:0 0 8px;font-size:14px;font-weight:600;color:#e9f4ef;letter-spacing:-.02em}
+.bk-none p{margin:0;line-height:1.6}
+.bk-none button{display:inline-block;margin-top:14px;border:1px solid #2b9c62;background:#123524;color:#c9ffdd;border-radius:11px;padding:10px 18px;font-size:12px}
 .bk-sect-head{display:flex;align-items:center;gap:12px;margin:24px 0 13px}
 .bk-sect-head b{font-size:15px;font-weight:600;letter-spacing:-.02em}
 .bk-sect-head .n{font-size:10px;color:#91efb1;border:1px solid #2a5c40;background:#143322;border-radius:999px;padding:3px 9px}
@@ -281,7 +285,12 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
     <div><b id="bk-pair-name">—</b><small id="bk-pair-sub">ваш инструктор</small></div>
     <span class="car" id="bk-pair-car">—</span>
   </div>
-  <div class="bk-none" id="bk-nopair" style="display:none"><b>Нет принятого инструктора</b>Расписание доступно после того, как инструктор примет вашу заявку.<button id="bk-go-choice" type="button">Перейти к выбору инструктора</button></div>
+  <div class="bk-none" id="bk-nopair" style="display:none">
+    <!-- BUG-049: была одна слипшаяся строка — теперь вертикальный блок -->
+    <h3>Нет принятого инструктора</h3>
+    <p>Расписание доступно после того, как инструктор примет вашу заявку.</p>
+    <button id="bk-go-choice" type="button">Перейти к выбору инструктора</button>
+  </div>
 
   <div class="bk-cal" id="bk-cal" style="display:none">
     <div class="bk-cal-head">
