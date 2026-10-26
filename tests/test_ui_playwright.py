@@ -2103,6 +2103,176 @@ def test_s5_booking_flow_slots_request_confirm_and_409(browser, server):
     assert len(confirmed) == 1 and confirmed[0]["car"]["id"] == car_id, data
 
 
+# ---------------------------------------------------------------------------
+# BUG-049 (Заказчик 2026-10-23): отмена подтвержденной брони + UI-дефекты
+# (вертикальное пустое состояние «Мои брони», wrap бейджа комплектности).
+# MAJ-1 review-001: e2e-покрытие на каждое UI-изменение ветки.
+
+def test_bug049_cancel_confirmed_booking_ui_flow(browser, server):
+    """TC-UI-026 (change add-booking-docs, BUG-049 MAJ-1): сквозной cancel-флоу
+    на живом бэкенде. Инструктор в разделе «Бронирования» видит подтвержденную
+    бронь с кнопкой «✕ Отменить бронь» → клик → тост, список перезагружен:
+    статус «Отклонена», кнопки отмены больше нет; у ученика в «Моих бронях» —
+    «Отклонена» без блока комментария (cancel не пишет reject_comment) и с
+    «↻ Повторить запрос», слот в календаре снова свободен; повторная отмена
+    той же брони → 409 (guard status='confirmed'), статус/данные не меняются."""
+    instr_token, instructor_id = _approve_instructor(server)
+    car_id = _add_car(server, instr_token)
+    status, data = api("PUT", "/api/instructor/availability", base=server,
+                       token=instr_token,
+                       body={"intervals": [
+                           {"weekday": 4, "start_time": "16:00",
+                            "end_time": "18:00"},
+                       ]})
+    assert status == 200 and data["ok"], (status, data)
+    stu_token = _accepted_request(server, instr_token, instructor_id, car_id)
+    status, data = api("GET",
+                       f"/api/student/instructors/{instructor_id}/slots",
+                       base=server, token=stu_token)
+    slot_id = data["slots"][0]["id"]
+    status, data = api("POST", "/api/student/bookings", base=server,
+                       token=stu_token, body={"availability_id": slot_id})
+    assert status == 200 and data["ok"], (status, data)
+    booking_id = data["booking_id"]
+    status, data = api(
+        "POST", f"/api/instructor/bookings/{booking_id}/confirm",
+        base=server, token=instr_token)
+    assert status == 200 and data["ok"], (status, data)
+
+    # --- инструктор: «Бронирования» → подтвержденная бронь → отмена ---
+    page, ctx = _fresh_page(browser, instr_token)
+    try:
+        page.goto(f"{server}/instructor/dashboard")
+        page.locator('.nav button[data-tab="Бронирования"]').click()
+        req = page.locator("#bk-list .req", has_text="Смирнова Ольга Павловна")
+        expect(req).to_have_count(1)
+        expect(req.locator(".status")).to_have_text("Подтверждена")
+        cancel_btn = req.locator("[data-cancel]")
+        expect(cancel_btn).to_have_text("✕ Отменить бронь")
+        cancel_btn.click()
+        expect(page.locator("#toast")).to_contain_text("Бронь отменена")
+        # список перезагружен (openBookings): статус изменился, кнопки нет
+        req = page.locator("#bk-list .req", has_text="Смирнова Ольга Павловна")
+        expect(req.locator(".status")).to_have_text("Отклонена")
+        assert page.locator("#bk-list [data-cancel]").count() == 0, \
+            "кнопка отмены должна остаться только у confirmed-броней"
+    finally:
+        ctx.close()
+
+    # --- ученик: «Мои брони» → «Отклонена», слот снова свободен ---
+    page, ctx = _fresh_page(browser, stu_token)
+    try:
+        page.goto(f"{server}/cabinet#/my-bookings")
+        stu_req = page.locator(".bk-req").first
+        expect(stu_req.locator(".bk-status")).to_have_text("Отклонена")
+        # cancel не пишет комментарий: блока «Комментарий инструктора» нет
+        expect(stu_req.locator(".bk-comment")).to_have_count(0)
+        # слот освобожден: «↻ Повторить запрос» и свободный слот в календаре
+        expect(stu_req.locator(".bk-act.retry")).to_be_visible()
+        expect(page.locator(".bk-slot.free")).to_have_count(1)
+        expect(page.locator(".bk-slot.mine")).to_have_count(0)
+    finally:
+        ctx.close()
+
+    # --- повторная отмена той же брони → 409 (guard), данные не меняются ---
+    status, data = api(
+        "POST", f"/api/instructor/bookings/{booking_id}/cancel",
+        base=server, token=instr_token)
+    assert status == 409 and data["ok"] is False, (status, data)
+    status, data = api("GET", "/api/student/bookings", base=server,
+                       token=stu_token)
+    bk = next(b for b in data["bookings"] if b["id"] == booking_id)
+    assert bk["status"] == "rejected" and bk["reject_comment"] is None, bk
+
+
+def test_bug049_my_bookings_empty_state_vertical_layout(browser, server):
+    """TC-UI-027 (change add-booking-docs, BUG-049): пустое состояние «Мои
+    брони» без принятого инструктора — вертикальный блок: заголовок (h3),
+    описание (p) и кнопка стоят друг под другом (bounding box без перекрытия
+    по вертикали), у кнопки верхний отступ (BUG-049: было одной слипшейся
+    строкой)."""
+    stu_token = _student_token(server)  # без заявок — принятой пары нет
+    page, ctx = _fresh_page(browser, stu_token)
+    try:
+        page.goto(f"{server}/cabinet#/my-bookings")
+        nopair = page.locator("#bk-nopair")
+        expect(nopair).to_be_visible()
+        h3 = nopair.locator("h3")
+        p = nopair.locator("p")
+        btn = nopair.locator("#bk-go-choice")
+        expect(h3).to_have_text("Нет принятого инструктора")
+        expect(p).to_contain_text(
+            "Расписание доступно после того, как инструктор примет вашу заявку")
+        expect(btn).to_have_text("Перейти к выбору инструктора")
+
+        # разные строки: низ заголовка выше верха описания, низ описания
+        # выше верха кнопки (BUG-049: слипались в одну строку)
+        hb, pb, bb = h3.bounding_box(), p.bounding_box(), btn.bounding_box()
+        assert hb["y"] + hb["height"] <= pb["y"], (hb, pb)
+        assert pb["y"] + pb["height"] <= bb["y"], (pb, bb)
+
+        # отступы: заголовок отделен от описания, описание без margin,
+        # кнопка с верхним отступом 14px
+        style = nopair.evaluate(
+            "el => ['h3','p','button'].map(sel => {"
+            " const n = el.querySelector(sel);"
+            " const s = getComputedStyle(n);"
+            " return { tag: sel, display: s.display,"
+            " mt: s.marginTop, mb: s.marginBottom }; })")
+        by_tag = {item["tag"]: item for item in style}
+        assert by_tag["h3"]["mb"] == "8px", by_tag
+        assert by_tag["p"]["mt"] == "0px" and by_tag["p"]["mb"] == "0px", by_tag
+        assert by_tag["button"]["mt"] == "14px", by_tag
+    finally:
+        ctx.close()
+
+
+def test_bug049_car_completeness_badge_wraps_under_car_name(browser, server):
+    """TC-UI-028 (change add-booking-docs, BUG-049): бейдж комплектности
+    «Не хватает: …» в карточке авто при узком вьюпорте переносится ПОД имя
+    автомобиля (flex-wrap .car-head), а не наезжает на него: bounding box
+    бейджа ниже имени и не пересекается с ним; бейдж не шире контейнера
+    (max-width:100%), сам текст переносится внутри (white-space:normal)."""
+    instr_token, _ = _approve_instructor(server)
+    _add_car(server, instr_token)  # авто без ракурсов → длинный «Не хватает: …»
+    # узкий вьюпорт: бейдж гарантированно не влезает в строку с именем
+    ctx = browser.new_context(viewport={"width": 380, "height": 900})
+    page = ctx.new_page()
+    page.add_init_script(
+        "sessionStorage.setItem('session_token','%s');" % instr_token)
+    try:
+        page.goto(f"{server}/instructor/dashboard")
+        page.locator('.nav button[data-tab="Мои автомобили"]').click()
+        card = page.locator(".car")
+        expect(card).to_have_count(1)
+        status_badge = card.locator(".car-head .status")
+        expect(status_badge).to_have_text(
+            "Не хватает: спереди, сзади, слева, справа, салон")
+        # примененные CSS-фиксы
+        head = card.locator(".car-head")
+        assert head.evaluate(
+            "el => getComputedStyle(el).flexWrap") == "wrap"
+        assert status_badge.evaluate(
+            "el => getComputedStyle(el).whiteSpace") == "normal"
+
+        # bounding box: бейдж под именем, перекрытия нет
+        title = card.locator("b.title")
+        expect(title).to_have_text("Škoda Rapid")
+        tb, sb = title.bounding_box(), status_badge.bounding_box()
+        assert sb["y"] >= tb["y"] + tb["height"] - 1, \
+            f"бейдж наезжает на имя авто: title={tb}, badge={sb}"
+        # бейдж целиком внутри карточки (max-width:100% соблюден)
+        cb = head.bounding_box()
+        assert sb["x"] >= cb["x"] - 1 \
+            and sb["x"] + sb["width"] <= cb["x"] + cb["width"] + 1, (cb, sb)
+        # длинный текст перенесен и внутри самого бейджа (больше одной строки)
+        line_px = status_badge.evaluate(
+            "el => parseFloat(getComputedStyle(el).lineHeight)")
+        assert sb["height"] > line_px * 1.5, (sb, line_px)
+    finally:
+        ctx.close()
+
+
 # ------------------------------------------------------------- design-guard
 @pytest.mark.parametrize("filename", [
     "instructor-dashboard.html", "cabinet.html",
