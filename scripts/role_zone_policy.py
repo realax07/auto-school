@@ -15,20 +15,32 @@
 запись делегации flowctl и в резервацию реестра сессий — аудит сверяет, что
 diff сверялся с зоной той же редакции, что действовала при prepare.
 
-Роли, отсутствующие в таблице (в т.ч. relay/integrator/customer — они не
+Роли, отсутствующие в таблице (в т.ч. relay/customer — они не
 пишут в продуктовый репозиторий), получают пустую политику = запись
 запрещена: неизвестная роль не может резервировать зоны через общий '**'.
+Поправка Н13 (аудит 2026-10-23): integrator получил зону merge-артефактов
+(code-reviews/**, test-model/**), pm — PLAN-*.md (J41) и docs/**; таблица
+agents/README.md подлежит синхронной правке владельцем политики.
 """
 from __future__ import annotations
 
 import session_check as sc
 
+# Digest вычисляется sha256 по таблице «Зона записи (только она)»
+# agents/README.md (строка-заголовок «| Агент | Режим | …» до последней
+# строки-ряда включительно, join "\n", без завершающего перевода строки,
+# UTF-8) в указанном коммите.
 POLICY_TABLE_DIGEST = (
-    "agents/README.md@85bba56:таблица-записи (роль→зона), sha256 "
-    "19e6c41e607b0a2a37b62af8e6ef0f40843e899ff93a39850e6422bf2e13fcda"
+    "agents/README.md@1b6040b:таблица-записи (роль→зона), sha256 "
+    "fc87330d1b8344bce8fcdbb4bb4b31707f2125f2e7096494b453bd513a3876b1"
 )
-POLICY_TABLE_DATE = "2026-10-02"
-POLICY_VERSION = f"{POLICY_TABLE_DIGEST}; дата: {POLICY_TABLE_DATE}"
+POLICY_TABLE_DATE = "2026-10-23"
+# Поправка Н13 (аудит 2026-10-23): зоны integrator (merge-артефакты),
+# pm (PLAN-*.md, docs/**) расширены относительно запиненной таблицы —
+# редакция политики фиксируется в version-строке, чтобы резервации/сверки
+# diff до и после поправки были различимы (контракт policy_version).
+POLICY_AMENDMENT = "; поправка Н13: 2026-10-23 (integrator/pm-зоны, таблица синхронизирована)"
+POLICY_VERSION = f"{POLICY_TABLE_DIGEST}; дата: {POLICY_TABLE_DATE}{POLICY_AMENDMENT}"
 POLICY_SOURCE = "agents/README.md"
 
 # ------------------------------------------------------------- политика ролей
@@ -99,6 +111,13 @@ ROLE_ZONE_POLICY: dict[str, tuple[str, ...]] = {
     "qa_regression_analyst": (
         "test-model/regression/manifest.md",
     ),
+    # J51.4 (review-003 #2): роль regress_runner — таблица agents/README.md,
+    # дословно: «только `test-model/regress/<change-id>/`» (артефакты самих
+    # прогонов пишет flowctl regress; glob-заголовок <change-id> → '*',
+    # содержимое каталога — '/*/**', по образцу зоны qa_author).
+    "regress_runner": (
+        "test-model/regress/*/**",
+    ),
     "architect": (
         "architecture/**",
         "test-model/reviews/*/review-*-architecture.md",
@@ -106,6 +125,15 @@ ROLE_ZONE_POLICY: dict[str, tuple[str, ...]] = {
     "devops": (
         "deploy/**",
         "ops/**",
+    ),
+    # Н13 (аудит 2026-10-23): integrator легален в merge_task, но имел ПУСТУЮ
+    # политику — merge-артефакты некому резервировать (любой prepare под
+    # integrator давал violation). Зона покрывает артефакты слияния:
+    # review-файлы code-reviews/ и контур test-model/; продуктовый код,
+    # спеки и деплой по-прежнему вне зоны.
+    "integrator": (
+        "code-reviews/**",
+        "test-model/**",
     ),
     "design_validator": (
         "test-model/reviews/*/review-*-design.md",
@@ -118,14 +146,23 @@ ROLE_ZONE_POLICY: dict[str, tuple[str, ...]] = {
     ),
     "pm": (
         "PLAN.md",
+        # Н13 (аудит 2026-10-23): J41 обязывает ПМ писать PLAN-<id>.md
+        # (план релиза change/бага/легкий Флоу 4) — pm-зона обязана их
+        # покрывать, иначе prepare плана дает OUT_OF_ZONE.
+        "PLAN-*.md",
         "BACKLOG.md",
         "README.md",
+        # Н13 (аудит 2026-10-23): docs/** был ничьей — назначена docs-зона
+        # ПМ (docs_task ведет ПМ-делегация; продуктовый код по-прежнему вне).
+        "docs/**",
     ),
 }
 
 # Роли конвейера, ведущие запись ВНЕ продуктового репозитория (или не ведущие
 # запись вообще): политика пуста = резервация/запись запрещены (P0.3).
-EMPTY_POLICY_ROLES: tuple[str, ...] = ("integrator", "relay", "customer")
+# Н13 (аудит 2026-10-23): integrator исключен отсюда — легальная роль
+# merge_task получила зону merge-артефактов (code-reviews/**, test-model/**).
+EMPTY_POLICY_ROLES: tuple[str, ...] = ("relay", "customer")
 
 
 def policy_version() -> str:

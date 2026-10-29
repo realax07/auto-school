@@ -495,6 +495,24 @@ def _arch_review_gate(snapshot: dict, action: "ActionRequest", ctx: dict) -> lis
         f"этап architecture_review — роль architect)")]
 
 
+def _sdd_skip_actor(snapshot: dict, ctx: dict) -> str | None:
+    """Кто явно решил пропускать SDD (P17): факт sdd.approved_skip.
+
+    Действителен только fact status=ready и value={approved_by: <кто>}.
+    Отсутствие факта, битый/безавторный skip — None (гейт не пройден),
+    молчаливого skip нет.
+    """
+    f = _fact(snapshot, "sdd.approved_skip", ctx)
+    if not isinstance(f, dict) or f.get("status") != "ready":
+        return None
+    value = f.get("value")
+    if isinstance(value, dict):
+        who = str(value.get("approved_by") or "").strip()
+        if who:
+            return who
+    return None
+
+
 def _arch_review_done(snapshot: dict, ctx: dict) -> list:
     """Этап architecture review: change-пакет + sdd.md + дельты (контракт 2)."""
     out: list = []
@@ -524,11 +542,33 @@ def _arch_review_done(snapshot: dict, ctx: dict) -> list:
         out.append(Finding(INVALID_GATE,
                            "нет дельт specs/*/spec.md в change-пакете (контракт 2)"))
     sdd_value, sdd_status, out2 = _fact_ready(snapshot, "sdd.present", ctx)
-    out.extend(out2)
-    if sdd_status == "ready" and sdd_value is not True:
-        out.append(Finding(INVALID_GATE,
-                           "sdd.md отсутствует — активный change требует SDD "
-                           "(контракт 2; evidence: sdd.md)"))
+    # P17 (реш. 2026-10-08-arch-review-policy): sdd.md на пакете с обязательным
+    # arch-этапом — не опция. Раньше ветка срабатывала только при status=ready,
+    # и MISSING-факт (sdd.md нет в репо) уходил в generic MISSING_INPUT без
+    # именованной ворота-причины. Теперь отсутствие sdd.md — явный INVALID_GATE;
+    # единственный законный проход без sdd.md — явное skip-решение (факт
+    # sdd.approved_skip из sdd-skip.md с approved_by), которое НЕ молчаливо:
+    # в гейт-выводе обязательная строка «arch: sdd skipped by <кто>».
+    skip_actor = _sdd_skip_actor(snapshot, ctx) if sdd_status == "missing" else None
+    if skip_actor:
+        # Skip покрывает только «sdd.md отсутствует» (MISSING): гасим факт-находку
+        # и штраф complete-set по sdd. UNKNOWN/invalid sdd.md skip не покрывает.
+        out2 = []
+    else:
+        out.extend(out2)
+    sdd_missing = sdd_status != "ready" or sdd_value is not True
+    if sdd_missing:
+        if skip_actor:
+            ctx.setdefault("extra_gates", []).append(
+                f"arch: sdd skipped by {skip_actor} "
+                f"(sdd-skip.md; реш. 2026-10-08-arch-review-policy)")
+        else:
+            out.append(Finding(
+                INVALID_GATE,
+                "sdd.md отсутствует — активный change требует SDD "
+                "(контракт 2; evidence: sdd.md). Проход без SDD — только "
+                "явным skip-решением: sdd-skip.md со строкой "
+                "«approved_by: <кто>» (реш. 2026-10-08-arch-review-policy)"))
     if out0 or out2 or (d_status != "ready"):
         out.append(Finding(
             INVALID_GATE,
@@ -1562,21 +1602,24 @@ def check_bug_fix(snapshot, action, ctx, flow):
     if status == "ready" and isinstance(value, dict) and not value.get("bugs"):
         out.append(Finding(
             MISSING_INPUT,
-            f"баг-репорт test-model/bugs/{bug_id}.md "
+            f"баг-репорт test-model/bugs/{bug_id}.md (или {bug_id}-*.md) "
             f"отсутствует — Флоу 2 требует BUG-NNN репорт (ТЗ 03 п.3)"))
     elif (status == "ready" and repo and bug_id and not any(
             p.get("code") == "FLOW_ID_INVALID"
             for p in snapshot.get("problems", []))
-            and not (Path(repo) / "test-model" / "bugs" /
-                     f"{bug_id}.md").is_file()):
+            and not flow_check.bug_report_paths(Path(repo), bug_id)):
         # J43.1: легальный общий план test-model/bugs/PLAN.md делает каталог
         # bugs/ непустым (факт test_model.present грубый: dir non-empty) —
         # требуем репорт ИМЕННО этого BUG-NNN. При невалидном scope-id
         # (FLOW_ID_INVALID) точная проверка не применяется — scope и так
         # дает AMBIGUOUS_STATE/UNKNOWN.
+        # Н5 (аудит 2026-10-23): контракт единый с pr_validate — точное имя
+        # BUG-<id>.md ИЛИ BUG-<id>-<slug>.md (flow_check.bug_report_paths);
+        # прежде здесь принималось только точное имя, а pr_validate — только
+        # glob с суффиксом: файл, прошедший переход Флоу 2, валил PR.
         out.append(Finding(
             MISSING_INPUT,
-            f"баг-репорт test-model/bugs/{bug_id}.md "
+            f"баг-репорт test-model/bugs/{bug_id}.md (или {bug_id}-*.md) "
             f"отсутствует — Флоу 2 требует BUG-NNN репорт (ТЗ 03 п.3; "
             f"план каталога не считается репортом)"))
     specs_value, specs_status, out1 = _fact_ready(snapshot, "specs.present", ctx)
@@ -1603,15 +1646,144 @@ def check_bug_fix(snapshot, action, ctx, flow):
 
 def check_emergency_stabilize(snapshot, action, ctx, flow):
     out: list = []
+    severity = incident_severity(action.incident_ref)
     if not action.incident_ref:
         out.append(Finding(
             MISSING_INPUT,
             "причина инцидента не зафиксирована (action.incident_ref) — "
             "emergency-действие обязано фиксировать причину (ТЗ 03 п.4)", True))
+    elif flow == 3 and severity is None:
+        # J48 (add-incident-protocol, D1/FR-4): инцидент без severity-префикса
+        # S1-/S2-/S3- — неклассифицирован. Это отсутствие входа классификации
+        # (DENY-вход), не UNKNOWN-факт: состав реакции выбирается классом (FR-1),
+        # ad hoc-реакция без классификации — дефект J48. При этом archival-
+        # семантика FR-3 неклассифицированному архивацию не разрешает (см.
+        # check_archive_flow3 — там severity перепарсивается независимо, I-2).
+        out.append(Finding(
+            MISSING_INPUT,
+            "инцидент неклассифицирован: incident_ref без severity-префикса "
+            "S1-/S2-/S3- (FR-1/FR-4; design D1) — классифицируй инцидент "
+            "(S1-…/S2-…/S3-…) до начала реакции"))
+    if severity:
+        # D1: разобранный severity доступен последующим check-функциям через
+        # ctx (контекст ОДНОГО check_action-вызова; между CLI-вызовами не
+        # переносится — ворота перепарсивают сами, I-2).
+        ctx["incident_severity"] = severity
     ctx.setdefault("extra_gates", []).append(
         "обязательный последующий PR-цикл: review + pr_validate (контракт §7 "
         "Флоу 3; хотфикс без PR не считается завершенным)")
     return out
+
+
+# ------------------------------------------- инцидент-протокол (J48, Флоу 3)
+# add-incident-protocol: severity внутри incident_ref (D1), хранилище
+# post-mortem (D4), этапы post_mortem/archive_change и ворота архивации
+# (D2/D3). Затрагивается ТОЛЬКО Флоу 3 (NFR-3: Флоу 1/2/4/5 не меняются).
+
+# I-1 ревью: severity-уровни — одним allowlist-множеством; новый уровень
+# (например S4) = одна правка + отдельный change-пакет (rules_change).
+SEVERITY_PREFIXES = ("S1", "S2", "S3")
+# MIN-1 ревью 4.1: regex ВЫВОДИТСЯ из тупла (захват группы для
+# incident_severity: m.group(1) → "S1"/"S2"/…), не дублируется литералом.
+SEVERITY_PREFIX_RE = re.compile(
+    "^(" + "|".join(re.escape(p) for p in SEVERITY_PREFIXES) + ")-")
+# D4: хранилище post-mortem — append-only, именование
+# <YYYY-MM-DD>-<incident_ref>.md; корреляция ворот — по вхождению incident_ref
+# в имя файла ПО ГРАНИЦАМ (начало имени или «-» … «.» или конец; MIN-2 ревью
+# 4.1: сырая подстрока удовлетворялась чужим файлом, ref "S1-prod" — файлом
+# "2026-10-15-S1-prod-down.md"; детерминированный файловый матч, NFR-1).
+INCIDENTS_DIR = "test-model/incidents"
+# D4: секции проверяются по ЗАГОЛОВКАМ (## …), не по вхождению в текст
+# (MIN-3 ревью 4.1: «root cause» в прозе не считается секцией).
+POST_MORTEM_SECTIONS = ("таймлайн", "root cause", "action items")
+
+
+def incident_severity(incident_ref: str | None) -> str | None:
+    """(D1): severity-префикс incident_ref ('S1'…'S3') или None — инцидент
+    неклассифицирован (префикса нет)."""
+    m = SEVERITY_PREFIX_RE.match(incident_ref or "")
+    return m.group(1) if m else None
+
+
+def _post_mortem_findings(snapshot, action, ctx: dict) -> list:
+    """Ворота post-mortem (D2/D4) — общая проверка check_post_mortem и
+    check_archive_flow3.
+
+    Требование I-2 ревью: severity перепарсивается из action.incident_ref
+    КАЖДЫЙ вызов — CLI-вызов архивации отдельный процесс, ctx от
+    emergency_stabilize не переносится; полагаться на ctx["incident_severity"]
+    (D1) здесь запрещено. S1/S2 без post-mortem в test-model/incidents/ (с
+    секциями таймлайн/root cause/action items) — DENY; S3 — протокол не
+    применяется (FR-1); неклассифицированный — DENY MISSING_INPUT.
+    """
+    ctx["checked"].add("incident.post_mortem")
+    severity = incident_severity(action.incident_ref)  # I-2: сам, не из ctx
+    if severity is None:
+        return [Finding(
+            MISSING_INPUT,
+            "инцидент неклассифицирован: incident_ref без severity-префикса "
+            "S1-/S2-/S3- (FR-4; design D1) — архивацию семантика FR-3 не "
+            "разрешает")]
+    if severity == "S3":
+        ctx["evidence"].add(f"{INCIDENTS_DIR}/ (S3: протокол не применяется)")
+        return []
+    repo = (snapshot.get("scope", {}) or {}).get("repo")
+    if not repo:
+        return [Finding(
+            AMBIGUOUS_STATE,
+            f"post-mortem: scope без repo — проверка {INCIDENTS_DIR}/ "
+            f"невозможна, UNKNOWN (design D4)", True)]
+    inc_dir = Path(repo) / INCIDENTS_DIR
+    ctx["evidence"].add(str(inc_dir))
+    ref = action.incident_ref
+    # MIN-2 ревью 4.1: матч по границам, не сырой подстрокой — чужой файл
+    # (ref "S1-prod" vs "2026-10-15-S1-prod-down.md") не засчитывается.
+    ref_re = re.compile(rf"(?:^|-){re.escape(ref)}(?:\.|$)")
+    matches = [p for p in sorted(inc_dir.glob("*.md")) if ref_re.search(p.name)] \
+        if inc_dir.is_dir() else []
+    if not matches:
+        return [Finding(
+            MISSING_INPUT,
+            f"post-mortem инцидента {ref} (severity {severity}) не найден в "
+            f"{INCIDENTS_DIR}/ — архивация Флоу 3 S1/S2 без post-mortem "
+            f"блокируется (FR-3; design D2/D4; именование "
+            f"<YYYY-MM-DD>-<incident_ref>.md)")]
+    text = matches[-1].read_text(encoding="utf-8", errors="replace")
+    # MIN-3 ревью 4.1: секции — по заголовкам ## (D4), регистронезависимо;
+    # упоминание в прозе секцией не считается.
+    missing = [s for s in POST_MORTEM_SECTIONS if not any(
+        re.match(rf"^#+\s*{re.escape(s)}", line, re.IGNORECASE)
+        for line in text.splitlines())]
+    if missing:
+        return [Finding(
+            INVALID_GATE,
+            f"post-mortem {matches[-1].name} без заголовков секций: "
+            f"{', '.join(missing)} "
+            f"— обязательны заголовки ## Таймлайн (timestamps initial "
+            f"response), ## Root cause, ## Action items (FR-3; design D4)")]
+    return []
+
+
+def check_post_mortem(snapshot, action, ctx, flow):
+    """Этап post_mortem (D3): производство артефакта после стабилизации и
+    закрытия PR-цикла, до архивации; роли dev/devops — участники реакции.
+    Проверяет тот же факт, что и ворота архивации, — наличие post-mortem
+    (дублирование на этапе и воротах — контракт 7: артефакт проверяется в
+    момент ворот независимо)."""
+    if flow != 3:
+        return []
+    return _post_mortem_findings(snapshot, action, ctx)
+
+
+def check_archive_flow3(snapshot, action, ctx, flow):
+    """Ворота архивации Флоу 3 (D2; образец — _hotfix_debt_findings):
+    flow==3-специфичная Finding-ветка. Флоу 3 S1/S2 без post-mortem в
+    test-model/incidents/ — DENY (ненулевой exit CLI, сценарий FR-3); S3 —
+    протокол не применяется; неклассифицированный incident_ref — DENY
+    MISSING_INPUT (архивацию не разрешает)."""
+    if flow != 3:
+        return []
+    return _post_mortem_findings(snapshot, action, ctx)
 
 
 def check_deploy_rollback(snapshot, action, ctx, flow):
@@ -1781,6 +1953,18 @@ STAGE_TABLE: dict[int, tuple[Stage, ...]] = {
                "branch protection (внеш.)"), check_merge_task),
         Stage("deploy_rollback", ("devops", "pm"), True,
               ("внешние полномочия (ТЗ 03 п.4)",), check_deploy_rollback),
+        # J48 (D3): post_mortem — этап производства артефакта (после
+        # стабилизации и закрытия PR-цикла, до архивации); роли dev/devops —
+        # участники реакции. severity-классификация — НЕ отдельный этап, а
+        # check на emergency_stabilize (D1).
+        Stage("post_mortem", ("dev", "devops"), False,
+              ("post-mortem в test-model/incidents/ (секции: таймлайн, root "
+               "cause, action items)",), check_post_mortem),
+        # J48 (D3): archive_change — этап ворот (D2); роли зеркалируют
+        # архивацию Флоу 1 (решение Заказчика 3.3 S7), новых ролей нет.
+        Stage("archive_change", ("sa", "dev_lead", "integrator"), False,
+              ("flow_transition ворота post-mortem (D2)",),
+              check_archive_flow3),
     ),
     4: (
         Stage("chore_task", ("dev",), False,
