@@ -1,17 +1,27 @@
 """instructor_cars.py — «Мои автомобили» инструктора (Спринт 3, задача 2.1;
-Спринт 5 add-booking-docs — РАСШИРЕНИЕ: 5 ракурсов, СТС, комплектность,
-блокировка, задачи 2.1/2.2/1.1).
+Спринт 5 add-booking-docs — 5 ракурсов, СТС, комплектность; Спринт 7
+add-car-validation-booking — РАСШИРЕНИЕ: статусная модель валидации
+(draft/validating/validated), задачи 1.1/1.2/2.1/3.1/4.1).
 
 GET/POST /api/instructor/cars; PATCH/DELETE /api/instructor/cars/{id};
-POST+GET /api/instructor/cars/{id}/photo (одиночное фото — устаревший
-маршрут совместимости Спринта 3, пишет photo_path; design.md MIN-4
-предусматривает его удаление вместе с photo_path, но снятие ломало бы
-регресс Спринта 3 — удаление отложено, колонка объявлена устаревшей);
-POST+GET /api/instructor/cars/{id}/photo/{angle} — ракурсы
-front/rear/interior/left/right (FR-42, FR-43);
+POST /api/instructor/cars/{id}/submit — draft→validating (алиас
+send-to-validation из ТЗ ПМ), POST …/{id}/withdraw — validating→draft
+(ОВ-3, алиас back-to-draft); не в том статусе → 409, чужое/несуществующее
+→ 404;
+POST/GET /api/instructor/cars/{id}/photo/{angle} — ракурсы
+front/rear/interior/left/right + 'sts' (СТС существующего авто, задача
+4.1; GET …/photo/sts — только владелец, эквивалент GET …/sts);
 GET /api/instructor/cars/{id}/sts — фото СТС, только владельцу (FR-44);
-GET /api/admin/cars/completeness — комплектность всех авто (ОВ-1);
-POST /api/admin/cars/{id}/block — блокировка авто админом (ОВ-1, MIN-2).
+GET /api/admin/cars/completeness (+алиас GET /api/admin/cars из ТЗ ПМ) —
+комплектность всех авто + status, фильтр ?status=validating;
+POST /api/admin/cars/{id}/validate — validating→validated (X-Admin-Token;
+ОВ-4: ≥3 любых ракурса И СТС, иначе 409 с перечнем недостающего).
+
+УДАЛЕНО (Спринт 7, REMOVED-дельты): legacy POST+GET …/photo (одиночное
+фото в photo_path — фото-контракт Спринта 3, корень СТС-симптома 4.1) и
+POST /api/admin/cars/{id}/block (контур блокировки Спринта 5 заменен
+статусной моделью — design.md); колонки photo_path/blocked объявлены
+устаревшими — новыми эндпоинтами не читаются и не пишутся.
 
 Доступ: require_session + role='instructor' (guards.require_role):
 401 — нет/неверная сессия, 403 — чужая роль. Чужой/несуществующий
@@ -22,17 +32,20 @@ transmission IN ('manual','automatic').
 Создание (FR-44, Спринт 5): multipart-запрос ОБЯЗАТЕЛЬНО несет файл
 `sts_photo` (JPEG/PNG ≤5 МБ по magic bytes до записи) — без файла → 422,
 авто НЕ создается. JSON-тело (без файла) — путь совместимости Спринта 3
-(авто без СТС; для новых авто фронтенд шлет multipart).
+(авто без СТС; для новых авто фронт шлет multipart). НОВОЕ авто создается
+в status='draft' — статус пишется ЯВНО в INSERT (DEFAULT колонки
+'validated' служит только миграции существующих строк, ОВ-1).
 
-Фото ракурсов (FR-42, MIN-2): JPEG/PNG ≤5 МБ по содержимому → иначе 422;
-выдача — владелец ИЛИ ученик принятой пары: гость → 401, иная роль → 403,
-чужой/несуществующий/ракурс не загружен → 404, ученик НЕ из пары → 403.
-Заблокированное админом авто (blocked=1) скрыто от учеников — выдача фото
-ученику пары → 404 (ОВ-1); владельцу — видна (пометка в списке).
-STC (СТС) ученикам не выдается — даже из пары → 403 (FR-44, NFR-7).
+Фото ракурсов (FR-42, MIN-2 + ОВ-2): JPEG/PNG ≤5 МБ по содержимому →
+иначе 422; выдача — владелец ИЛИ ученик принятой пары: гость → 401,
+иная роль → 403, чужой/несуществующий/ракурс не загружен → 404, ученик
+НЕ из пары → 403. Статусное правило (ОВ-2): draft → ученику пары 404
+(неразличение, NFR-4); validating/validated → выдается. angle='sts' —
+только владельцу (ученику пары → 403, NFR-7). Загрузка/замена фото и
+СТС статус НЕ меняет.
 
-Баг 5.2 (FR-42, задача 1.1): список авто выдает клиенту URL авторизованного
-фото-эндпоинта (photo_url / photos{angle}), а не файловый путь
+Баг 5.2 (FR-42, задача 1.1): список авто выдает клиенту URL
+авторизованного фото-эндпоинта (photos{angle}), а не файловый путь
 data/uploads/... (статикой не раздается — NFR-1): плитка строит <img> от
 эндпоинта, фото переживает перезагрузку и повторный вход (файл на диске).
 
@@ -100,8 +113,10 @@ def _car_payload_from_body(body) -> tuple[CarPayload | None, str]:
         return None, "Тело: ожидается JSON-объект автомобиля"
 
 
-# Спринт 5 (задача 2.1, ОВ-1): фиксированный набор ракурсов.
+# Спринт 5 (задача 2.1, ОВ-1): фиксированный набор ракурсов; Спринт 7
+# (задача 4.1): + 'sts' — СТС существующего авто (angle, не kind).
 ANGLES = ("front", "rear", "interior", "left", "right")
+UPLOAD_ANGLES = ANGLES + ("sts",)
 
 # Колонка ракурса — только по валидированному angle; SQL статический
 # (без конкатенации — NFR-3, grep-контроль).
@@ -111,6 +126,9 @@ _ANGLE_UPDATE_SQL = {
     "interior": "UPDATE instructor_cars SET photo_interior = ? WHERE id = ?",
     "left": "UPDATE instructor_cars SET photo_left = ? WHERE id = ?",
     "right": "UPDATE instructor_cars SET photo_right = ? WHERE id = ?",
+    # Спринт 7 (4.1): angle='sts' → photo_sts; замена не трогает ракурсы
+    # и статус (OV-7: статус меняют только submit/withdraw/validate).
+    "sts": "UPDATE instructor_cars SET photo_sts = ? WHERE id = ?",
 }
 
 _ANGLE_COLUMNS = {
@@ -119,7 +137,16 @@ _ANGLE_COLUMNS = {
     "interior": "photo_interior",
     "left": "photo_left",
     "right": "photo_right",
+    "sts": "photo_sts",
 }
+
+def _car_counters(row) -> dict:
+    """Комплектность для владельца/админа (задача 1.1): загружено ракурсов
+    из 5, СТС да/нет — для кнопок submit и чек-листа ОВ-4."""
+    angles = sum(
+        1 for angle in ANGLES if row[_ANGLE_COLUMNS[angle]] is not None
+    )
+    return {"angles": angles, "sts": row["photo_sts"] is not None}
 
 
 
@@ -154,11 +181,12 @@ def _validate_car(
 
 def _own_car(conn: sqlite3.Connection, car_id: int, instructor_id: int):
     """SELECT СВОЕГО авто (WHERE по id и владельцу); чужой/несуществующий
-    → None → 404 (не раскрываем существование)."""
+    → None → 404 (не раскрываем существование). photo_path/blocked —
+    устаревшие колонки, новые эндпоинты их не читают (design.md)."""
     return conn.execute(
         "SELECT id, instructor_id, brand, model, year, plate, transmission,"
-        " photo_path, photo_front, photo_rear, photo_interior, photo_left,"
-        " photo_right, photo_sts, blocked, created_at"
+        " photo_front, photo_rear, photo_interior, photo_left, photo_right,"
+        " photo_sts, status, created_at"
         " FROM instructor_cars WHERE id = ? AND instructor_id = ?",
         (car_id, instructor_id),
     ).fetchone()
@@ -168,8 +196,9 @@ def _any_car(conn: sqlite3.Connection, car_id: int):
     """SELECT авто по id независимо от владельца (для матрицы доступа
     фото ракурсов: чужой/несуществующий различаются проверками роли)."""
     return conn.execute(
-        "SELECT id, instructor_id, photo_path, photo_front, photo_rear,"
-        " photo_interior, photo_left, photo_right, photo_sts, blocked"
+        "SELECT id, instructor_id, brand, model, year, plate, transmission,"
+        " photo_front, photo_rear, photo_interior, photo_left, photo_right,"
+        " photo_sts, status, created_at"
         " FROM instructor_cars WHERE id = ?",
         (car_id,),
     ).fetchone()
@@ -202,9 +231,11 @@ def _serve_image(path: str | None) -> Response | JSONResponse:
 def list_cars(
     x_session_token: str | None = Header(default=None, alias="X-Session-Token"),
 ):
-    """Список СВОИХ автомобилей (FR-26) + Спринт 5: URL фото-эндпоинтов
-    для плиток (баг 5.2 — клиенту выдается ссылка на авторизованный
-    эндпоинт, не файловый путь), флаги ракурсов/СТС, blocked (ОВ-1)."""
+    """Список СВОИХ автомобилей (FR-26) во ВСЕХ статусах (задача 1.1):
+    + status, + counters (ракурсов из 5, СТС да/нет — для кнопок и
+    бейджей владельца); URL фото-эндпоинтов для плиток (баг 5.2 — клиенту
+    выдается ссылка на авторизованный эндпоинт, не файловый путь).
+    photo_path/blocked — устаревшие, не выдаются (design.md)."""
     instructor_id, err = require_role(x_session_token, "instructor")
     if err is not None:
         return err
@@ -212,9 +243,9 @@ def list_cars(
     conn = db.get_conn()
     try:
         rows = conn.execute(
-            "SELECT id, brand, model, year, plate, transmission, photo_path,"
+            "SELECT id, brand, model, year, plate, transmission,"
             " photo_front, photo_rear, photo_interior, photo_left,"
-            " photo_right, photo_sts, blocked, created_at"
+            " photo_right, photo_sts, status, created_at"
             " FROM instructor_cars WHERE instructor_id = ? ORDER BY id",
             (instructor_id,),
         ).fetchall()
@@ -236,17 +267,10 @@ def list_cars(
                 key: row[key]
                 for key in (
                     "id", "brand", "model", "year", "plate", "transmission",
-                    "created_at",
+                    "status", "created_at",
                 )
             }
             | {
-                "has_photo": row["photo_path"] is not None,
-                # Устаревший одиночный маршрут совместимости Спринта 3.
-                "photo_url": (
-                    f"/api/instructor/cars/{car_id}/photo"
-                    if row["photo_path"] is not None
-                    else None
-                ),
                 "photos": photos,
                 "has_sts": row["photo_sts"] is not None,
                 "sts_url": (
@@ -254,7 +278,7 @@ def list_cars(
                     if row["photo_sts"] is not None
                     else None
                 ),
-                "blocked": bool(row["blocked"]),
+                "counters": _car_counters(row),
             }
         )
     return {"ok": True, "cars": cars}
@@ -324,9 +348,13 @@ async def create_car(
 
     conn = db.get_conn()
     try:
+        # Спринт 7 (задача 1.1): новое авто создается в 'draft' ЯВНО —
+        # DEFAULT колонки ('validated') в новом коде не используется
+        # (защита от «молчаливого validated» при будущих INSERT).
         cur = conn.execute(
             "INSERT INTO instructor_cars (instructor_id, brand, model, year,"
-            " plate, transmission, photo_sts) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            " plate, transmission, photo_sts, status)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, 'draft')",
             (
                 instructor_id,
                 updates["brand"],
@@ -342,6 +370,76 @@ async def create_car(
     finally:
         conn.close()
     return {"ok": True, "car_id": car_id}
+
+
+# --- Спринт 7 (задача 1.1): переходы статусной модели (ОВ-3) -----------------
+
+
+def _car_transition(
+    car_id: int,
+    x_session_token: str | None,
+    required_status: str,
+    target_status: str,
+    not_in_status_error: str,
+):
+    """Общий механизм перехода статуса ТОЛЬКО СВОЕГО авто: чужое/
+    несуществующее → 404 (NFR-7, не раскрываем); авто не в требуемом
+    статусе → 409; иначе UPDATE + 200 с новым статусом."""
+    instructor_id, err = require_role(x_session_token, "instructor")
+    if err is not None:
+        return err
+
+    conn = db.get_conn()
+    try:
+        row = _own_car(conn, car_id, instructor_id or 0)
+        if row is None:
+            return _error(404, "Автомобиль не найден")
+        if row["status"] != required_status:
+            return _error(409, not_in_status_error)
+        conn.execute(
+            "UPDATE instructor_cars SET status = ? WHERE id = ?",
+            (target_status, car_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return {"ok": True, "status": target_status}
+
+
+@router.post("/api/instructor/cars/{car_id}/submit")
+@router.post("/api/instructor/cars/{car_id}/send-to-validation")
+def submit_car(
+    car_id: int,
+    x_session_token: str | None = Header(default=None, alias="X-Session-Token"),
+):
+    """Отправка на валидацию (draft→validating): только владелец; авто не
+    в draft → 409 «Автомобиль не в статусе черновика»; чужой/
+    несуществующий → 404. send-to-validation — алиас из ТЗ ПМ."""
+    return _car_transition(
+        car_id,
+        x_session_token,
+        "draft",
+        "validating",
+        "Автомобиль не в статусе черновика",
+    )
+
+
+@router.post("/api/instructor/cars/{car_id}/withdraw")
+@router.post("/api/instructor/cars/{car_id}/back-to-draft")
+def withdraw_car(
+    car_id: int,
+    x_session_token: str | None = Header(default=None, alias="X-Session-Token"),
+):
+    """Отзыв на доработку (validating→draft, ОВ-3): только владелец; авто
+    не в validating → 409; чужой/несуществующий → 404. back-to-draft —
+    алиас из ТЗ ПМ."""
+    return _car_transition(
+        car_id,
+        x_session_token,
+        "validating",
+        "draft",
+        "Автомобиль не на валидации",
+    )
 
 
 @router.patch("/api/instructor/cars/{car_id}")
@@ -442,15 +540,16 @@ async def upload_car_photo_angle(
     request: Request,
     x_session_token: str | None = Header(default=None, alias="X-Session-Token"),
 ):
-    """Загрузка/замена ОДНОГО ракурса (FR-43): angle ∈
-    front/rear/interior/left/right → иначе 404; только владелец (чужой
-    авто → 404); JPEG/PNG ≤5 МБ по содержимому → иначе 422; файл —
-    data/uploads/car_photo/<uuid>.<ext>; замена ракурса остальные
-    не трогает."""
+    """Загрузка/замена ОДНОГО ракурса (FR-43 + задача 4.1): angle ∈
+    front/rear/interior/left/right + НОВОЕ 'sts' (СТС существующего авто
+    → photo_sts; корень симптома «kind=car_sts не сохраняется» — legacy
+    маршрут удален) → иначе 404; только владелец (чужой авто → 404);
+    JPEG/PNG ≤5 МБ по содержимому → иначе 422; замена остальные ракурсы
+    и статус НЕ трогает."""
     instructor_id, err = require_role(x_session_token, "instructor")
     if err is not None:
         return err
-    if angle not in ANGLES:
+    if angle not in UPLOAD_ANGLES:
         return _error(404, "Ракурс не найден")
 
     conn = db.get_conn()
@@ -485,10 +584,12 @@ def get_car_photo_angle(
     angle: str,
     x_session_token: str | None = Header(default=None, alias="X-Session-Token"),
 ):
-    """Фото ракурса (FR-42, MIN-2): владелец ИЛИ ученик принятой пары;
-    гость → 401; иная роль → 403; чужой/несуществующий авто → 404;
-    ученик НЕ из пары → 403; заблокированное авто от ученика скрыто
-    (ОВ-1) → 404; ракурс вне списка/не загружен → 404. Ответ image/*."""
+    """Фото ракурса (FR-42, MIN-2 + ОВ-2, задача 2.1): владелец ИЛИ ученик
+    принятой пары; гость → 401; иная роль → 403; чужой/несуществующий
+    авто → 404; ученик НЕ из пары → 403; Статусное правило: draft →
+    ученику пары 404 (неразличение, NFR-4); validating/validated →
+    выдается; angle='sts' — только владельцу (ученику пары → 403, NFR-7);
+    ракурс вне списка/не загружен → 404. Ответ image/*."""
     user_id = auth.session_user_id(x_session_token)
     if user_id is None:
         return _unauthorized()
@@ -512,9 +613,6 @@ def get_car_photo_angle(
             if car["instructor_id"] != user_id:
                 return _error(404, "Автомобиль не найден")
         else:
-            if car["blocked"]:
-                # ОВ-1/MIN-2: заблокированное авто скрыто от учеников
-                return _error(404, "Автомобиль не найден")
             paired = conn.execute(
                 "SELECT 1 FROM student_requests"
                 " WHERE student_id = ? AND instructor_id = ?"
@@ -523,8 +621,15 @@ def get_car_photo_angle(
             ).fetchone()
             if paired is None:
                 return _error(403, "Нет доступа к фото этого автомобиля")
+            # ОВ-2 (задача 2.1): draft скрыт от ученика пары — 404
+            # неразличение (серверная проверка на каждом запросе, NFR-4/7).
+            if car["status"] == "draft":
+                return _error(404, "Автомобиль не найден")
+            # СТС ученику не выдается во всех статусах (NFR-7).
+            if angle == "sts":
+                return _error(403, "Нет доступа к фото этого автомобиля")
 
-        if angle not in ANGLES:
+        if angle not in UPLOAD_ANGLES:
             return _error(404, "Ракурс не найден")
         path = car[_ANGLE_COLUMNS[angle]]
     finally:
@@ -553,30 +658,51 @@ def get_car_sts(
     return _serve_image(row["photo_sts"])
 
 
-# --- Спринт 5, задача 2.2: комплектность и блокировка (админ) ---------------
+# --- Спринт 7 (задача 1.2): админ — все авто, validate (ОВ-4) ----------------
+# POST /api/admin/cars/{id}/block (Спринт 5) УДАЛЕН: контур блокировки
+# замещен статусной моделью (design.md «Замена контура блокировки»).
 
 
 @router.get("/api/admin/cars/completeness")
+@router.get("/api/admin/cars")
 def admin_cars_completeness(
+    status: str = "",
     x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
 ):
-    """Комплектность всех авто всех инструкторов (ОВ-1): марка/модель/
-    госномер, владелец, флаги 5 ракурсов + СТС, флаг blocked.
-    Без/с неверным админ-токеном → 401."""
+    """Комплектность всех авто всех инструкторов (ОВ-1 + задача 1.2):
+    марка/модель/госномер, владелец, флаги 5 ракурсов + СТС, + status
+    каждого авто; фильтр ?status=validating — «На валидации» (недопустимое
+    значение фильтра → 422). GET /api/admin/cars — алиас из ТЗ ПМ.
+    Без/с неверным админ-токеном → 401. blocked/photo_path — устаревшие,
+    не читаются."""
     unauthorized = _require_admin_session(x_admin_token)
     if unauthorized is not None:
         return unauthorized
+    if status and status not in ("draft", "validating", "validated"):
+        return _error(422, "Статус: укажите draft, validating или validated")
 
     conn = db.get_conn()
     try:
-        rows = conn.execute(
-            "SELECT c.id, c.instructor_id, c.brand, c.model, c.plate,"
-            " c.photo_front, c.photo_rear, c.photo_interior, c.photo_left,"
-            " c.photo_right, c.photo_sts, c.blocked,"
-            " u.surname, u.name, u.patronymic"
-            " FROM instructor_cars AS c JOIN users AS u"
-            " ON u.id = c.instructor_id ORDER BY c.id",
-        ).fetchall()
+        if status:
+            rows = conn.execute(
+                "SELECT c.id, c.instructor_id, c.brand, c.model, c.plate,"
+                " c.photo_front, c.photo_rear, c.photo_interior, c.photo_left,"
+                " c.photo_right, c.photo_sts, c.status,"
+                " u.surname, u.name, u.patronymic"
+                " FROM instructor_cars AS c JOIN users AS u"
+                " ON u.id = c.instructor_id WHERE c.status = ?"
+                " ORDER BY c.id",
+                (status,),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT c.id, c.instructor_id, c.brand, c.model, c.plate,"
+                " c.photo_front, c.photo_rear, c.photo_interior, c.photo_left,"
+                " c.photo_right, c.photo_sts, c.status,"
+                " u.surname, u.name, u.patronymic"
+                " FROM instructor_cars AS c JOIN users AS u"
+                " ON u.id = c.instructor_id ORDER BY c.id",
+            ).fetchall()
     finally:
         conn.close()
     cars = [
@@ -595,99 +721,62 @@ def admin_cars_completeness(
                 "right": row["photo_right"] is not None,
             },
             "has_sts": row["photo_sts"] is not None,
-            "blocked": bool(row["blocked"]),
+            "status": row["status"],
+            "counters": _car_counters(row),
         }
         for row in rows
     ]
     return {"ok": True, "cars": cars}
 
 
-@router.post("/api/admin/cars/{car_id}/block")
-def admin_block_car(
+@router.post("/api/admin/cars/{car_id}/validate")
+def admin_validate_car(
     car_id: int,
     x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
 ):
-    """Блокировка авто (ОВ-1, назначение — авто с неполным комплектом):
-    blocked=1, идемпотентно (повторное — 200 без ошибки). Эффект (MIN-2):
-    авто скрыт от учеников (выдача фото ученику пары → 404), НЕ
-    ретроактивен для броней; разблокировка — вне объема. Без токена → 401;
-    несуществующий → 404."""
+    """Подтверждение авто админом (ОВ-4, задача 1.2): validating→validated;
+    предусловие — загружены ЛЮБЫЕ 3 ракурса из 5 И photo_sts, иначе 409 с
+    перечнем недостающего; авто не в validating → 409; несуществующий →
+    404; без/с неверным токеном → 401. Эффект — авто виден в каталоге,
+    бейдж «Проверено»."""
     unauthorized = _require_admin_session(x_admin_token)
     if unauthorized is not None:
         return unauthorized
 
     conn = db.get_conn()
     try:
-        cur = conn.execute(
-            "UPDATE instructor_cars SET blocked = 1 WHERE id = ?",
+        row = conn.execute(
+            "SELECT id, photo_front, photo_rear, photo_interior,"
+            " photo_left, photo_right, photo_sts, status"
+            " FROM instructor_cars WHERE id = ?",
             (car_id,),
-        )
-        if cur.rowcount == 0:
-            return _error(404, "Автомобиль не найден")
-        conn.commit()
-    finally:
-        conn.close()
-    return {"ok": True, "blocked": True}
-
-
-# --- Устаревший одиночный маршрут Спринта 3 (совместимость; MIN-4: removal
-# отложен — см. докстринг модуля). photo_path объявлена устаревшей. -------
-
-
-@router.post("/api/instructor/cars/{car_id}/photo")
-async def upload_car_photo(
-    car_id: int,
-    request: Request,
-    x_session_token: str | None = Header(default=None, alias="X-Session-Token"),
-):
-    """Загрузка фото СВОЕГО автомобиля (FR-27): JPEG/PNG ≤5 МБ по
-    содержимому (magic bytes) до записи на диск → иначе 422; файл
-    сохраняется в data/uploads/cars/<uuid>.<ext> (NFR-1, NFR-6)."""
-    instructor_id, err = require_role(x_session_token, "instructor")
-    if err is not None:
-        return err
-
-    conn = db.get_conn()
-    try:
-        row = _own_car(conn, car_id, instructor_id or 0)
+        ).fetchone()
         if row is None:
             return _error(404, "Автомобиль не найден")
-    finally:
-        conn.close()
+        if row["status"] != "validating":
+            return _error(409, "Автомобиль не на валидации")
 
-    read = await _read_form_file(request, "photo")
-    if isinstance(read, JSONResponse):
-        return read
-    content, ext = read
-    path = uploads.save_image("cars", content, ext)
-    conn = db.get_conn()
-    try:
+        missing = [
+            angle
+            for angle in ANGLES
+            if row[_ANGLE_COLUMNS[angle]] is None
+        ]
+        loaded = len(ANGLES) - len(missing)
+        if loaded < 3 or row["photo_sts"] is None:
+            parts = []
+            if loaded < 3:
+                parts.append(
+                    "загружено ракурсов: {} из 5 (нужно минимум 3;"
+                    " не хватает: {})".format(loaded, ", ".join(missing))
+                )
+            if row["photo_sts"] is None:
+                parts.append("нет фото СТС")
+            return _error(409, "Комплект неполный: " + "; ".join(parts))
         conn.execute(
-            "UPDATE instructor_cars SET photo_path = ? WHERE id = ?",
-            (path, car_id),
+            "UPDATE instructor_cars SET status = 'validated' WHERE id = ?",
+            (car_id,),
         )
         conn.commit()
     finally:
         conn.close()
-    return {"ok": True}
-
-
-@router.get("/api/instructor/cars/{car_id}/photo")
-def get_car_photo(
-    car_id: int,
-    x_session_token: str | None = Header(default=None, alias="X-Session-Token"),
-):
-    """Фото автомобиля — только владельцу (MIN-2): гость → 401, чужая
-    роль → 403, чужой/несуществующий/без фото → 404; ответ image/*."""
-    instructor_id, err = require_role(x_session_token, "instructor")
-    if err is not None:
-        return err
-
-    conn = db.get_conn()
-    try:
-        row = _own_car(conn, car_id, instructor_id or 0)
-    finally:
-        conn.close()
-    if row is None:
-        return _error(404, "Автомобиль не найден")
-    return _serve_image(row["photo_path"])
+    return {"ok": True, "status": "validated"}

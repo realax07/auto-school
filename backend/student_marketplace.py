@@ -56,10 +56,13 @@ def _rating_aggregate(conn: sqlite3.Connection, instructor_id: int) -> dict:
 
 def _instructor_cars(conn: sqlite3.Connection, instructor_id: int) -> list[dict]:
     """Автомобили карточки: марка/модель/год/КПП — БЕЗ фото и госномера
-    (design.md блок 4, NFR-1)."""
+    (design.md блок 4, NFR-1). Спринт 7 (ОВ-2, задача 2.1): в каталоге и
+    авто-фильтрах — ТОЛЬКО status='validated' (серверная проверка на
+    каждом запросе, NFR-7); инструктор без validated-авто остается в
+    каталоге с пустым блоком авто."""
     rows = conn.execute(
         "SELECT id, brand, model, year, transmission FROM instructor_cars"
-        " WHERE instructor_id = ? ORDER BY id",
+        " WHERE instructor_id = ? AND status = 'validated' ORDER BY id",
         (instructor_id,),
     ).fetchall()
     return [dict(row) for row in rows]

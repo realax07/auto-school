@@ -159,6 +159,13 @@ _COLUMN_MIGRATIONS = (
      "ALTER TABLE instructor_cars ADD COLUMN photo_sts TEXT"),
     ("instructor_cars", "blocked",
      "ALTER TABLE instructor_cars ADD COLUMN blocked INTEGER NOT NULL DEFAULT 0"),
+    # Спринт 7 (add-car-validation-booking, задача 1.1): статус валидации.
+    # ОВ-1: существующие строки получают 'validated' через DEFAULT — авто,
+    # жившее до статусной модели, не исчезает из каталога и пар. CHECK
+    # ограничивает значения машиной статусов draft/validating/validated.
+    ("instructor_cars", "status",
+     "ALTER TABLE instructor_cars ADD COLUMN status TEXT NOT NULL DEFAULT"
+     " 'validated' CHECK (status IN ('draft','validating','validated'))"),
 )
 
 

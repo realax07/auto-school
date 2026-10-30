@@ -359,14 +359,20 @@ def test_car_photo_upload_and_owner_only(api, client, tmp_path):
     Сценарии фото (FR-27, MIN-2): JPEG привязан и выдается владельцу
 
     (image/jpeg); PDF/6 МБ → 422; другому инструктору/гостю не выдается;
-    свой без фото → 404."""
+    свой без фото → 404.
+    [test-adapted] Спринт 7 (add-car-validation-booking, задача 4.1,
+    REMOVED-дельта MIN-4): legacy POST/GET …/photo (одиночное фото,
+    photo_path) удален — кластер переведен на параметризованный маршрут
+    …/photo/{angle} (front); семантика кейса сохранена/усилена
+    (+ legacy-маршрут отсутствует; СТС-кластер angle='sts' — в
+    tests/test_s7_backend.py, TC-S7BE-0xx)."""
     instr = create_instructor(client)
     car_id = add_car(client, instr["token"])
 
     # свой без фото → 404
     assert (
         client.get(
-            f"/api/instructor/cars/{car_id}/photo",
+            f"/api/instructor/cars/{car_id}/photo/front",
             headers=_headers(instr["token"]),
         ).status_code
         == 404
@@ -374,7 +380,7 @@ def test_car_photo_upload_and_owner_only(api, client, tmp_path):
 
     # PDF → 422, фото не привязано
     bad_type = client.post(
-        f"/api/instructor/cars/{car_id}/photo",
+        f"/api/instructor/cars/{car_id}/photo/front",
         files={"photo": ("doc.pdf", PDF_BYTES, "application/pdf")},
         headers=_headers(instr["token"]),
     )
@@ -383,23 +389,23 @@ def test_car_photo_upload_and_owner_only(api, client, tmp_path):
 
     # >5 МБ → 422 (сниффер отклоняет размер до записи)
     bad_size = client.post(
-        f"/api/instructor/cars/{car_id}/photo",
+        f"/api/instructor/cars/{car_id}/photo/front",
         files={"photo": ("big.jpg", OVERSIZE_JPEG, "image/jpeg")},
         headers=_headers(instr["token"]),
     )
     assert bad_size.status_code == 422
     assert "5 МБ" in bad_size.json()["error"]
 
-    # валидный JPEG: привязан, лежит в data/uploads/cars/ (env в tmp_path)
+    # валидный JPEG: привязан, лежит в data/uploads/car_photo/ (env в tmp_path)
     uploaded = client.post(
-        f"/api/instructor/cars/{car_id}/photo",
+        f"/api/instructor/cars/{car_id}/photo/front",
         files={"photo": ("car.jpg", JPEG_BYTES, "image/jpeg")},
         headers=_headers(instr["token"]),
     )
     assert uploaded.status_code == 200, uploaded.text
 
     got = client.get(
-        f"/api/instructor/cars/{car_id}/photo",
+        f"/api/instructor/cars/{car_id}/photo/front",
         headers=_headers(instr["token"]),
     )
     assert got.status_code == 200
@@ -408,23 +414,23 @@ def test_car_photo_upload_and_owner_only(api, client, tmp_path):
 
     conn = sqlite3.connect(db_path())
     stored_path = conn.execute(
-        "SELECT photo_path FROM instructor_cars WHERE id = ?", (car_id,)
+        "SELECT photo_front FROM instructor_cars WHERE id = ?", (car_id,)
     ).fetchone()[0]
     conn.close()
     assert stored_path and Path(stored_path).read_bytes() == JPEG_BYTES
-    assert "cars" in Path(stored_path).parts
+    assert "car_photo" in Path(stored_path).parts
 
     # PNG тоже принимается (magic bytes, не Content-Type клиента)
     other = create_instructor(client, email="other@example.com")
     other_car = add_car(client, other["token"])
     png_upload = client.post(
-        f"/api/instructor/cars/{other_car}/photo",
+        f"/api/instructor/cars/{other_car}/photo/front",
         files={"photo": ("car.png", PNG_BYTES, "image/png")},
         headers=_headers(other["token"]),
     )
     assert png_upload.status_code == 200, png_upload.text
     png_get = client.get(
-        f"/api/instructor/cars/{other_car}/photo",
+        f"/api/instructor/cars/{other_car}/photo/front",
         headers=_headers(other["token"]),
     )
     assert png_get.status_code == 200
@@ -433,19 +439,41 @@ def test_car_photo_upload_and_owner_only(api, client, tmp_path):
     # чужой инструктор → 404; гость → 401; ученик → 403
     assert (
         client.get(
-            f"/api/instructor/cars/{car_id}/photo",
+            f"/api/instructor/cars/{car_id}/photo/front",
             headers=_headers(other["token"]),
         ).status_code
         == 404
     )
-    assert client.get(f"/api/instructor/cars/{car_id}/photo").status_code == 401
+    assert (
+        client.get(
+            f"/api/instructor/cars/{car_id}/photo/front"
+        ).status_code
+        == 401
+    )
     student = create_student(client)
     assert (
         client.get(
-            f"/api/instructor/cars/{car_id}/photo",
+            f"/api/instructor/cars/{car_id}/photo/front",
             headers=_headers(student["token"]),
         ).status_code
         == 403
+    )
+
+    # Спринт 7 (4.1, REMOVED): legacy-маршрут без ракурса отсутствует
+    assert (
+        client.post(
+            f"/api/instructor/cars/{car_id}/photo",
+            files={"photo": ("car.jpg", JPEG_BYTES, "image/jpeg")},
+            headers=_headers(instr["token"]),
+        ).status_code
+        in (404, 405)
+    )
+    assert (
+        client.get(
+            f"/api/instructor/cars/{car_id}/photo",
+            headers=_headers(instr["token"]),
+        ).status_code
+        in (404, 405)
     )
 
 
@@ -781,6 +809,18 @@ def test_license_image_direct_url_not_served(api, client):
 # --- Домен student-instructor-choice -------------------------------------------
 
 
+def _set_car_status(car_id: int, status: str) -> None:
+    """Прямой контроль БД (механика conftest): выставить статус валидации
+    (аранжировка для каталога — POST создает авто в 'draft', Спринт 7)."""
+    conn = sqlite3.connect(db_path())
+    conn.execute(
+        "UPDATE instructor_cars SET status = ? WHERE id = ?",
+        (status, car_id),
+    )
+    conn.commit()
+    conn.close()
+
+
 def test_marketplace_lists_only_approved(api, client):
     """TC-S3BE-019 (change add-instructor-student-loop): сценарий «Ученик видит карточки одобренных инструкторов» (student-instructor-choice): waiting в каталог не попадает; карточка с ФИО, стажем, авто без фото/госномера, рейтингом и графиком (FR-31).
     Сценарий «Ученик видит карточки одобренных инструкторов» +
@@ -790,6 +830,10 @@ def test_marketplace_lists_only_approved(api, client):
     рейтинг, часы работы."""
     instr = create_instructor(client, experience_years=7)
     add_car(client, instr["token"])
+    # [test-adapted] Спринт 7 (ОВ-2): каталог — только validated; выставляем
+    # статус аранжировкой (семантика кейса «карточка с авто» сохранена).
+    car_id = _any_car_id(instr["id"])
+    _set_car_status(car_id, "validated")
     client.put(
         "/api/instructor/availability",
         json={"intervals": [{"weekday": 0, "start_time": "10:00",
@@ -844,6 +888,10 @@ def test_marketplace_filters(api, client):
     manual_car = add_car(
         client, manual["token"], transmission="manual", plate="В777ВВ777"
     )
+    # [test-adapted] Спринт 7 (ОВ-2): авто-фильтры — по validated; статусы
+    # выставлены аранжировкой (семантика фильтров сохранена).
+    _set_car_status(_any_car_id(auto["id"]), "validated")
+    _set_car_status(manual_car, "validated")
     client.put(
         "/api/instructor/availability",
         json={"intervals": [{"weekday": 0, "start_time": "10:00",
