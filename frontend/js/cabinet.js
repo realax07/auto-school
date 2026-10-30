@@ -248,6 +248,59 @@ import { toast, el, fmtDate, nowMoscow, fioOf } from './utils.js';
     var tr = c.transmission === 'automatic' ? 'автомат' : c.transmission === 'manual' ? 'механика' : (c.transmission || '');
     return [c.brand, c.model].filter(Boolean).join(' ') + (c.year ? ' ' + c.year : '') + (tr ? ' · ' + tr : '');
   }
+  // Спринт 7 (задачи 2.1/6.2, ОВ-2): авторизованная загрузка фото авто
+  // (обычный <img src> получит 401 — токен уходит заголовком, ответ -> blob)
+  function loadImgAuth(url, img) {
+    if (!url) return;
+    fetch(url, { headers: { 'X-Session-Token': token || '' } })
+      .then(function (r) { return r.ok ? r.blob() : null; })
+      .then(function (blob) { if (blob) img.src = URL.createObjectURL(blob); })
+      .catch(function () { /* 404/сеть: остается плейсхолдер, не битая картинка */ });
+  }
+  // бейдж статуса авто (ОВ-2): validating — желтый «Не проверено»,
+  // validated — зеленый «Проверено» + галочка (:before в CSS);
+  // draft/удален/нет статуса — null (бейдж скрыт)
+  function carBadgeNode(status) {
+    if (status === 'validating') return el('span', 'car-badge val', 'Не проверено');
+    if (status === 'validated') return el('span', 'car-badge ok', 'Проверено');
+    return null;
+  }
+  function setBadgeEl(elm, status) {
+    var badge = carBadgeNode(status);
+    if (badge) {
+      elm.className = badge.className;
+      elm.textContent = badge.textContent;
+      elm.style.display = '';
+    } else {
+      elm.style.display = 'none';
+      elm.textContent = '';
+    }
+  }
+  // карточка прикрепленного авто рядом со слотами (задача 6.2): фото +
+  // название + бейдж; данные — car из броней (photo_url приоритет front;
+  // draft -> у ученика без photo_url — плейсхолдер, ОВ-2)
+  function renderPairCarCard(bookings) {
+    var card = document.getElementById('bk-car-card');
+    var car = null;
+    bookings.forEach(function (b) { if (!car && b.car && b.car.id) car = b.car; });
+    if (!car && bkPair && bkPair.car && bkPair.car.id) car = bkPair.car;
+    if (!car) { card.style.display = 'none'; setBadgeEl(document.getElementById('bk-pair-badge'), null); return; }
+    card.style.display = 'flex';
+    var photo = document.getElementById('bk-car-photo');
+    photo.innerHTML = '';
+    if (car.photo_url) {
+      var img = document.createElement('img');
+      img.alt = 'Фото автомобиля инструктора';
+      photo.appendChild(img);
+      loadImgAuth(car.photo_url, img);
+    } else {
+      photo.appendChild(el('span', 'ph', '🚗'));
+    }
+    document.getElementById('bk-car-name').textContent = bkCarText(car);
+    setBadgeEl(document.getElementById('bk-car-badge'), car.car_status);
+    // бейдж статуса авто у пары (задача 2.1/6.2, ОВ-2)
+    setBadgeEl(document.getElementById('bk-pair-badge'), car.car_status);
+  }
   function loadBookingsSection() {
     api('/api/student/requests', {}, function (res) {
       if (handleAuthFail(res)) return;
@@ -288,16 +341,19 @@ import { toast, el, fmtDate, nowMoscow, fioOf } from './utils.js';
       bkSlots = res.data.slots || [];
       api('/api/student/bookings', {}, function (res2) {
         if (handleAuthFail(res2)) return;
-        renderSchedule(res2 && res2.data && res2.data.ok ? (res2.data.bookings || []) : []);
-        renderMyBookings(res2 && res2.data && res2.data.ok ? (res2.data.bookings || []) : []);
+        var bks = res2 && res2.data && res2.data.ok ? (res2.data.bookings || []) : [];
+        renderSchedule(bks);
+        renderMyBookings(bks);
       });
     });
   }
-  function renderSchedule() {
+  function renderSchedule(bookings) {
     var cal = document.getElementById('bk-cal');
     var grid = document.getElementById('bk-grid');
     if (!bkSlots.length) { cal.style.display = 'none'; return; }
     cal.style.display = 'block';
+    // Спринт 7 (задача 6.2): карточка прикрепленного авто со слотами + бейдж
+    renderPairCarCard(bookings);
     grid.innerHTML = '';
     var now = nowMoscow();
     var todayIdx = (now.getDay() + 6) % 7;
@@ -395,6 +451,10 @@ import { toast, el, fmtDate, nowMoscow, fioOf } from './utils.js';
       who.appendChild(el('b', null, dayName + (b.lesson_date || '') + ' · ' + (b.start_time || '') + '–' + (b.end_time || '')));
       who.appendChild(el('small', null, (b.instructor_full_name || '') + ' · авто: ' + bkCarText(b.car)));
       top.appendChild(who);
+      // Спринт 7 (ОВ-2): бейдж статуса авто брони (validated «Проверено» +
+      // галочка / validating желтый «Не проверено»; draft — без бейджа)
+      var carBadge = carBadgeNode(b.car && b.car.car_status);
+      if (carBadge) top.appendChild(carBadge);
       top.appendChild(el('span', 'bk-status ' + st[1], st[0]));
       art.appendChild(top);
       if (b.status === 'rejected' && b.reject_comment) {

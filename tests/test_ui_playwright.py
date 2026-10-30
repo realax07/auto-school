@@ -1363,22 +1363,25 @@ def test_s4_my_cars_add_edit_delete_car(page, server, tmp_path):
     expect(page.locator("#save-car")).to_be_enabled()
     page.locator("#save-car").click()
 
-    # карточка появилась (пустое состояние ушло): 5 пустых слотов ракурсов,
-    # СТС «has» (создан с файлом), комплектность — не хватает 5 ракурсов
+    # карточка появилась (пустое состояние ушло): статус «Черновик» (Спринт 7,
+    # новый авто создается в draft), главный снимок-плейсхолдер, комплектность
+    # 0/5 + СТС ✓ (создан с файлом), «Не хватает: …» (ракурсы)
     card = page.locator(".car")
     expect(card).to_have_count(1)
     expect(card.locator("b.title")).to_have_text("Škoda Rapid")
     expect(card.locator(".pill.plate")).to_have_text("А123АА777")
     expect(card.locator(".pill.green")).to_have_text("автомат")
-    expect(card.locator(".slot")).to_have_count(5)
-    expect(card.locator(".slot.empty")).to_have_count(5)
-    expect(card.locator(".sts-slot")).to_have_class("sts-slot has")
-    expect(card.locator(".car-head .status")).to_have_text(
-        "Не хватает: спереди, сзади, слева, справа, салон")
+    expect(card.locator(".car-head .status")).to_have_text("Черновик")
+    expect(card.locator(".shot .ph")).to_have_count(1)
+    expect(card.locator(".compl-lab")).to_contain_text("0/5 ракурсов · СТС ✓")
+    expect(card.locator(".compl-bar .sts-dot")).to_have_class("sts-dot f")
+    expect(card.locator(".compl .missing")).to_contain_text(
+        "спереди, сзади, слева, справа, салон")
     expect(page.locator("#empty")).to_be_hidden()
     expect(page.locator("#count")).to_have_text("Автомобилей: 1")
 
-    # бэкенд: авто реально создан, СТС на месте, ракурсов нет
+    # бэкенд: авто реально создан (статус draft — Спринт 7, задача 1.1),
+    # СТС на месте, ракурсов нет
     status, data = api("GET", "/api/instructor/cars", base=server, token=token)
     assert status == 200 and len(data["cars"]) == 1, (status, data)
     car = data["cars"][0]
@@ -1386,7 +1389,8 @@ def test_s4_my_cars_add_edit_delete_car(page, server, tmp_path):
     assert car["transmission"] == "automatic"
     assert car["has_sts"] is True and car["sts_url"], car
     assert all(url is None for url in car["photos"].values()), car
-    assert car["blocked"] is False
+    assert car["status"] == "draft" and car["counters"] == {
+        "angles": 0, "sts": True}, car
     car_id = car["id"]
     status, hdrs, body = _raw_get(f"{server}{car['sts_url']}", token=token)
     assert status == 200 and hdrs["Content-Type"] == "image/png"
@@ -1426,11 +1430,13 @@ def test_s4_my_cars_add_edit_delete_car(page, server, tmp_path):
 
 
 def test_s4_my_cars_photo_upload_progress_and_preview(page, server, tmp_path):
-    """TC-UI-016 (change add-booking-docs): «Мои автомобили» — слоты ракурсов:
-    клик по пустому слоту → выбор файла → POST /api/instructor/cars/{id}/
-    photo/{angle} → миниатюра в слоте (баг 5.2), комплектность пересчитана;
-    на бэкенде photos.front выдан, остальные ракурсы не тронуты (FR-43);
-    замена «спереди» не ломает карточку; выдача фото только по сессии."""
+    """TC-UI-016 (change add-booking-docs; Спринт 7 my-cars-s7): «Мои автомобили»
+    — модалка-галерея: клик по авто открывает карточку (стрелки ‹ › над
+    большим окном, 6 миниатюр: 5 ракурсов + СТС); клик по большому окну →
+    выбор файла → POST /api/instructor/cars/{id}/photo/{angle} → миниатюра и
+    комплектность пересчитаны; на бэкенде photos.front выдан, остальные
+    ракурсы не тронуты (FR-43); замена «спереди» не ломает карточку; выдача
+    фото только по сессии. Статус при загрузке фото не меняется (ОВ-7)."""
     token, _ = _approve_instructor(server)
     car_id = _add_car(server, token)
     _seed_session(page, "session_token", token)
@@ -1440,25 +1446,39 @@ def test_s4_my_cars_photo_upload_progress_and_preview(page, server, tmp_path):
     expect(page.locator("#sec-cars")).to_be_visible()
     card = page.locator(".car")
     expect(card).to_have_count(1)
-    # до загрузки: 5 пустых слотов-плейсхолдеров, без «битых» картинок
-    expect(card.locator(".slot")).to_have_count(5)
-    expect(card.locator(".slot.empty")).to_have_count(5)
-    assert card.locator(".slot img").count() == 0
+    # карточка: главный снимок — плейсхолдер (без «битых» картинок),
+    # стрелок нет (загруженных ракурсов меньше двух)
+    assert card.locator(".shot img").count() == 0
+    expect(card.locator(".shot .navarrow")).to_have_count(0)
 
-    # клик по слоту «спереди» → выбор файла → загрузка ракурса
+    # --- клик по авто → модалка-галерея ---
+    card.click()
+    expect(page.locator("#m-car")).to_be_visible()
+    expect(page.locator("#mc-title")).to_have_text("Škoda Rapid")
+    expect(page.locator("#mc-status")).to_have_text("Черновик")
+    # 6 миниатюр (5 ракурсов + СТС): ракурсы пустые («—» + «＋»),
+    # СТС загружен при создании — единственная миниатюра с картинкой
+    thumbs = page.locator("#mc-thumbs .gal-thumb")
+    expect(thumbs).to_have_count(6)
+    expect(page.locator("#mc-thumbs .gal-thumb img")).to_have_count(1)
+    expect(page.locator("#mc-thumbs .gal-thumb.sts-t img")).to_have_count(1)
+    expect(page.locator("#mc-thumbs .gal-thumb:not(.sts-t) .no")).to_have_count(5)
+
+    # клик по большому окну (front открыт по умолчанию) → выбор файла → POST
     png_file = tmp_path / "front.png"
     png_file.write_bytes(PNG_1PX)
     with page.expect_file_chooser() as fc_info:
-        card.locator(".slot[data-angle='front']").click()
+        page.locator("#mc-big").click()
     fc_info.value.set_files(str(png_file))
 
-    # слот стал «has» с миниатюрой; комплектность пересчитана (осталось 4)
-    front = card.locator(".slot[data-angle='front']")
-    expect(front).to_have_class("slot has")
+    # галерея перезагружена: миниатюра «спереди» с картинкой, комплектность 1/5;
+    # статус в модалке не изменился (загрузка фото статус НЕ меняет, ОВ-7)
+    front = page.locator("#mc-thumbs .gal-thumb[data-galkey='front']")
     expect(front.locator("img")).to_be_visible()
-    expect(card.locator(".car-head .status")).to_have_text(
-        "Не хватает: сзади, слева, справа, салон")
-    expect(card.locator(".slot.empty")).to_have_count(4)
+    expect(page.locator("#mc-compl-lab")).to_have_text(
+        "1/5 ракурсов · СТС загружено")
+    expect(page.locator("#mc-status")).to_have_text("Черновик")
+    expect(page.locator("#m-car")).to_be_visible()
 
     # бэкенд: photos.front выдан владельцу (image/png), остальные — 404
     status, data = api("GET", "/api/instructor/cars", base=server, token=token)
@@ -1473,26 +1493,36 @@ def test_s4_my_cars_photo_upload_progress_and_preview(page, server, tmp_path):
             f"{server}/api/instructor/cars/{car_id}/photo/{angle}", token=token)
         assert status == 404, angle
 
-    # замена «спереди»: другой файл — точечная замена, остальные не тронуты
+    # замена «спереди»: большой кадр — клик по миниатюре переключает кадр,
+    # затем клик по большому окну → другой файл — точечная замена
+    front.click()
+    expect(page.locator("#mc-big img")).to_be_visible()
     png2 = tmp_path / "front2.png"
     png2.write_bytes(PNG_1PX + b"\x00" * 16)  # валидный PNG (magic bytes)
     with page.expect_file_chooser() as fc_info:
-        front.click()
+        page.locator("#mc-big").click()
     fc_info.value.set_files(str(png2))
-    expect(card.locator(".slot[data-angle='front'].has img")).to_be_visible()
-    expect(card.locator(".slot.empty")).to_have_count(4)
+    expect(page.locator("#mc-compl-lab")).to_have_text(
+        "1/5 ракурсов · СТС загружено")
     status, data = api("GET", "/api/instructor/cars", base=server, token=token)
     photos = data["cars"][0]["photos"]
     assert photos["front"], photos
     status, hdrs, body = _raw_get(f"{server}{photos['front']}", token=token)
     assert status == 200 and body == PNG_1PX + b"\x00" * 16
 
-    # просмотр СТС по клику на слот СТС (загружен при создании) — вьюер открыт
-    card.locator(".sts-slot").click()
-    expect(page.locator("#m-view")).to_be_visible()
-    expect(page.locator("#view-title")).to_contain_text("СТС")
-    page.locator("#view-close").click()
-    expect(page.locator("#m-view")).to_be_hidden()
+    # стрелки большого окна: цикл по 5 ракурсам + СТС (клик не открывает файл)
+    page.locator("#mc-big .navarrow.next").click()
+    expect(page.locator("#mc-big .up-hint")).to_contain_text("Сзади")
+    page.locator("#mc-big .navarrow.prev").click()
+    page.locator("#mc-big .navarrow.prev").click()
+    expect(page.locator("#mc-big .up-hint")).to_contain_text("СТС")
+    # карточка: главный снимок теперь с миниатюрой (фото переживает перезагрузку)
+    page.locator("#m-car .close").click()
+    expect(page.locator("#m-car")).to_be_hidden()
+    expect(card.locator(".shot img")).to_have_count(1)
+    page.reload()
+    page.locator('.nav button[data-tab="Мои автомобили"]').click()
+    expect(page.locator(".car .shot img")).to_have_count(1)
 
 
 def test_s4_review_submit_then_repeat_blocked_409(page, server):
@@ -1878,7 +1908,7 @@ def test_bug048_mycars_photo_thumbnail_before_send_and_errors(
     page.locator("#save-car").click()
     card = page.locator(".car")
     expect(card).to_have_count(1)
-    expect(card.locator(".sts-slot")).to_have_class("sts-slot has")
+    expect(card.locator(".compl-bar .sts-dot")).to_have_class("sts-dot f")
     status, data = api("GET", "/api/instructor/cars", base=server, token=token)
     assert data["cars"][0]["has_sts"] is True, data
 
@@ -1902,12 +1932,12 @@ def _fresh_page(browser, token):
 
 def test_s5_car_full_kit_completeness_and_student_sees_car(
         browser, server, tmp_path):
-    """TC-UI-024 (change add-booking-docs): интеграция «авто». Инструктор
-    добавил авто через UI (модалка: СТС обязателен) и загрузил 5 фото
-    ракурсов по слотам → комплектность «Комплект полный» (совпадает с
-    GET /api/admin/cars/completeness); ученик принятой пары видит авто
-    в каталоге (UI /instructor-choice + API), фото ракурсов ему выдаются,
-    СТС — НЕ выдаётся (FR-42/FR-44)."""
+    """TC-UI-024 (change add-booking-docs; Спринт 7): интеграция «авто».
+    Инструктор добавил авто через UI (модалка: СТС обязателен) и загрузил 5
+    фото ракурсов в модалке-галерее → комплектность «полный» (совпадает с
+    GET /api/admin/cars/completeness, статус «На валидации»/draft по кнопке);
+    ученик принятой пары видит авто в каталоге (UI /instructor-choice + API),
+    фото ракурсов ему выдаются, СТС — НЕ выдаётся (FR-42/FR-44)."""
     instr_token, instructor_id = _approve_instructor(server)
     page, ctx = _fresh_page(browser, instr_token)
     try:
@@ -1927,20 +1957,31 @@ def test_s5_car_full_kit_completeness_and_student_sees_car(
         card = page.locator(".car")
         expect(card).to_have_count(1)
 
-        # --- UI: 5 ракурсов по слотам ---
+        # --- UI: 5 ракурсов через модалку-галерею (клик по авто → большое окно) ---
+        card.click()
+        expect(page.locator("#m-car")).to_be_visible()
         angles = ["front", "rear", "left", "right", "interior"]
         for i, angle in enumerate(angles):
+            # миниатюра «—» → открытый кадр; клик по большому окну → файл
+            page.locator(f"#mc-thumbs .gal-thumb[data-galkey='{angle}']").click()
             f = tmp_path / f"{angle}.png"
             f.write_bytes(PNG_1PX + bytes([i]))  # magic bytes PNG сохранены
             with page.expect_file_chooser() as fc_info:
-                card.locator(f".slot[data-angle='{angle}']").click()
+                page.locator("#mc-big").click()
             fc_info.value.set_files(str(f))
-        # комплектность «полный» после пятого слота
-        expect(card.locator(".car-head .status")).to_have_text("Комплект полный")
-        expect(card.locator(".slot.empty")).to_have_count(0)
+        # комплектность «полный» после пятого слота; статус по-прежнему draft
+        expect(page.locator("#mc-compl-badge")).to_have_text("Комплект полный")
+        expect(page.locator("#mc-compl-lab")).to_have_text(
+            "5/5 ракурсов · СТС загружено")
+        expect(page.locator("#mc-status")).to_have_text("Черновик")
         for angle in angles:
-            expect(card.locator(
-                f".slot[data-angle='{angle}'].has img")).to_be_visible()
+            expect(page.locator(
+                f"#mc-thumbs .gal-thumb[data-galkey='{angle}'] img")
+            ).to_be_visible()
+        # кнопка отправки активна: условие (любые 3 ракурса + СТС) выполнено
+        expect(page.locator("#mc-acts .act-btn.primary")).to_be_enabled()
+        page.locator("#m-car .close").click()
+        expect(page.locator("#m-car")).to_be_hidden()
     finally:
         ctx.close()
 
@@ -1949,12 +1990,16 @@ def test_s5_car_full_kit_completeness_and_student_sees_car(
                        token=instr_token)
     car = data["cars"][0]
     assert car["has_sts"] and all(car["photos"].values()), car
+    assert car["status"] == "draft" and car["counters"] == {
+        "angles": 5, "sts": True}, car
     admin_token = admin_login(server)
     status, data = api("GET", "/api/admin/cars/completeness", base=server,
                        admin_token=admin_token)
     assert status == 200 and data["ok"], (status, data)
     row = next(c for c in data["cars"] if c["id"] == car["id"])
-    assert row["has_sts"] and all(row["photos"].values()) and not row["blocked"], row
+    assert row["has_sts"] and all(row["photos"].values()), row
+    assert row["status"] == "draft" and row["counters"] == {
+        "angles": 5, "sts": True}, row
 
     # --- пара: ученик подает заявку, инструктор принимает с этим авто ---
     stu_token = _student_token(server)
@@ -1967,6 +2012,16 @@ def test_s5_car_full_kit_completeness_and_student_sees_car(
     status, data = api(
         "POST", f"/api/instructor/requests/{request_id}/accept",
         base=server, token=instr_token, body={"car_id": car["id"]})
+    assert status == 200 and data["ok"], (status, data)
+
+    # Спринт 7 (бэкенд 1a23653 — источник истины): ученик видит авто в
+    # каталоге ТОЛЬКО после admin-валидации (draft/validating скрыты, ОВ-2):
+    # отправка на валидацию + подтверждение админом, затем проверки ученика.
+    status, data = api("POST", f"/api/instructor/cars/{car['id']}/submit",
+                       base=server, token=instr_token)
+    assert status == 200 and data["ok"], (status, data)
+    status, data = api("POST", f"/api/admin/cars/{car['id']}/validate",
+                       base=server, admin_token=admin_token)
     assert status == 200 and data["ok"], (status, data)
 
     # --- ученик: авто в каталоге (API + UI), фото видны, СТС НЕ выдается ---
@@ -2228,14 +2283,14 @@ def test_bug049_my_bookings_empty_state_vertical_layout(browser, server):
 
 
 def test_bug049_car_completeness_badge_wraps_under_car_name(browser, server):
-    """TC-UI-028 (change add-booking-docs, BUG-049): бейдж комплектности
-    «Не хватает: …» в карточке авто при узком вьюпорте переносится ПОД имя
-    автомобиля (flex-wrap .car-head), а не наезжает на него: bounding box
-    бейджа ниже имени и не пересекается с ним; бейдж не шире контейнера
-    (max-width:100%), сам текст переносится внутри (white-space:normal)."""
+    """TC-UI-028 (change add-booking-docs, BUG-049; Спринт 7 my-cars-s7):
+    строка «Не хватает: …» в карточке авто при узком вьюпорте переносится
+    ПОД именем автомобиля (карточка — колонка, .compl под .shot) и не
+    наезжает на него: bounding box ниже имени, длинный текст переносится
+    внутри (white-space:normal, max-width:100%)."""
     instr_token, _ = _approve_instructor(server)
     _add_car(server, instr_token)  # авто без ракурсов → длинный «Не хватает: …»
-    # узкий вьюпорт: бейдж гарантированно не влезает в строку с именем
+    # узкий вьюпорт: строка недостающего гарантированно переносится
     ctx = browser.new_context(viewport={"width": 380, "height": 900})
     page = ctx.new_page()
     page.add_init_script(
@@ -2245,32 +2300,271 @@ def test_bug049_car_completeness_badge_wraps_under_car_name(browser, server):
         page.locator('.nav button[data-tab="Мои автомобили"]').click()
         card = page.locator(".car")
         expect(card).to_have_count(1)
-        status_badge = card.locator(".car-head .status")
-        expect(status_badge).to_have_text(
-            "Не хватает: спереди, сзади, слева, справа, салон")
-        # примененные CSS-фиксы
-        head = card.locator(".car-head")
-        assert head.evaluate(
-            "el => getComputedStyle(el).flexWrap") == "wrap"
-        assert status_badge.evaluate(
+        missing = card.locator(".compl .missing")
+        expect(missing).to_contain_text(
+            "спереди, сзади, слева, справа, салон")
+        # примененные CSS-фиксы: текст переносится внутри строки
+        assert missing.evaluate(
             "el => getComputedStyle(el).whiteSpace") == "normal"
 
-        # bounding box: бейдж под именем, перекрытия нет
+        # bounding box: «Не хватает: …» под именем авто, перекрытия нет
         title = card.locator("b.title")
         expect(title).to_have_text("Škoda Rapid")
-        tb, sb = title.bounding_box(), status_badge.bounding_box()
+        tb, sb = title.bounding_box(), missing.bounding_box()
         assert sb["y"] >= tb["y"] + tb["height"] - 1, \
-            f"бейдж наезжает на имя авто: title={tb}, badge={sb}"
-        # бейдж целиком внутри карточки (max-width:100% соблюден)
-        cb = head.bounding_box()
+            f"строка недостающего наезжает на имя авто: title={tb}, missing={sb}"
+        # строка целиком внутри карточки (max-width:100% соблюден)
+        cb = card.bounding_box()
         assert sb["x"] >= cb["x"] - 1 \
             and sb["x"] + sb["width"] <= cb["x"] + cb["width"] + 1, (cb, sb)
-        # длинный текст перенесен и внутри самого бейджа (больше одной строки)
-        line_px = status_badge.evaluate(
+        # длинный текст перенесен и внутри самой строки (больше одной строки)
+        line_px = missing.evaluate(
             "el => parseFloat(getComputedStyle(el).lineHeight)")
         assert sb["height"] > line_px * 1.5, (sb, line_px)
     finally:
         ctx.close()
+
+
+# ---------------------------------------------------------------------------
+# Спринт 7 (change add-car-validation-booking): статусная модель валидации
+# через UI — переходы инструктора (submit/withdraw), раздел «Автомобили»
+# админки (фильтр, ОВ-4-блокировка Подтвердить), бейджи ОВ-2 у ученика.
+
+def test_s7_car_status_transitions_admin_validate_student_badge(
+        browser, server, tmp_path):
+    """TC-UI-030 (change add-car-validation-booking): сквозной статусный флоу
+    через UI. Инструктор: новый авто «Черновик» → загружает 3 ракурса (СТС уже
+    есть) → «Отправить на валидацию» → бейдж «На валидации» (перезагрузка
+    статус сохраняет); «Вернуть в черновик» → снова «Черновик»; повторная
+    отправка. Админ: раздел «Автомобили» — авто в фильтре «На валидации»,
+    модалка с чек-листом, «Подтвердить» активна (3 ракурса + СТС) → бейдж
+    «Проверено» (+✓). Ученик принятой пары: брони — бейдж «Проверено»,
+    карточка авто с фото рядом со слотами."""
+    instr_token, instructor_id = _approve_instructor(server)
+    # уникальный госномер: в общей БД тестовой сессии инструкторов «Громов»
+    # много — привязка строк админки только по номеру авто
+    car_id = _add_car(server, instr_token, plate="У321УУ777")
+    # 3 ракурса через API (загрузка через UI покрыта TC-UI-016/TC-UI-024)
+    for i, angle in enumerate(("front", "rear", "left")):
+        status, data = api_multipart(
+            f"/api/instructor/cars/{car_id}/photo/{angle}", base=server,
+            fields={}, files={"photo": (f"{angle}.png",
+                                        PNG_1PX + bytes([i]), "image/png")},
+            token=instr_token)
+        assert status == 200 and data["ok"], (status, data)
+    page, ctx = _fresh_page(browser, instr_token)
+    try:
+        page.goto(f"{server}/instructor/dashboard")
+        page.locator('.nav button[data-tab="Мои автомобили"]').click()
+        card = page.locator(".car")
+        expect(card).to_have_count(1)
+        # draft: серый бейдж «Черновик», отправка активна (3 ракурса + СТС)
+        expect(card.locator(".car-head .status")).to_have_text("Черновик")
+        card.click()
+        expect(page.locator("#m-car")).to_be_visible()
+        submit_btn = page.locator("#mc-acts .act-btn.primary")
+        expect(submit_btn).to_have_text("Отправить на валидацию")
+        expect(submit_btn).to_be_enabled()
+        submit_btn.click()
+        # модалка перезагружена: «На валидации», действие сменилось на отзыв
+        expect(page.locator("#mc-status")).to_have_text("На валидации")
+        withdraw_btn = page.locator("#mc-acts .act-btn.warn")
+        expect(withdraw_btn).to_have_text("Вернуть в черновик")
+        # карточка под модалкой тоже перезагружена
+        expect(card.locator(".car-head .status")).to_have_text("На валидации")
+        # отзыв (ОВ-3): validating → draft
+        withdraw_btn.click()
+        expect(page.locator("#mc-status")).to_have_text("Черновик")
+        expect(page.locator("#mc-acts .act-btn.primary")).to_be_enabled()
+        # повторная отправка → validating; перезагрузка статус сохраняет
+        page.locator("#mc-acts .act-btn.primary").click()
+        expect(page.locator("#mc-status")).to_have_text("На валидации")
+        page.locator("#m-car .close").click()
+        page.reload()
+        page.locator('.nav button[data-tab="Мои автомобили"]').click()
+        expect(page.locator(".car .car-head .status")).to_have_text(
+            "На валидации")
+    finally:
+        ctx.close()
+
+    # --- ученик (валидating): желтый бейдж «Не проверено», без фото (плейсхолдер) ---
+    stu_token = _student_token(server)
+    status, data = api("POST", "/api/student/requests", base=server,
+                       token=stu_token, body={"instructor_id": instructor_id})
+    assert status == 200 and data["ok"], (status, data)
+    status, data = api("GET", "/api/instructor/requests", base=server,
+                       token=instr_token)
+    request_id = data["requests"][0]["id"]
+    status, data = api(
+        "POST", f"/api/instructor/requests/{request_id}/accept",
+        base=server, token=instr_token, body={"car_id": car_id})
+    assert status == 200 and data["ok"], (status, data)
+    status, data = api("PUT", "/api/instructor/availability", base=server,
+                       token=instr_token,
+                       body={"intervals": [
+                           {"weekday": 3, "start_time": "14:00",
+                            "end_time": "16:00"}]})
+    assert status == 200 and data["ok"], (status, data)
+    # validating: фото ракурсов ученику пары уже выдается (матрица ОВ-2)
+    status, hdrs, body = _raw_get(
+        f"{server}/api/instructor/cars/{car_id}/photo/front", token=stu_token)
+    assert status == 200 and hdrs["Content-Type"] == "image/png", status
+    status, data = api("GET",
+                       f"/api/student/instructors/{instructor_id}/slots",
+                       base=server, token=stu_token)
+    slot_id = data["slots"][0]["id"]
+    status, data = api("POST", "/api/student/bookings", base=server,
+                       token=stu_token, body={"availability_id": slot_id})
+    assert status == 200 and data["ok"], (status, data)
+    booking_id = data["booking_id"]
+    status, data = api(
+        "POST", f"/api/instructor/bookings/{booking_id}/confirm",
+        base=server, token=instr_token)
+    assert status == 200 and data["ok"], (status, data)
+
+    page, ctx = _fresh_page(browser, stu_token)
+    try:
+        page.goto(f"{server}/cabinet#/my-bookings")
+        # validating: желтый бейдж «Не проверено», фото уже выдается
+        badge = page.locator(".bk-req .car-badge.val")
+        expect(badge).to_have_text("Не проверено")
+        expect(page.locator("#bk-car-card")).to_be_visible()
+        expect(page.locator("#bk-car-card .bk-car-photo img")).to_be_visible()
+        expect(page.locator("#bk-car-card .car-badge")).to_have_text(
+            "Не проверено")
+    finally:
+        ctx.close()
+
+    # --- админ: раздел «Автомобили» → фильтр «На валидации» → Подтвердить ---
+    page, ctx = _fresh_page(browser, None)
+    page.add_init_script(
+        "sessionStorage.setItem('admin_token','%s');" % admin_login(server))
+    try:
+        page.goto(f"{server}/admin-dashboard")
+        page.locator('.nav button', has_text="Автомобили").click()
+        expect(page.locator("#sec-cars-admin")).to_be_visible()
+        row = page.locator("#ac-rows tr", has_text="У321УУ777")
+        expect(row).to_have_count(1)
+        expect(row.locator(".ac-badge")).to_have_text("На валидации")
+        row.click()
+        expect(page.locator("#ac-backdrop")).to_be_visible()
+        approve_btn = page.locator("#ac-approve")
+        expect(approve_btn).to_be_enabled()  # 3 ракурса + СТС → ОВ-4 выполнено
+        approve_btn.click()
+        expect(page.locator("#ac-toast")).to_contain_text("подтверждено")
+        # список перезагружен: статус «Проверено» (+✓), из validating-фильтра
+        # авто исчез (фильтр «На валидации» пуст)
+        page.locator('#ac-filters button[data-f="validating"]').click()
+        expect(page.locator("#ac-rows tr")).to_have_count(0)
+        expect(page.locator("#ac-empty")).to_be_visible()
+        page.locator('#ac-filters button[data-f="validated"]').click()
+        row = page.locator("#ac-rows tr", has_text="У321УУ777")
+        expect(row.locator(".ac-badge")).to_have_text("Проверено")
+    finally:
+        ctx.close()
+
+    # бэкенд: статус validated; каталог ученика теперь показывает авто
+    status, data = api("GET", "/api/instructor/cars", base=server,
+                       token=instr_token)
+    assert data["cars"][0]["status"] == "validated", data
+    status, data = api("GET", f"/api/student/instructors/{instructor_id}",
+                       base=server, token=stu_token)
+    assert any(c["id"] == car_id for c in data["instructor"]["cars"]), data
+
+    # --- ученик: бейдж «Проверено» + фото в карточке авто ---
+    page, ctx = _fresh_page(browser, stu_token)
+    try:
+        page.goto(f"{server}/cabinet#/my-bookings")
+        badge = page.locator(".bk-req .car-badge.ok")
+        expect(badge).to_have_text("Проверено")
+        expect(page.locator("#bk-car-card .car-badge")).to_have_text(
+            "Проверено")
+        # фото прикрепленного авто рядом со слотами (авторизованный эндпоинт)
+        expect(page.locator("#bk-car-card .bk-car-photo img")).to_be_visible()
+        # бейдж статуса авто и у блока пары
+        expect(page.locator("#bk-pair-badge")).to_have_text("Проверено")
+    finally:
+        ctx.close()
+
+
+def test_s7_admin_cars_filter_and_incomplete_approve_locked(
+        browser, server, tmp_path):
+    """TC-UI-031 (change add-car-validation-booking): админка «Автомобили» —
+    фильтр «На валидации» показывает только validating-авто (черновики и
+    «Проверено» скрыты, счетчик фильтра верный); модалка ОВ-4: у авто на
+    валидации с 2 ракурсами и СТС «Подтвердить» ЗАБЛОКИРОВАНО с перечнем
+    недостающего. Сайдбар админки без заглушек «Отношения»/«Расписания»
+    (FR-58)."""
+    instr_token, instructor_id = _approve_instructor(server)
+    # валидируемое авто с 2 ракурсами + СТС → Подтвердить заблокировано (<3)
+    car2_id = _add_car(server, instr_token, plate="В456ВВ777")
+    for i, angle in enumerate(("front", "rear")):
+        status, data = api_multipart(
+            f"/api/instructor/cars/{car2_id}/photo/{angle}", base=server,
+            fields={}, files={"photo": (f"{angle}.png",
+                                        PNG_1PX + bytes([i]), "image/png")},
+            token=instr_token)
+        assert status == 200 and data["ok"], (status, data)
+    status, data = api("POST", f"/api/instructor/cars/{car2_id}/submit",
+                       base=server, token=instr_token)
+    assert status == 200 and data["ok"], (status, data)
+    # черновик (не отправлялся) — в фильтр validating не попадает
+    draft_id = _add_car(server, instr_token, plate="Е789ЕЕ777")
+
+    page = browser.new_context(viewport={"width": 1440, "height": 900}).new_page()
+    page.add_init_script(
+        "sessionStorage.setItem('admin_token','%s');" % admin_login(server))
+    try:
+        page.goto(f"{server}/admin-dashboard")
+        # заглушки «Отношения»/«Расписания» убраны; «Автомобили» на месте
+        assert page.locator('.nav button', has_text="Отношения").count() == 0
+        assert page.locator('.nav button', has_text="Расписания").count() == 0
+        page.locator('.nav button', has_text="Автомобили").click()
+        expect(page.locator("#sec-cars-admin")).to_be_visible()
+        # «Все»: счетчик = числу строк списка (в общей БД тестовой сессии
+        # авто других инструкторов тоже есть — абсольют не проверяем)
+        rows_all = page.locator("#ac-rows tr")
+        expect(rows_all.first).to_be_visible()
+        expect(page.locator("#ac-count")).to_have_text(
+            f"Автомобилей: {rows_all.count()}")
+        # фильтр «На валидации»: только validating-авто (привязка по номеру)
+        page.locator('#ac-filters button[data-f="validating"]').click()
+        rows = page.locator("#ac-rows tr", has_text="В456ВВ777")
+        expect(rows).to_have_count(1)
+        expect(rows.first.locator(".ac-badge")).to_have_text("На валидации")
+        expect(rows.first).to_contain_text("В456ВВ777")
+        # модалка: 2 ракурса + СТС → Подтвердить заблокировано, перечень виден
+        rows.first.click()
+        expect(page.locator("#ac-backdrop")).to_be_visible()
+        approve_btn = page.locator("#ac-approve")
+        expect(approve_btn).to_be_disabled()
+        expect(page.locator("#ac-verdict")).to_contain_text(
+            "заблокировано")
+        expect(page.locator("#ac-verdict")).to_contain_text("2 из 3")
+        # СТС загружен → в перечне недостающего его быть не должно
+        # (точная формулировка бэка, а не статичная подсказка «+ СТС»)
+        expect(page.locator("#ac-verdict")).not_to_contain_text("нет фото СТС")
+        page.locator("#ac-close").click()
+        expect(page.locator("#ac-backdrop")).to_be_hidden()
+
+        # фильтр «Черновики» — только черновик-авто (привязка по номеру)
+        page.locator('#ac-filters button[data-f="draft"]').click()
+        rows = page.locator("#ac-rows tr", has_text="Е789ЕЕ777")
+        expect(rows).to_have_count(1)
+        expect(rows.first).to_contain_text("Е789ЕЕ777")
+        # модалка черновика: подтверждение недоступно вовсе
+        rows.first.click()
+        expect(page.locator("#ac-approve")).to_be_hidden()
+        expect(page.locator("#ac-verdict")).to_contain_text("Черновик")
+        page.locator("#ac-close").click()
+
+        # бэкенд-страховка ОВ-4: validate при 2 ракурсах → 409 с перечнем
+        admin_token = admin_login(server)
+        status, data = api("POST", f"/api/admin/cars/{car2_id}/validate",
+                           base=server, admin_token=admin_token)
+        assert status == 409 and "3" in data["error"], (status, data)
+    finally:
+        page.context.close()
 
 
 # ------------------------------------------------------------- design-guard

@@ -94,14 +94,40 @@ footer{margin-top:34px;padding-top:18px;border-top:1px solid #ffffff10;display:f
 @media(max-width:1024px){.layout{grid-template-columns:1fr}.filters{position:static}}
 @media(max-width:850px){.frame{padding:20px 16px 36px}.crumb{display:none}.page-head h1{font-size:25px}.cards{grid-template-columns:1fr 1fr}}
 @media(max-width:560px){header{grid-template-columns:1fr auto}.brand{font-size:19px}.uname{display:none}.cards{grid-template-columns:1fr}.cards-top{flex-direction:column;gap:9px}}
+/* Спринт 7 (change add-car-validation-booking, BUG-047-лейаут): единый
+   сайдбар ученика вместо отдельной ссылки «← В кабинет» (директива
+   Заказчика: кабинеты — единый лейаут сайдбар слева / контент справа).
+   Классы 1в1 из кабинета ученика (cabinet.html .side/.snav). */
+.app{display:grid;grid-template-columns:236px minmax(0,1fr);min-height:100vh}
+.side{padding:25px 17px;border-right:1px solid #ffffff12;background:#071016b8;display:flex;flex-direction:column;gap:26px}
+.side-brand{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:700;letter-spacing:-.04em;padding:0 8px}
+.side-brand em{font-style:normal;color:var(--green)}
+.side-brand small{display:block;font-size:9px;color:#80919b;letter-spacing:.12em;text-transform:uppercase;margin-top:3px}
+.snav{display:grid;gap:5px}
+.snav a{display:flex;align-items:center;gap:12px;border:1px solid transparent;background:transparent;color:#aab8c0;text-align:left;padding:12px;border-radius:12px;font-size:13px;text-decoration:none}
+.snav a .ico{width:20px;text-align:center;font-size:16px}
+.snav a.on{color:#8ff2b5;background:#143023;border-color:#286445}
+.snav a:hover{background:#ffffff09}
+@media(max-width:760px){.app{grid-template-columns:1fr}.side{flex-direction:row;align-items:center;padding:10px 14px;border-right:0;border-bottom:1px solid #ffffff12}.snav{display:flex;overflow:auto;gap:5px}.snav a{white-space:nowrap;padding:9px 10px;font-size:11px}.snav a .ico{display:none}}
 </style></head>
 <body>
+<div class="app">
+<!-- BUG-047: единый сайдбар ученика; «Выбрать инструктора» — активный раздел,
+     остальные пункты ведут в кабинет (отдельной кнопки «← В кабинет» больше нет) -->
+<aside class="side">
+  <div class="side-brand"><span class="check">✓</span><div><em>Сбер</em>Автошкола<small>Кабинет ученика</small></div></div>
+  <nav class="snav">
+    <a href="/cabinet"><span class="ico">⌂</span>Главная</a>
+    <a href="/cabinet#/my-requests"><span class="ico">✉</span>Мои заявки</a>
+    <a class="on" href="/instructor-choice"><span class="ico">▤</span>Выбрать инструктора</a>
+    <a href="/cabinet#/my-bookings"><span class="ico">◷</span>Мои брони</a>
+  </nav>
+</aside>
 <div class="frame">
 <header>
   <div class="hgroup">
     <div class="brand"><span class="check">✓</span><span><em>Сбер</em>Автошкола<small>Кабинет ученика</small></span></div>
     <div class="crumb">Кабинет ученика · Выбор инструктора</div>
-    <a class="back" href="/cabinet">← В кабинет</a>
   </div>
   <div class="user"><span class="uname" id="uname">…</span><span class="avatar" id="avatar">—</span><button class="logout" id="logout">Выйти</button></div>
 </header>
@@ -173,6 +199,7 @@ footer{margin-top:34px;padding-top:18px;border-top:1px solid #ffffff10;display:f
 </div>
 
 <footer><span>СберАвтошкола · «Выбор инструктора», вариант A</span><span>Кабинет ученика</span></footer>
+</div>
 </div>
 <div class="toast" id="toast"></div>
 <script type="module" src="/js/instructor-choice.js"></script></body></html>

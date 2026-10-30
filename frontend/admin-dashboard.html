@@ -52,6 +52,35 @@ tr:hover td{background:rgba(73,236,154,.04)}
 .ic-img-ph img{max-width:100%;max-height:100%;border-radius:9px;display:block}
 .ic-note{font-size:10px;color:#8fa0aa;line-height:1.6;border:1px solid #ffffff12;border-radius:11px;background:#ffffff04;padding:10px 12px;margin-top:12px}
 .ic-note b{color:#a3efbd}
+/* Спринт 7 (change add-car-validation-booking): раздел «Автомобили»
+   (мокап design/mocks/admin-cars.html): фильтры статусов, таблица,
+   карточка авто с чек-листом комплектности */
+.ac-filters{display:flex;gap:6px;margin:0 0 14px;flex-wrap:wrap}
+.ac-filters button{border:1px solid #ffffff14;background:#ffffff05;color:#b9c8ce;border-radius:999px;padding:8px 15px;font-size:11px;cursor:pointer}
+.ac-filters button.on{background:rgba(73,236,154,.13);color:#5cf0a4}
+.ac-filters button .n{color:#ffc76e}
+.ac-card{border:1px solid #ffffff12;border-radius:15px;background:#ffffff04;padding:8px 6px;overflow:auto}
+.ac-card td{font-size:13px}
+.ac-badge{padding:4px 11px;border-radius:999px;font-size:11px;border:1px solid;white-space:nowrap}
+.ac-b-draft{background:#1a242b;color:#aebfc7;border-color:#3a4a52}
+.ac-b-val{background:#332a14;color:#ffc76e;border-color:#6b5426}
+.ac-b-ok{background:#143322;color:#5cf0a4;border-color:#2a5c40}
+.ac-b-ok:before{content:"✓ "}
+.ac-compl{font-size:11px}
+.ac-compl .ok{color:#5cf0a4}
+.ac-compl .miss{color:#ffc76e}
+.ac-backdrop{position:fixed;inset:0;background:#02070bd0;backdrop-filter:blur(6px);display:none;place-items:center;padding:24px;z-index:40}
+.ac-backdrop.open{display:grid}
+.ac-modal{width:min(880px,100%);max-height:calc(100vh - 60px);overflow:auto;border:1px solid #ffffff20;border-radius:22px;background:linear-gradient(150deg,#16242c,#0b1418);box-shadow:0 30px 80px #000c;padding:26px 28px 28px}
+.ac-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(250px,1fr);gap:16px;margin-top:16px}
+.ac-thumbs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ac-thumb{position:relative;aspect-ratio:4/3;border-radius:10px;border:1.5px solid #ffffff14;background:#0d141a;display:grid;place-items:center;font-size:11px;color:#5d707c}
+.ac-thumb.has{border-color:#2a5c40;background:#0d241766;color:#5cf0a4}
+.ac-thumb .tg{position:absolute;left:0;right:0;bottom:0;font-size:8px;padding:2px;color:#d6e4e2;background:#02070bb8;text-align:center}
+.ac-thumb .mark{font-size:16px}
+.ac-toast{position:fixed;bottom:22px;right:22px;max-width:380px;background:#143323;border:1px solid #367b50;color:#b5f8cc;padding:13px 16px;border-radius:13px;font-size:12px;box-shadow:0 10px 40px #0008;display:none;z-index:50}
+.ac-toast.show{display:block}
+@media(max-width:860px){.ac-grid{grid-template-columns:1fr}.ac-modal{padding:18px}}
 @media(max-width:860px){.ic-grid2{grid-template-columns:1fr}.ic-modal{padding:18px}}
 @media(max-width:860px){.app{grid-template-columns:1fr}aside{display:none}main{padding:20px}}
 </style></head><body>
@@ -61,12 +90,15 @@ tr:hover td{background:rgba(73,236,154,.04)}
   <nav class="nav">
     <button class="active" onclick="showSection('users',this)">◉ Пользователи</button>
     <button onclick="showSection('applications',this)">⧉ Заявки инструкторов</button>
-    <button class="soon" onclick="soon()" title="Появится в следующем спринте">▦ Отношения</button>
-    <button class="soon" onclick="soon()" title="Появится в следующем спринте">⌗ Расписания</button>
+    <!-- Спринт 7 (ОВ-5): раздел «Автомобили» — ЕДИНСТВЕННЫЙ раздел про авто;
+         старый админ-раздел /admin/cars (комплектность + блокировка, Спринт 5)
+         слит в него и удален вместе с кнопкой блокировки. Заглушки
+         «Отношения»/«Расписания» убраны (FR-58). -->
+    <button onclick="showSection('cars',this)">🚗 Автомобили</button>
     <button class="soon" onclick="soon()" title="Появится в следующем спринте">₽ Платежи</button>
     <button class="soon" onclick="soon()" title="Появится в следующем спринте">✎ Настройки</button>
   </nav>
-  <div class="side-foot">Спринт-0 · заглушка</div>
+  <div class="side-foot">Спринт 7 · раздел «Автомобили»</div>
 </aside>
 <main>
   <div class="top"><h1>Пользователи</h1><div class="spacer"></div><span style="font-size:13px;color:#8ea4a8">admin</span><button class="logout" onclick="sessionStorage.removeItem('admin_token');location.href='/admin-login'">Выйти</button></div>
@@ -74,7 +106,7 @@ tr:hover td{background:rgba(73,236,154,.04)}
     <span class="count" id="count"></span>
     <button class="btn-export" onclick="exportCsv()">↓ Выгрузить CSV</button>
   </div>
-  <table>
+  <table id="users-table">
     <thead><tr><th>ФИО</th><th>Email</th><th>Телефон</th><th>Роль</th><th>Дата регистрации</th></tr></thead>
     <tbody id="rows"></tbody>
   </table>
@@ -90,8 +122,75 @@ tr:hover td{background:rgba(73,236,154,.04)}
     <div class="rowhint">Строка кликабельна — откроется карточка заявки</div>
     <div class="empty" id="app-empty">Заявок пока нет</div>
   </div>
+
+  <!-- Спринт 7 (change add-car-validation-booking, FR-66, мокап
+       design/mocks/admin-cars.html): раздел «Автомобили» — все авто всех
+       инструкторов (GET /api/admin/cars/completeness +status), фильтр
+       «На валидации» (?status=validating), клик по строке — модалка с
+       чек-листом комплектности; «Подтвердить» ЗАБЛОКИРОВАНО при <3 ракурсов
+       или нет СТС (ОВ-4) — вызов POST /api/admin/cars/{id}/validate
+       (серверная 409 — страховка). Кнопки блокировки больше нет (ОВ-5). -->
+  <div id="sec-cars-admin" style="display:none">
+    <div class="top"><h1>Автомобили</h1><div class="spacer"></div></div>
+    <div class="ac-filters" id="ac-filters">
+      <button class="on" data-f="all" type="button">Все</button>
+      <button data-f="validating" type="button">На валидации <span class="n" id="ac-n-val"></span></button>
+      <button data-f="validated" type="button">Проверено</button>
+      <button data-f="draft" type="button">Черновики</button>
+    </div>
+    <div class="toolbar"><span class="count" id="ac-count"></span></div>
+    <div class="ac-card">
+      <table id="ac-table">
+        <thead><tr><th>Инструктор</th><th>Марка / модель</th><th>Госномер</th><th>Статус</th><th>Комплектность</th></tr></thead>
+        <tbody id="ac-rows"></tbody>
+      </table>
+      <div class="rowhint">Строка кликабельна — откроется карточка авто</div>
+      <div class="empty" id="ac-empty">Автомобилей пока нет</div>
+    </div>
+  </div>
 </main>
 </div>
+
+<!-- Спринт 7: карточка авто (модально, мокап admin-cars.html): чек-лист
+     комплектности (5 ракурсов + СТС — флаги из completeness, изображения
+     админу не выдаются: фото-эндпоинт доступен только владельцу и ученику
+     пары), перечень недостающего, «Подтвердить» — активна только для авто
+     «На валидации» с ≥3 ракурсами и СТС (ОВ-4). -->
+<div class="ac-backdrop" id="ac-backdrop" role="dialog" aria-modal="true" aria-labelledby="ac-title">
+  <div class="ac-modal">
+    <div class="ic-head">
+      <div><h2 id="ac-title">—</h2><div class="sub" id="ac-sub">—</div></div>
+      <span class="badge wait" id="ac-status" style="margin-top:4px">—</span>
+      <button class="ic-close" id="ac-close" aria-label="Закрыть">×</button>
+    </div>
+    <div class="ac-grid">
+      <div class="ic-panel">
+        <h3>Комплектность · 5 ракурсов + СТС</h3>
+        <div class="ac-thumbs" id="ac-thumbs"></div>
+        <div class="ic-note" id="ac-verdict">—</div>
+      </div>
+      <div class="ic-panel">
+        <h3>Данные авто</h3>
+        <div class="ic-rows">
+          <div class="ic-row"><span>Инструктор</span><b id="ac-owner">—</b></div>
+          <div class="ic-row"><span>Марка / модель</span><b id="ac-brand">—</b></div>
+          <div class="ic-row"><span>Год выпуска</span><b id="ac-year">—</b></div>
+          <div class="ic-row"><span>Госномер</span><b id="ac-plate">—</b></div>
+          <div class="ic-row"><span>Коробка передач</span><b id="ac-trans">—</b></div>
+          <div class="ic-row"><span>Комплектность</span><b id="ac-compl">—</b></div>
+          <div class="ic-row"><span>Статус</span><b id="ac-status-row">—</b></div>
+        </div>
+        <div class="ic-note" style="margin-top:12px">Изображения ракурсов выдаются только владельцу и ученику пары — здесь видны флаги загрузки (✓/—). Подтверждение устанавливает статус «Проверено»: авто вернётся в каталог новых учеников с зелёной галочкой.</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap">
+      <button class="btn-export" id="ac-approve" style="flex:1">✓ Подтвердить авто</button>
+      <button class="btn-export" id="ac-dummy" style="flex:0;background:transparent;border:1px solid rgba(238,249,249,.3);color:#cfdede">Закрыть</button>
+    </div>
+  </div>
+</div>
+<!-- тост раздела «Автомобили» (результат POST validate и серверных 409) -->
+<div class="ac-toast" id="ac-toast"></div>
 <!-- Карточка инструктора: открытие по клику на строку (FR-25). Изображение ВУ
      загружается с админ-токеном: GET /api/admin/instructor-applications/{id}/license-image
      c X-Admin-Token (blob -> objectURL; у <img> нельзя задать заголовки).
