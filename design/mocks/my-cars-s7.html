@@ -1,0 +1,436 @@
+<!doctype html>
+<!-- Мокап: «Мои автомобили» — переработка (Спринт 7, change add-car-validation-booking, FR-63/FR-64/FR-65).
+     Клик по авто → модалка: инфо (марка/модель/год/КПП/госномер) + ГАЛЕРЕЯ 5 ракурсов
+     (миниатюры, клик — полный размер; клик по ракурсу в полном окне — загрузка/замена,
+     POST /api/instructor/cars/{id}/photo/{angle}) + СТС (новый эндпоинт FR-64:
+     POST /api/instructor/cars/{id}/sts — дозагрузка/замена на УЖЕ созданном авто).
+     Статусы авто (FR-65, решения ОВ-1..3): «Черновик» (серый) → «На валидации» (жёлтый) →
+     «Проверено» (зелёный + галочка). «Отправить на валидацию» — из черновика, требуется
+     СТС + любые 3 ракурса (симметрично ОВ-4); «Вернуть в черновик» — с валидации (ОВ-3 — можно).
+     Индикатор комплектности: 5 ракурсов + СТС. Данные демо.
+     ИТЕРАЦИЯ 2 (замечания Заказчика): лейаут кабинета (BUG-047) — сайдбар инструктора
+     слева (активен «Мои автомобили»), контент справа; в модалке-галерее и на фото
+     в карточках — стрелки ‹ › ПОВЕРХ изображения с полупрозрачным фоном
+     rgba(0,0,0,.35), белый глиф, hover — плотнее. Статусы/комплектность/СТС — из итерации 1. -->
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#071015"><title>СберАвтошкола — Кабинет инструктора · Мои автомобили</title>
+<style>
+:root{--bg:#071015;--line:#ffffff16;--text:#f3f7f8;--muted:#93a6b1;--green:#35d879}
+*{box-sizing:border-box}html,body{margin:0;min-width:320px}
+body{background:radial-gradient(ellipse at 78% 0%,#123b2c4d,transparent 38%),radial-gradient(ellipse at 8% 90%,#27465f26,transparent 40%),var(--bg);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh}
+button,input,select{font:inherit;color:inherit}button{cursor:pointer}
+/* лейаут кабинета (BUG-047): сайдбар + контент (итерация 2) */
+.app{min-height:100vh;display:grid;grid-template-columns:236px 1fr}
+.sidebar{padding:25px 17px;border-right:1px solid #ffffff12;background:#071016b8;display:flex;flex-direction:column;gap:26px;position:sticky;top:0;height:100vh;overflow:auto}
+.nav-label{font-size:10px;color:#637681;text-transform:uppercase;letter-spacing:.16em;padding:0 11px;margin-bottom:-17px}
+.nav{display:grid;gap:5px}
+.nav button{border:1px solid transparent;background:transparent;color:#aab8c0;text-align:left;padding:11px 12px;border-radius:12px;font-size:13px;display:flex;align-items:center;gap:12px}
+.nav button .ico{width:20px;text-align:center;font-size:16px;flex:none}
+.nav button.active{color:#8ff2b5;background:#143023;border-color:#286445}
+.nav button:hover{background:#ffffff09}
+.side-bottom{margin-top:auto;border:1px solid #ffffff13;border-radius:15px;padding:14px;background:#ffffff04}
+.side-bottom strong{font-size:12px}
+.side-bottom p{font-size:11px;color:#8d9da6;line-height:1.5;margin:7px 0 12px}
+.side-bottom button{width:100%;background:#143222;border:1px solid #2e6a47;color:#a2f5bf;border-radius:10px;padding:10px;font-size:11px}
+main{min-width:0;padding:0 clamp(20px,3vw,40px) 45px}
+.frame{max-width:1240px;margin:auto;padding:26px 0 0}
+header{display:flex;align-items:center;justify-content:space-between;gap:14px;height:48px;margin-bottom:6px}
+.brand{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:650;letter-spacing:-.4px;min-width:0}
+.brand>span:last-child{min-width:0}
+.brand em{font-style:normal;color:var(--green)}
+.check{width:32px;height:32px;flex:none;display:grid;place-items:center;border:3px solid var(--green);border-radius:50%;color:var(--green);font-size:20px;transform:rotate(-8deg)}
+.brand small{display:block;font-size:9px;color:#80919b;letter-spacing:.14em;text-transform:uppercase;margin-top:3px;font-weight:500}
+.crumb{font-size:12px;color:#8fa2ad;justify-self:center}
+.user{justify-self:end;display:flex;align-items:center;gap:13px}
+.uname{font-size:13px;color:#d6e4e2}
+.avatar{width:34px;height:34px;border-radius:11px;background:linear-gradient(145deg,#315744,#14261e);display:grid;place-items:center;color:#a0f2bd;font-size:11px;font-weight:700}
+.logout{padding:8px 20px;border:1px solid #ffffff40;border-radius:999px;background:transparent;font-size:13px}
+.logout:hover{border-color:var(--green)}
+.page-head{margin:26px 0 6px;display:flex;align-items:end;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.kicker{font-size:10px;color:#79eaa5;text-transform:uppercase;letter-spacing:.18em}
+h1{font-size:28px;letter-spacing:-.05em;font-weight:600;margin:9px 0 8px}
+.page-head p{font-size:12px;color:var(--muted);margin:0}
+.tabs{display:flex;gap:5px;border:1px solid #ffffff14;background:#ffffff05;border-radius:12px;padding:5px}
+.tabs button{border:1px solid transparent;background:transparent;color:#aab8c0;border-radius:9px;padding:8px 14px;font-size:12px;white-space:nowrap}
+.tabs button.on{background:#143322;border-color:#2c8651;color:#a3efbd}
+/* статусы авто (FR-65) */
+.status{font-size:10px;padding:6px 12px;border-radius:999px;white-space:nowrap;border:1px solid;flex:none}
+.st-draft{background:#1a242b;color:#aebfc7;border-color:#3a4a52}            /* Черновик — серый */
+.st-val{background:#2a2010;color:#ffd479;border-color:#6b5426}              /* На валидации — жёлтый */
+.st-ok{background:#143322;color:#91efb1;border-color:#2a5c40}               /* Проверено — зелёный + галочка */
+.st-ok:before{content:"✓ "}
+.toolbar{display:flex;align-items:center;gap:12px;margin:18px 0 14px}
+.count{font-size:12px;color:#8fa0aa}
+.addbtn{margin-left:auto;display:flex;align-items:center;gap:8px;border:1px solid #2b9c62;background:#123524;color:#c9ffdd;border-radius:11px;padding:11px 20px;font-size:12px;font-weight:550}
+.addbtn:hover{filter:brightness(1.12)}
+/* карточки авто: клик по карточке → модалка (FR-63) */
+.cars{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}
+.car{border:1px solid var(--line);border-radius:19px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:15px;display:flex;flex-direction:column;min-width:0;cursor:pointer;transition:border-color .15s,transform .15s;text-align:left}
+.car:hover{border-color:#35d87966;transform:translateY(-2px)}
+.car-head{display:flex;align-items:start;gap:12px}
+.car b.title{font-size:16px;font-weight:600;letter-spacing:-.02em;display:block}
+.car small.sub{display:block;font-size:11px;color:#8fa0aa;margin-top:4px}
+.car-head .status{margin-left:auto}
+.meta{display:flex;gap:7px;flex-wrap:wrap;margin:11px 0 12px}
+.pill{font-size:10px;padding:6px 10px;border-radius:999px;border:1px solid #ffffff12;background:#ffffff05;color:#b9c8ce}
+.pill.plate{background:#0b161c;border-color:#ffffff22;color:#e4eef0;font-weight:600;letter-spacing:.06em}
+.pill.green{background:#143322;border-color:#2a5c40;color:#91efb1}
+/* главный снимок + комплектность на карточке */
+.shot{position:relative;aspect-ratio:16/8;border-radius:13px;overflow:hidden;border:1px solid #ffffff14;margin-bottom:12px}
+.shot .scan{position:absolute;inset:0}
+.shot .hintview{position:absolute;right:8px;bottom:8px;font-size:10px;color:#c9ffdd;background:#02070bc0;border:1px solid #2c8651;border-radius:999px;padding:4px 10px}
+/* стрелки навигации ПОВЕРХ фото: полупрозрачный фон, белый глиф, hover плотнее (итерация 2) */
+.navarrow{position:absolute;top:50%;transform:translateY(-50%);width:34px;height:34px;border:0;border-radius:50%;background:rgba(0,0,0,.35);color:#fff;font-size:20px;line-height:1;display:grid;place-items:center;padding:0;z-index:4;transition:background .12s}
+.navarrow:hover{background:rgba(0,0,0,.62)}
+.navarrow.prev{left:8px}.navarrow.next{right:8px}
+/* демо-«скан» фото */
+.scan{display:grid;place-items:center}
+.scan i{font-style:normal;font-size:30px;opacity:.85;filter:drop-shadow(0 3px 10px #000a)}
+.scan:after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(105deg,transparent 0 26px,#ffffff06 26px 28px)}
+.scan-1{background:linear-gradient(160deg,#1d3a4a,#0c1a24 55%,#14333d)}
+.scan-2{background:linear-gradient(160deg,#243b2c,#0c1a12 55%,#1b3a26)}
+.scan-3{background:linear-gradient(160deg,#3a2f1d,#1a140c 55%,#3a301a)}
+.scan-4{background:linear-gradient(160deg,#2c2440,#14101f 55%,#241f38)}
+.scan-5{background:linear-gradient(160deg,#402a1d,#1f130c 55%,#38261a)}
+.scan-sts{background:linear-gradient(160deg,#4a3d1d,#241c0c 55%,#3d331a)}
+/* комплектность: полоса X из 5 ракурсов + СТС */
+.compl{margin-top:auto}
+.compl-lab{display:flex;justify-content:space-between;align-items:center;font-size:10px;color:#8fa0aa;margin-bottom:7px;gap:8px}
+.bar{display:flex;gap:4px;align-items:center}
+.bar i{height:5px;flex:1;border-radius:999px;background:#ffffff12}
+.bar i.f{background:linear-gradient(90deg,#1c6b41,var(--green))}
+.bar .sts-dot{flex:0 0 auto;width:9px;height:9px;border-radius:50%;border:1.5px solid #6b5426;background:transparent;font-size:0}
+.bar .sts-dot.f{background:#ffd479;border-color:#c9a24b}
+.compl .missing{margin-top:8px;font-size:10px;color:#7e909a;line-height:1.55}
+.compl .missing b{color:#ffd479;font-weight:500}
+/* модалки */
+.backdrop{position:fixed;inset:0;background:#02070bd0;backdrop-filter:blur(6px);display:none;place-items:center;padding:24px;z-index:30}
+.backdrop.open{display:grid}
+.modal{width:min(880px,100%);max-height:calc(100vh - 60px);overflow:auto;border:1px solid #ffffff20;border-radius:22px;background:linear-gradient(150deg,#16242c,#0b1418);box-shadow:0 30px 80px #000c;padding:24px 26px 26px}
+.modal.narrow{width:min(520px,100%)}
+.modal-head{display:flex;align-items:start;gap:14px;margin-bottom:6px}
+.modal-head h2{font-size:20px;letter-spacing:-.03em;font-weight:600;margin:0}
+.modal-head .sub{font-size:12px;color:#8fa0aa;margin-top:7px}
+.close{margin-left:auto;flex:none;width:36px;height:36px;border-radius:11px;border:1px solid #ffffff18;background:#ffffff06;color:#b9c8ce;font-size:17px}
+.close:hover{border-color:#ff6b6b66;color:#ffb28e}
+/* модалка авто: инфо + галерея */
+.grid2{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(250px,1fr);gap:16px;margin-top:16px}
+.panel{border:1px solid #ffffff12;border-radius:15px;background:#ffffff04;padding:16px;min-width:0}
+.panel h3{font-size:10px;color:#8fa0aa;text-transform:uppercase;letter-spacing:.14em;margin:0 0 12px;font-weight:500}
+.rows{display:grid;gap:10px}
+.row{display:flex;justify-content:space-between;gap:12px;font-size:12px}
+.row span{color:#8fa0aa}
+.row b{font-weight:550;text-align:right;color:#e4eef0}
+/* галерея: большое окно + миниатюры */
+.bigview{position:relative;aspect-ratio:16/9;border-radius:13px;overflow:hidden;border:1px solid #ffffff14;margin-bottom:11px;cursor:pointer}
+.bigview .scan{position:absolute;inset:0}
+.bigview .scan i{font-size:52px}
+.bigview .up-hint{position:absolute;left:0;right:0;bottom:0;padding:7px;font-size:10px;text-align:center;color:#e4eef0;background:#02070bb8}
+.thumbs{display:grid;grid-template-columns:repeat(6,1fr);gap:7px}
+.thumb{position:relative;aspect-ratio:4/3;border-radius:9px;overflow:hidden;border:1.5px solid #ffffff14;background:#0d141a;padding:0;transition:border-color .12s}
+.thumb:hover{border-color:#35d879aa}
+.thumb.sel{border-color:var(--green)}
+.thumb .scan{position:absolute;inset:0}
+.thumb .scan i{font-size:15px}
+.thumb .tg{position:absolute;left:0;right:0;bottom:0;font-size:7.5px;padding:2px 2px;color:#d6e4e2;background:#02070bb8;text-align:center;letter-spacing:.02em}
+.thumb .plus{position:absolute;top:3px;right:4px;width:15px;height:15px;border-radius:50%;background:#12331f;border:1px solid #2c8651;color:#a3efbd;font-size:9px;line-height:13px;text-align:center}
+.thumb.sts-t .tg{color:#ffd479}
+.prog{position:absolute;left:0;right:0;bottom:0;height:4px;background:#ffffff0d;display:none;z-index:3}
+.prog.on{display:block}
+.prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,#1c6b41,var(--green));transition:width .15s}
+.busy:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,#35d87922,transparent);animation:sweep 1s infinite;z-index:2}
+@keyframes sweep{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+/* статусные действия в модалке */
+.acts{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+.btn{flex:1;min-width:170px;border-radius:12px;padding:12px;font-size:13px;font-weight:550;border:1px solid}
+.btn.primary{background:#123524;border-color:#2b9c62;color:#c9ffdd}
+.btn.primary:hover{filter:brightness(1.12)}
+.btn.primary:disabled{opacity:.45;cursor:not-allowed;filter:none}
+.btn.warn{background:transparent;border-color:#6b5426;color:#ffd479}
+.btn.warn:hover{background:#2a201055}
+.btn.ghost{background:#ffffff06;border-color:#ffffff16;color:#aab8c0;flex:0}
+.need-note{margin-top:11px;font-size:11px;color:#8fa0aa;line-height:1.65;border:1px solid #ffffff12;border-radius:11px;background:#ffffff04;padding:10px 12px}
+.need-note b{color:#ffd479;font-weight:500}
+.need-note.ok{border-color:#2a5c40;background:#14332233}
+.need-note.ok b{color:#91efb1}
+footer{margin-top:32px;padding-top:18px;border-top:1px solid #ffffff10;display:flex;justify-content:space-between;gap:14px;font-size:11px;color:#5f717b;flex-wrap:wrap}
+.toast{position:fixed;bottom:22px;right:22px;max-width:380px;background:#143323;border:1px solid #367b50;color:#b5f8cc;padding:13px 16px;border-radius:13px;font-size:12px;box-shadow:0 10px 40px #0008;display:none;z-index:40}
+.toast.show{display:block}
+@media(max-width:850px){.frame{padding:20px 16px 36px}.crumb{display:none}h1{font-size:24px}.cars{grid-template-columns:1fr}.addbtn{margin-left:0;width:100%;justify-content:center}.toolbar{flex-wrap:wrap}.grid2{grid-template-columns:1fr}.modal{padding:18px}}
+@media(max-width:560px){header{grid-template-columns:1fr auto}.brand{font-size:19px}.uname{display:none}.tabs{width:100%;overflow-x:auto}.thumbs{grid-template-columns:repeat(3,1fr)}.acts .btn{min-width:100%}}
+</style></head>
+<body>
+<div class="app">
+<aside class="sidebar">
+  <div class="brand"><span class="check">✓</span><span><em>Сбер</em>Автошкола<small>Кабинет инструктора</small></span></div>
+  <div class="nav-label">Рабочее пространство</div>
+  <nav class="nav">
+    <button><span class="ico">⌂</span>Мой день</button>
+    <button><span class="ico">▦</span>Календарь</button>
+    <button><span class="ico">♧</span>Мои ученики</button>
+    <button><span class="ico">✉</span>Запросы учеников <span style="color:#ffd479">·2</span></button>
+    <button><span class="ico">◷</span>Бронирования</button>
+    <button class="active"><span class="ico">▰</span>Мои автомобили</button>
+    <button><span class="ico">▤</span>Мои документы</button>
+    <button><span class="ico">₽</span>Доходы и выплаты</button>
+    <button><span class="ico">⚙</span>Профиль и документы</button>
+    <button><span class="ico">⎋</span>Выход</button>
+  </nav>
+  <div class="side-bottom"><strong>Нужна помощь?</strong><p>Поддержка инструкторов поможет с расписанием, автомобилями и выплатами.</p><button id="side-help">Связаться с поддержкой ↗</button></div>
+</aside>
+<main><div class="frame">
+<header>
+  <div class="crumb">Кабинет инструктора · Мои автомобили</div>
+  <div class="user"><span class="uname">Михаил Самойлов</span><span class="avatar">МС</span><button class="logout">Выйти</button></div>
+</header>
+
+<div class="page-head">
+  <div>
+    <div class="kicker">Автомобили · статусы и валидация</div>
+    <h1>Мои автомобили</h1>
+    <p>Клик по автомобилю — карточка с информацией, галереей ракурсов и СТС. Статус ведёт администратор: «Черновик» → «На валидации» → «Проверено». Проверенное авто видно новым ученикам в каталоге.</p>
+  </div>
+</div>
+
+<div class="toolbar">
+  <span class="count" id="count"></span>
+  <button class="addbtn" id="open-add">＋ Добавить автомобиль</button>
+</div>
+
+<div class="cars" id="cars"></div>
+
+<footer><span>СберАвтошкола · мокап «Мои автомобили», Спринт 7, итерация 2 (сайдбар + стрелки галереи)</span><span>Демонстрационный интерфейс · данные вымышлены</span></footer>
+</div></main>
+</div>
+
+<!-- модалка: карточка авто — инфо + галерея + СТС + статусные действия (FR-63/64/65) -->
+<div class="backdrop" id="m-car" role="dialog" aria-modal="true" aria-labelledby="mc-title">
+  <div class="modal">
+    <div class="modal-head">
+      <div><h2 id="mc-title">—</h2><div class="sub" id="mc-sub">—</div></div>
+      <span class="status" id="mc-status" style="margin-top:4px"></span>
+      <button class="close" data-close aria-label="Закрыть">×</button>
+    </div>
+    <div class="grid2">
+      <div class="panel">
+        <h3>Галерея · 5 ракурсов + СТС</h3>
+        <div class="bigview" id="mc-big" title="Клик — загрузить/заменить фото для этого ракурса">
+          <div class="scan scan-1"><i>🚗</i></div>
+          <div class="up-hint" id="mc-big-hint">Спереди · клик — загрузить/заменить фото</div>
+          <div class="prog" id="mc-prog"><i></i></div>
+        </div>
+        <div class="thumbs" id="mc-thumbs"></div>
+        <div class="need-note" style="margin-top:12px">Клик по миниатюре — открыть в большом окне; клик по большому окну — <b>загрузить или заменить</b> фото этого ракурса (JPEG/PNG, ≤5 МБ). СТС дозагружается на уже созданном авто — теперь это работает.</div>
+      </div>
+      <div>
+        <div class="panel">
+          <h3>Информация</h3>
+          <div class="rows">
+            <div class="row"><span>Марка / модель</span><b id="mc-brand">—</b></div>
+            <div class="row"><span>Год выпуска</span><b id="mc-year">—</b></div>
+            <div class="row"><span>Цвет</span><b id="mc-color">—</b></div>
+            <div class="row"><span>Коробка передач</span><b id="mc-trans">—</b></div>
+            <div class="row"><span>Госномер</span><b id="mc-plate">—</b></div>
+            <div class="row"><span>Ученики пары</span><b id="mc-students">—</b></div>
+          </div>
+        </div>
+        <div class="panel" style="margin-top:12px">
+          <h3>Комплектность</h3>
+          <div class="compl-lab"><span id="mc-compl-lab">—</span><span id="mc-compl-badge" class="status"></span></div>
+          <div class="bar" id="mc-bar"></div>
+          <div class="missing" id="mc-missing" style="margin-top:9px"></div>
+        </div>
+      </div>
+    </div>
+    <div class="acts" id="mc-acts"></div>
+    <div class="need-note" id="mc-note"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script>
+var ANGLES=[['front','Спереди','scan-1'],['rear','Сзади','scan-2'],['left','Слева','scan-3'],['right','Справа','scan-4'],['interior','Салон','scan-5']];
+var STATUS={draft:['Черновик','st-draft'],validation:['На валидации','st-val'],verified:['Проверено','st-ok']};
+var transLabel={manual:'механика',automatic:'автомат'};
+// photos: ключ ракурса = класс демо-скана либо null (в проде — GET /api/instructor/cars/{id}/photo/{angle})
+// sts: класс демо-скана либо null (GET /api/instructor/cars/{id}/sts)
+var cars=[
+ {id:11,brand:'Škoda Rapid',year:2020,color:'Белый',plate:'А 123 АА 777',trans:'automatic',students:1,status:'verified',checkedBy:'администратором, 21.10.2026',
+  photos:{front:'scan-1',rear:'scan-2',left:'scan-3',right:'scan-4',interior:'scan-5'},sts:'scan-sts'},
+ {id:12,brand:'Kia Rio',year:2022,color:'Серый',plate:'В 456 ВВ 777',trans:'manual',students:1,status:'validation',checkedBy:null,
+  photos:{front:'scan-1',rear:'scan-2',left:null,right:null,interior:'scan-5'},sts:'scan-sts'},
+ {id:13,brand:'Lada Vesta',year:2021,color:'Синий',plate:'Е 789 ЕЕ 777',trans:'manual',students:0,status:'draft',checkedBy:null,
+  photos:{front:'scan-1',rear:null,left:null,right:null,interior:null},sts:null}
+];
+var current=null,bigKey='front';
+function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(window._tt);window._tt=setTimeout(function(){t.classList.remove('show')},3400)}
+function esc(s){return String(s).replace(/[<>&"]/g,function(c){return{'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]})}
+function photoCount(c){return ANGLES.filter(function(a){return c.photos[a[0]]}).length}
+function fullMissing(c){ // комплектность: все 5 ракурсов + СТС
+  var miss=[];ANGLES.forEach(function(a){if(!c.photos[a[0]])miss.push(a[1].toLowerCase())});
+  if(!c.sts)miss.push('СТС');return miss;
+}
+function valMissing(c){ // условие «отправить на валидацию»: любые 3 фото + СТС (ОВ-4/ОВ-7)
+  var miss=[];
+  if(photoCount(c)<3)miss.push('фото: '+photoCount(c)+' из 3 необходимых');
+  if(!c.sts)miss.push('СТС');
+  return miss;
+}
+// ── список карточек ──
+function render(){
+  var box=document.getElementById('cars');box.innerHTML='';
+  document.getElementById('count').textContent='Автомобилей: '+cars.length;
+  cars.forEach(function(c){
+    var pm=photoCount(c),fm=fullMissing(c),full=!fm.length;
+    var art=document.createElement('article');art.className='car';
+    var h='<div class="car-head"><div><b class="title">'+esc(c.brand)+'</b>'+
+      '<small class="sub">'+c.year+' · '+esc(c.color)+(c.students?' · ученик: '+c.students:'')+'</small></div>'+
+      '<span class="status '+STATUS[c.status][1]+'">'+STATUS[c.status][0]+'</span></div>'+
+      '<div class="meta"><span class="pill green">'+transLabel[c.trans]+'</span><span class="pill plate">'+esc(c.plate)+'</span></div>'+
+      cardShot(c)+
+      '<div class="compl"><div class="compl-lab"><span>Комплектность: '+pm+'/5 ракурсов'+(c.sts?' · СТС ✓':' · СТС —')+'</span>'+
+      '<span>'+(full?'полный':'не полный')+'</span></div><div class="bar">';
+    ANGLES.forEach(function(a){h+='<i class="'+(c.photos[a[0]]?'f':'')+'"></i>'});
+    h+='<span class="sts-dot'+(c.sts?' f':'')+'">СТС</span></div>';
+    if(!full)h+='<div class="missing">Не хватает: <b>'+fm.join(', ')+'</b> — досылайте прямо в карточке авто.</div>';
+    h+='</div>';
+    art.innerHTML=h;
+    // стрелки на фото карточки (итерация 2): листают загруженные ракурсы, клик не открывает модалку
+    art.querySelectorAll('.navarrow').forEach(function(b){
+      b.addEventListener('click',function(e){e.stopPropagation();cycleView(c,+b.dataset.dir)});
+    });
+    art.addEventListener('click',function(){openCar(c)});
+    box.appendChild(art);
+  });
+}
+// ── главный снимок карточки: выбранный ракурс + стрелки ‹ › поверх фото (итерация 2) ──
+function cardShot(c){
+  var avail=ANGLES.filter(function(a){return c.photos[a[0]]});
+  if(!c.view||!c.photos[c.view])c.view=avail[0][0];
+  var arrows=avail.length>1
+    ?'<button class="navarrow prev" data-dir="-1" title="Предыдущий ракурс" aria-label="Предыдущий ракурс">‹</button>'+
+     '<button class="navarrow next" data-dir="1" title="Следующий ракурс" aria-label="Следующий ракурс">›</button>'
+    :'';
+  return '<div class="shot"><div class="scan '+c.photos[c.view]+'"><i>🚗</i></div>'+arrows+'<span class="hintview">⤢ Открыть карточку</span></div>';
+}
+function cycleView(c,dir){ // цикл только по ЗАГРУЖЕННЫМ ракурсам
+  var avail=ANGLES.filter(function(a){return c.photos[a[0]]});
+  var i=0;avail.forEach(function(a,ix){if(a[0]===c.view)i=ix});
+  c.view=avail[(i+dir+avail.length)%avail.length][0];
+  render();
+}
+// ── модалка авто ──
+function openCar(c){
+  current=c;bigKey=ANGLES.filter(function(a){return c.photos[a[0]]})[0][0];
+  document.getElementById('mc-title').textContent=c.brand;
+  document.getElementById('mc-sub').textContent='Госномер '+c.plate+' · '+c.year+' · '+transLabel[c.trans];
+  var st=document.getElementById('mc-status');st.className='status '+STATUS[c.status][1];st.textContent=STATUS[c.status][0];
+  document.getElementById('mc-brand').textContent=c.brand;
+  document.getElementById('mc-year').textContent=c.year;
+  document.getElementById('mc-color').textContent=c.color||'—';
+  document.getElementById('mc-trans').textContent=transLabel[c.trans];
+  document.getElementById('mc-plate').textContent=c.plate;
+  document.getElementById('mc-students').textContent=c.students?String(c.students):'нет';
+  renderGallery();renderCompl();renderActs();
+  document.getElementById('m-car').classList.add('open');document.body.style.overflow='hidden';
+}
+function renderGallery(){
+  var c=current,big=document.getElementById('mc-big');
+  var aDef=ANGLES.filter(function(a){return a[0]===bigKey})[0];
+  var scanCls=aDef?aDef[2]:'scan-sts';
+  big.className='bigview';
+  big.innerHTML='<div class="scan '+scanCls+'"><i>'+(aDef?'🚗':'🪪')+'</i></div>'+
+    '<button class="navarrow prev" title="Предыдущий ракурс" aria-label="Предыдущий ракурс">‹</button>'+
+    '<button class="navarrow next" title="Следующий ракурс" aria-label="Следующий ракурс">›</button>'+
+    '<div class="up-hint">'+(aDef?aDef[1]:'СТС — свидетельство о регистрации')+' · клик — '+(current[bigKey]?'заменить фото':'загрузить фото')+'</div>'+
+    '<div class="prog" id="mc-prog"><i></i></div>';
+  big.querySelector('.navarrow.prev').addEventListener('click',function(e){e.stopPropagation();navGal(-1)});
+  big.querySelector('.navarrow.next').addEventListener('click',function(e){e.stopPropagation();navGal(1)});
+  big.onclick=function(){simulateUpload(this,function(){
+    current[bigKey]=scanCls; // прод: POST /api/instructor/cars/{id}/photo/{angle} либо …/sts
+    renderGallery();renderCompl();renderActs();render();
+    toast(bigKey==='sts'?'Фото СТС сохранено (POST /api/instructor/cars/'+current.id+'/sts). Оно появится и в «Моих документах».':'Фото ракурса сохранено. Остальные ракурсы не тронуты.');
+  })};
+  var tb=document.getElementById('mc-thumbs');tb.innerHTML='';
+  ANGLES.forEach(function(a){
+    var b=document.createElement('button');
+    b.className='thumb'+(a[0]===bigKey?' sel':'');
+    b.innerHTML=(current.photos[a[0]]?'<span class="scan '+current.photos[a[0]]+'"><i>🚗</i></span>':'<span class="scan scan-1" style="opacity:.25"><i>🚗</i></span><span class="plus">＋</span>')+
+      '<span class="tg">'+a[1]+'</span>';
+    b.addEventListener('click',function(e){e.stopPropagation();bigKey=a[0];renderGallery()});
+    tb.appendChild(b);
+  });
+  var s=document.createElement('button');
+  s.className='thumb sts-t'+(bigKey==='sts'?' sel':'');
+  s.innerHTML=(current.sts?'<span class="scan '+current.sts+'"><i>🪪</i></span>':'<span class="scan scan-sts" style="opacity:.25"><i>🪪</i></span><span class="plus">＋</span>')+
+    '<span class="tg">СТС</span>';
+  s.addEventListener('click',function(e){e.stopPropagation();bigKey='sts';renderGallery()});
+  tb.appendChild(s);
+}
+function renderCompl(){
+  var c=current,pm=photoCount(c),fm=fullMissing(c),full=!fm.length;
+  document.getElementById('mc-compl-lab').textContent=pm+'/5 ракурсов · '+(c.sts?'СТС загружено':'СТС не загружено');
+  var badge=document.getElementById('mc-compl-badge');
+  badge.className='status '+(full?'st-ok':'st-val');badge.textContent=full?'Комплект полный':'Комплект неполный';
+  var bar=document.getElementById('mc-bar');bar.innerHTML='';
+  ANGLES.forEach(function(a){var i=document.createElement('i');if(c.photos[a[0]])i.className='f';bar.appendChild(i)});
+  var dot=document.createElement('span');dot.className='sts-dot'+(c.sts?' f':'');dot.title='СТС';bar.appendChild(dot);
+  document.getElementById('mc-missing').innerHTML=full?'Всё на месте. Авто готово к валидации.':'Не хватает: <b>'+fm.join(', ')+'</b>';
+}
+function renderActs(){
+  var c=current,box=document.getElementById('mc-acts');box.innerHTML='';
+  var note=document.getElementById('mc-note');note.className='need-note';
+  function btn(cls,label,fn,dis){var b=document.createElement('button');b.className='btn '+cls;b.textContent=label;b.disabled=!!dis;b.addEventListener('click',fn);box.appendChild(b);return b}
+  if(c.status==='draft'){
+    var vm=valMissing(c);
+    btn('primary','Отправить на валидацию',function(){
+      c.status='validation';render();renderActs();
+      toast('Авто отправлено на валидацию. Администратор увидит его в разделе «Автомобили». До подтверждения авто скрыто из каталога новых учеников.');
+    },!!vm.length);
+    btn('ghost','Заменить фото/СТС',function(){bigKey=photoCount(c)<5?ANGLES.filter(function(a){return !c.photos[a[0]]})[0][0]:'front';renderGallery()});
+    note.innerHTML=vm.length
+      ?'Отправка заблокирована, пока не хватает: <b>'+vm.join(', ')+'</b>. Загрузите недостающее кликом по миниатюрам — кнопка станет активной. Требование валидации: любые 3 фото ракурсов + СТС.'
+      :'Требование выполнено: любые 3 фото + СТС. После отправки авто получит статус «На валидации» и исчезнет из каталога новых учеников до подтверждения.';
+  }else if(c.status==='validation'){
+    btn('warn','Вернуть в черновик',function(){ // ОВ-3: отзыв с валидации разрешён
+      c.status='draft';render();renderActs();
+      toast('Авто возвращено в черновик — можно дослать фото или СТС и отправить на валидацию снова.');
+    });
+    btn('ghost','Заменить фото/СТС',function(){bigKey=photoCount(c)<5?ANGLES.filter(function(a){return !c.photos[a[0]]})[0][0]:'front';renderGallery()});
+    note.innerHTML='Авто на валидации у администратора: подтверждение — только его действие. Сейчас авто показывается вашим принятым ученикам с жёлтым бейджем <b>«Не проверено»</b>, из каталога для новых — скрыто. Вернуть в черновик можно в любой момент.';
+  }else{
+    btn('ghost','Заменить фото/СТС',function(){bigKey='front';renderGallery()});
+    note.className='need-note ok';
+    note.innerHTML='<b>Проверено '+c.checkedBy+'</b>. Авто с зелёной галочкой видно новым ученикам в каталоге. Если замените фото или СТС — при желании отправьте авто на валидацию заново (принятые ученики увидят бейдж «Не проверено»).';
+  }
+}
+// стрелки большой галереи (итерация 2): цикл по 5 ракурсам + СТС; клик по стрелке не запускает загрузку
+function navGal(dir){
+  var keys=ANGLES.map(function(a){return a[0]}).concat(['sts']);
+  var i=keys.indexOf(bigKey);
+  bigKey=keys[(i+dir+keys.length)%keys.length];
+  renderGallery();
+}
+function simulateUpload(el,done){
+  var prog=el.querySelector('.prog'),bar=prog.querySelector('i');
+  el.classList.add('busy');prog.classList.add('on');
+  var v=0;
+  var t=setInterval(function(){
+    v=Math.min(100,v+10+Math.random()*16);bar.style.width=v+'%';
+    if(v>=100){clearInterval(t);prog.classList.remove('on');bar.style.width='0';el.classList.remove('busy');done()}
+  },130);
+}
+// ── общие обработчики ──
+function closeCar(){document.getElementById('m-car').classList.remove('open');document.body.style.overflow=''}
+document.querySelectorAll('[data-close]').forEach(function(b){b.addEventListener('click',closeCar)});
+document.getElementById('m-car').addEventListener('click',function(e){if(e.target===this)closeCar()});
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeCar()});
+document.getElementById('open-add').addEventListener('click',function(){
+  toast('Создание авто — существующий экран: поля + обязательное фото СТС. Новое авто получает статус «Черновик»; ракурсы досылаются в его карточке.');
+});
+// сайдбар кабинета (BUG-047, итерация 2): активный раздел подсвечен, остальные — демо-переходы
+document.querySelectorAll('.nav button:not(.active)').forEach(function(b){
+  b.addEventListener('click',function(){toast('Раздел «'+b.textContent.trim()+'» — другой экран кабинета (демо-мокап)')});
+});
+document.getElementById('side-help').addEventListener('click',function(){toast('Раздел поддержки — демонстрационный макет')});
+render();
+</script></body></html>
