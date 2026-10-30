@@ -341,3 +341,6 @@ dashboard-instructor.html (расписание, ученики, доходы).
 
 
 **Итоги Спринта 6:** контейнерный контур (Dockerfile multi-stage non-root + healthcheck; compose app+nginx+MinIO, изолированные сети, ${VAR:?}-гвард кредов; volume db/uploads; тесты в образе; CI docker-build) + модульный JS (13 ES-модулей frontend/js/*, HTML-монолиты похудели, /js/* раздача). Регресс финальный: 312 passed. Циклы: арх-ревью needs-rework→approve; Партия B ревью — эквивалентность выноса подтверждена; INC-001 (хрупкость хоста) устранен архитектурно. Осталось: стенд-верификация compose (Docker-стенд, задача 5.1) — требует docker на хосте.
+
+
+**Итоги Спринта 6:** контейнерный контур (Dockerfile multi-stage non-root + healthcheck; compose app+nginx+MinIO с ${VAR:?}-гвардом кредов; volumes db/uploads; тесты в образе; CI docker-build PASS) + модульный JS (13 ES-модулей frontend/js/*, HTML-монолиты похудели, /js/* раздача). Регресс на main: 316-317 passed; 1 флак latency-теста (бюджет 500мс при bcrypt cost 12, медиана 430мс) — классифицирован, не чинился. Фабрика синхронизирована (4632a83, --force; CI requirements восстановлен; _template вне changes/). Осталось: S3-адаптер по факту MinIO-стенда; Docker-стенд верификация.
