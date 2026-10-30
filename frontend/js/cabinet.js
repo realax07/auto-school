@@ -254,7 +254,14 @@ import { toast, el, fmtDate, nowMoscow, fioOf } from './utils.js';
     if (!url) return;
     fetch(url, { headers: { 'X-Session-Token': token || '' } })
       .then(function (r) { return r.ok ? r.blob() : null; })
-      .then(function (blob) { if (blob) img.src = URL.createObjectURL(blob); })
+      .then(function (blob) {
+        if (!blob) return;
+        // NIT-1 (review-001): revoke прежнего blob-URL перед заменой —
+        // перерисовки раздела не копят объектные URL
+        if (img._blobUrl) URL.revokeObjectURL(img._blobUrl);
+        img._blobUrl = URL.createObjectURL(blob);
+        img.src = img._blobUrl;
+      })
       .catch(function () { /* 404/сеть: остается плейсхолдер, не битая картинка */ });
   }
   // бейдж статуса авто (ОВ-2): validating — желтый «Не проверено»,

@@ -2567,6 +2567,146 @@ def test_s7_admin_cars_filter_and_incomplete_approve_locked(
         page.context.close()
 
 
+def test_s7_validated_car_photo_replace_returns_to_validating(
+        browser, server, tmp_path):
+    """TC-UI-032 (MAJ-1 review-001, решение ПМ, итерация 3): замена фото у
+    validated-авто через UI модалки-галереи — тост «Фото заменены — авто
+    отправлено на повторную валидацию», бейдж карточки и модалки — желтый
+    «На валидации» (честная копия в модалке); у ученика пары бейдж «Не
+    проверено»; повторное подтверждение админом после дозагрузки возвращает
+    «Проверено» (и ученику тоже) — гейт ОВ-4 не обходится задним числом."""
+    instr_token, instructor_id = _approve_instructor(server)
+    car_id = _add_car(server, instr_token, plate="Ж444ЖЖ777")
+    for i, angle in enumerate(("front", "rear", "left")):
+        status, data = api_multipart(
+            f"/api/instructor/cars/{car_id}/photo/{angle}", base=server,
+            fields={}, files={"photo": (f"{angle}.png",
+                                        PNG_1PX + bytes([i]), "image/png")},
+            token=instr_token)
+        assert status == 200 and data["ok"], (status, data)
+    status, data = api("POST", f"/api/instructor/cars/{car_id}/submit",
+                       base=server, token=instr_token)
+    assert status == 200 and data["ok"], (status, data)
+    status, data = api("POST", f"/api/admin/cars/{car_id}/validate",
+                       base=server, admin_token=admin_login(server))
+    assert status == 200 and data["status"] == "validated", (status, data)
+
+    # --- ученик пары + подтвержденная бронь (бейдж в «Мои брони») ---
+    stu_token = _student_token(server)
+    status, data = api("POST", "/api/student/requests", base=server,
+                       token=stu_token, body={"instructor_id": instructor_id})
+    assert status == 200 and data["ok"], (status, data)
+    status, data = api("GET", "/api/instructor/requests", base=server,
+                       token=instr_token)
+    request_id = data["requests"][0]["id"]
+    status, data = api(
+        "POST", f"/api/instructor/requests/{request_id}/accept",
+        base=server, token=instr_token, body={"car_id": car_id})
+    assert status == 200 and data["ok"], (status, data)
+    status, data = api("PUT", "/api/instructor/availability", base=server,
+                       token=instr_token,
+                       body={"intervals": [
+                           {"weekday": 4, "start_time": "10:00",
+                            "end_time": "12:00"}]})
+    assert status == 200 and data["ok"], (status, data)
+    status, data = api("GET",
+                       f"/api/student/instructors/{instructor_id}/slots",
+                       base=server, token=stu_token)
+    slot_id = data["slots"][0]["id"]
+    status, data = api("POST", "/api/student/bookings", base=server,
+                       token=stu_token, body={"availability_id": slot_id})
+    assert status == 200 and data["ok"], (status, data)
+    booking_id = data["booking_id"]
+    status, data = api(
+        "POST", f"/api/instructor/bookings/{booking_id}/confirm",
+        base=server, token=instr_token)
+    assert status == 200 and data["ok"], (status, data)
+
+    # --- инструктор: validated «Проверено» → замена фото через UI ---
+    page, ctx = _fresh_page(browser, instr_token)
+    try:
+        page.goto(f"{server}/instructor/dashboard")
+        page.locator('.nav button[data-tab="Мои автомобили"]').click()
+        # скоуп к разделу: при брони на сегодня виджет «Занятия сегодня»
+        # тоже содержит элемент .car (текст авто урока)
+        card = page.locator("#cars .car")
+        expect(card).to_have_count(1)
+        expect(card.locator(".car-head .status")).to_have_text("Проверено")
+        card.click()
+        expect(page.locator("#m-car")).to_be_visible()
+        expect(page.locator("#mc-status")).to_have_text("Проверено")
+        # честная копия в validated-ветке (MAJ-1(б): ложная подсказка
+        # «отправьте заново» заменена на реальное правило)
+        expect(page.locator("#mc-note")).to_contain_text(
+            "вернет авто на валидацию")
+        # замена фото «спереди» через большое окно
+        png = tmp_path / "front-new.png"
+        png.write_bytes(PNG_1PX + b"\x01\x02\x03")
+        with page.expect_file_chooser() as fc_info:
+            page.locator("#mc-big").click()
+        fc_info.value.set_files(str(png))
+        # тост о повторной валидации + бейджи (карточка и модалка) желтые
+        expect(page.locator("#toast")).to_contain_text(
+            "Фото заменены — авто отправлено на повторную валидацию")
+        expect(page.locator("#mc-status")).to_have_text("На валидации")
+        expect(card.locator(".car-head .status")).to_have_text("На валидации")
+    finally:
+        ctx.close()
+
+    # бэкенд: статус validating — из каталога новых учеников авто скрыто
+    status, data = api("GET", "/api/instructor/cars", base=server,
+                       token=instr_token)
+    assert data["cars"][0]["status"] == "validating", data
+    status, data = api("GET", "/api/student/instructors", base=server,
+                       token=stu_token)
+    pair = [i for i in data["instructors"] if i["id"] == instructor_id][0]
+    assert pair["cars"] == [], pair
+
+    # --- ученик пары: бейдж «Не проверено» (желтый) ---
+    page, ctx = _fresh_page(browser, stu_token)
+    try:
+        page.goto(f"{server}/cabinet#/my-bookings")
+        expect(page.locator(".bk-req .car-badge.val")).to_have_text(
+            "Не проверено")
+        expect(page.locator("#bk-car-card .car-badge")).to_have_text(
+            "Не проверено")
+    finally:
+        ctx.close()
+
+    # --- админ: авто снова в validating-фильтре → повторное подтверждение ---
+    page, ctx = _fresh_page(browser, None)
+    page.add_init_script(
+        "sessionStorage.setItem('admin_token','%s');" % admin_login(server))
+    try:
+        page.goto(f"{server}/admin-dashboard")
+        page.locator('.nav button', has_text="Автомобили").click()
+        expect(page.locator("#sec-cars-admin")).to_be_visible()
+        row = page.locator("#ac-rows tr", has_text="Ж444ЖЖ777")
+        expect(row.locator(".ac-badge")).to_have_text("На валидации")
+        row.click()
+        expect(page.locator("#ac-backdrop")).to_be_visible()
+        approve_btn = page.locator("#ac-approve")
+        expect(approve_btn).to_be_enabled()  # комплект полный (3 + СТС)
+        approve_btn.click()
+        expect(page.locator("#ac-toast")).to_contain_text("подтверждено")
+        page.locator('#ac-filters button[data-f="validated"]').click()
+        row = page.locator("#ac-rows tr", has_text="Ж444ЖЖ777")
+        expect(row.locator(".ac-badge")).to_have_text("Проверено")
+    finally:
+        ctx.close()
+
+    # --- ученик: бейдж снова «Проверено» ---
+    page, ctx = _fresh_page(browser, stu_token)
+    try:
+        page.goto(f"{server}/cabinet#/my-bookings")
+        expect(page.locator(".bk-req .car-badge.ok")).to_have_text(
+            "Проверено")
+        expect(page.locator("#bk-car-card .car-badge")).to_have_text(
+            "Проверено")
+    finally:
+        ctx.close()
+
+
 # ------------------------------------------------------------- design-guard
 @pytest.mark.parametrize("filename", [
     "instructor-dashboard.html", "cabinet.html",

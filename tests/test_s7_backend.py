@@ -1095,6 +1095,81 @@ def test_s7_documents_sts_all_statuses_and_dosylka(api, client):
     )
 
 
+# --- MAJ-1 итерация 3: замена фото/СТС у validated → validating (ОВ-4) -------
+
+
+def test_s7_upload_to_validated_returns_to_validating_and_revalidate(api, client):
+    """TC-S7BE-019 (MAJ-1 review-001, решение ПМ, итерация 3): замена
+    ЛЮБОГО ракурса или СТС у авто в status='validated' переводит его
+    обратно в validating (ответ upload-ручки несет итоговый status);
+    у draft/validating загрузка статус не меняет (ОВ-7); после дозагрузки
+    повторный admin validate снова проходит (гейт ОВ-4 не обходится
+    задним числом: пока авто в validating — оно скрыто из каталога новых
+    учеников)."""
+    instr = create_instructor(client)
+    car_id = add_car_json(client, instr["token"])
+    # baseline (draft): загрузка статус не меняет, ответ несет статус
+    resp = upload_angle(client, instr["token"], car_id, "rear")
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["status"] == "draft"
+    # комплект до валидации: front/left + СТС (rear уже есть)
+    for angle in ("front", "left"):
+        assert upload_angle(client, instr["token"], car_id, angle).status_code == 200
+    # СТС у авто в draft: статус НЕ меняет (ответ несет текущий status);
+    # комплект 3 ракурса + СТС собран до отправки на валидацию
+    resp = client.post(
+        f"/api/instructor/cars/{car_id}/photo/sts",
+        files={"photo": ("sts.jpg", ROOT_JPEG, "image/jpeg")},
+        headers=_headers(instr["token"]),
+    )
+    assert resp.status_code == 200 and resp.json()["status"] == "draft"
+    assert submit_car(client, instr["token"], car_id).status_code == 200
+    resp = client.post(
+        f"/api/admin/cars/{car_id}/validate", headers=admin_headers(client)
+    )
+    assert resp.status_code == 200 and resp.json()["status"] == "validated"
+
+    # MAJ-1: замена ракурса у validated → validating (в ответе и в БД)
+    resp = upload_angle(client, instr["token"], car_id, "right")
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["status"] == "validating", resp.json()
+    conn = sqlite3.connect(db_path())
+    status = conn.execute(
+        "SELECT status FROM instructor_cars WHERE id = ?", (car_id,)
+    ).fetchone()[0]
+    conn.close()
+    assert status == "validating"
+
+    # ОВ-2 не обходится задним числом: validating скрыт из каталога новых
+    student = create_student(client)
+    catalog = client.get(
+        "/api/student/instructors", headers=_headers(student["token"])
+    ).json()["instructors"]
+    assert len(catalog) == 1 and catalog[0]["id"] == instr["id"]
+    assert catalog[0]["cars"] == [], catalog[0]["cars"]
+
+    # повторный admin validate после дозагрузки — снова validated
+    resp = client.post(
+        f"/api/admin/cars/{car_id}/validate", headers=admin_headers(client)
+    )
+    assert resp.status_code == 200 and resp.json()["status"] == "validated"
+
+    # замена СТС у validated — тот же переход validated → validating
+    resp = client.post(
+        f"/api/instructor/cars/{car_id}/photo/sts",
+        files={"photo": ("sts2.png", ROOT_PNG, "image/png")},
+        headers=_headers(instr["token"]),
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["status"] == "validating"
+    # повторный admin validate по НОВОМУ комплекту (right загружен,
+    # СТС заменен — комплект полный) — снова validated
+    resp = client.post(
+        f"/api/admin/cars/{car_id}/validate", headers=admin_headers(client)
+    )
+    assert resp.status_code == 200 and resp.json()["status"] == "validated"
+
+
 # --- MAJ-1 регресс: PUT availability × брони (наследование Спринта 5) ---------
 
 

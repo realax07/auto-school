@@ -41,8 +41,11 @@ transmission IN ('manual','automatic').
 иная роль → 403, чужой/несуществующий/ракурс не загружен → 404, ученик
 НЕ из пары → 403. Статусное правило (ОВ-2): draft → ученику пары 404
 (неразличение, NFR-4); validating/validated → выдается. angle='sts' —
-только владельцу (ученику пары → 403, NFR-7). Загрузка/замена фото и
-СТС статус НЕ меняет.
+только владельцу (ученику пары → 403, NFR-7). Замена фото/СТС у авто в
+status='validated' ВОЗВРАЩАЕТ его в validating (MAJ-1 review-001,
+решение ПМ): контент после замены не соответствует подтвержденному
+админом — повторная валидация обязательна (гейт ОВ-4 не обходится
+задним числом); у draft/validating загрузка статус не меняет.
 
 Баг 5.2 (FR-42, задача 1.1): список авто выдает клиенту URL
 авторизованного фото-эндпоинта (photos{angle}), а не файловый путь
@@ -127,7 +130,7 @@ _ANGLE_UPDATE_SQL = {
     "left": "UPDATE instructor_cars SET photo_left = ? WHERE id = ?",
     "right": "UPDATE instructor_cars SET photo_right = ? WHERE id = ?",
     # Спринт 7 (4.1): angle='sts' → photo_sts; замена не трогает ракурсы
-    # и статус (OV-7: статус меняют только submit/withdraw/validate).
+    # (статус при validated меняет upload-ручка — MAJ-1 review-001).
     "sts": "UPDATE instructor_cars SET photo_sts = ? WHERE id = ?",
 }
 
@@ -351,20 +354,27 @@ async def create_car(
         # Спринт 7 (задача 1.1): новое авто создается в 'draft' ЯВНО —
         # DEFAULT колонки ('validated') в новом коде не используется
         # (защита от «молчаливого validated» при будущих INSERT).
-        cur = conn.execute(
-            "INSERT INTO instructor_cars (instructor_id, brand, model, year,"
-            " plate, transmission, photo_sts, status)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, 'draft')",
-            (
-                instructor_id,
-                updates["brand"],
-                updates["model"],
-                updates["year"],
-                updates["plate"],
-                updates["transmission"],
-                sts_path,
-            ),
-        )
+        try:
+            cur = conn.execute(
+                "INSERT INTO instructor_cars (instructor_id, brand, model,"
+                " year, plate, transmission, photo_sts, status)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, 'draft')",
+                (
+                    instructor_id,
+                    updates["brand"],
+                    updates["model"],
+                    updates["year"],
+                    updates["plate"],
+                    updates["transmission"],
+                    sts_path,
+                ),
+            )
+        except sqlite3.Error:
+            # NIT-4 (review-001): сбой INSERT — сохраненный СТС-файл
+            # не остается сиротой в data/uploads/car_sts/
+            if sts_path:
+                Path(sts_path).unlink(missing_ok=True)
+            raise
         car_id = cur.lastrowid
         conn.commit()
     finally:
@@ -396,10 +406,17 @@ def _car_transition(
             return _error(404, "Автомобиль не найден")
         if row["status"] != required_status:
             return _error(409, not_in_status_error)
-        conn.execute(
-            "UPDATE instructor_cars SET status = ? WHERE id = ?",
-            (target_status, car_id),
+        # NIT-3 (review-001): guard-WHERE — единый паттерн с accept/deny
+        # в student_requests.py (гонка check-then-act закрыта условием
+        # в WHERE + rowcount, не только SELECT-проверкой).
+        cur = conn.execute(
+            "UPDATE instructor_cars SET status = ?"
+            " WHERE id = ? AND status = ?",
+            (target_status, car_id, required_status),
         )
+        if cur.rowcount == 0:
+            conn.rollback()
+            return _error(409, not_in_status_error)
         conn.commit()
     finally:
         conn.close()
@@ -544,8 +561,12 @@ async def upload_car_photo_angle(
     front/rear/interior/left/right + НОВОЕ 'sts' (СТС существующего авто
     → photo_sts; корень симптома «kind=car_sts не сохраняется» — legacy
     маршрут удален) → иначе 404; только владелец (чужой авто → 404);
-    JPEG/PNG ≤5 МБ по содержимому → иначе 422; замена остальные ракурсы
-    и статус НЕ трогает."""
+    JPEG/PNG ≤5 МБ по содержимому → иначе 422; остальные ракурсы не
+    трогает. MAJ-1 (review-001, решение ПМ): у авто в status='validated'
+    замена ЛЮБОГО ракурса/СТС возвращает его в validating (та же
+    транзакция, guard-WHERE) — валидатор обязан видеть актуальные фото,
+    гейт ОВ-4 не обходится задним числом; ответ содержит итоговый status.
+    Файл, записанный на диск при сбое UPDATE, удаляется (NIT-4)."""
     instructor_id, err = require_role(x_session_token, "instructor")
     if err is not None:
         return err
@@ -568,14 +589,39 @@ async def upload_car_photo_angle(
 
     conn = db.get_conn()
     try:
-        conn.execute(
-            _ANGLE_UPDATE_SQL[angle],
-            (path, car_id),
-        )
+        try:
+            cur = conn.execute(_ANGLE_UPDATE_SQL[angle], (path, car_id))
+        except sqlite3.Error:
+            # NIT-4 (review-001): сбой UPDATE — файл не остается сиротой
+            Path(path).unlink(missing_ok=True)
+            raise
+        if cur.rowcount == 0:
+            conn.rollback()
+            Path(path).unlink(missing_ok=True)
+            return _error(404, "Автомобиль не найден")
+        # MAJ-1 (review-001, решение ПМ): validated → validating при
+        # замене контента — в той же транзакции, guard-WHERE (паттерн
+        # NIT-3); draft/validating загрузка статус не меняет (ОВ-7).
+        row = conn.execute(
+            "SELECT status FROM instructor_cars WHERE id = ?", (car_id,)
+        ).fetchone()
+        status = row["status"] if row is not None else None
+        if status == "validated":
+            gated = conn.execute(
+                "UPDATE instructor_cars SET status = 'validating'"
+                " WHERE id = ? AND status = 'validated'",
+                (car_id,),
+            )
+            if gated.rowcount:
+                status = "validating"
         conn.commit()
     finally:
         conn.close()
-    return {"ok": True, "url": f"/api/instructor/cars/{car_id}/photo/{angle}"}
+    return {
+        "ok": True,
+        "url": f"/api/instructor/cars/{car_id}/photo/{angle}",
+        "status": status,
+    }
 
 
 @router.get("/api/instructor/cars/{car_id}/photo/{angle}")
@@ -683,26 +729,21 @@ def admin_cars_completeness(
 
     conn = db.get_conn()
     try:
+        # NIT-2 (review-001): один SELECT — опциональный WHERE по фильтру
+        sql = (
+            "SELECT c.id, c.instructor_id, c.brand, c.model, c.plate,"
+            " c.photo_front, c.photo_rear, c.photo_interior, c.photo_left,"
+            " c.photo_right, c.photo_sts, c.status,"
+            " u.surname, u.name, u.patronymic"
+            " FROM instructor_cars AS c JOIN users AS u"
+            " ON u.id = c.instructor_id"
+        )
+        params: tuple = ()
         if status:
-            rows = conn.execute(
-                "SELECT c.id, c.instructor_id, c.brand, c.model, c.plate,"
-                " c.photo_front, c.photo_rear, c.photo_interior, c.photo_left,"
-                " c.photo_right, c.photo_sts, c.status,"
-                " u.surname, u.name, u.patronymic"
-                " FROM instructor_cars AS c JOIN users AS u"
-                " ON u.id = c.instructor_id WHERE c.status = ?"
-                " ORDER BY c.id",
-                (status,),
-            ).fetchall()
-        else:
-            rows = conn.execute(
-                "SELECT c.id, c.instructor_id, c.brand, c.model, c.plate,"
-                " c.photo_front, c.photo_rear, c.photo_interior, c.photo_left,"
-                " c.photo_right, c.photo_sts, c.status,"
-                " u.surname, u.name, u.patronymic"
-                " FROM instructor_cars AS c JOIN users AS u"
-                " ON u.id = c.instructor_id ORDER BY c.id",
-            ).fetchall()
+            sql += " WHERE c.status = ?"
+            params = (status,)
+        sql += " ORDER BY c.id"
+        rows = conn.execute(sql, params).fetchall()
     finally:
         conn.close()
     cars = [

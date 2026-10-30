@@ -689,7 +689,8 @@ el('f-sts').addEventListener('change',function(){
 // миниатюры переключают кадр; стрелки ‹ › — цикл по 5 ракурсам + СТС,
 // клик по стрелке НЕ открывает выбор файла. Статусные действия:
 // «Отправить на валидацию» (draft→validating) / «Вернуть в черновик»
-// (validating→draft, ОВ-3). Замена фото/СТС статус не меняет (ОВ-7). ──
+// (validating→draft, ОВ-3). У validated-авто замена фото/СТС возвращает
+// его на валидацию — validated→validating на бэкенде (MAJ-1 review-001).──
 function mcGalKeys(){return mcAngles.map(function(a){return a[0]}).concat(['sts'])}
 function mcGalLoaded(c,key){
   if(key==='sts')return !!c.has_sts;
@@ -787,9 +788,18 @@ function mcNavGal(dir){
 // клик по большому окну → выбор файла для текущего кадра (ракурс или СТС)
 var mcGalTarget=null;
 function mcPickGal(car,key,bigEl){
-  mcGalTarget={carId:car.id,angle:key,big:bigEl};
+  // снимок статуса ДО загрузки: validated → замена вернет авто на валидацию
+  mcGalTarget={carId:car.id,angle:key,big:bigEl,wasValidated:car.status==='validated'};
   el('gal-file').value='';
   el('gal-file').click();
+}
+// сброс blob-кэша фото авто (NIT-1: revoke вместо роста памяти; заодно
+// после замены фото не показывается устаревший blob по тому же URL)
+function mcPurgeCarUrls(carId){
+  var pfx='/api/instructor/cars/'+carId+'/';
+  Object.keys(mcObjectUrls).forEach(function(u){
+    if(u.indexOf(pfx)===0){URL.revokeObjectURL(mcObjectUrls[u]);delete mcObjectUrls[u]}
+  });
 }
 el('gal-file').addEventListener('change',function(){
   if(!mcGalTarget||!this.files.length)return;
@@ -802,12 +812,19 @@ el('gal-file').addEventListener('change',function(){
   mcUpload('/api/instructor/cars/'+t.carId+'/photo/'+t.angle,'photo',file,bar,null,function(e){
     big.classList.remove('busy');prog.classList.remove('on');bar.style.width='0';
     if(e)return;
+    mcPurgeCarUrls(t.carId);
     // перезагрузка карточек и модалки: кадр стал загруженным, комплектность
-    // пересчитана; остальные ракурсы и статус не тронуты (ОВ-7, FR-43)
+    // пересчитана; у validated-авто бэкенд вернул статус validating
+    // (MAJ-1) — бейдж сменится на желтый «На валидации»
     openCars();
-    toast(t.angle==='sts'
-      ?'Фото СТС сохранено. Оно появится и в «Моих документах»; статус авто не изменился.'
-      :'Фото ракурса сохранено. Остальные ракурсы не тронуты (замена одного — точечная).');
+    if(t.wasValidated){
+      // MAJ-1 (решение ПМ): честный тост о повторной валидации
+      toast('Фото заменены — авто отправлено на повторную валидацию. Подтвердите заново: до этого авто скрыто из каталога новых учеников.');
+    }else{
+      toast(t.angle==='sts'
+        ?'Фото СТС сохранено. Оно появится и в «Моих документах»; статус авто не изменился.'
+        :'Фото ракурса сохранено. Остальные ракурсы не тронуты (замена одного — точечная).');
+    }
   });
 });
 function mcRenderGalCompl(){
@@ -881,8 +898,12 @@ function mcRenderGalActs(){
     });
     note.innerHTML='Авто на валидации у администратора: подтверждение — только его действие. Сейчас авто показывается вашим принятым ученикам с жёлтым бейджем <b>«Не проверено»</b>, из каталога для новых — скрыто. Вернуть в черновик можно в любой момент.';
   }else{
+    // MAJ-1 (review-001, решение ПМ): честная копия — замена фото/СТС
+    // у validated-авто вернет его на валидацию (бэкенд переводит
+    // validated → validating при загрузке), бейдж станет желтым
+    // «На валидации» до повторного подтверждения администратором.
     note.classList.add('ok');
-    note.innerHTML='<b>Проверено администратором.</b> Авто с зелёной галочкой видно новым ученикам в каталоге. Если замените фото или СТС — при желании отправьте авто на валидацию заново (принятые ученики увидят бейдж «Не проверено»).';
+    note.innerHTML='<b>Проверено администратором.</b> Авто с зелёной галочкой видно новым ученикам в каталоге. Изменение фото или СТС вернет авто на валидацию: бейдж сменится на жёлтый «На валидации», а подтверждение придется получить заново.';
   }
 }
 // сохранить (POST multipart с sts_photo / PATCH JSON-поля)
@@ -946,7 +967,7 @@ el('del-confirm').addEventListener('click',function(){
     mcCloseModal('m-del');
     if(res.status===401||res.status===403)return;
     if(!res.data||!res.data.ok){toast((res.data&&res.data.error)||'Не удалось удалить автомобиль');return}
-    if(mcObjectUrls[id]){URL.revokeObjectURL(mcObjectUrls[id]);delete mcObjectUrls[id]}
+    mcPurgeCarUrls(id); // NIT-1: revoke blob-URL всех фото удаляемого авто
     toast('Автомобиль удалён. car_id у принятых заявок сброшен, связь с учениками сохранена (ОВ-3).');
     openCars();
   });

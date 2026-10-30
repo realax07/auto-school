@@ -661,8 +661,11 @@ def test_s5_admin_block_removed_bookings_survive(api, client):
     env = setup_pair(client)
     instr, student = env["instr"], env["student"]
     car_id = env["car_id"]
-    set_car_status(car_id, "validated")  # состояние после миграции (ОВ-1)
+    # MAJ-1 (review-001, итерация 3): замена фото при validated вернула бы
+    # авто в validating — фото грузится ДО аранжировки «состояние после
+    # миграции» (строки миграции ОВ-1 уже несут фото/СТС)
     upload_angle(client, instr["token"], car_id, "front")
+    set_car_status(car_id, "validated")  # состояние после миграции (ОВ-1)
 
     # block-эндпоинт отсутствует (замещен статусной моделью)
     assert client.post(

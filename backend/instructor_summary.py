@@ -98,8 +98,15 @@ def instructor_summary(
                 "lesson_date": row["lesson_date"],
                 "start_time": row["start_time"],
                 "end_time": row["end_time"],
-                # ОВ-6 (следует за перекреплением) + MIN-3 (удален → None)
-                "car": _pair_car(conn, row["student_id"], instructor_id or 0),
+                # ОВ-6 (следует за перекреплением) + MIN-3 (удален → None);
+                # MIN-2 (review-001): viewer="instructor" ЯВНО — инструктор-
+                # виджет видит photo_url своего авто во всех статусах
+                # (правило владельца в booking._car_brief), дефолт
+                # 'student' здесь — шейп-мисматч.
+                "car": _pair_car(
+                    conn, row["student_id"], instructor_id or 0,
+                    viewer="instructor",
+                ),
             })
     finally:
         conn.close()
