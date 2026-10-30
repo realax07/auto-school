@@ -1,0 +1,334 @@
+<!doctype html>
+<!-- Мокап: Админка — новый раздел «Автомобили» (Спринт 7, change add-car-validation-booking, FR-66).
+     Таблица ВСЕХ авто всех инструкторов: инструктор, марка/модель, госномер, статус-бейдж
+     («Черновик» серый / «На валидации» жёлтый / «Проверено» зелёный), комплектность (ракурсы + СТС,
+     GET /api/admin/cars/completeness). Фильтр «На валидации» — отдельно. Клик по строке →
+     детальная модалка: фото всех 5 ракурсов + СТС, кнопка «Подтвердить» — активна при
+     ЛЮБЫЕ 3 фото + СТС (решение ОВ-4); иначе заблокирована с перечнем недостающего.
+     Подтверждение — только для авто «На валидации» (валидатор — человек, ОВ-1 Спринта 5).
+     Сайдбар без пунктов-заглушек «Расписания»/«Отношения» (FR-58); раздел включает блокировку
+     из старого /admin/cars (слияние разделов, ОВ-5). Доступ — X-Admin-Token. Данные демо. -->
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#071015"><title>СберАвтошкола — Админка · Автомобили</title>
+<style>
+:root{--bg:#071015;--line:#ffffff16;--text:#f3f7f8;--muted:#93a6b1;--green:#35d879}
+*{box-sizing:border-box}html,body{margin:0;min-width:320px}
+body{background:radial-gradient(ellipse at 78% 0%,#123b2c4d,transparent 38%),radial-gradient(ellipse at 8% 90%,#27465f26,transparent 40%),var(--bg);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh}
+button{font:inherit;color:inherit;cursor:pointer}
+.app{display:grid;grid-template-columns:250px 1fr;min-height:100vh;max-width:1400px;margin:auto}
+aside{padding:26px 18px;border-right:1px solid rgba(217,239,238,.14);background:rgba(10,20,26,.6)}
+.logo{display:flex;align-items:center;gap:10px;font-size:19px;font-weight:650;letter-spacing:-1px;margin-bottom:24px}
+.logo em{font-style:normal;color:var(--green)}
+.check{width:30px;height:30px;flex:none;display:grid;place-items:center;border:3px solid var(--green);border-radius:50%;color:var(--green);font-size:18px;transform:rotate(-8deg)}
+.nav{display:flex;flex-direction:column;gap:4px}
+.nav button{display:flex;align-items:center;gap:12px;padding:13px 16px;border:0;border-radius:12px;background:none;color:#b9c8cc;font-size:14px;text-align:left;cursor:pointer}
+.nav button:hover{background:rgba(73,236,154,.07);color:#e8f5f3}
+.nav button.active{background:rgba(73,236,154,.13);color:#5cf0a4}
+.nav .soon{opacity:.45}
+.side-foot{margin-top:auto;padding:0 10px;font-size:12px;color:#7d939a}
+main{padding:26px 28px 46px;min-width:0}
+.top{display:flex;align-items:center;gap:14px;margin-bottom:8px}
+.top h1{font-size:26px;letter-spacing:-.04em;font-weight:600;margin:0}
+.spacer{flex:1}
+.logout{padding:8px 20px;border:1px solid #ffffff40;border-radius:999px;background:transparent;font-size:13px}
+.logout:hover{border-color:var(--green)}
+.sub{font-size:12px;color:var(--muted);margin:0 0 18px}
+.token{font-size:11px;color:#8fa0aa;border:1px solid #ffffff16;background:#ffffff05;border-radius:999px;padding:8px 14px;white-space:nowrap}
+.token b{color:#a3efbd;font-weight:600}
+/* фильтры статусов */
+.filters{display:flex;gap:6px;margin:0 0 14px;flex-wrap:wrap}
+.filters button{border:1px solid #ffffff14;background:#ffffff05;color:#b9c8ce;border-radius:999px;padding:8px 15px;font-size:11px}
+.filters button.on{background:#143322;border-color:#2c8651;color:#a3efbd}
+.filters button .n{color:#ffd479}
+.toolbar{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.count{font-size:12px;color:#8fa0aa}
+.search{margin-left:auto;border:1px solid #ffffff16;background:#0b161c;border-radius:10px;padding:9px 13px;font-size:12px;color:#dcebe9;width:230px}
+/* таблица авто */
+.card{border:1px solid var(--line);border-radius:19px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:8px 6px;overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{padding:13px 14px;text-align:left;color:#8ea4a8;font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid #ffffff18}
+td{padding:14px;border-bottom:1px solid #ffffff0a;color:#dcebe9;white-space:nowrap}
+tbody tr{cursor:pointer;transition:background .12s}
+tbody tr:hover td{background:#35d8790a}
+tbody tr:last-child td{border-bottom:0}
+.badge{padding:4px 11px;border-radius:999px;font-size:11px;border:1px solid;white-space:nowrap}
+.b-draft{background:#1a242b;color:#aebfc7;border-color:#3a4a52}
+.b-val{background:#332a14;color:#ffd479;border-color:#6b5426}
+.b-ok{background:#143322;color:#91efb1;border-color:#2a5c40}
+.b-ok:before{content:"✓ "}
+.b-block{background:#33201a;color:#ffb28e;border-color:#5c3030}
+.compl{font-size:11px}
+.compl .ok{color:#91efb1}
+.compl .miss{color:#ffd479}
+.rowhint{font-size:11px;color:#6f818b;padding:12px 14px;text-align:right}
+/* модалка авто */
+.backdrop{position:fixed;inset:0;background:#02070bd0;backdrop-filter:blur(6px);display:none;place-items:center;padding:24px;z-index:30}
+.backdrop.open{display:grid}
+.modal{width:min(920px,100%);max-height:calc(100vh - 60px);overflow:auto;border:1px solid #ffffff20;border-radius:22px;background:linear-gradient(150deg,#16242c,#0b1418);box-shadow:0 30px 80px #000c;padding:26px 28px 28px}
+.modal-head{display:flex;align-items:start;gap:14px;margin-bottom:4px}
+.modal-head h2{font-size:22px;letter-spacing:-.04em;font-weight:600;margin:0}
+.modal-head .sub{font-size:12px;color:#8fa0aa;margin-top:7px}
+.close{margin-left:auto;flex:none;width:36px;height:36px;border-radius:11px;border:1px solid #ffffff18;background:#ffffff06;color:#b9c8ce;font-size:17px}
+.close:hover{border-color:#ff6b6b66;color:#ffb28e}
+.grid2{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(250px,1fr);gap:16px;margin-top:16px}
+.panel{border:1px solid #ffffff12;border-radius:15px;background:#ffffff04;padding:16px;min-width:0}
+.panel h3{font-size:10px;color:#8fa0aa;text-transform:uppercase;letter-spacing:.14em;margin:0 0 12px;font-weight:500}
+.rows{display:grid;gap:10px}
+.row{display:flex;justify-content:space-between;gap:12px;font-size:12px}
+.row span{color:#8fa0aa}
+.row b{font-weight:550;text-align:right;color:#e4eef0}
+/* галерея ракурсов */
+.bigview{position:relative;aspect-ratio:16/9;border-radius:13px;overflow:hidden;border:1px solid #ffffff14;margin-bottom:11px}
+.thumbs{display:grid;grid-template-columns:repeat(6,1fr);gap:7px}
+.thumb{position:relative;aspect-ratio:4/3;border-radius:9px;overflow:hidden;border:1.5px solid #ffffff14;background:#0d141a;padding:0;transition:border-color .12s;cursor:pointer}
+.thumb:hover{border-color:#35d879aa}
+.thumb.sel{border-color:var(--green)}
+.thumb .scan{position:absolute;inset:0;display:grid;place-items:center}
+.thumb .scan i{font-style:normal;font-size:15px;opacity:.85}
+.thumb .tg{position:absolute;left:0;right:0;bottom:0;font-size:7.5px;padding:2px;color:#d6e4e2;background:#02070bb8;text-align:center}
+.thumb.sts-t .tg{color:#ffd479}
+.scan{display:grid;place-items:center}
+.scan i{font-style:normal;opacity:.85;filter:drop-shadow(0 3px 10px #000a)}
+.scan:after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(105deg,transparent 0 26px,#ffffff06 26px 28px)}
+.scan-1{background:linear-gradient(160deg,#1d3a4a,#0c1a24 55%,#14333d)}
+.scan-2{background:linear-gradient(160deg,#243b2c,#0c1a12 55%,#1b3a26)}
+.scan-3{background:linear-gradient(160deg,#3a2f1d,#1a140c 55%,#3a301a)}
+.scan-4{background:linear-gradient(160deg,#2c2440,#14101f 55%,#241f38)}
+.scan-5{background:linear-gradient(160deg,#402a1d,#1f130c 55%,#38261a)}
+.scan-sts{background:linear-gradient(160deg,#4a3d1d,#241c0c 55%,#3d331a)}
+.thumb .no{position:absolute;inset:0;display:grid;place-items:center;color:#5d707c;font-size:15px;background:#0d141a}
+/* вердикт и действия */
+.verdict{margin-top:14px;font-size:12px;line-height:1.65;border:1px solid #ffffff12;border-radius:11px;background:#ffffff04;padding:11px 13px}
+.verdict b{color:#ffd479;font-weight:500}
+.verdict.ok{border-color:#2a5c40;background:#14332233}
+.verdict.ok b{color:#91efb1}
+.actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+.btn{flex:1;min-width:160px;border-radius:12px;padding:12px;font-size:13px;font-weight:550;border:1px solid}
+.btn.approve{background:#123524;border-color:#2b9c62;color:#c9ffdd}
+.btn.approve:hover{filter:brightness(1.12)}
+.btn.approve:disabled{opacity:.4;cursor:not-allowed;filter:none}
+.btn.blockb{background:transparent;border-color:#8a3c3c66;color:#ffb28e}
+.btn.blockb:hover{background:#33201a}
+.btn.ghost{background:#ffffff06;border-color:#ffffff16;color:#aab8c0;flex:0}
+footer{margin-top:32px;padding-top:18px;border-top:1px solid #ffffff10;display:flex;justify-content:space-between;gap:14px;font-size:11px;color:#5f717b;flex-wrap:wrap}
+.toast{position:fixed;bottom:22px;right:22px;max-width:380px;background:#143323;border:1px solid #367b50;color:#b5f8cc;padding:13px 16px;border-radius:13px;font-size:12px;box-shadow:0 10px 40px #0008;display:none;z-index:40}
+.toast.show{display:block}
+@media(max-width:1024px){.thumbs{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:850px){.app{grid-template-columns:1fr}aside{display:none}main{padding:20px 16px 36px}.top h1{font-size:22px}.search{width:100%;margin:14px 0 0}.toolbar{flex-wrap:wrap}.grid2{grid-template-columns:1fr}.modal{padding:18px}}
+@media(max-width:560px){.filters{overflow-x:auto;flex-wrap:nowrap}.actions .btn{min-width:100%}}
+</style></head><body>
+<div class="app">
+<aside>
+  <div class="logo"><span class="check">✓</span><span><em>Сбер</em>Автошкола</span></div>
+  <nav class="nav">
+    <button onclick="toast('Раздел «Пользователи» — вне этого мокапа.')">◉ Пользователи</button>
+    <button onclick="toast('Раздел «Заявки инструкторов» — см. мокап instructor-card-admin.html')">⧉ Заявки инструкторов</button>
+    <button class="active">🚗 Автомобили</button>
+    <button class="soon" onclick="toast('Платежи — появится в следующем спринте')">₽ Платежи</button>
+    <button class="soon" onclick="toast('Настройки — появится в следующем спринте')">✎ Настройки</button>
+  </nav>
+  <div class="side-foot">Спринт 7 · раздел «Автомобили»</div>
+</aside>
+<main>
+  <div class="top">
+    <h1>Автомобили</h1>
+    <div class="spacer"></div>
+    <span class="token">Доступ: <b>X-Admin-Token</b> подтверждён</span>
+    <span style="font-size:13px;color:#8ea4a8">admin</span>
+    <button class="logout">Выйти</button>
+  </div>
+  <p class="sub">Все авто всех инструкторов. Клик по строке — карточка с фото ракурсов и СТС; подтверждение — для авто «На валидации». Условие подтверждения: любые 3 фото + СТС.</p>
+
+  <div class="filters" id="filters">
+    <button class="on" data-f="all">Все</button>
+    <button data-f="validation">На валидации <span class="n" id="n-val"></span></button>
+    <button data-f="verified">Проверено</button>
+    <button data-f="draft">Черновики</button>
+  </div>
+  <div class="toolbar">
+    <span class="count" id="count"></span>
+    <input class="search" id="search" placeholder="Поиск по инструктору или марке">
+  </div>
+
+  <div class="card">
+    <table>
+      <thead><tr><th>Инструктор</th><th>Марка / модель</th><th>Госномер</th><th>Статус</th><th>Комплектность</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="rowhint">Строка кликабельна — откроется карточка авто</div>
+  </div>
+
+  <footer><span>СберАвтошкола · мокап «Админка · Автомобили» (Спринт 7)</span><span>Демонстрационный интерфейс · данные вымышлены</span></footer>
+</main>
+</div>
+
+<!-- детальная карточка авто: фото всех ракурсов + СТС + подтверждение (FR-66, ОВ-4) -->
+<div class="backdrop" id="modal" role="dialog" aria-modal="true" aria-labelledby="m-title">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <h2 id="m-title">—</h2>
+        <div class="sub" id="m-sub">—</div>
+      </div>
+      <span class="badge" id="m-status" style="margin-top:4px"></span>
+      <button class="close" id="close" aria-label="Закрыть">×</button>
+    </div>
+    <div class="grid2">
+      <div class="panel">
+        <h3>Фото ракурсов + СТС</h3>
+        <div class="bigview"><div class="scan scan-1" style="position:absolute;inset:0" id="m-bigscan"><i style="font-size:52px">🚗</i></div></div>
+        <div class="thumbs" id="m-thumbs"></div>
+        <div class="verdict" id="m-verdict"></div>
+      </div>
+      <div>
+        <div class="panel">
+          <h3>Данные авто</h3>
+          <div class="rows">
+            <div class="row"><span>Инструктор</span><b id="m-owner">—</b></div>
+            <div class="row"><span>Марка / модель</span><b id="m-brand">—</b></div>
+            <div class="row"><span>Год выпуска</span><b id="m-year">—</b></div>
+            <div class="row"><span>Госномер</span><b id="m-plate">—</b></div>
+            <div class="row"><span>Коробка передач</span><b id="m-trans">—</b></div>
+            <div class="row"><span>Ученики пары</span><b id="m-students">—</b></div>
+            <div class="row"><span>Комплектность</span><b id="m-compl">—</b></div>
+          </div>
+        </div>
+        <div class="verdict" style="margin-top:12px" id="m-access">Изображения выдаёт авторизованный эндпоинт (X-Admin-Token). Фото авто видны также ученикам пары; СТС — только владельцу и админу.</div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn approve" id="approve">✓ Подтвердить авто</button>
+      <button class="btn blockb" id="blockb">Заблокировать</button>
+      <button class="btn ghost" id="dummy">Закрыть</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+// авто (GET /api/admin/cars + …/completeness) — демо.
+var ANGLES=[['front','Спереди','scan-1'],['rear','Сзади','scan-2'],['left','Слева','scan-3'],['right','Справа','scan-4'],['interior','Салон','scan-5']];
+var STATUS={draft:['Черновик','b-draft'],validation:['На валидации','b-val'],verified:['Проверено','b-ok']};
+var transLabel={manual:'механика',automatic:'автомат'};
+var cars=[
+ {id:11,owner:'Михаил Самойлов',brand:'Škoda Rapid',year:2020,plate:'А 123 АА 777',trans:'automatic',students:1,status:'validation',blocked:false,
+  photos:{front:'scan-1',rear:'scan-2',left:'scan-3',right:'scan-4',interior:'scan-5'},sts:'scan-sts'},
+ {id:12,owner:'Анна Гордеева',brand:'Volkswagen Polo',year:2021,plate:'К 321 КК 777',trans:'automatic',students:0,status:'validation',blocked:false,
+  photos:{front:'scan-1',rear:'scan-2',left:'scan-3',right:null,interior:null},sts:null},
+ {id:13,owner:'Артём Белов',brand:'Lada Granta',year:2021,plate:'М 654 ММ 777',trans:'manual',students:0,status:'draft',blocked:false,
+  photos:{front:'scan-1',rear:null,left:null,right:null,interior:null},sts:'scan-sts'},
+ {id:14,owner:'Светлана Мищенко',brand:'Škoda Octavia',year:2019,plate:'Н 987 НН 777',trans:'manual',students:2,status:'verified',blocked:false,
+  photos:{front:'scan-1',rear:'scan-2',left:'scan-3',right:'scan-4',interior:'scan-5'},sts:'scan-sts'},
+ {id:15,owner:'Павел Ежов',brand:'Kia Rio',year:2022,plate:'О 741 ОО 777',trans:'automatic',students:0,status:'verified',blocked:true,
+  photos:{front:'scan-1',rear:'scan-2',left:null,right:null,interior:null},sts:null}
+];
+var filter='all',searchQ='',current=null,selKey='front';
+function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(window._tt);window._tt=setTimeout(function(){t.classList.remove('show')},3400)}
+function esc(s){return String(s).replace(/[<>&"]/g,function(c){return{'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]})}
+function photoCount(c){return ANGLES.filter(function(a){return c.photos[a[0]]}).length}
+function missingForApprove(c){ // ОВ-4: достаточно ЛЮБЫЕ 3 фото + СТС
+  var miss=[];
+  if(photoCount(c)<3)miss.push('фото ракурсов ('+photoCount(c)+' из 3)');
+  if(!c.sts)miss.push('СТС');
+  return miss;
+}
+function render(){
+  var tb=document.getElementById('rows');tb.innerHTML='';
+  var list=cars.filter(function(c){
+    if(filter!=='all'&&c.status!==filter)return false;
+    if(searchQ&&!((c.owner+' '+c.brand+' '+c.plate).toLowerCase().includes(searchQ.toLowerCase())))return false;
+    return true;
+  });
+  list.forEach(function(c){
+    var pc=photoCount(c),compl=(pc+'/5')+(c.sts?' + СТС':' · нет СТС');
+    var tr=document.createElement('tr');
+    tr.innerHTML='<td>'+esc(c.owner)+'</td><td>'+esc(c.brand)+'</td><td>'+esc(c.plate)+'</td>'+
+      '<td><span class="badge '+(c.blocked?'b-block':STATUS[c.status][1])+'">'+(c.blocked?'Заблокировано':STATUS[c.status][0])+'</span></td>'+
+      '<td class="compl"><span class="'+(pc>=3&&c.sts?'ok':'miss')+'">'+compl+'</span></td>';
+    tr.addEventListener('click',function(){open(c)});
+    tb.appendChild(tr);
+  });
+  document.getElementById('count').textContent='Автомобилей: '+list.length;
+  document.getElementById('n-val').textContent='·'+cars.filter(function(c){return c.status==='validation'}).length;
+}
+document.querySelectorAll('#filters button').forEach(function(b){b.addEventListener('click',function(){
+  document.querySelectorAll('#filters button').forEach(function(x){x.classList.remove('on')});
+  b.classList.add('on');filter=b.dataset.f;render();
+})});
+document.getElementById('search').addEventListener('input',function(){searchQ=this.value;render()});
+// ── модалка ──
+function open(c){
+  current=c;selKey=ANGLES.filter(function(a){return c.photos[a[0]]})[0][0];
+  document.getElementById('m-title').textContent=c.brand;
+  document.getElementById('m-sub').textContent='Авто № '+c.id+' · инструктор '+c.owner;
+  var st=document.getElementById('m-status');
+  st.className='badge '+(c.blocked?'b-block':STATUS[c.status][1]);
+  st.textContent=c.blocked?'Заблокировано':STATUS[c.status][0];
+  document.getElementById('m-owner').textContent=c.owner;
+  document.getElementById('m-brand').textContent=c.brand;
+  document.getElementById('m-year').textContent=c.year;
+  document.getElementById('m-plate').textContent=c.plate;
+  document.getElementById('m-trans').textContent=transLabel[c.trans];
+  document.getElementById('m-students').textContent=c.students?String(c.students):'нет';
+  var pc=photoCount(c);
+  document.getElementById('m-compl').textContent=pc+'/5'+(c.sts?' + СТС':' · СТС нет');
+  renderGallery();renderVerdict();
+  document.getElementById('modal').classList.add('open');document.body.style.overflow='hidden';
+}
+function renderGallery(){
+  var c=current,big=document.getElementById('m-bigscan');
+  var def=ANGLES.filter(function(a){return a[0]===selKey})[0];
+  big.className='scan '+(def?(c.photos[def[0]]||'scan-1'):'scan-sts');
+  big.style.position='absolute';big.style.inset='0';
+  big.firstElementChild.textContent=def?'🚗':'🪪';
+  var tb=document.getElementById('m-thumbs');tb.innerHTML='';
+  ANGLES.forEach(function(a){
+    var b=document.createElement('button');
+    b.className='thumb'+(a[0]===selKey?' sel':'');
+    b.innerHTML=(c.photos[a[0]]?'<span class="scan '+c.photos[a[0]]+'"><i>🚗</i></span>':'<span class="no">—</span>')+
+      '<span class="tg">'+a[1]+'</span>';
+    b.addEventListener('click',function(){selKey=a[0];renderGallery()});
+    tb.appendChild(b);
+  });
+  var s=document.createElement('button');
+  s.className='thumb sts-t'+(selKey==='sts'?' sel':'');
+  s.innerHTML=(c.sts?'<span class="scan '+c.sts+'"><i>🪪</i></span>':'<span class="no">—</span>')+'<span class="tg">СТС</span>';
+  s.addEventListener('click',function(){selKey='sts';renderGallery()});
+  tb.appendChild(s);
+}
+function renderVerdict(){
+  var c=current,miss=missingForApprove(c),v=document.getElementById('m-verdict'),ap=document.getElementById('approve');
+  if(c.status!=='validation'){
+    v.className='verdict'+(c.status==='verified'?' ok':'');
+    v.innerHTML=c.status==='verified'
+      ?'<b>Подтверждено ранее.</b> Статус «Проверено» установлен администратором; подтверждение недоступно. Блокировка скрытия авто от учеников — по необходимости.'
+      :'<b>Черновик.</b> Инструктор ещё не отправлял авто на валидацию — подтверждение недоступно. Напоминание инструктору — вне этого объёма.';
+    ap.style.display='none';
+  }else if(miss.length){
+    v.className='verdict';
+    v.innerHTML='<b>Подтверждение заблокировано.</b> Не хватает: '+miss.join(', ')+'. Условие — любые 3 фото ракурсов + СТС. Инструктору виден тот же перечень — досылет и отправит снова.';
+    ap.style.display='';ap.disabled=true;
+  }else{
+    v.className='verdict ok';
+    v.innerHTML='<b>Комплект достаточен:</b> '+photoCount(c)+' фото ракурсов (нужно 3) + СТС. Подтверждение установит статус «Проверено» — авто вернётся в каталог новых учеников с зелёной галочкой.';
+    ap.style.display='';ap.disabled=false;
+  }
+  document.getElementById('blockb').textContent=c.blocked?'Разблокировать':'Заблокировать';
+}
+function close(){document.getElementById('modal').classList.remove('open');document.body.style.overflow=''}
+document.getElementById('close').addEventListener('click',close);
+document.getElementById('dummy').addEventListener('click',close);
+document.getElementById('modal').addEventListener('click',function(e){if(e.target===this)close()});
+document.addEventListener('keydown',function(e){if(e.key==='Escape')close()});
+document.getElementById('approve').addEventListener('click',function(){
+  if(!current||current.status!=='validation')return;
+  current.status='verified';
+  close();render();renderVerdict();
+  toast('Авто «'+current.brand+'» подтверждено: статус «Проверено», зелёная галочка у инструктора. Из фильтра «На валидации» исчезнет.');
+});
+document.getElementById('blockb').addEventListener('click',function(){
+  if(!current)return;
+  current.blocked=!current.blocked;
+  close();render();
+  toast(current.blocked?'Авто заблокировано и скрыто от учеников (наследование Спринта 5).':'Блокировка снята.');
+});
+render();
+</script></body></html>
