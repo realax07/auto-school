@@ -103,3 +103,17 @@
 ## МЕТА
 
 Reviewer-Delegation: deleg_spawn144324141 — spawned hermes chat session (role=qa_case_reviewer, приемка)
+
+## Итерация 2 (2026-10-30): условие снято — ACCEPT
+
+- Дата: 2026-10-30. Условие итерации 1 (трассировка Спринта 5 — проверена
+  ревьюером по ошибке другого change) и фактический хвост (трассировка
+  Спринта 7) закрыты: sdd.md §29 «Трассировка (Спринт 7, Партия A)»
+  добавлена (восстановление INC-007; составлено ПМ, содержание
+  верифицировано прогонами flow_check/openspec).
+- Спектр ревью скорректирован ПМ: change — add-car-validation-booking
+  (Спринт 7), а не add-booking-docs (Спринт 5 — его трассировка §28 была
+  в main с приёмки Спринта 5).
+- Итог: **ACCEPT** — партия Спринта 7 принята (код, тесты 338/338,
+  ревью-цикл review-001 RETURN → review-002 APPROVE, design check
+  approve-with-notes, arch-review approve).

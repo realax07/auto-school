@@ -1,0 +1,363 @@
+<!doctype html>
+<!-- Мокап: «Бронирование» кабинета ученика — Спринт 7 (change add-car-validation-booking, FR-60).
+     База — мокап Спринта 5 (booking-student.html): расписание инструктора
+     (GET /api/student/instructors/{id}/slots), свободные слоты кликабельны, занятые зачёркнуты
+     без раскрытия кем, свой запрос — жёлтый; клик по свободному → модалка →
+     POST /api/student/bookings {availability_id} (гонки: занято → 409).
+     НОВОЕ (FR-60): рядом со слотами — карточка прикрепленного авто пары
+     (student_requests.car_id): фото ракурсов (клик по миниатюре — большой снимок),
+     статус-бейдж авто по ОВ-2 («Проверено» + зелёная галочка / «Не проверено» жёлтый /
+     «Черновик» — ученику не виден). Отсутствие фото/авто — плейсхолдер, не битая картинка
+     (механика MIN-3 Спринта 5). СТС ученику не выдаётся (NFR-7). Данные демо.
+     ИТЕРАЦИЯ 2 (замечания Заказчика): лейаут кабинета (BUG-047) — сайдбар УЧЕНИКА
+     слева (Главная / Мои заявки / Выбрать инструктора / Мои брони, активен «Мои брони»),
+     контент справа. Слоты, карточка авто, модалка брони — из итерации 1. -->
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#071015"><title>СберАвтошкола — Кабинет ученика · Бронирование</title>
+<style>
+:root{--bg:#071015;--line:#ffffff16;--text:#f3f7f8;--muted:#93a6b1;--green:#35d879}
+*{box-sizing:border-box}html,body{margin:0;min-width:320px}
+body{background:radial-gradient(ellipse at 78% 0%,#123b2c4d,transparent 38%),radial-gradient(ellipse at 8% 90%,#27465f26,transparent 40%),var(--bg);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh}
+button,textarea{font:inherit;color:inherit;cursor:pointer}
+/* лейаут кабинета (BUG-047): сайдбар + контент (итерация 2) */
+.app{min-height:100vh;display:grid;grid-template-columns:236px 1fr}
+.sidebar{padding:25px 17px;border-right:1px solid #ffffff12;background:#071016b8;display:flex;flex-direction:column;gap:26px;position:sticky;top:0;height:100vh;overflow:auto}
+.nav-label{font-size:10px;color:#637681;text-transform:uppercase;letter-spacing:.16em;padding:0 11px;margin-bottom:-17px}
+.nav{display:grid;gap:5px}
+.nav button{border:1px solid transparent;background:transparent;color:#aab8c0;text-align:left;padding:11px 12px;border-radius:12px;font-size:13px;display:flex;align-items:center;gap:12px}
+.nav button .ico{width:20px;text-align:center;font-size:16px;flex:none}
+.nav button.active{color:#8ff2b5;background:#143023;border-color:#286445}
+.nav button:hover{background:#ffffff09}
+.side-bottom{margin-top:auto;border:1px solid #ffffff13;border-radius:15px;padding:14px;background:#ffffff04}
+.side-bottom strong{font-size:12px}
+.side-bottom p{font-size:11px;color:#8d9da6;line-height:1.5;margin:7px 0 12px}
+.side-bottom button{width:100%;background:#143222;border:1px solid #2e6a47;color:#a2f5bf;border-radius:10px;padding:10px;font-size:11px}
+main{min-width:0;padding:0 clamp(20px,3vw,40px) 45px}
+.frame{max-width:1240px;margin:auto;padding:26px 0 0}
+header{display:flex;align-items:center;justify-content:space-between;gap:14px;height:48px;margin-bottom:6px}
+.brand{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:650;letter-spacing:-.4px;min-width:0}
+.brand>span:last-child{min-width:0}
+.brand em{font-style:normal;color:var(--green)}
+.check{width:32px;height:32px;flex:none;display:grid;place-items:center;border:3px solid var(--green);border-radius:50%;color:var(--green);font-size:20px;transform:rotate(-8deg)}
+.brand small{display:block;font-size:9px;color:#80919b;letter-spacing:.14em;text-transform:uppercase;margin-top:3px;font-weight:500}
+.crumb{font-size:12px;color:#8fa2ad;justify-self:center}
+.user{justify-self:end;display:flex;align-items:center;gap:13px}
+.uname{font-size:13px;color:#d6e4e2}
+.avatar{width:34px;height:34px;border-radius:11px;background:linear-gradient(145deg,#2c4f3d,#132119);display:grid;place-items:center;color:#a0f2bd;font-size:11px;font-weight:700}
+.logout{padding:8px 20px;border:1px solid #ffffff40;border-radius:999px;background:transparent;font-size:13px}
+.logout:hover{border-color:var(--green)}
+.page-head{margin:26px 0 6px;display:flex;align-items:end;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.kicker{font-size:10px;color:#79eaa5;text-transform:uppercase;letter-spacing:.18em}
+h1{font-size:28px;letter-spacing:-.05em;font-weight:600;margin:9px 0 8px}
+.page-head p{font-size:12px;color:var(--muted);margin:0}
+.tabs{display:flex;gap:5px;border:1px solid #ffffff14;background:#ffffff05;border-radius:12px;padding:5px}
+.tabs button{border:1px solid transparent;background:transparent;color:#aab8c0;border-radius:9px;padding:8px 14px;font-size:12px;white-space:nowrap}
+.tabs button.on{background:#143322;border-color:#2c8651;color:#a3efbd}
+/* пара */
+.pair{display:flex;align-items:center;gap:13px;border:1px solid var(--line);border-radius:17px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:14px 17px;margin:18px 0 16px;flex-wrap:wrap}
+.sic{width:44px;height:44px;flex:none;border-radius:13px;background:linear-gradient(145deg,#2c4f3d,#132119);display:grid;place-items:center;color:#a0f2bd;font-size:12px;font-weight:700}
+.pair b{font-size:14px;font-weight:600;display:block}
+.pair small{display:block;font-size:11px;color:#8fa0aa;margin-top:4px}
+/* две колонки: слоты слева, авто справа (FR-60) */
+.duo{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(290px,1fr);gap:16px;align-items:start}
+/* календарь недели */
+.cal{border:1px solid var(--line);border-radius:19px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:19px;min-width:0}
+.cal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:15px;flex-wrap:wrap}
+.cal-head b{font-size:15px;font-weight:600;letter-spacing:-.02em}
+.cal-head .sub{font-size:11px;color:#8799a3;margin-top:5px}
+.tools{display:flex;align-items:center;gap:8px}
+.tools button{background:#ffffff08;border:1px solid #ffffff14;color:#b9c8ce;border-radius:9px;padding:7px 11px;font-size:11px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 14px;color:#91a1aa;font-size:10px}
+.legend span{display:flex;align-items:center;gap:6px}
+.legend i{width:7px;height:7px;border-radius:50%;display:inline-block}
+.lg-free{background:var(--green)}.lg-busy{background:#3a4a52}.lg-mine{background:#ffd479}
+.grid{display:grid;grid-template-columns:56px repeat(7,minmax(0,1fr));gap:6px}
+.corner{font-size:9px;color:#637681;display:grid;place-items:end center;padding-bottom:6px;text-transform:uppercase;letter-spacing:.08em}
+.dh{text-align:center;padding:7px 2px;border-radius:10px;background:#ffffff04;border:1px solid #ffffff0e}
+.dh small{display:block;font-size:9px;color:#84959e;text-transform:uppercase;letter-spacing:.08em}
+.dh b{display:block;font-size:14px;margin-top:4px;font-weight:600}
+.dh.today{background:#143322;border-color:#2c8651}
+.dh.today small{color:#a3efbd}
+.tlabel{font-size:10px;color:#7e909a;display:flex;align-items:center;justify-content:flex-end;padding-right:6px}
+.slot{height:40px;border-radius:9px;border:1px solid #ffffff10;background:#ffffff03;transition:background .1s,border-color .1s;padding:0;font-size:9px;line-height:1.3;display:grid;place-items:center;color:transparent}
+.slot.free{background:#143322;border-color:#2c8651;color:#a3efbd}
+.slot.free:hover{filter:brightness(1.25);border-color:#35d879}
+.slot.free:after{content:"свободно"}
+.slot.taken{background:#0d141a;border-color:#ffffff10;color:#5d707c;text-decoration:line-through;cursor:not-allowed}
+.slot.taken:after{content:"занято"}
+.slot.mine{background:#2a2010;border-color:#6b5426;color:#ffd479;cursor:not-allowed}
+.slot.mine:after{content:"запрос отправлен"}
+.hint{margin-top:14px;font-size:11px;color:#7e909a;line-height:1.7}
+/* карточка авто (FR-60) */
+.carcard{border:1px solid var(--line);border-radius:19px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:17px 18px;min-width:0}
+.carcard h3{font-size:10px;color:#8fa0aa;text-transform:uppercase;letter-spacing:.14em;margin:0 0 13px;font-weight:500;display:flex;align-items:center;gap:10px}
+.carcard h3 .status{margin-left:auto}
+.status{font-size:10px;padding:5px 11px;border-radius:999px;border:1px solid;white-space:nowrap}
+.st-ok{background:#143322;color:#91efb1;border-color:#2a5c40}
+.st-ok:before{content:"✓ "}
+.st-val{background:#2a2010;color:#ffd479;border-color:#6b5426}
+.bigview{position:relative;aspect-ratio:16/10;border-radius:13px;overflow:hidden;border:1px solid #ffffff14;margin-bottom:11px}
+.bigview .scan{position:absolute;inset:0}
+.bigview .scan i{font-size:46px}
+.bigview .cap{position:absolute;left:0;right:0;bottom:0;padding:6px;font-size:10px;text-align:center;color:#e4eef0;background:#02070bb8}
+.thumbs{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-bottom:13px}
+.thumb{position:relative;aspect-ratio:4/3;border-radius:9px;overflow:hidden;border:1.5px solid #ffffff14;background:#0d141a;padding:0;transition:border-color .12s}
+.thumb:hover{border-color:#35d879aa}
+.thumb.sel{border-color:var(--green)}
+.thumb .scan{position:absolute;inset:0;display:grid;place-items:center}
+.thumb .scan i{font-style:normal;font-size:14px;opacity:.85}
+.thumb .no{position:absolute;inset:0;display:grid;place-items:center;color:#5d707c;font-size:13px;background:#0d141a}
+.thumb .tg{position:absolute;left:0;right:0;bottom:0;font-size:7.5px;padding:2px;color:#d6e4e2;background:#02070bb8;text-align:center}
+.scan{display:grid;place-items:center}
+.scan i{font-style:normal;opacity:.85;filter:drop-shadow(0 3px 10px #000a)}
+.scan:after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(105deg,transparent 0 26px,#ffffff06 26px 28px)}
+.scan-1{background:linear-gradient(160deg,#1d3a4a,#0c1a24 55%,#14333d)}
+.scan-2{background:linear-gradient(160deg,#243b2c,#0c1a12 55%,#1b3a26)}
+.scan-3{background:linear-gradient(160deg,#3a2f1d,#1a140c 55%,#3a301a)}
+.scan-4{background:linear-gradient(160deg,#2c2440,#14101f 55%,#241f38)}
+.scan-5{background:linear-gradient(160deg,#402a1d,#1f130c 55%,#38261a)}
+.crows{display:grid;gap:9px}
+.crow{display:flex;justify-content:space-between;gap:12px;font-size:12px}
+.crow span{color:#8fa0aa}
+.crow b{font-weight:550;text-align:right;color:#e4eef0}
+.car-note{margin-top:13px;font-size:10px;color:#7e909a;line-height:1.6;border:1px solid #ffffff12;border-radius:11px;background:#ffffff04;padding:10px 12px}
+/* мои брони */
+.sect-head{display:flex;align-items:center;gap:12px;margin:24px 0 13px}
+.sect-head b{font-size:15px;font-weight:600;letter-spacing:-.02em}
+.sect-head .n{font-size:10px;color:#91efb1;border:1px solid #2a5c40;background:#143322;border-radius:999px;padding:3px 9px}
+.list{display:grid;gap:11px}
+.req{border:1px solid var(--line);border-radius:18px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:16px 19px}
+.req-top{display:flex;gap:13px;align-items:center;flex-wrap:wrap}
+.req-top b{font-size:14px;font-weight:600;display:block}
+.req-top small{display:block;font-size:11px;color:#8fa0aa;margin-top:4px}
+.status2{margin-left:auto;flex:none;font-size:10px;padding:6px 12px;border-radius:999px;white-space:nowrap}
+.st-new{background:#2a2010;color:#ffd479;border:1px solid #6b5426}
+.st-den{background:#33201a;color:#ffb28e;border:1px solid #5c3030}
+.comment{margin:12px 0 0;padding:11px 14px;border:1px solid #ffffff10;background:#ffffff04;border-radius:12px;font-size:12px;color:#c9d6db;line-height:1.55}
+.comment span{display:block;font-size:10px;color:#8fa0aa;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+/* модалка подтверждения */
+.backdrop{position:fixed;inset:0;background:#02070bd0;backdrop-filter:blur(6px);display:none;place-items:center;padding:24px;z-index:30}
+.backdrop.open{display:grid}
+.modal{width:min(460px,100%);max-height:calc(100vh - 60px);overflow:auto;border:1px solid #ffffff20;border-radius:22px;background:linear-gradient(150deg,#16242c,#0b1418);box-shadow:0 30px 80px #000c;padding:24px 26px 26px}
+.modal-head{display:flex;align-items:start;gap:14px;margin-bottom:6px}
+.modal-head h2{font-size:19px;letter-spacing:-.03em;font-weight:600;margin:0}
+.modal-head .sub{font-size:12px;color:#8fa0aa;margin-top:7px;line-height:1.6}
+.close{margin-left:auto;flex:none;width:36px;height:36px;border-radius:11px;border:1px solid #ffffff18;background:#ffffff06;color:#b9c8ce;font-size:17px}
+.close:hover{border-color:#ff6b6b66;color:#ffb28e}
+.slotbox{margin:16px 0;border:1px solid #2a5c40;border-radius:13px;background:#0d241766;padding:14px 16px}
+.slotbox .row{display:flex;justify-content:space-between;gap:12px;font-size:12px;padding:5px 0}
+.slotbox .row span{color:#8fa0aa}.slotbox .row b{font-weight:550;color:#dcebe9;text-align:right}
+.slotbox textarea{width:100%;min-height:64px;resize:vertical;border:1px solid #ffffff16;background:#0b161c;border-radius:11px;padding:10px 12px;font-size:12px;color:#dcebe9;line-height:1.5;margin-top:8px}
+.slotbox textarea:focus{outline:none;border-color:#35d87966}
+.form-note{margin-top:12px;font-size:10px;color:#8fa0aa;line-height:1.6;border:1px solid #ffffff12;border-radius:11px;background:#ffffff04;padding:10px 12px}
+.form-actions{display:flex;gap:10px;margin-top:16px}
+.btn{flex:1;border-radius:12px;padding:12px;font-size:13px;font-weight:550;border:1px solid}
+.btn.primary{background:#123524;border-color:#2b9c62;color:#c9ffdd}
+.btn.primary:hover{filter:brightness(1.12)}
+.btn.ghost{background:transparent;border-color:#ffffff16;color:#aab8c0;flex:0 0 40%}
+footer{margin-top:32px;padding-top:18px;border-top:1px solid #ffffff10;display:flex;justify-content:space-between;gap:14px;font-size:11px;color:#5f717b;flex-wrap:wrap}
+.toast{position:fixed;bottom:22px;right:22px;max-width:380px;background:#2a2413;border:1px solid #7b6a35;color:#ffe4a3;padding:13px 16px;border-radius:13px;font-size:12px;box-shadow:0 10px 40px #0008;display:none;z-index:40}
+.toast.show{display:block}
+@media(max-width:1024px){.grid{grid-template-columns:44px repeat(7,minmax(0,1fr));gap:4px}.slot{height:30px;font-size:7.5px}}
+@media(max-width:850px){.frame{padding:20px 16px 36px}.crumb{display:none}h1{font-size:24px}.duo{grid-template-columns:1fr}}
+@media(max-width:560px){header{grid-template-columns:1fr auto}.brand{font-size:19px}.uname{display:none}.tabs{width:100%;overflow-x:auto}.dh small{font-size:8px}.dh b{font-size:11px}.slot{height:24px;font-size:6.5px}.tlabel{font-size:8px}.form-actions{flex-direction:column}.form-actions .ghost{flex:auto}.status2{margin-left:57px;order:3}.thumbs{gap:5px}}
+</style></head>
+<body>
+<div class="app">
+<aside class="sidebar">
+  <div class="brand"><span class="check">✓</span><span><em>Сбер</em>Автошкола<small>Кабинет ученика</small></span></div>
+  <div class="nav-label">Кабинет</div>
+  <nav class="nav">
+    <button><span class="ico">⌂</span>Главная</button>
+    <button><span class="ico">✉</span>Мои заявки</button>
+    <button><span class="ico">▤</span>Выбрать инструктора</button>
+    <button class="active"><span class="ico">◷</span>Мои брони</button>
+  </nav>
+  <div class="side-bottom"><strong>Нужна помощь?</strong><p>Поддержка учеников поможет с бронями, инструкторами и расписанием.</p><button id="side-help">Связаться с поддержкой ↗</button></div>
+</aside>
+<main><div class="frame">
+<header>
+  <div class="crumb">Кабинет ученика · Мои брони</div>
+  <div class="user"><span class="uname">Иван Ковалёв</span><span class="avatar">ИК</span><button class="logout">Выйти</button></div>
+</header>
+
+<div class="page-head">
+  <div>
+    <div class="kicker">Бронирование занятий</div>
+    <h1>Расписание инструктора</h1>
+    <p>Выберите свободный слот из графика вашего инструктора и отправьте запрос брони. Рядом — фотографии автомобиля, на котором пройдёт занятие.</p>
+  </div>
+</div>
+
+<!-- пара (серверная проверка student_requests accepted; без пары слоты недоступны — 403) -->
+<div class="pair">
+  <span class="sic">МС</span>
+  <div><b>Михаил Самойлов</b><small>стаж 11 лет · ваш инструктор с 02.10.2026 · рейтинг 4.9</small></div>
+</div>
+
+<div class="duo">
+  <!-- расписание недели (GET /api/student/instructors/{id}/slots) -->
+  <div class="cal">
+    <div class="cal-head">
+      <div><b>График на неделю</b><div class="sub">19–25 октября 2026 · слоты целиком, без нарезки</div></div>
+      <div class="tools"><button>←</button><button>Неделя →</button></div>
+    </div>
+    <div class="legend">
+      <span><i class="lg-free"></i>свободно — клик для брони</span>
+      <span><i class="lg-busy"></i>занято</span>
+      <span><i class="lg-mine"></i>ваш запрос на рассмотрении</span>
+    </div>
+    <div class="grid" id="grid"></div>
+    <div class="hint">Занятые слоты скрыты от раскрытия: видно только состояние «занято», кем — нет. Бронь ставится на слот целиком. Если слот займут раньше вас, вернётся ошибка «Слот уже занят» — выберите другой.</div>
+  </div>
+
+  <!-- карточка прикреплённого авто (FR-60): фото всех ракурсов + статус (ОВ-2) -->
+  <aside class="carcard">
+    <h3>Автомобиль занятий <span class="status st-ok" title="Виден в каталоге новых учеников с зелёной галочкой">Проверено</span></h3>
+    <div class="bigview" id="car-big">
+      <div class="scan scan-1"><i>🚗</i></div>
+      <div class="cap" id="car-cap">Спереди</div>
+    </div>
+    <div class="thumbs" id="car-thumbs"></div>
+    <div class="crows">
+      <div class="crow"><span>Марка / модель</span><b>Škoda Rapid</b></div>
+      <div class="crow"><span>Год выпуска</span><b>2020</b></div>
+      <div class="crow"><span>Коробка передач</span><b>автомат</b></div>
+    </div>
+    <div class="car-note">Фотографии показывает сервер только ученикам пары (сессия). СТС авто ученикам не выдаётся. Если инструктор заменит авто пары — здесь появится его карточка; без загруженных фото — плейсхолдер вместо снимков.</div>
+  </aside>
+</div>
+
+<!-- мои брони (GET /api/student/bookings) -->
+<div class="sect-head"><b>Мои брони</b><span class="n" id="bk-count"></span></div>
+<div class="list" id="list"></div>
+
+<footer><span>СберАвтошкола · мокап «Бронирование» с фото авто, итерация 2 (сайдбар кабинета ученика)</span><span>Демонстрационный интерфейс · данные вымышлены</span></footer>
+</div></main>
+</div>
+
+<!-- модалка: подтверждение запроса брони -->
+<div class="backdrop" id="m-book" role="dialog" aria-modal="true" aria-labelledby="bk-title">
+  <div class="modal">
+    <div class="modal-head">
+      <div><h2 id="bk-title">Забронировать занятие?</h2><div class="sub">Запрос уйдёт инструктору; слот закрепится за вами до решения.</div></div>
+      <button class="close" data-close aria-label="Закрыть">×</button>
+    </div>
+    <div class="slotbox">
+      <div class="row"><span>Инструктор</span><b>Михаил Самойлов</b></div>
+      <div class="row"><span>Дата</span><b id="bk-date">—</b></div>
+      <div class="row"><span>Время</span><b id="bk-time">—</b></div>
+      <div class="row"><span>Автомобиль</span><b>Škoda Rapid · автомат · <span style="color:#91efb1">✓ проверено</span></b></div>
+      <textarea id="bk-comment" placeholder="Комментарий инструктору (необязательно) — например, на чём сделать упор в занятии"></textarea>
+    </div>
+    <div class="form-note">Слот бронируется целиком (availability_id). Если инструктор отклонит запрос — слот освободится, и вы сможете отправить его снова; комментарий отказа будет виден здесь, в «Моих бронях».</div>
+    <div class="form-actions">
+      <button class="btn primary" id="bk-send">Отправить запрос</button>
+      <button class="btn ghost" data-close>Отмена</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script>
+// ── авто пары (student_requests.car_id → ракурсы instructor_cars) — демо ──
+// один ракурс не загружен — на его месте плейсхолдер (FR-60 / MIN-3, не битая картинка)
+var ANGLES=[['front','Спереди','scan-1'],['rear','Сзади','scan-2'],['left','Слева','scan-3'],['right','Справа','scan-4'],['interior','Салон','scan-5']];
+var carPhotos={front:'scan-1',rear:'scan-2',left:'scan-3',right:null,interior:'scan-5'};
+var carSel='front';
+function renderCar(){
+  var big=document.getElementById('car-big');
+  var def=ANGLES.filter(function(a){return a[0]===carSel})[0];
+  var has=!!carPhotos[carSel];
+  big.innerHTML=has
+    ?'<div class="scan '+carPhotos[carSel]+'"><i>🚗</i></div><div class="cap">'+def[1]+' · фото пары '+def[1].toLowerCase()+'</div>'
+    :'<div class="scan scan-1" style="opacity:.3"><i>🚗</i></div><div class="cap">Фото «'+def[1]+'» пока не загружено — плейсхолдер</div>';
+  var tb=document.getElementById('car-thumbs');tb.innerHTML='';
+  ANGLES.forEach(function(a){
+    var b=document.createElement('button');
+    b.className='thumb'+(a[0]===carSel?' sel':'');
+    b.title=carPhotos[a[0]]?'Фото: '+a[1]:'Фото «'+a[1]+'» не загружено';
+    b.innerHTML=(carPhotos[a[0]]?'<span class="scan '+carPhotos[a[0]]+'"><i>🚗</i></span>':'<span class="no">—</span>')+
+      '<span class="tg">'+a[1]+'</span>';
+    b.addEventListener('click',function(){carSel=a[0];renderCar()});
+    tb.appendChild(b);
+  });
+}
+// ── слоты инструктора (GET /api/student/instructors/7/slots) — демо ──
+// state: free | taken (чужая активная бронь) | mine (свой запрос на рассмотрении)
+var DAYS=[['пн','19'],['вт','20'],['ср','21'],['чт','22'],['пт','23'],['сб','24'],['вс','25']];
+var TODAY=3;
+var TIMES=['09:00–11:00','11:00–13:00','14:00–16:00','16:00–18:00','18:00–20:00'];
+var slots=[
+ ['free','taken','free','free','taken'],
+ ['taken','free','free','mine','free'],
+ ['free','free','taken','free','free'],
+ ['free','taken','free','free','mine'],
+ ['free','free','free','taken','free'],
+ ['free','free','mine','free','free'],
+ ['taken','free','free','free','free']
+];
+// мои брони (GET /api/student/bookings) — демо
+var bookings=[
+ {id:701,date:'среда, 21 октября',time:'18:00–20:00',car:'Škoda Rapid · автомат',status:'new'},
+ {id:697,date:'вторник, 13 октября',time:'11:00–13:00',car:'Škoda Rapid · автомат',status:'confirmed'},
+ {id:690,date:'пятница, 9 октября',time:'09:00–11:00',car:'Škoda Rapid · автомат',status:'rejected',comment:'В это день буду на пересдаче экзамена в ГИБДД, занятия не будет. Выберите, пожалуйста, другой слот на этой неделе.'}
+];
+var STATUS={new:['Запрос отправлен','st-new'],confirmed:['Подтверждена','st-ok'],rejected:['Отклонена','st-den']};
+var picked=null;
+function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(window._tt);window._tt=setTimeout(function(){t.classList.remove('show')},3400)}
+function esc(s){return String(s).replace(/[<>&"]/g,function(c){return{'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]})}
+function renderGrid(){
+  var g=document.getElementById('grid');g.innerHTML='<span class="corner">время</span>';
+  DAYS.forEach(function(d,i){g.insertAdjacentHTML('beforeend','<div class="dh'+(i===TODAY?' today':'')+'"><small>'+d[0]+'</small><b>'+d[1]+'</b></div>')});
+  TIMES.forEach(function(t,ti){
+    g.insertAdjacentHTML('beforeend','<span class="tlabel">'+t+'</span>');
+    slots.forEach(function(day,di){
+      var st=day[ti];
+      var btn=document.createElement('button');
+      btn.className='slot '+st;
+      btn.title=DAYS[di][0]+' '+DAYS[di][1]+' окт, '+t+' — '+
+        (st==='free'?'свободно, нажмите для брони':st==='taken'?'занято':'ваш запрос на рассмотрении');
+      if(st==='free'){btn.addEventListener('click',function(){openBook(di,ti)})}
+      else{btn.disabled=true}
+      g.appendChild(btn);
+    });
+  });
+}
+function renderBookings(){
+  var box=document.getElementById('list');box.innerHTML='';
+  document.getElementById('bk-count').textContent=bookings.length;
+  bookings.forEach(function(b){
+    var el=document.createElement('article');el.className='req';
+    el.innerHTML='<div class="req-top"><div><b>'+esc(b.date)+' · '+esc(b.time)+'</b>'+
+      '<small>'+esc(b.car)+' · Михаил Самойлов</small></div>'+
+      '<span class="status2 '+STATUS[b.status][1]+'">'+STATUS[b.status][0]+'</span></div>'+
+      (b.status==='rejected'&&b.comment?'<div class="comment"><span>Комментарий инструктора</span>'+esc(b.comment)+'</div>':'');
+    box.appendChild(el);
+  });
+}
+// ── подтверждение запроса (POST /api/student/bookings {availability_id}) ──
+function openBook(di,ti){
+  picked={d:di,t:ti};
+  document.getElementById('bk-date').textContent=DAYS[di][1]+' октября 2026 ('+DAYS[di][0]+')';
+  document.getElementById('bk-time').textContent=TIMES[ti];
+  document.getElementById('bk-comment').value='';
+  document.getElementById('m-book').classList.add('open');document.body.style.overflow='hidden';
+}
+function closeBook(){document.getElementById('m-book').classList.remove('open');document.body.style.overflow=''}
+document.querySelectorAll('[data-close]').forEach(function(b){b.addEventListener('click',closeBook)});
+document.getElementById('m-book').addEventListener('click',function(e){if(e.target===this)closeBook()});
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeBook()});
+document.getElementById('bk-send').addEventListener('click',function(){
+  slots[picked.d][picked.t]='mine';
+  bookings.unshift({id:Date.now(),date:DAYS[picked.d][1]+' октября 2026 ('+DAYS[picked.d][0]+')',time:TIMES[picked.t],
+    car:'Škoda Rapid · автомат',status:'new'});
+  closeBook();renderGrid();renderBookings();
+  toast('Запрос отправлен (статус «на рассмотрении»). Инструктор увидит его на слоте в календаре.');
+});
+renderCar();renderGrid();renderBookings();
+// сайдбар кабинета ученика (BUG-047, итерация 2): активен «Мои брони», остальные — демо-переходы
+document.querySelectorAll('.nav button:not(.active)').forEach(function(b){
+  b.addEventListener('click',function(){toast('Раздел «'+b.textContent.trim()+'» — другой экран кабинета (демо-мокап)')});
+});
+document.getElementById('side-help').addEventListener('click',function(){toast('Раздел поддержки — демонстрационный макет')});
+</script></body></html>

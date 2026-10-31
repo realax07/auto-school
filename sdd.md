@@ -837,3 +837,37 @@ SQLite data/app.db (WAL) — users (§4 + role §16): схема НЕ меняе
    трассировки выше; ни одна строка не ссылается на отсутствующие
    файлы/тесты. TC-S5BE-001…025 (+011b) и TC-UI Партии A покрыты
    полностью, биекция кейс↔тест backend-сьюта — 26/26 (QA-отчет §TC-S5BE).
+
+# SDD (дополнение): Трассировка (Спринт 7, Партия A)
+
+## 29. Трассировка (Спринт 7, Партия A) — change add-car-validation-booking
+
+Состав партии: статусная модель авто (draft/validating/validated + миграция
+существующих → validated по ОВ-1), переходы с guard-ами (инструктор:
+send-to-validation/back-to-draft по ОВ-3; админ: validate с комплектностью
+«3+ ракурса + СТС» по ОВ-4, иначе 409 с перечнем), видимость по ОВ-2
+(draft скрыт у учеников; validating — «Не проверено» жёлтым; validated —
+«Проверено» + зелёная галочка; каталог — только validated), MAJ-1 арх-ревью
+(PUT availability при активных бронях → 409 в транзакции), баг 5.2 (photo_path
+в плитках), навигационные фиксы (сайдбар выбора инструктора, админ-заглушки,
+«ваш следующий маршрут»).
+
+| Requirement/дельта specs/ | Реализация | Тесты |
+|---|---|---|
+| instructor-cars: статусная модель и переходы | backend/instructor_cars.py (status, transition-ручки) | tests/test_s7_backend.py TC-S7BE-001…012 |
+| instructor-cars: комплектность (3+ ракурса + СТС) и админ-подтверждение | backend/instructor_cars.py / backend/instructor_admin.py (completeness + validate) | tests/test_s7_backend.py TC-S7BE-013…017 |
+| instructor-cars: видимость по статусам (ОВ-2) | backend/instructor_cars.py / student_marketplace.py (каталог — только validated) | tests/test_s7_backend.py TC-S7BE-018…019; e2e TC-UI-030/031 |
+| booking × availability: MAJ-1 (409 при замены графика с бронями) | backend/instructor_availability.py (guard в транзакции) | tests/test_s7_backend.py TC-S7BE-020 (регресс TC-S7BE-018) |
+| booking: фото авто у ученика (баг 5.2 → FR) | frontend/cabinet.html + выдача photo_path | e2e TC-UI-032; test_s5_backend.py (регресс) |
+| навигация: сайдбар выбора инструктора, админ-заглушки, «ваш следующий маршрут» | frontend/instructor-choice.html, admin-dashboard.html, instructor-dashboard.html | e2e TC-UI-033; test_s3_backend.py (регресс) |
+
+Примечания:
+1. TC-S7BE-NNN — tests/test_s7_backend.py (rule 6 соблюдена: TC-трассировка в
+   docstring); TC-UI-030…033 — tests/test_ui_playwright.py (change
+   add-car-validation-booking).
+2. Устаревший POST /api/instructor/cars/{id}/photo — REMOVED-дельта; 12+
+   тестов Спринта 3 (tests/test_s3_backend.py) обновлены на параметризованный
+   маршрут ракурсов (tasks.md 4.1) — фиксация вместо молчаливой поломки.
+3. sdd-трассировка составлена ПМ (INC-007: leaf-агент Спринта 5 редактировал
+   sdd.md в удаленном позже worktree; правка восстановлена вручную по данным
+   QA-отчетов и review-артефактов) — содержание верифицировано прогонами.

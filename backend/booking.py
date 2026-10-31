@@ -85,25 +85,52 @@ def _pair_accepted(
 
 
 def _car_brief(
-    conn: sqlite3.Connection, car_id: int | None
+    conn: sqlite3.Connection,
+    car_id: int | None,
+    viewer: str = "student",
 ) -> dict | None:
     """Авто пары для календарей (MIN-3): car_id NULL/удален → None («—»),
-    не ошибка; заблокированное авто (MIN-2) календарь НЕ скрывает."""
+    не ошибка. Спринт 7 (задача 6.1): + car_status (флаг бейджа ОВ-2) и
+    photo_url (первый доступный ракурс, приоритет front); draft → у
+    ученика БЕЗ photo_url (плейсхолдер на клиенте, бронь видна), владелец
+    видит свои фото во всех статусах. blocked (MIN-2, устаревшая колонка)
+    календарь НЕ читает — видимость регулируется status."""
     if not car_id:
         return None
     row = conn.execute(
-        "SELECT id, brand, model, year, transmission FROM instructor_cars"
-        " WHERE id = ?",
+        "SELECT id, brand, model, year, transmission, status,"
+        " photo_front, photo_rear, photo_interior, photo_left, photo_right"
+        " FROM instructor_cars WHERE id = ?",
         (car_id,),
     ).fetchone()
-    return dict(row) if row is not None else None
+    if row is None:
+        return None
+    photo_url = None
+    if viewer == "instructor" or row["status"] in ("validating", "validated"):
+        for angle in ("front", "rear", "interior", "left", "right"):
+            if row[f"photo_{angle}"] is not None:
+                photo_url = f"/api/instructor/cars/{car_id}/photo/{angle}"
+                break
+    return {
+        "id": row["id"],
+        "brand": row["brand"],
+        "model": row["model"],
+        "year": row["year"],
+        "transmission": row["transmission"],
+        "car_status": row["status"],
+        "photo_url": photo_url,
+    }
 
 
 def _pair_car(
-    conn: sqlite3.Connection, student_id: int, instructor_id: int
+    conn: sqlite3.Connection,
+    student_id: int,
+    instructor_id: int,
+    viewer: str = "student",
 ) -> dict | None:
     """Авто пары «следует за перекреплением» (ОВ-6): car_id берется из
-    ТЕКУЩЕЙ accepted-заявки на момент выдачи."""
+    ТЕКУЩЕЙ accepted-заявки на момент выдачи; viewer — правило photo_url
+    по статусу (задача 6.1)."""
     row = conn.execute(
         "SELECT car_id FROM student_requests"
         " WHERE student_id = ? AND instructor_id = ? AND status = 'accepted'",
@@ -111,7 +138,7 @@ def _pair_car(
     ).fetchone()
     if row is None:
         return None
-    return _car_brief(conn, row["car_id"])
+    return _car_brief(conn, row["car_id"], viewer)
 
 
 def blocking_bookings(
@@ -407,7 +434,9 @@ def instructor_bookings(
                 "start_time": row["start_time"],
                 "end_time": row["end_time"],
                 "student_full_name": full_name(student) if student else "",
-                "car": _pair_car(conn, row["student_id"], instructor_id or 0),
+                "car": _pair_car(
+                    conn, row["student_id"], instructor_id or 0, "instructor"
+                ),
                 "reject_comment": (
                     row["reject_comment"] if row["status"] == "rejected" else None
                 ),

@@ -438,10 +438,15 @@ function bindRequests(){
 var mcTransLabel={manual:'механика',automatic:'автомат'};
 // Ракурсы — контракт backend/instructor_cars.py (ANGLES) + подписи мокапа
 var mcAngles=[['front','Спереди'],['rear','Сзади'],['left','Слева'],['right','Справа'],['interior','Салон']];
+// Спринт 7 (change add-car-validation-booking): статусы валидации
+// (мокап my-cars-s7): «Черновик» серый / «На валидации» жёлтый / «Проверено»
+// зелёный + галочка (:before в CSS)
+var mcSTATUS={draft:['Черновик','st-draft'],validating:['На валидации','st-val'],validated:['Проверено','st-ok']};
 var mcCars=[],mcEditing=null,mcDeleting=null,mcTransVal='manual';
 var mcStsFile=null;     // выбранный в модалке файл СТС (multipart sts_photo)
 var mcObjectUrls={};    // URL эндпоинта -> blob URL (фото выдаются только с сессией — обычный <img src> получит 401)
-var mcSlotTarget=null;  // {carId, angle} — слот, для которого выбран файл
+var mcView={};          // car_id -> текущий ракурс главного снимка карточки
+var mcGal={car:null,bigKey:'front'}; // модалка-галерея: авто + открытый кадр ('front'…'interior'|'sts')
 // Загрузка авторизованного изображения в blob (X-Session-Token); кэш по URL
 function mcLoadImg(url,img){
   if(!url)return;
@@ -462,6 +467,10 @@ function openCars(){
     if(!d){toast('Не удалось загрузить автомобили');return}
     mcCars=d.cars||[];
     mcRender();
+    if(mcGal.car){ // модалка галереи открыта — обновить её данные тем же авто
+      var fresh=mcCars.find(function(x){return x.id===mcGal.car.id});
+      if(fresh)mcRenderGalCar(fresh);else mcCloseModal('m-car');
+    }
   });
 }
 // Комплектность (ОВ-1): 5 ракурсов + СТС; недостающее — по-русски
@@ -472,6 +481,19 @@ function mcMissing(c){
   if(!c.has_sts)miss.push('СТС');
   return miss;
 }
+function mcLoadedAngles(c){
+  var photos=c.photos||{};
+  return mcAngles.filter(function(a){return photos[a[0]]});
+}
+// ── главный снимок карточки: выбранный ракурс + стрелки ‹ › поверх фото
+//    (стрелки листают только ЗАГРУЖЕННЫЕ ракурсы, клик не открывает модалку) ──
+function mcCycleView(c,dir){
+  var avail=mcLoadedAngles(c);
+  if(avail.length<2)return;
+  var i=0;avail.forEach(function(a,ix){if(a[0]===mcView[c.id])i=ix});
+  mcView[c.id]=avail[(i+dir+avail.length)%avail.length][0];
+  mcRender();
+}
 function mcRender(){
   var box=el('cars');box.innerHTML='';
   el('empty').style.display=mcCars.length?'none':'block';
@@ -479,91 +501,73 @@ function mcRender(){
   mcCars.forEach(function(c){
     var miss=mcMissing(c),full=!miss.length;
     var photos=c.photos||{};
+    var loaded=mcLoadedAngles(c);
+    if(!mcView[c.id]||!photos[mcView[c.id]])mcView[c.id]=loaded.length?loaded[0][0]:null;
+    var st=mcSTATUS[c.status]||mcSTATUS.draft;
     var art=node('article','car');
     art.dataset.carId=String(c.id);
+    art.style.cursor='pointer';
     var head=node('div','car-head');
     var hd=node('div');
     hd.appendChild(node('b','title',(c.brand||'')+' '+(c.model||'')));
     hd.appendChild(node('small','sub',(c.year||'')+' год выпуска'));
     head.appendChild(hd);
-    head.appendChild(node('span','status '+(full?'st-full':'st-miss'),
-      full?'Комплект полный':('Не хватает: '+miss.join(', '))));
+    head.appendChild(node('span','status '+st[1],st[0]));
     art.appendChild(head);
-    if(c.blocked){
-      var bm=node('div','meta');
-      bm.appendChild(node('span','pill blocked','⚠ Заблокирован администратором — скрыт от учеников'));
-      art.appendChild(bm);
-    }
     var meta=node('div','meta');
     meta.appendChild(node('span','pill green',mcTransLabel[c.transmission]||c.transmission||''));
     meta.appendChild(node('span','pill plate',c.plate||''));
     art.appendChild(meta);
-    // 5 фото-слотов ракурсов: клик — загрузка/замена (баг 5.2: миниатюра
-    // после загрузки — blob из авторизованного GET …/photo/{angle})
-    art.appendChild(node('p','slots-label','Фото ракурсы · клик по слоту — загрузка / замена'));
-    var angles=node('div','angles');
-    mcAngles.forEach(function(a){
-      var url=photos[a[0]]||null;
-      var b=document.createElement('button');
-      b.type='button';
-      b.className='slot '+(url?'has':'empty');
-      b.dataset.angle=a[0];
-      b.dataset.car=String(c.id);
-      b.title=(url?'Заменить фото':'Загрузить фото')+' — '+a[1];
-      if(url){
-        var img=document.createElement('img');img.alt=a[1];
-        b.appendChild(img);
-        mcLoadImg(url,img);
-      }else{
-        b.appendChild(node('span','ph','🚗'));
-      }
-      b.appendChild(node('span','plus','＋'));
-      b.appendChild(node('span','tag',a[1]));
-      var pr=node('span','prog');pr.appendChild(node('i'));b.appendChild(pr);
-      b.addEventListener('click',function(){mcPickSlot(c,a[0],b)});
-      angles.appendChild(b);
-    });
-    art.appendChild(angles);
-    // СТС — отдельный широкий слот (FR-44: обязателен при создании);
-    // загружен → просмотр по клику; ученикам СТС не выдается
-    var stsRow=node('div','sts-row');
-    var sts=document.createElement('button');
-    sts.type='button';
-    sts.className='sts-slot'+(c.has_sts?' has':'');
-    sts.dataset.sts=String(c.id);
-    if(c.sts_url){
-      var simg=document.createElement('img');simg.alt='СТС';
-      sts.appendChild(simg);
-      mcLoadImg(c.sts_url,simg);
+    // главный снимок: текущий ракурс (миниатюра из авторизованного эндпоинта —
+    // фикс 5.2) + стрелки ‹ › поверх фото с полупрозрачным фоном
+    var shot=node('div','shot');
+    if(mcView[c.id]){
+      var img=document.createElement('img');img.alt=mcView[c.id];
+      shot.appendChild(img);mcLoadImg(photos[mcView[c.id]],img);
+    }else{
+      shot.appendChild(node('span','ph','🚗'));
     }
-    sts.appendChild(node('span','ic','🪪'));
-    var stx=node('span','txt');
-    stx.appendChild(node('b',null,'СТС — свидетельство о регистрации'));
-    stx.appendChild(node('small',null,c.has_sts?'загружено · просмотр по клику':'не загружено · загрузите при создании'));
-    sts.appendChild(stx);
-    sts.appendChild(node('span','ok','✓'));
-    sts.addEventListener('click',function(){
-      if(c.sts_url)mcOpenView({title:'СТС · '+(c.brand||'')+' '+(c.model||''),sub:(c.plate||'')+' · '+((c.created_at||'').split(' ')[0]||''),url:c.sts_url});
-      else toast('СТС загружается при создании автомобиля — создать без него нельзя');
-    });
-    stsRow.appendChild(sts);
-    art.appendChild(stsRow);
-    art.appendChild(node('div','compl-note','Комплектность (5 ракурсов + СТС) проверяет администратор; при неполном комплекте авто может быть скрыто от учеников.'));
+    if(loaded.length>1){
+      var prev=node('button','navarrow prev','‹');prev.type='button';
+      prev.title='Предыдущий ракурс';prev.setAttribute('aria-label','Предыдущий ракурс');
+      prev.addEventListener('click',function(e){e.stopPropagation();mcCycleView(c,-1)});
+      var next=node('button','navarrow next','›');next.type='button';
+      next.title='Следующий ракурс';next.setAttribute('aria-label','Следующий ракурс');
+      next.addEventListener('click',function(e){e.stopPropagation();mcCycleView(c,1)});
+      shot.appendChild(prev);shot.appendChild(next);
+    }
+    shot.appendChild(node('span','hintview','⤢ Открыть карточку'));
+    art.appendChild(shot);
+    // комплектность: полоса 5 ракурсов + СТС-точка + «Не хватает: …»
+    var compl=node('div','compl');
+    var lab=node('div','compl-lab');
+    lab.appendChild(node('span',null,'Комплектность: '+loaded.length+'/5 ракурсов'+(c.has_sts?' · СТС ✓':' · СТС —')));
+    lab.appendChild(node('span',null,full?'полный':'не полный'));
+    compl.appendChild(lab);
+    var bar=node('div','compl-bar');
+    mcAngles.forEach(function(a){bar.appendChild(node('i',photos[a[0]]?'f':''))});
+    bar.appendChild(node('span','sts-dot'+(c.has_sts?' f':'')));
+    compl.appendChild(bar);
+    if(!full){
+      var m=node('div','missing');
+      m.appendChild(document.createTextNode('Не хватает: '));
+      var mb=node('b',null,miss.join(', '));
+      m.appendChild(mb);
+      m.appendChild(document.createTextNode(' — досылайте в карточке авто.'));
+      compl.appendChild(m);
+    }
+    art.appendChild(compl);
     var act=node('div','cactions');
     var edit=node('button','edit','Редактировать');edit.type='button';
-    edit.addEventListener('click',function(){mcOpenAdd(c)});
+    edit.addEventListener('click',function(e){e.stopPropagation();mcOpenAdd(c)});
     var del=node('button','del','Удалить');del.type='button';
-    del.addEventListener('click',function(){mcOpenDelete(c)});
+    del.addEventListener('click',function(e){e.stopPropagation();mcOpenDelete(c)});
     act.appendChild(edit);act.appendChild(del);
     art.appendChild(act);
+    // FR-63: клик по авто — модалка-галерея (инфо + ракурсы + СТС + статусы)
+    art.addEventListener('click',function(){mcOpenCar(c)});
     box.appendChild(art);
   });
-}
-// ── выбор файла для слота ракурса (единый скрытый input) ──
-function mcPickSlot(car,angle,slotBtn){
-  mcSlotTarget={carId:car.id,angle:angle,btn:slotBtn};
-  el('slot-file').value='';
-  el('slot-file').click();
 }
 // ── модалка добавления/редактирования ──
 function mcOpenAdd(c){
@@ -588,7 +592,8 @@ function mcCloseModal(id){el(id).classList.remove('open');document.body.style.ov
 document.querySelectorAll('#sec-cars [data-close]').forEach(function(b){b.addEventListener('click',function(){mcCloseModal(b.dataset.close)})});
 el('m-del').addEventListener('click',function(e){if(e.target===this)mcCloseModal('m-del')});
 el('m-add').addEventListener('click',function(e){if(e.target===this)mcCloseModal('m-add')});
-document.addEventListener('keydown',function(e){if(e.key==='Escape'){mcCloseModal('m-add');mcCloseModal('m-del')}});
+el('m-car').addEventListener('click',function(e){if(e.target===this)mcCloseModal('m-car')});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){mcCloseModal('m-add');mcCloseModal('m-del');mcCloseModal('m-car')}});
 // валидация формы (поля * обязательны; бэкенд вернёт 422 по конкретному полю)
 ['f-brand','f-model','f-year','f-plate'].forEach(function(id){
   el(id).addEventListener('input',mcValidate);
@@ -678,25 +683,229 @@ el('f-sts').addEventListener('change',function(){
   l.textContent='Файл выбран: '+mcStsFile.name+' — сохраните автомобиль';
   mcValidate();
 });
-// слот ракурса: файл выбран → POST /api/instructor/cars/{id}/photo/{angle};
-// замена одного ракурса остальные не трогает (FR-43)
-el('slot-file').addEventListener('change',function(){
-  if(!mcSlotTarget||!this.files.length)return;
-  var t=mcSlotTarget;mcSlotTarget=null;
+// ── Спринт 7: модалка-галерея авто (мокап my-cars-s7, FR-63/64/65).
+// Большое окно: клик — загрузка/замена фото открытого ракурса или СТС
+// (POST /api/instructor/cars/{id}/photo/{angle}, angle ∈ 5 ракурсов + 'sts');
+// миниатюры переключают кадр; стрелки ‹ › — цикл по 5 ракурсам + СТС,
+// клик по стрелке НЕ открывает выбор файла. Статусные действия:
+// «Отправить на валидацию» (draft→validating) / «Вернуть в черновик»
+// (validating→draft, ОВ-3). У validated-авто замена фото/СТС возвращает
+// его на валидацию — validated→validating на бэкенде (MAJ-1 review-001).──
+function mcGalKeys(){return mcAngles.map(function(a){return a[0]}).concat(['sts'])}
+function mcGalLoaded(c,key){
+  if(key==='sts')return !!c.has_sts;
+  return !!(c.photos&&c.photos[key]);
+}
+function mcGalLabel(key){
+  if(key==='sts')return 'СТС — свидетельство о регистрации';
+  return mcAngles.filter(function(a){return a[0]===key})[0][1];
+}
+function mcGalUrl(c,key){
+  if(key==='sts')return c.sts_url||null;
+  return (c.photos&&c.photos[key])||null;
+}
+function mcOpenCar(c,keepKey){
+  mcGal.car=c;
+  // открытый кадр: сохраняем (после дозагрузки), иначе первый загруженный ракурс
+  var keys=mcGalKeys();
+  if(!(keepKey&&keys.indexOf(keepKey)!==-1&&mcGalLoaded(c,keepKey))){
+    var first=mcLoadedAngles(c);
+    mcGal.bigKey=first.length?first[0][0]:'front';
+  }else{mcGal.bigKey=keepKey}
+  mcRenderGalCar(c);
+}
+// перерисовка модалки по (свежим) данным авто
+function mcRenderGalCar(c){
+  mcGal.car=c;
+  var st=mcSTATUS[c.status]||mcSTATUS.draft;
+  el('mc-title').textContent=(c.brand||'')+' '+(c.model||'');
+  el('mc-sub').textContent='Госномер '+(c.plate||'—')+' · '+(c.year||'—')+' · '+(mcTransLabel[c.transmission]||c.transmission||'—');
+  var stEl=el('mc-status');stEl.className='status '+st[1];stEl.textContent=st[0];
+  // информация
+  var info=el('mc-info');info.innerHTML='';
+  [['Марка / модель',(c.brand||'—')+' '+(c.model||'—')],
+   ['Год выпуска',c.year||'—'],
+   ['Коробка передач',mcTransLabel[c.transmission]||c.transmission||'—'],
+   ['Госномер',c.plate||'—'],
+   ['Статус',st[0]],
+   ['Создан',((c.created_at||'').split(' ')[0]||'—')]].forEach(function(r){
+    var row=node('div','gal-row');
+    row.appendChild(node('span',null,r[0]));
+    row.appendChild(node('b',null,String(r[1])));
+    info.appendChild(row);
+  });
+  mcRenderGal();
+  mcRenderGalCompl();
+  mcRenderGalActs();
+  el('m-car').classList.add('open');document.body.style.overflow='hidden';
+}
+function mcRenderGal(){
+  var c=mcGal.car;if(!c)return;
+  var big=el('mc-big');big.innerHTML='';
+  var url=mcGalUrl(c,mcGal.bigKey);
+  if(url){
+    var img=document.createElement('img');img.alt=mcGalLabel(mcGal.bigKey);
+    big.appendChild(img);mcLoadImg(url,img);
+  }else{
+    big.appendChild(node('span','ph',mcGal.bigKey==='sts'?'🪪':'🚗'));
+  }
+  big.appendChild(node('span','up-hint',mcGalLabel(mcGal.bigKey)+' · клик — '+(url?'заменить фото':'загрузить фото')));
+  var prog=node('div','prog');prog.id='mc-prog';prog.appendChild(node('i'));big.appendChild(prog);
+  // стрелки: цикл по 5 ракурсам + СТС, полупрозрачный фон, поверх кадра
+  var prev=node('button','navarrow prev','‹');prev.type='button';
+  prev.title='Предыдущий кадр';prev.setAttribute('aria-label','Предыдущий кадр');
+  prev.addEventListener('click',function(e){e.stopPropagation();mcNavGal(-1)});
+  var next=node('button','navarrow next','›');next.type='button';
+  next.title='Следующий кадр';next.setAttribute('aria-label','Следующий кадр');
+  next.addEventListener('click',function(e){e.stopPropagation();mcNavGal(1)});
+  big.appendChild(prev);big.appendChild(next);
+  big.onclick=function(){mcPickGal(c,mcGal.bigKey,big)};
+  // миниатюры: 5 ракурсов + СТС; загружен — blob-миниатюра, нет — плейсхолдер «＋»
+  var tb=el('mc-thumbs');tb.innerHTML='';
+  mcGalKeys().forEach(function(k){
+    var b=node('button','gal-thumb'+(k==='sts'?' sts-t':'')+(k===mcGal.bigKey?' sel':''));
+    b.type='button';b.dataset.galkey=k;
+    b.title=mcGalLabel(k);
+    var u=mcGalUrl(c,k);
+    if(u){
+      var timg=document.createElement('img');timg.alt=mcGalLabel(k);
+      b.appendChild(timg);mcLoadImg(u,timg);
+    }else{
+      b.appendChild(node('span','no','—'));
+      b.appendChild(node('span','plus','＋'));
+    }
+    b.appendChild(node('span','tg',k==='sts'?'СТС':mcGalLabel(k)));
+    b.addEventListener('click',function(){mcGal.bigKey=k;mcRenderGal()});
+    tb.appendChild(b);
+  });
+}
+function mcNavGal(dir){
+  var keys=mcGalKeys();
+  var i=keys.indexOf(mcGal.bigKey);
+  mcGal.bigKey=keys[(i+dir+keys.length)%keys.length];
+  mcRenderGal();
+}
+// клик по большому окну → выбор файла для текущего кадра (ракурс или СТС)
+var mcGalTarget=null;
+function mcPickGal(car,key,bigEl){
+  // снимок статуса ДО загрузки: validated → замена вернет авто на валидацию
+  mcGalTarget={carId:car.id,angle:key,big:bigEl,wasValidated:car.status==='validated'};
+  el('gal-file').value='';
+  el('gal-file').click();
+}
+// сброс blob-кэша фото авто (NIT-1: revoke вместо роста памяти; заодно
+// после замены фото не показывается устаревший blob по тому же URL)
+function mcPurgeCarUrls(carId){
+  var pfx='/api/instructor/cars/'+carId+'/';
+  Object.keys(mcObjectUrls).forEach(function(u){
+    if(u.indexOf(pfx)===0){URL.revokeObjectURL(mcObjectUrls[u]);delete mcObjectUrls[u]}
+  });
+}
+el('gal-file').addEventListener('change',function(){
+  if(!mcGalTarget||!this.files.length)return;
+  var t=mcGalTarget;mcGalTarget=null;
   var file=this.files[0];
   var err=mcValidatePhoto(file);
   if(err){mcShowPhotoError(err);return}
-  var prog=t.btn.querySelector('.prog'),bar=prog.firstElementChild;
-  t.btn.classList.add('busy');prog.classList.add('on');
+  var prog=el('mc-prog'),bar=prog.firstElementChild;
+  var big=t.big;big.classList.add('busy');prog.classList.add('on');
   mcUpload('/api/instructor/cars/'+t.carId+'/photo/'+t.angle,'photo',file,bar,null,function(e){
-    t.btn.classList.remove('busy');prog.classList.remove('on');bar.style.width='0';
+    big.classList.remove('busy');prog.classList.remove('on');bar.style.width='0';
     if(e)return;
-    // перезагрузка карточек: слот стал «has» с миниатюрой, комплектность
-    // и остальные ракурсы — без изменений
+    mcPurgeCarUrls(t.carId);
+    // перезагрузка карточек и модалки: кадр стал загруженным, комплектность
+    // пересчитана; у validated-авто бэкенд вернул статус validating
+    // (MAJ-1) — бейдж сменится на желтый «На валидации»
     openCars();
-    toast('Фото ракурса сохранено. Остальные ракурсы не тронуты (замена одного — точечная).');
+    if(t.wasValidated){
+      // MAJ-1 (решение ПМ): честный тост о повторной валидации
+      toast('Фото заменены — авто отправлено на повторную валидацию. Подтвердите заново: до этого авто скрыто из каталога новых учеников.');
+    }else{
+      toast(t.angle==='sts'
+        ?'Фото СТС сохранено. Оно появится и в «Моих документах»; статус авто не изменился.'
+        :'Фото ракурса сохранено. Остальные ракурсы не тронуты (замена одного — точечная).');
+    }
   });
 });
+function mcRenderGalCompl(){
+  var c=mcGal.car;if(!c)return;
+  var miss=mcMissing(c),full=!miss.length;
+  var loaded=mcLoadedAngles(c);
+  el('mc-compl-lab').textContent=loaded.length+'/5 ракурсов · '+(c.has_sts?'СТС загружено':'СТС не загружено');
+  var badge=el('mc-compl-badge');
+  badge.className='status '+(full?'st-ok':'st-val');
+  badge.textContent=full?'Комплект полный':'Комплект неполный';
+  var bar=el('mc-bar');bar.innerHTML='';
+  var photos=c.photos||{};
+  mcAngles.forEach(function(a){bar.appendChild(node('i',photos[a[0]]?'f':''))});
+  bar.appendChild(node('span','sts-dot'+(c.has_sts?' f':'')));
+  var m=el('mc-missing');m.innerHTML='';
+  if(full){m.textContent='Всё на месте. Авто готово к подтверждению администратором.';}
+  else{
+    m.appendChild(document.createTextNode('Не хватает: '));
+    m.appendChild(node('b',null,miss.join(', ')));
+  }
+}
+// для ОВ-4/мокапа: условие отправки — любые 3 ракурса + СТС
+function mcValMissing(c){
+  var miss=[],loaded=mcLoadedAngles(c);
+  if(loaded.length<3)miss.push('фото: '+loaded.length+' из 3 необходимых');
+  if(!c.has_sts)miss.push('СТС');
+  return miss;
+}
+function mcRenderGalActs(){
+  var c=mcGal.car,box=el('mc-acts'),note=el('mc-note');
+  box.innerHTML='';note.classList.remove('ok');note.innerHTML='';
+  function actBtn(cls,label,fn,dis){
+    var b=node('button','act-btn'+(cls?' '+cls:''),label);
+    b.type='button';b.disabled=!!dis;b.addEventListener('click',fn);
+    box.appendChild(b);return b;
+  }
+  if(c.status==='draft'){
+    var vm=mcValMissing(c);
+    var btn=actBtn('primary','Отправить на валидацию',function(){
+      btn.disabled=true;
+      apiSend('POST','/api/instructor/cars/'+c.id+'/submit',{},function(res){
+        if(res.status===401||res.status===403)return;
+        if(res.status===200&&res.data&&res.data.ok){
+          toast('Авто отправлено на валидацию. Администратор увидит его в разделе «Автомобили». До подтверждения авто скрыто из каталога новых учеников.');
+          openCars();
+        }else{
+          btn.disabled=false;
+          toast((res.data&&res.data.error)||'Не удалось отправить на валидацию');
+        }
+      });
+    },!!vm.length);
+    var ph=actBtn('','Дослать фото/СТС',function(){
+      var firstMissing=mcGalKeys().filter(function(k){return !mcGalLoaded(c,k)})[0];
+      if(firstMissing){mcGal.bigKey=firstMissing;mcRenderGal()}
+    });
+    note.innerHTML=vm.length
+      ?'Отправка заблокирована, пока не хватает: <b>'+vm.join(', ')+'</b>. Загрузите недостающее кликом по большому окну или миниатюре — кнопка станет активной. Требование валидации: любые 3 фото ракурсов + СТС.'
+      :'Требование выполнено: любые 3 фото + СТС. После отправки авто получит статус «На валидации» и будет скрыто из каталога новых учеников до подтверждения администратором.';
+  }else if(c.status==='validating'){
+    // ОВ-3: отзыв с валидации разрешён в любой момент
+    actBtn('warn','Вернуть в черновик',function(){
+      apiSend('POST','/api/instructor/cars/'+c.id+'/withdraw',{},function(res){
+        if(res.status===401||res.status===403)return;
+        if(res.status===200&&res.data&&res.data.ok){
+          toast('Авто возвращено в черновик — можно дослать фото или СТС и отправить на валидацию снова.');
+          openCars();
+        }else{
+          toast((res.data&&res.data.error)||'Не удалось вернуть в черновик');
+        }
+      });
+    });
+    note.innerHTML='Авто на валидации у администратора: подтверждение — только его действие. Сейчас авто показывается вашим принятым ученикам с жёлтым бейджем <b>«Не проверено»</b>, из каталога для новых — скрыто. Вернуть в черновик можно в любой момент.';
+  }else{
+    // MAJ-1 (review-001, решение ПМ): честная копия — замена фото/СТС
+    // у validated-авто вернет его на валидацию (бэкенд переводит
+    // validated → validating при загрузке), бейдж станет желтым
+    // «На валидации» до повторного подтверждения администратором.
+    note.classList.add('ok');
+    note.innerHTML='<b>Проверено администратором.</b> Авто с зелёной галочкой видно новым ученикам в каталоге. Изменение фото или СТС вернет авто на валидацию: бейдж сменится на жёлтый «На валидации», а подтверждение придется получить заново.';
+  }
+}
 // сохранить (POST multipart с sts_photo / PATCH JSON-поля)
 el('save-car').addEventListener('click',function(){
   var data={
@@ -758,7 +967,7 @@ el('del-confirm').addEventListener('click',function(){
     mcCloseModal('m-del');
     if(res.status===401||res.status===403)return;
     if(!res.data||!res.data.ok){toast((res.data&&res.data.error)||'Не удалось удалить автомобиль');return}
-    if(mcObjectUrls[id]){URL.revokeObjectURL(mcObjectUrls[id]);delete mcObjectUrls[id]}
+    mcPurgeCarUrls(id); // NIT-1: revoke blob-URL всех фото удаляемого авто
     toast('Автомобиль удалён. car_id у принятых заявок сброшен, связь с учениками сохранена (ОВ-3).');
     openCars();
   });

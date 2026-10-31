@@ -190,42 +190,69 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
    мокапов design/mocks/my-cars.html, my-documents.html, booking-instructor.html;
    коллизий с правилами выше нет (проверено: .slot/.doc/.req/.filters здесь
    не определены, .status переопределяется точечно в .req-top). */
+/* Спринт 7 (change add-car-validation-booking): статусы валидации
+   (мокап design/mocks/my-cars-s7.html, FR-65): «Черновик» — серый,
+   «На валидации» — жёлтый, «Проверено» — зелёный + галочка (.st-ok:before).
+   Карточка авто: главный снимок со стрелками ‹ › (полупрозрачный фон,
+   итерация 2), комплектность — полоса 5 ракурсов + СТС; клик по авто —
+   модалка-галерея (инфо + 5 ракурсов + СТС + статусные действия). */
 .car-head{display:flex;align-items:start;gap:8px 12px;flex-wrap:wrap}
-/* BUG-049: бейдж комплектности («Не хватает: …» из 6 пунктов) с nowrap
-   и flex:none наезжал на название авто — переносится под имя (wrap),
-   длинный текст самого бейджа переносится внутри (max-width + normal) */
-.car-head .status{margin-left:auto;flex:none;max-width:100%;font-size:10px;line-height:1.5;padding:6px 11px;border-radius:14px;white-space:normal;text-align:center}
-.st-full{background:#143322;color:#91efb1;border:1px solid #2a5c40}
-.st-miss{background:#2a2010;color:#ffd479;border:1px solid #6b5426}
-.pill.blocked{background:#33201a;border-color:#8a3c3c66;color:#ffb28e}
-.slots-label{font-size:10px;color:#8fa0aa;text-transform:uppercase;letter-spacing:.12em;margin:0 0 9px}
-.angles{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
-.slot{position:relative;border:1.5px dashed #35d87955;border-radius:11px;background:#0d2b1c33;aspect-ratio:4/3;display:grid;place-items:center;cursor:pointer;padding:0;transition:border-color .12s,background .12s;overflow:hidden}
-.slot:hover{border-color:#35d879aa;background:#0d2b1c66}
-.slot.has{background:linear-gradient(160deg,#1d3a4a,#0c1a24 55%,#14333d)}
-.slot img,.slot .ph{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.slot .ph{display:grid;place-items:center;color:#7fe3a3;font-size:19px}
-.slot.empty:hover .ph{filter:brightness(1.25)}
-.slot .tag{position:absolute;left:0;right:0;bottom:0;padding:3px 4px;font-size:8.5px;color:#d6e4e2;background:#02070bb8;text-align:center;letter-spacing:.03em;z-index:2}
-.slot .plus{position:absolute;top:4px;right:5px;width:17px;height:17px;border-radius:50%;background:#12331f;border:1px solid #2c8651;color:#a3efbd;font-size:10px;line-height:16px;text-align:center;display:none;z-index:2}
-.slot.empty .plus{display:block}
-.slot.busy{border-style:solid;border-color:#ffffff22;pointer-events:none}
-.slot .prog{position:absolute;left:0;right:0;bottom:0;height:4px;background:#ffffff0d;display:none;z-index:3}
-.slot .prog.on{display:block}
-.slot .prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,#1c6b41,var(--green));transition:width .15s}
-.sts-row{display:flex;gap:10px;align-items:stretch;margin-top:11px}
-.sts-slot{position:relative;flex:1;border:1.5px dashed #c9a24b66;border-radius:11px;background:#2a201040;min-height:58px;display:flex;align-items:center;gap:11px;cursor:pointer;padding:9px 12px;transition:border-color .12s;overflow:hidden}
-.sts-slot:hover{border-color:#c9a24baa}
-.sts-slot img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.sts-slot .ic{position:relative;flex:none;width:34px;height:34px;border-radius:10px;background:#2a2010;border:1px solid #6b5426;display:grid;place-items:center;font-size:15px;color:#ffd479}
-.sts-slot .txt{position:relative;min-width:0}
-.sts-slot .txt b{display:block;font-size:11.5px;font-weight:550;color:#ead9b0}
-.sts-slot .txt small{display:block;font-size:10px;color:#a3906b;margin-top:3px}
-.sts-slot .ok{position:absolute;top:6px;right:8px;font-size:10px;color:#91efb1;display:none}
-.sts-slot.has{border-style:solid;border-color:#2a5c40;background:#0d241766}
-.sts-slot.has .ok{display:block}
-.compl-note{margin-top:9px;font-size:10px;color:#7e909a;line-height:1.55}
-.compl-note b{color:#ffd479;font-weight:500}
+.car-head .status{margin-left:auto;flex:none;font-size:10px;padding:6px 12px;border-radius:999px;border:1px solid;white-space:nowrap}
+.st-draft{background:#1a242b;color:#aebfc7;border-color:#3a4a52}
+.st-val{background:#2a2010;color:#ffd479;border-color:#6b5426}
+.st-ok{background:#143322;color:#91efb1;border-color:#2a5c40}
+.st-ok:before{content:"✓ "}
+/* главный снимок карточки + стрелки поверх фото */
+.shot{position:relative;aspect-ratio:16/8;border-radius:13px;overflow:hidden;border:1px solid #ffffff14;margin-bottom:12px;background:#0d2b1c55}
+.shot img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.shot .ph{position:absolute;inset:0;display:grid;place-items:center;color:#7fe3a3;font-size:30px}
+.shot .hintview{position:absolute;right:8px;bottom:8px;font-size:10px;color:#c9ffdd;background:#02070bc0;border:1px solid #2c8651;border-radius:999px;padding:4px 10px;z-index:3}
+.navarrow{position:absolute;top:50%;transform:translateY(-50%);width:34px;height:34px;border:0;border-radius:50%;background:rgba(0,0,0,.35);color:#fff;font-size:20px;line-height:1;display:grid;place-items:center;padding:0;z-index:4;transition:background .12s}
+.navarrow:hover{background:rgba(0,0,0,.62)}
+.navarrow.prev{left:8px}.navarrow.next{right:8px}
+/* комплектность: полоса X из 5 ракурсов + СТС-точка */
+.compl{margin-top:auto}
+.compl-lab{display:flex;justify-content:space-between;align-items:center;font-size:10px;color:#8fa0aa;margin-bottom:7px;gap:8px}
+.compl-bar{display:flex;gap:4px;align-items:center}
+.compl-bar i{height:5px;flex:1;border-radius:999px;background:#ffffff12}
+.compl-bar i.f{background:linear-gradient(90deg,#1c6b41,var(--green))}
+.compl-bar .sts-dot{flex:0 0 auto;width:9px;height:9px;border-radius:50%;border:1.5px solid #6b5426;background:transparent;font-size:0}
+.compl-bar .sts-dot.f{background:#ffd479;border-color:#c9a24b}
+.compl .missing{margin-top:8px;font-size:10px;color:#7e909a;line-height:1.55;max-width:100%}
+.compl .missing b{color:#ffd479;font-weight:500}
+/* модалка-галерея авто (мокап my-cars-s7): большое окно + миниатюры */
+.gal-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(240px,1fr);gap:14px;margin-top:14px}
+.gal-panel{border:1px solid #ffffff12;border-radius:15px;background:#ffffff04;padding:15px;min-width:0}
+.gal-panel h3,.gal-h{font-size:10px;color:#8fa0aa;text-transform:uppercase;letter-spacing:.14em;margin:0 0 12px;font-weight:500}
+.gal-big{position:relative;aspect-ratio:16/9;border-radius:13px;overflow:hidden;border:1px solid #ffffff14;margin-bottom:11px;background:#0d2b1c55;cursor:pointer}
+.gal-big img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.gal-big .ph{position:absolute;inset:0;display:grid;place-items:center;color:#7fe3a3;font-size:34px}
+.gal-big .up-hint{position:absolute;left:0;right:0;bottom:0;padding:5px 8px;font-size:10px;color:#d6e4e2;background:#02070bb8;text-align:center;z-index:3}
+.gal-big .prog{position:absolute;left:0;right:0;bottom:0;height:4px;margin:0;display:none;z-index:4}
+.gal-big .prog.on{display:block}
+.gal-big .prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,#1c6b41,var(--green))}
+.gal-big.busy{pointer-events:none}
+.gal-thumbs{display:grid;grid-template-columns:repeat(6,1fr);gap:7px}
+.gal-thumb{position:relative;aspect-ratio:4/3;border-radius:9px;overflow:hidden;border:1.5px solid #ffffff14;background:#0d141a;padding:0;transition:border-color .12s;cursor:pointer}
+.gal-thumb:hover{border-color:#35d879aa}
+.gal-thumb.sel{border-color:#35d879}
+.gal-thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.gal-thumb .no{position:absolute;inset:0;display:grid;place-items:center;color:#5d707c;font-size:15px}
+.gal-thumb .plus{position:absolute;top:3px;right:5px;width:15px;height:15px;border-radius:50%;background:#12331f;border:1px solid #2c8651;color:#a3efbd;font-size:9px;line-height:13px;text-align:center;z-index:2}
+.gal-thumb .tg{position:absolute;left:0;right:0;bottom:0;font-size:7.5px;padding:2px;color:#d6e4e2;background:#02070bb8;text-align:center;z-index:2}
+.gal-thumb.sts-t .tg{color:#ffd479}
+.gal-rows{display:grid;gap:10px}
+.gal-row{display:flex;justify-content:space-between;gap:12px;font-size:12px}
+.gal-row span{color:#8fa0aa}
+.gal-row b{font-weight:550;text-align:right;color:#e4eef0;word-break:break-word}
+.gal-compl-lab{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11px;color:#8fa0aa;margin-bottom:8px}
+.gal-note b{color:#ffd479;font-weight:500}
+.gal-note.ok{border-color:#2a5c40;background:#14332233}
+.gal-note.ok b{color:#91efb1}
+.act-btn{border:1px solid #ffffff14;background:#ffffff05;color:#b9c8ce;border-radius:11px;padding:11px 18px;font-size:12px;font-weight:550;flex:0 0 auto}
+.act-btn.warn{border-color:#6b5426;background:#2a2010;color:#ffd479}
+.act-btn.warn:hover{filter:brightness(1.12)}
+@media(max-width:900px){.gal-grid{grid-template-columns:1fr}}
 /* «Мои документы» (мокап my-documents.html) */
 .sect{margin-top:20px}
 .sect:first-of-type{margin-top:0}
@@ -437,11 +464,12 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
     <div class="toolbar">
       <span class="count" id="count"></span>
       <button class="addbtn" id="open-add" type="button">＋ Добавить автомобиль</button>
-      <!-- скрытый input слота ракурса: клик по слоту открывает выбор файла -->
-      <input type="file" id="slot-file" accept="image/jpeg,image/png" style="display:none">
+      <!-- Спринт 7: единый скрытый input модалки-галереи — клик по большому
+           окну галереи открывает выбор файла (ракурс или СТС) -->
+      <input type="file" id="gal-file" accept="image/jpeg,image/png" style="display:none">
     </div>
     <div class="cars" id="cars"></div>
-    <div class="empty" id="empty"><b>Автомобилей пока нет</b>Добавьте автомобиль — без него нельзя принять заявку ученика (нужен выбор авто). При создании обязательно фото СТС.</div>
+    <div class="empty" id="empty"><b>Автомобилей пока нет</b>Добавьте автомобиль — без него нельзя принять заявку ученика (нужен выбор авто). При создании обязательно фото СТС. Новый автомобиль получает статус «Черновик» — после загрузки фото отправьте его на валидацию.</div>
 
     <!-- модалка: добавить / редактировать автомобиль (мокап my-cars.html:
          СТС — обязательный файл при создании, multipart sts_photo) -->
@@ -491,6 +519,46 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
           <button class="btn ghost" id="del-cancel" type="button">Отмена</button>
           <button class="btn primary" id="del-confirm" style="background:#33201a;border-color:#8a3c3c;color:#ffb28e" type="button">Да, удалить</button>
         </div>
+      </div>
+    </div>
+
+    <!-- Спринт 7 (мокап my-cars-s7.html, FR-63/64/65): модалка-галерея авто —
+         инфо + большое окно с фото (клик — загрузить/заменить ракурс или СТС,
+         стрелки ‹ › с полупрозрачным фоном) + комплектность + статусные
+         действия («Отправить на валидацию» / «Вернуть в черновик», ОВ-3) -->
+    <div class="backdrop" id="m-car" role="dialog" aria-modal="true" aria-labelledby="mc-title">
+      <div class="modal">
+        <div class="modal-head">
+          <div><h2 id="mc-title">—</h2><div class="sub" id="mc-sub">—</div></div>
+          <span class="status st-draft" id="mc-status" style="margin-top:4px">—</span>
+          <button class="close" data-close="m-car" aria-label="Закрыть">×</button>
+        </div>
+        <div class="gal-grid">
+          <div>
+            <div class="gal-h">Галерея · 5 ракурсов + СТС</div>
+            <div class="gal-big" id="mc-big" title="Клик — загрузить или заменить фото этого ракурса">
+              <span class="ph">🚗</span>
+              <span class="up-hint" id="mc-big-hint">—</span>
+              <div class="prog" id="mc-prog"><i></i></div>
+            </div>
+            <div class="gal-thumbs" id="mc-thumbs"></div>
+            <div class="form-note" style="margin-top:12px">Клик по миниатюре — открыть в большом окне; клик по большому окну — <b>загрузить или заменить</b> фото этого ракурса (JPEG/PNG, ≤5 МБ). СТС дозагружается на уже созданном авто — и появится в «Моих документах». Замена фото и СТС статус не меняет.</div>
+          </div>
+          <div>
+            <div class="gal-panel">
+              <h3>Информация</h3>
+              <div class="gal-rows" id="mc-info"></div>
+            </div>
+            <div class="gal-panel" style="margin-top:12px">
+              <h3>Комплектность</h3>
+              <div class="gal-compl-lab"><span id="mc-compl-lab">—</span><span class="status st-draft" id="mc-compl-badge">—</span></div>
+              <div class="compl-bar" id="mc-bar"></div>
+              <div class="missing" id="mc-missing" style="margin-top:9px"></div>
+            </div>
+          </div>
+        </div>
+        <div class="form-actions" id="mc-acts"></div>
+        <div class="form-note gal-note" id="mc-note"></div>
       </div>
     </div>
   </section>

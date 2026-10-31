@@ -183,6 +183,22 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
 .bk-btn.primary{background:#123524;border-color:#2b9c62;color:#c9ffdd}
 .bk-btn.primary:hover{filter:brightness(1.12)}
 .bk-btn.ghost{background:transparent;border-color:#ffffff16;color:#aab8c0;flex:0 0 40%}
+/* Спринт 7 (change add-car-validation-booking, задачи 2.1/6.2, ОВ-2):
+   бейджи статуса авто у пары и в бронях: validated — «Проверено» + зеленая
+   галочка, validating — желтый «Не проверено»; draft — скрыт (без бейджа).
+   Фото прикрепленного авто инструктора — карточка рядом со слотами
+   (авторизованный photo_url, плейсхолдер при отсутствии/draft/удален). */
+.car-badge{display:inline-flex;align-items:center;gap:5px;font-size:10px;padding:6px 12px;border-radius:999px;border:1px solid;white-space:nowrap;flex:none}
+.car-badge.ok{background:#143322;color:#91efb1;border-color:#2a5c40}
+.car-badge.ok:before{content:"✓ "}
+.car-badge.val{background:#2a2010;color:#ffd479;border-color:#6b5426}
+.bk-car-card{display:flex;gap:14px;align-items:center;border:1px solid rgba(234,255,249,.16);border-radius:17px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:13px 16px;margin:0 0 16px;flex-wrap:wrap}
+.bk-car-photo{position:relative;width:190px;aspect-ratio:16/9;flex:none;border-radius:12px;overflow:hidden;border:1px solid #ffffff14;background:#0d2b1c55}
+.bk-car-photo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.bk-car-photo .ph{position:absolute;inset:0;display:grid;place-items:center;color:#7fe3a3;font-size:24px}
+.bk-car-info b{font-size:13px;font-weight:600;display:block}
+.bk-car-info small{display:block;font-size:11px;color:#8fa0aa;margin-top:4px;line-height:1.5}
+.bk-car-info .car-badge{margin-top:9px}
 @media(max-width:850px){.req-top{flex-wrap:wrap}.status{margin-left:57px;order:3}}
 @media(max-width:760px){.app{grid-template-columns:1fr}.side{flex-direction:row;align-items:center;padding:10px 14px;border-right:0;border-bottom:1px solid rgba(234,255,249,.12)}.snav{display:flex;overflow:auto;gap:5px}.snav button{white-space:nowrap;padding:9px 10px;font-size:11px}.snav button .ico{display:none}}
 @media(max-width:560px){.filters{overflow-x:auto}.act{flex:1}}
@@ -284,6 +300,9 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
     <span class="sic" id="bk-pair-sic">—</span>
     <div><b id="bk-pair-name">—</b><small id="bk-pair-sub">ваш инструктор</small></div>
     <span class="car" id="bk-pair-car">—</span>
+    <!-- Спринт 7 (ОВ-2): бейдж статуса авто пары — validated «Проверено» +
+         галочка / validating желтый «Не проверено»; draft — бейдж скрыт -->
+    <span class="car-badge" id="bk-pair-badge" style="display:none"></span>
   </div>
   <div class="bk-none" id="bk-nopair" style="display:none">
     <!-- BUG-049: была одна слипшаяся строка — теперь вертикальный блок -->
@@ -293,6 +312,17 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
   </div>
 
   <div class="bk-cal" id="bk-cal" style="display:none">
+    <!-- Спринт 7 (задача 6.2): карточка прикрепленного авто рядом со слотами:
+         фото по авторизованному photo_url (плейсхолдер при отсутствии/draft/
+         удаленном авто), бейдж статуса по ОВ-2 -->
+    <div class="bk-car-card" id="bk-car-card" style="display:none">
+      <div class="bk-car-photo" id="bk-car-photo"><span class="ph">🚗</span></div>
+      <div class="bk-car-info">
+        <b id="bk-car-name">Автомобиль инструктора</b>
+        <small id="bk-car-sub">Автомобиль занятий — он закрепляется за бронями этой пары.</small>
+        <span class="car-badge" id="bk-car-badge" style="display:none"></span>
+      </div>
+    </div>
     <div class="bk-cal-head">
       <div><b>График на неделю</b><div class="sub">Слоты целиком, без нарезки</div></div>
     </div>

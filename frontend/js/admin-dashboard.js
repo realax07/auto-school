@@ -47,11 +47,16 @@ function soon(){alert('Заглушка: раздел появится в сле
 function showSection(name, btn){
   document.querySelectorAll('.nav button').forEach(function(b){b.classList.remove('active');});
   if(btn)btn.classList.add('active');
-  document.querySelector('table').style.display=name==='users'?'':'none';
-  document.getElementById('empty').style.display=name==='users'?'':'none';
-  document.querySelector('.toolbar').style.display=name==='users'?'':'none';
-  document.getElementById('sec-applications').style.display=name==='applications'?'block':'none';
-  if(name==='applications')loadApplications();
+  // Спринт 7: селекторы скоуплены id-ами (в админке три таблицы:
+  // пользователи, заявки, автомобили — querySelector('table') больше не годится)
+  var users=name==='users',apps=name==='applications',cars=name==='cars';
+  document.getElementById('users-table').style.display=users?'':'none';
+  document.getElementById('empty').style.display=users?'':'none';
+  document.querySelector('.toolbar').style.display=users?'':'none';
+  document.getElementById('sec-applications').style.display=apps?'block':'none';
+  document.getElementById('sec-cars-admin').style.display=cars?'block':'none';
+  if(apps)loadApplications();
+  if(cars)acLoad();
 }
 function loadApplications(){
   fetch('/api/admin/instructor-applications',{headers:{'X-Admin-Token':TOKEN}})
@@ -221,6 +226,168 @@ document.getElementById('ic-deny-confirm').addEventListener('click',function(){
   submitDeny(IC_CURRENT);
 });
 
+// --- Спринт 7 (change add-car-validation-booking, задача 7.2, ОВ-4/ОВ-5):
+// раздел «Автомобили» — единственный раздел про авто. GET
+// /api/admin/cars/completeness (+status): таблица всех авто; фильтр
+// «На валидации»; модалка с чек-листом комплектности — «Подтвердить»
+// ЗАБЛОКИРОВАНО при <3 ракурсов или нет СТС (перечень виден); POST
+// /api/admin/cars/{id}/validate (сервер 409 — страховка). Кнопки
+// блокировки больше нет: контур block замещен статусной моделью. ---
+var AC_ANGLES=[['front','Спереди'],['rear','Сзади'],['left','Слева'],['right','Справа'],['interior','Салон']];
+var AC_STATUS={draft:['Черновик','ac-b-draft'],validating:['На валидации','ac-b-val'],validated:['Проверено','ac-b-ok']};
+var AC_TRANS={manual:'механика',automatic:'автомат'};
+var acCars=[],acFilter='all',acCurrent=null;
+function acLoad(){
+  fetch('/api/admin/cars/completeness',{headers:{'X-Admin-Token':TOKEN}})
+    .then(function(r){
+      if(r.status===401){location.href='/admin-login';throw new Error('unauthorized');}
+      return r.json();
+    })
+    .then(function(data){
+      acCars=data.cars||[];
+      acRender();
+    })
+    .catch(function(e){if(e.message!=='unauthorized')console.error(e);});
+}
+function acCounters(c){return c.counters||{angles:(c.photos?Object.keys(c.photos).filter(function(k){return c.photos[k]}).length:0),sts:!!c.has_sts}}
+function acRender(){
+  var tb=document.getElementById('ac-rows');
+  tb.innerHTML='';
+  var list=acCars.filter(function(c){return acFilter==='all'||c.status===acFilter});
+  document.getElementById('ac-count').textContent='Автомобилей: '+list.length;
+  document.getElementById('ac-empty').style.display=list.length?'none':'block';
+  var nVal=acCars.filter(function(c){return c.status==='validating'}).length;
+  document.getElementById('ac-n-val').textContent=nVal?('·'+nVal):'';
+  list.forEach(function(c){
+    var st=AC_STATUS[c.status]||AC_STATUS.draft;
+    var k=acCounters(c);
+    var eligible=k.angles>=3&&k.sts;
+    var tr=document.createElement('tr');
+    function td(text){var cell=document.createElement('td');cell.textContent=text;return cell;}
+    tr.appendChild(td(c.instructor_full_name||'—'));
+    tr.appendChild(td([c.brand,c.model].filter(Boolean).join(' ')));
+    tr.appendChild(td(c.plate||'—'));
+    var stTd=document.createElement('td');
+    var sp=document.createElement('span');
+    sp.className='ac-badge '+st[1];
+    sp.textContent=st[0];
+    stTd.appendChild(sp);tr.appendChild(stTd);
+    var complTd=document.createElement('td');
+    complTd.className='ac-compl';
+    var cspan=document.createElement('span');
+    cspan.className=eligible?'ok':'miss';
+    cspan.textContent=k.angles+'/5'+(k.sts?' + СТС ✓':' · нет СТС');
+    complTd.appendChild(cspan);tr.appendChild(complTd);
+    tr.style.cursor='pointer';
+    tr.addEventListener('click',function(){acOpen(c);});
+    tb.appendChild(tr);
+  });
+}
+document.querySelectorAll('#ac-filters button').forEach(function(b){
+  b.addEventListener('click',function(){
+    document.querySelectorAll('#ac-filters button').forEach(function(x){x.classList.remove('on');});
+    b.classList.add('on');
+    acFilter=b.dataset.f;
+    acRender();
+  });
+});
+function acOpen(c){
+  acCurrent=c;
+  var st=AC_STATUS[c.status]||AC_STATUS.draft;
+  document.getElementById('ac-title').textContent=[c.brand,c.model].filter(Boolean).join(' ');
+  document.getElementById('ac-sub').textContent='Авто № '+c.id+' · инструктор '+(c.instructor_full_name||'—');
+  var badge=document.getElementById('ac-status');
+  badge.className='ac-badge '+st[1];
+  badge.textContent=st[0];
+  acSet('ac-owner',c.instructor_full_name);
+  acSet('ac-brand',[c.brand,c.model].filter(Boolean).join(' '));
+  acSet('ac-year',c.year);
+  acSet('ac-plate',c.plate);
+  acSet('ac-trans',AC_TRANS[c.transmission]||c.transmission);
+  var k=acCounters(c);
+  acSet('ac-compl',k.angles+'/5'+(k.sts?' + СТС ✓':' · СТС нет'));
+  acSet('ac-status-row',st[0]);
+  // чек-лист: флаги загрузки (админу изображения не выдаются — NFR-7)
+  var tb=document.getElementById('ac-thumbs');
+  tb.innerHTML='';
+  AC_ANGLES.forEach(function(a){
+    var has=!!(c.photos&&c.photos[a[0]]);
+    var d=document.createElement('div');
+    d.className='ac-thumb'+(has?' has':'');
+    d.appendChild(Object.assign(document.createElement('span'),{className:'mark',textContent:has?'✓':'—'}));
+    d.appendChild(Object.assign(document.createElement('span'),{className:'tg',textContent:a[1]}));
+    tb.appendChild(d);
+  });
+  var sts=document.createElement('div');
+  sts.className='ac-thumb'+(c.has_sts?' has':'');
+  sts.appendChild(Object.assign(document.createElement('span'),{className:'mark',textContent:c.has_sts?'✓':'—'}));
+  sts.appendChild(Object.assign(document.createElement('span'),{className:'tg',textContent:'СТС'}));
+  tb.appendChild(sts);
+  acRenderVerdict();
+  document.getElementById('ac-backdrop').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function acSet(id,text){var e=document.getElementById(id);e.textContent=(text==null||text==='')?'—':String(text);}
+function acRenderVerdict(){
+  var c=acCurrent,ap=document.getElementById('ac-approve'),v=document.getElementById('ac-verdict');
+  var k=acCounters(c);
+  if(c.status!=='validating'){
+    v.innerHTML=c.status==='validated'
+      ?'<b>Подтверждено ранее.</b> Статус «Проверено» установлен администратором; повторное подтверждение недоступно.'
+      :'<b>Черновик.</b> Инструктор ещё не отправлял авто на валидацию — подтверждение недоступно.';
+    ap.style.display='none';
+    return;
+  }
+  ap.style.display='';
+  var miss=[];
+  if(k.angles<3)miss.push('фото ракурсов ('+k.angles+' из 3 минимум)');
+  if(!k.sts)miss.push('фото СТС');
+  if(miss.length){
+    ap.disabled=true;
+    v.innerHTML='<b>Подтверждение заблокировано.</b> Не хватает: '+miss.join(', ')+'. Условие — любые 3 фото ракурсов + СТС (ОВ-4). Инструктору виден тот же перечень — досылет и отправит снова.';
+  }else{
+    ap.disabled=false;
+    v.innerHTML='<b>Комплект достаточен:</b> '+k.angles+' фото ракурсов (нужно минимум 3) + СТС. Подтверждение установит статус «Проверено» — авто вернётся в каталог новых учеников с зелёной галочкой.';
+  }
+}
+function acClose(){
+  document.getElementById('ac-backdrop').classList.remove('open');
+  document.body.style.overflow='';
+}
+document.getElementById('ac-close').addEventListener('click',acClose);
+document.getElementById('ac-dummy').addEventListener('click',acClose);
+document.getElementById('ac-backdrop').addEventListener('click',function(e){
+  if(e.target===this)acClose();
+});
+document.addEventListener('keydown',function(e){if(e.key==='Escape')acClose();});
+document.getElementById('ac-approve').addEventListener('click',function(){
+  if(!acCurrent||acCurrent.status!=='validating')return;
+  var id=acCurrent.id,btn=this;
+  btn.disabled=true;
+  fetch('/api/admin/cars/'+id+'/validate',{method:'POST',headers:{'X-Admin-Token':TOKEN}})
+    .then(function(r){return r.json().then(function(d){return {status:r.status,data:d};});})
+    .then(function(res){
+      btn.disabled=false;
+      if(res.status===200&&res.data&&res.data.ok){
+        acClose();
+        toastMsg('Авто подтверждено: статус «Проверено», зелёная галочка у инструктора. Из фильтра «На валидации» исчезнет.');
+        acLoad();
+      }else{
+        // 409 «Комплект неполный…» — серверная страховка ОВ-4
+        toastMsg((res.data&&res.data.error)||'Не удалось подтвердить авто');
+        acLoad();
+      }
+    })
+    .catch(function(){btn.disabled=false;toastMsg('Не удалось подтвердить авто');});
+});
+function toastMsg(m){
+  // тост раздела «Автомобили» (#ac-toast — общий для confirm-успеха и 409)
+  var t=document.getElementById('ac-toast');
+  t.textContent=m;
+  t.classList.add('show');
+  clearTimeout(window._acToastTimer);
+  window._acToastTimer=setTimeout(function(){t.classList.remove('show')},3400);
+}
 // onclick-обработчики в HTML — нужна глобальная видимость (ES-модуль
 // глобальные объявления не создает)
 window.exportCsv = exportCsv;

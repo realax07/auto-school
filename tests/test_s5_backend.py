@@ -1,10 +1,12 @@
 """Спринт 5 — BACKEND-тесты (change add-booking-docs; задачи 1.1, 2.1,
 2.2, 3.1, 4.1, 4.2 — backend-волна).
 
-Покрывают: миграции booking + instructor_cars (ракурсы/СТС/blocked),
-создание авто с обязательным СТС (FR-44), фото 5 ракурсов и матрица
-доступа (FR-42, MIN-2), баг 5.2 (фото в плитках — URL эндпоинта),
-комплектность и блокировка (ОВ-1, MIN-2), «Мои документы» (FR-45),
+Покрывают: миграции booking + instructor_cars (ракурсы/СТС; Спринт 7:
++status, блокировка заменена статусной моделью), создание авто с
+обязательным СТС (FR-44), фото 5 ракурсов и матрица доступа (FR-42, MIN-2,
+Спринт 7 ОВ-2: draft скрыт от ученика пары), баг 5.2 (фото в плитках —
+URL эндпоинта), комплектность (ОВ-1; block-эндпоинт Спринта 5 удален),
+«Мои документы» (FR-45),
 бронирование: слоты/брони/confirm/reject, ГОНКИ (NFR-8), PUT availability
 × активные брони (MAJ-1), границы lesson_date (MIN-1), пустое авто
 (MIN-3), «Занятия на сегодня» (FR-49).
@@ -225,6 +227,19 @@ def upload_angle(client, token, car_id, angle, content=ROOT_JPEG, ext="jpg"):
                          "image/png" if ext == "png" else "image/jpeg")},
         headers=_headers(token),
     )
+
+
+def set_car_status(car_id: int, status: str) -> None:
+    """Прямой контроль БД (механика conftest): статус валидации для
+    аранжировки (Спринт 7: POST создает авто в 'draft'; существующие
+    строки после миграции — 'validated')."""
+    conn = sqlite3.connect(db_path())
+    conn.execute(
+        "UPDATE instructor_cars SET status = ? WHERE id = ?",
+        (status, car_id),
+    )
+    conn.commit()
+    conn.close()
 
 
 # --- Миграции (db.py) --------------------------------------------------------
@@ -477,6 +492,9 @@ def test_s5_car_photo_access_matrix_and_sts(api, client):
     instr, student = env["instr"], env["student"]
     car_id = env["car_id"]
     upload_angle(client, instr["token"], car_id, "front")
+    # [test-adapted] Спринт 7 (ОВ-2): фото ученику пары выдается только вне
+    # draft — выставляем validated (аранжировка, семантика сохранена).
+    set_car_status(car_id, "validated")
 
     # ученик пары видит
     got = client.get(
@@ -517,23 +535,35 @@ def test_s5_car_photo_access_matrix_and_sts(api, client):
         headers=_headers(other["token"]),
     ).status_code == 404
 
-    # блокировка: авто скрыт от ученика пары, владелец видит (ОВ-1, MIN-2)
-    blocked = client.post(
-        f"/api/admin/cars/{car_id}/block", headers=admin_headers(client)
-    )
-    assert blocked.status_code == 200
+    # [test-adapted] Спринт 7 (add-car-validation-booking, ОВ-2): контур
+    # блокировки (Спринт 5) замещен статусной моделью — вместо blocked
+    # проверяется статусное правило видимости: draft скрыт от ученика
+    # пары (404 неразличение), validating/validated — выдается; владелец
+    # видит во всех статусах. Семантика кейса («неполный авто скрыт от
+    # учеников, владелец видит») сохранена через статус.
+    set_car_status(car_id, "draft")
     assert client.get(
         f"/api/instructor/cars/{car_id}/photo/front",
         headers=_headers(student["token"]),
-    ).status_code == 404
+    ).status_code == 404, "draft скрыт от ученика пары (ОВ-2)"
     assert client.get(
         f"/api/instructor/cars/{car_id}/photo/front",
         headers=_headers(instr["token"]),
+    ).status_code == 200, "владелец видит фото во всех статусах"
+    set_car_status(car_id, "validating")
+    assert client.get(
+        f"/api/instructor/cars/{car_id}/photo/front",
+        headers=_headers(student["token"]),
+    ).status_code == 200
+    set_car_status(car_id, "validated")
+    assert client.get(
+        f"/api/instructor/cars/{car_id}/photo/front",
+        headers=_headers(student["token"]),
     ).status_code == 200
     listed = client.get(
         "/api/instructor/cars", headers=_headers(instr["token"])
     ).json()["cars"][0]
-    assert listed["blocked"] is True
+    assert listed["status"] == "validated"
 
 
 def test_s5_bug_5_2_photo_survives_relogin(api, client):
@@ -606,38 +636,45 @@ def test_s5_admin_cars_completeness(api, client):
         "left": False, "right": False,
     }
     assert full["has_sts"] is True
-    assert full["blocked"] is False
+    # [test-adapted] Спринт 7 (задача 1.2): blocked — устаревшая колонка,
+    # не выдается; вместо нее status + counters (ОВ-1/ОВ-4).
+    assert full["status"] == "draft"
+    assert full["counters"] == {"angles": 2, "sts": True}
     assert full["instructor_full_name"].startswith("Иванов")
     empty = cars[car_empty]
     assert not any(empty["photos"].values())
     assert empty["has_sts"] is False
+    assert empty["status"] == "draft"
+    assert empty["counters"] == {"angles": 0, "sts": False}
     assert empty["plate"] == "А123АА777"
 
 
-def test_s5_admin_block_car_min2(api, client):
-    """TC-S5BE-010 (change add-booking-docs, задача 2.2, MIN-2/ОВ-1):
-    блокировка идемпотентна; несуществующий авто → 404; блокировка НЕ
-    ретроактивна для броней: существующая/подтвержденная бронь видна,
-    НОВЫЕ брони не запрещаются; заблокированное авто скрыто от ученика
-    (фото 404 — TC-S5BE-007)."""
+def test_s5_admin_block_removed_bookings_survive(api, client):
+    """TC-S5BE-010 (change add-booking-docs, задача 2.2, MIN-2/ОВ-1).
+    [test-adapted] Спринт 7 (add-car-validation-booking, задача 1.2,
+    MODIFIED/REMOVED-дельта): POST /api/admin/cars/{id}/block УДАЛЕН —
+    контур блокировки замещен статусной моделью (design.md); семантика
+    кейса «существующие брони не аннулируются, видимость по статусу»
+    сохранена: авто в 'validated' (как существующие строки после
+    миграции, ОВ-1) — бронь создается, подтверждается и видна ученику с
+    авто; новое авто создается в 'draft' (TC-S7BE-003)."""
     env = setup_pair(client)
     instr, student = env["instr"], env["student"]
     car_id = env["car_id"]
+    # MAJ-1 (review-001, итерация 3): замена фото при validated вернула бы
+    # авто в validating — фото грузится ДО аранжировки «состояние после
+    # миграции» (строки миграции ОВ-1 уже несут фото/СТС)
+    upload_angle(client, instr["token"], car_id, "front")
+    set_car_status(car_id, "validated")  # состояние после миграции (ОВ-1)
 
+    # block-эндпоинт отсутствует (замещен статусной моделью)
     assert client.post(
         f"/api/admin/cars/{car_id}/block", headers=admin_headers(client)
-    ).status_code == 200
-    assert client.post(
-        f"/api/admin/cars/{car_id}/block", headers=admin_headers(client)
-    ).status_code == 200  # идемпотентно
-    assert client.post(
-        "/api/admin/cars/999999/block", headers=admin_headers(client)
-    ).status_code == 404
-    assert client.post(f"/api/admin/cars/{car_id}/block").status_code == 401
+    ).status_code in (404, 405)
 
     slot_id = first_slot_id(client, student["token"], instr["id"])
     created = book(client, student["token"], slot_id)
-    assert created.status_code == 200, "новые брони блокировкой не запрещены"
+    assert created.status_code == 200
     booking_id = created.json()["booking_id"]
     assert client.post(
         f"/api/instructor/bookings/{booking_id}/confirm",
@@ -650,7 +687,11 @@ def test_s5_admin_block_car_min2(api, client):
     assert len(mine) == 1
     assert mine[0]["status"] == "confirmed"
     assert mine[0]["car"]["id"] == car_id, (
-        "подтвержденная бронь сохраняется и отображается (MIN-2)"
+        "бронь сохраняется и отображается (MIN-2, видимость по статусу)"
+    )
+    assert mine[0]["car"]["car_status"] == "validated"
+    assert mine[0]["car"]["photo_url"], (
+        "validated-авто в брони ученика — с photo_url (ОВ-2, задача 6.1)"
     )
 
 

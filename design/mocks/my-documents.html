@@ -1,21 +1,41 @@
 <!doctype html>
-<!-- Мокап: «Мои документы» — раздел кабинета инструктора. Спринт 5, задача 2
-     (change add-booking-docs, НОВЫЙ модуль instructor-documents).
-     Секция ВУ (анкета инструктора, license_photo_path; при анкете без ВУ — пустое
-     состояние с подсказкой) + секция СТС по каждому своему авто (миниатюра + привязка
-     марка/модель/госномер + дата загрузки). Клик по документу — просмотр в полном
-     размере: GET /api/instructor/documents → список; GET
-     /api/instructor/documents/{doc_id}/file → изображение (владелец, image/*).
-     СТС ученикам не выдаётся — документ виден только владельцу. Данные демо. -->
+<!-- Мокап: «Мои документы» — раздел кабинета инструктора. Переработка Спринта 7
+     (change add-car-validation-booking; база — Спринт 5, FR-45).
+     Секция ВУ (миниатюра + просмотр в полном размере) + секция СТС по КАЖДОМУ авто
+     (миниатюра, привязка марка/модель/госномер, дата загрузки). Новое в Спринте 7:
+     у каждого СТС — статус-бейдж его авто (FR-65/ОВ-2: «Проверено» зелёный с галочкой /
+     «Не проверено» жёлтый / «Черновик» серый — ученикам не виден) и кнопка
+     «Заменить фото» (FR-64: дозагрузка/замена СТС на созданном авто —
+     POST /api/instructor/cars/{id}/sts; новое фото сразу отображается здесь).
+     Просмотр: GET /api/instructor/documents → список; GET /api/instructor/documents/{doc_id}/file
+     → изображение (владелец, image/*). СТС ученикам не выдаётся. Данные демо.
+     ИТЕРАЦИЯ 2 (замечания Заказчика): лейаут кабинета (BUG-047) — сайдбар инструктора
+     слева (активен «Мои документы»), контент справа. Секции ВУ/СТС, статусы и замена
+     фото — из итерации 1. -->
 <html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#071015"><title>СберАвтошкола — Кабинет инструктора · Мои документы</title>
 <style>
 :root{--bg:#071015;--line:#ffffff16;--text:#f3f7f8;--muted:#93a6b1;--green:#35d879}
 *{box-sizing:border-box}html,body{margin:0;min-width:320px}
 body{background:radial-gradient(ellipse at 78% 0%,#123b2c4d,transparent 38%),radial-gradient(ellipse at 8% 90%,#27465f26,transparent 40%),var(--bg);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh}
 button{font:inherit;color:inherit;cursor:pointer}
-.frame{max-width:1080px;margin:auto;padding:26px 24px 46px}
-header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;height:48px;margin-bottom:6px}
-.brand{display:flex;align-items:center;gap:10px;font-size:22px;font-weight:650;letter-spacing:-1px}
+/* лейаут кабинета (BUG-047): сайдбар + контент (итерация 2) */
+.app{min-height:100vh;display:grid;grid-template-columns:236px 1fr}
+.sidebar{padding:25px 17px;border-right:1px solid #ffffff12;background:#071016b8;display:flex;flex-direction:column;gap:26px;position:sticky;top:0;height:100vh;overflow:auto}
+.nav-label{font-size:10px;color:#637681;text-transform:uppercase;letter-spacing:.16em;padding:0 11px;margin-bottom:-17px}
+.nav{display:grid;gap:5px}
+.nav button{border:1px solid transparent;background:transparent;color:#aab8c0;text-align:left;padding:11px 12px;border-radius:12px;font-size:13px;display:flex;align-items:center;gap:12px}
+.nav button .ico{width:20px;text-align:center;font-size:16px;flex:none}
+.nav button.active{color:#8ff2b5;background:#143023;border-color:#286445}
+.nav button:hover{background:#ffffff09}
+.side-bottom{margin-top:auto;border:1px solid #ffffff13;border-radius:15px;padding:14px;background:#ffffff04}
+.side-bottom strong{font-size:12px}
+.side-bottom p{font-size:11px;color:#8d9da6;line-height:1.5;margin:7px 0 12px}
+.side-bottom button{width:100%;background:#143222;border:1px solid #2e6a47;color:#a2f5bf;border-radius:10px;padding:10px;font-size:11px}
+main{min-width:0;padding:0 clamp(20px,3vw,40px) 45px}
+.frame{max-width:1080px;margin:auto;padding:26px 0 0}
+header{display:flex;align-items:center;justify-content:space-between;gap:14px;height:48px;margin-bottom:6px}
+.brand{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:650;letter-spacing:-.4px;min-width:0}
+.brand>span:last-child{min-width:0}
 .brand em{font-style:normal;color:var(--green)}
 .check{width:32px;height:32px;flex:none;display:grid;place-items:center;border:3px solid var(--green);border-radius:50%;color:var(--green);font-size:20px;transform:rotate(-8deg)}
 .brand small{display:block;font-size:9px;color:#80919b;letter-spacing:.14em;text-transform:uppercase;margin-top:3px;font-weight:500}
@@ -46,14 +66,26 @@ h1{font-size:28px;letter-spacing:-.05em;font-weight:600;margin:9px 0 8px}
 .thumb .zoom{position:absolute;right:8px;bottom:8px;font-size:10px;color:#c9ffdd;background:#02070bc0;border:1px solid #2c8651;border-radius:999px;padding:4px 10px}
 .doc b.name{font-size:13px;font-weight:600;letter-spacing:-.01em;display:block}
 .doc small.meta{display:block;font-size:11px;color:#8fa0aa;margin-top:5px;line-height:1.6}
-.doc .pill{align-self:flex-start;font-size:10px;padding:5px 10px;border-radius:999px;border:1px solid #2a5c40;background:#143322;color:#91efb1;margin-top:10px}
+.doc .pills{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.pill{font-size:10px;padding:5px 10px;border-radius:999px;border:1px solid #2a5c40;background:#143322;color:#91efb1}
 .pill.warn{border-color:#6b5426;background:#2a201040;color:#ffd479}
+.pill.plain{border-color:#3a4a52;background:#1a242b;color:#aebfc7}
+/* статус авто (FR-65/ОВ-2) */
+.status{font-size:10px;padding:5px 11px;border-radius:999px;border:1px solid;white-space:nowrap}
+.st-ok{background:#143322;color:#91efb1;border-color:#2a5c40}
+.st-ok:before{content:"✓ "}
+.st-val{background:#2a2010;color:#ffd479;border-color:#6b5426}
+.st-draft{background:#1a242b;color:#aebfc7;border-color:#3a4a52}
+/* замена СТС (FR-64) */
+.replace{margin-top:11px;border:1px solid #6b5426;background:transparent;color:#ffd479;border-radius:10px;padding:9px 12px;font-size:11px;width:100%}
+.replace:hover{background:#2a201055}
 /* демо-«скан»: фоновый градиент имитирует фото документа */
-.scan-lic{background:linear-gradient(160deg,#1d3a4a,#0c1a24 55%,#14333d);display:grid;place-items:center}
-.scan-sts1{background:linear-gradient(160deg,#243b2c,#0c1a12 55%,#1b3a26);display:grid;place-items:center}
-.scan-sts2{background:linear-gradient(160deg,#3a2f1d,#1a140c 55%,#3a301a);display:grid;place-items:center}
+.scan{position:relative;display:grid;place-items:center}
 .scan i{font-style:normal;font-size:34px;opacity:.85;filter:drop-shadow(0 3px 10px #000a)}
 .scan:after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(105deg,transparent 0 26px,#ffffff06 26px 28px)}
+.scan-lic{background:linear-gradient(160deg,#1d3a4a,#0c1a24 55%,#14333d)}
+.scan-sts1{background:linear-gradient(160deg,#243b2c,#0c1a12 55%,#1b3a26)}
+.scan-sts2{background:linear-gradient(160deg,#3a2f1d,#1a140c 55%,#3a301a)}
 /* пустое состояние ВУ */
 .no-license{display:none;border:1px dashed #ffffff22;border-radius:18px;padding:34px 20px;text-align:center;color:#8fa0a9;font-size:12px;line-height:1.7}
 .no-license b{display:block;font-size:14px;color:#c9d6db;margin-bottom:7px}
@@ -71,15 +103,32 @@ footer{margin-top:32px;padding-top:18px;border-top:1px solid #ffffff10;display:f
 .viewer .full img{width:100%;height:100%;object-fit:contain;background:#060d12}
 .viewer .full .scan{position:absolute;inset:0}
 .viewer-foot{margin-top:12px;font-size:10px;color:#7e909a;line-height:1.6}
-.toast{position:fixed;bottom:22px;right:22px;max-width:340px;background:#143323;border:1px solid #367b50;color:#b5f8cc;padding:13px 16px;border-radius:13px;font-size:12px;box-shadow:0 10px 40px #0008;display:none;z-index:20}
+.toast{position:fixed;bottom:22px;right:22px;max-width:380px;background:#143323;border:1px solid #367b50;color:#b5f8cc;padding:13px 16px;border-radius:13px;font-size:12px;box-shadow:0 10px 40px #0008;display:none;z-index:20}
 .toast.show{display:block}
 @media(max-width:850px){.frame{padding:20px 16px 36px}.crumb{display:none}h1{font-size:24px}.sect-head .hint{display:none}}
 @media(max-width:560px){header{grid-template-columns:1fr auto}.brand{font-size:19px}.uname{display:none}.tabs{width:100%;overflow-x:auto}.docs{grid-template-columns:1fr}.backdrop{padding:12px}}
 </style></head>
 <body>
-<div class="frame">
-<header>
+<div class="app">
+<aside class="sidebar">
   <div class="brand"><span class="check">✓</span><span><em>Сбер</em>Автошкола<small>Кабинет инструктора</small></span></div>
+  <div class="nav-label">Рабочее пространство</div>
+  <nav class="nav">
+    <button><span class="ico">⌂</span>Мой день</button>
+    <button><span class="ico">▦</span>Календарь</button>
+    <button><span class="ico">♧</span>Мои ученики</button>
+    <button><span class="ico">✉</span>Запросы учеников <span style="color:#ffd479">·2</span></button>
+    <button><span class="ico">◷</span>Бронирования</button>
+    <button><span class="ico">▰</span>Мои автомобили</button>
+    <button class="active"><span class="ico">▤</span>Мои документы</button>
+    <button><span class="ico">₽</span>Доходы и выплаты</button>
+    <button><span class="ico">⚙</span>Профиль и документы</button>
+    <button><span class="ico">⎋</span>Выход</button>
+  </nav>
+  <div class="side-bottom"><strong>Нужна помощь?</strong><p>Поддержка инструкторов поможет с документами, расписанием и выплатами.</p><button id="side-help">Связаться с поддержкой ↗</button></div>
+</aside>
+<main><div class="frame">
+<header>
   <div class="crumb">Кабинет инструктора · Мои документы</div>
   <div class="user"><span class="uname">Михаил Самойлов</span><span class="avatar">МС</span><button class="logout">Выйти</button></div>
 </header>
@@ -88,14 +137,7 @@ footer{margin-top:32px;padding-top:18px;border-top:1px solid #ffffff10;display:f
   <div>
     <div class="kicker">Документы</div>
     <h1>Мои документы</h1>
-    <p>Ваше водительское удостоверение и СТС ваших автомобилей. Документы видны только вам; ученикам СТС не выдаётся. Клик по карточке — просмотр в полном размере.</p>
-  </div>
-  <div class="tabs">
-    <button>Календарь</button>
-    <button>Автомобили</button>
-    <button>Запросы <span style="color:#ffd479">·2</span></button>
-    <button>Ученики</button>
-    <button class="on">Документы</button>
+    <p>Ваше водительское удостоверение и СТС каждого автомобиля — с его статусом валидации. СТС виден только вам; замену фото СТС можно сделать прямо здесь или в карточке авто. Клик по карточке — просмотр в полном размере.</p>
   </div>
 </div>
 
@@ -106,13 +148,14 @@ footer{margin-top:32px;padding-top:18px;border-top:1px solid #ffffff10;display:f
   <div class="no-license" id="no-license"><b>ВУ не найдено</b>В вашей анкете не было фото водительского удостоверения. Досыл документа появится позже — обратитесь в поддержку.</div>
 </section>
 
-<!-- секция: СТС по авто -->
+<!-- секция: СТС по каждому авто (со статусом авто и заменой фото) -->
 <section class="sect">
-  <div class="sect-head"><b>СТС автомобилей</b><span class="n" id="sts-count"></span><span class="hint">по одному на каждый автомобиль</span></div>
+  <div class="sect-head"><b>СТС автомобилей</b><span class="n" id="sts-count"></span><span class="hint">по одному на каждый автомобиль · статус — валидация авто</span></div>
   <div class="docs" id="sts-docs"></div>
 </section>
 
-<footer><span>СберАвтошкола · мокап «Мои документы»</span><span>Демонстрационный интерфейс · данные вымышлены</span></footer>
+<footer><span>СберАвтошкола · мокап «Мои документы», Спринт 7, итерация 2 (сайдбар кабинета)</span><span>Демонстрационный интерфейс · данные вымышлены</span></footer>
+</div></main>
 </div>
 
 <!-- просмотр документа в полном размере -->
@@ -130,24 +173,50 @@ footer{margin-top:32px;padding-top:18px;border-top:1px solid #ffffff10;display:f
 <div class="toast" id="toast"></div>
 <script>
 // GET /api/instructor/documents — демо.
-// kind: 'license' (ВУ из instructor_applications.license_photo_path) | 'sts' (photo_sts авто)
+// kind: 'license' (ВУ) | 'sts' (photo_sts авто); carStatus — статус авто (FR-65)
+var CARSTATUS={verified:['Проверено','st-ok'],validation:['Не проверено','st-val'],draft:['Черновик','st-draft']};
 var docs=[
- {id:51,kind:'license',name:'Водительское удостоверение',meta:'серия 99 22 · выдано 12.03.2019 · категория B',date:'14.09.2026',scan:'scan-lic',car:null},
- {id:52,kind:'sts',name:'СТС · Škoda Rapid',meta:'госномер А 123 АА 777 · 2020 · автомат',date:'02.10.2026',scan:'scan-sts1',car:11},
- {id:53,kind:'sts',name:'СТС · Kia Rio',meta:'госномер В 456 ВВ 777 · 2022 · механика',date:'05.10.2026',scan:'scan-sts2',car:12}
+ {id:51,kind:'license',name:'Водительское удостоверение',meta:'серия 99 22 · выдано 12.03.2019 · категория B',date:'14.09.2026',scan:'scan-lic',car:null,carStatus:null,plate:null},
+ {id:52,kind:'sts',name:'СТС · Škoda Rapid',meta:'госномер А 123 АА 777 · 2020 · автомат',date:'02.10.2026',scan:'scan-sts1',car:11,carStatus:'verified',plate:'А 123 АА 777'},
+ {id:53,kind:'sts',name:'СТС · Kia Rio',meta:'госномер В 456 ВВ 777 · 2022 · механика',date:'05.10.2026',scan:'scan-sts2',car:12,carStatus:'validation',plate:'В 456 ВВ 777'},
+ {id:54,kind:'sts',name:'СТС · Lada Vesta',meta:'госномер Е 789 ЕЕ 777 · 2021 · механика',date:'28.10.2026',scan:'scan-sts1',car:13,carStatus:'draft',plate:'Е 789 ЕЕ 777'}
 ];
-var SCANS={license:['scan-lic','🪪'],sts1:['scan-sts1','🚗'],sts2:['scan-sts2','🚗']};
-function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(window._tt);window._tt=setTimeout(function(){t.classList.remove('show')},3200)}
+function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(window._tt);window._tt=setTimeout(function(){t.classList.remove('show')},3400)}
 function esc(s){return String(s).replace(/[<>&"]/g,function(c){return{'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]})}
 function docCard(d){
-  var el=document.createElement('button');el.className='doc';el.dataset.id=d.id;
+  var el=document.createElement('div');el.className='doc';el.dataset.id=d.id;
+  var pills='<div class="pills"><span class="pill'+(d.kind==='sts'?'':' warn')+'">'+(d.kind==='sts'?'привязан к авто':'основной документ')+'</span>';
+  if(d.kind==='sts'){
+    var st=CARSTATUS[d.carStatus];
+    pills+='<span class="status '+st[1]+'" title="'+(d.carStatus==='draft'?'Ученикам не виден — авто в черновике':d.carStatus==='validation'?'Виден принятым ученикам с бейджем «Не проверено»; из каталога новых скрыт':'Виден новым ученикам в каталоге')+'">'+st[0]+'</span>';
+  }
+  pills+='</div>';
   el.innerHTML=
-    '<span class="thumb '+d.scan+'"><img src="/api/instructor/documents/'+d.id+'/file" alt="'+esc(d.name)+'" onerror="this.remove()"><span class="zoom">⤢ Смотреть</span></span>'+
+    '<span class="thumb"><span class="scan '+d.scan+'" style="position:absolute;inset:0"><i>🪪</i></span><img src="/api/instructor/documents/'+d.id+'/file" alt="'+esc(d.name)+'" onerror="this.remove()"><span class="zoom">⤢ Смотреть</span></span>'+
     '<b class="name">'+esc(d.name)+'</b>'+
     '<small class="meta">'+esc(d.meta)+'<br>загружено '+d.date+'</small>'+
-    '<span class="pill'+(d.kind==='sts'?'':' warn')+'">'+(d.kind==='sts'?'привязан к авто':'основной документ')+'</span>';
-  el.addEventListener('click',function(){openView(d)});
+    pills+
+    (d.kind==='sts'?'<button class="replace" data-replace="'+d.id+'">Заменить фото СТС</button>':'');
+  el.addEventListener('click',function(e){
+    if(e.target.closest('[data-replace]'))return; // клик по кнопке замены — не просмотр
+    openView(d);
+  });
   return el;
+}
+function bindReplace(){
+  document.querySelectorAll('[data-replace]').forEach(function(b){
+    b.addEventListener('click',function(){
+      var d=docs.find(function(x){return x.id===+b.dataset.replace});
+      // прод: POST /api/instructor/cars/{id}/sts (JPEG/PNG, ≤5 МБ; 422 — файл не трогается)
+      b.textContent='Загрузка…';
+      setTimeout(function(){
+        d.date='сегодня';
+        b.textContent='Заменить фото СТС';
+        render();
+        toast('Фото СТС заменено (POST /api/instructor/cars/'+d.car+'/sts). Актуальный файл уже показан в «Моих документах»; у авто в черновике/на валидации можно отправить его на проверку заново.');
+      },900);
+    });
+  });
 }
 function render(){
   // ВУ
@@ -160,6 +229,7 @@ function render(){
   var stsDocs=docs.filter(function(d){return d.kind==='sts'});
   stsDocs.forEach(function(d){sts.appendChild(docCard(d))});
   document.getElementById('sts-count').textContent=stsDocs.length;
+  bindReplace();
 }
 // ── просмотр в полном размере (GET /api/instructor/documents/{doc_id}/file) ──
 function openView(d){
@@ -173,5 +243,10 @@ function closeView(){document.getElementById('m-view').classList.remove('open');
 document.getElementById('view-close').addEventListener('click',closeView);
 document.getElementById('m-view').addEventListener('click',function(e){if(e.target===this)closeView()});
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeView()});
+// сайдбар кабинета (BUG-047, итерация 2): активный раздел подсвечен, остальные — демо-переходы
+document.querySelectorAll('.nav button:not(.active)').forEach(function(b){
+  b.addEventListener('click',function(){toast('Раздел «'+b.textContent.trim()+'» — другой экран кабинета (демо-мокап)')});
+});
+document.getElementById('side-help').addEventListener('click',function(){toast('Раздел поддержки — демонстрационный макет')});
 render();
 </script></body></html>
