@@ -876,7 +876,11 @@ def test_instructor_requests_deny_locked_until_comment_accept_with_car(
 
     page.goto(f"{server}/instructor/dashboard")
     expect(page.locator(".user b")).to_have_text("Самойлов Михаил")
-    page.locator('.nav button[data-tab="Запросы учеников"]').click()
+    # BUG-051: «Запросы учеников» — подраздел раздела «Мои ученики»
+    # (сайдбар-кнопки больше нет)
+    page.locator('.nav button[data-tab="Мои ученики"]').click()
+    page.locator('#stu-subtabs button[data-subtab="requests"]').click()
+    expect(page.locator("#tab-requests")).to_be_visible()
     expect(page.locator(".rq")).to_have_count(2)
     expect(page.locator(".rq-top b").first).to_have_text("Павел Ежов")
 
@@ -983,8 +987,11 @@ def test_instructor_accept_flow_real_backend(page, server):
     # до принятия виджет «Привязанные ученики» пуст
     expect(page.locator("#w-students-n")).to_have_text("0")
 
-    # раздел «Запросы учеников»: заявка с реальным ФИО и стажем «нет»
-    page.locator('.nav button[data-tab="Запросы учеников"]').click()
+    # раздел «Мои ученики» → подраздел «Запросы учеников» (BUG-051):
+    # заявка с реальным ФИО и стажем «нет»
+    page.locator('.nav button[data-tab="Мои ученики"]').click()
+    page.locator('#stu-subtabs button[data-subtab="requests"]').click()
+    expect(page.locator("#tab-requests")).to_be_visible()
     expect(page.locator(".rq")).to_have_count(1)
     expect(page.locator(".rq-top b")).to_have_text("Смирнова Ольга Павловна")
     expect(page.locator(".rq-top small")).to_contain_text("Стаж вождения: нет")
@@ -1070,9 +1077,10 @@ def test_student_choice_xss_instructor_name_not_executed(page, server):
 def test_back_links_lead_to_role_home(page, server):
     """TC-UI-019 (BUG-047; change add-booking-docs): после встраивания разделов
     в кабинеты — у дашборда инструктора есть разделы «Мои автомобили»,
-    «Мои документы», «Бронирования», у кабинета ученика — «Мои заявки» и
-    «Мои брони»; standalone-страницы разделов запрещены (директива Заказчика,
-    BUG-047-прецедент): my-cars/my-requests удалены, новые страницы Спринта 5
+    «Профиль и документы» (BUG-051: переименован из «Мои документы»), у
+    кабинета ученика — «Мои заявки» и «Мои брони»; standalone-страницы
+    разделов запрещены (директива Заказчика, BUG-047-прецедент):
+    my-cars/my-requests удалены, новые страницы Спринта 5
     (documents/booking/instructor-bookings/admin-cars) НЕ создаются;
     целевые страницы (выбор инструктора, форма отзыва) ведут назад в кабинет
     ученика (у отзыва — кнопкой «Назад к заявкам» в форме)."""
@@ -1090,10 +1098,25 @@ def test_back_links_lead_to_role_home(page, server):
     dash = (base / "instructor-dashboard.html").read_text(encoding="utf-8")
     cab = (base / "cabinet.html").read_text(encoding="utf-8")
     assert 'data-tab="Мои автомобили"' in dash, "нет раздела «Мои автомобили» в дашборде"
-    assert 'data-tab="Мои документы"' in dash, "нет раздела «Мои документы» в дашборде"
-    assert 'data-tab="Бронирования"' in dash, "нет раздела «Бронирования» в дашборде"
-    assert 'id="sec-docs"' in dash and 'id="sec-bookings"' in dash, \
-        "секции «Мои документы»/«Бронирования» должны быть внутри дашборда"
+    # BUG-051: «Мои документы» переименована в «Профиль и документы»
+    assert 'data-tab="Профиль и документы"' in dash, \
+        "нет раздела «Профиль и документы» в дашборде"
+    assert 'data-tab="Мои документы"' not in dash, \
+        "BUG-051: прежнее имя «Мои документы» не должно оставаться в сайдбаре"
+    # BUG-051: сайдбар-кнопки «Бронирования»/«Мой автомобиль» удалены,
+    # «Запросы учеников» переехал подразделом в «Мои ученики»
+    assert 'data-tab="Бронирования"' not in dash, \
+        "BUG-051: сайдбар-кнопка «Бронирования» удалена (слита с «Календарем»)"
+    assert 'data-tab="Мой автомобиль"' not in dash, \
+        "BUG-051: ДЕМО-заглушка «Мой автомобиль» удалена из сайдбара"
+    assert 'data-tab="Запросы учеников"' not in dash, \
+        "BUG-051: «Запросы учеников» — подраздел «Моих учеников», без сайдбар-кнопки"
+    assert 'id="sec-docs"' in dash and 'id="sec-students"' in dash, \
+        "секции «Профиль и документы»/«Мои ученики» должны быть внутри дашборда"
+    assert 'id="sec-bookings"' not in dash, \
+        "BUG-051: секция «Бронирования» удалена — брони в разделе «Календарь»"
+    assert 'id="stu-subtabs"' in dash and 'id="rq-list"' in dash, \
+        "BUG-051: подразделы «Ученики»/«Запросы учеников» внутри «Моих учеников»"
     assert 'data-tab="Мои заявки"' in cab, "нет раздела «Мои заявки» в кабинете"
     assert 'data-tab="Мои брони"' in cab, "нет раздела «Мои брони» в кабинете"
     assert 'id="sec-bookings"' in cab, "секция «Мои брони» должна быть внутри кабинета"
@@ -1102,6 +1125,86 @@ def test_back_links_lead_to_role_home(page, server):
     review = (base / "review-form.html").read_text(encoding="utf-8")
     assert 'href="/my-requests"' in review, \
         "review-form: нет кнопки «Назад к заявкам» (/my-requests → 301 в кабинет)"
+
+
+def test_bug051_sidebar_exact_items_students_subtabs_profile_docs(page, server):
+    """TC-UI-028 (change add-car-validation-booking, BUG-051): сайдбар кабинета
+    инструктора содержит РОВНО ожидаемый перечень пунктов (удалены
+    «Бронирования», «Мой автомобиль» — ДЕМО-заглушка, «Запросы учеников»);
+    в «Моих учениках» вкладки «Ученики» (карточки привязанных) / «Запросы
+    учеников» переключаются; «Профиль и документы» (бывшая «Мои документы»)
+    открывает раздел документов (ВУ + СТС); «Календарь» содержит подраздел
+    броней (бывший раздел «Бронирования»). API замокан через page.route."""
+    _seed_session(page, "session_token", INSTRUCTOR_TOKEN)
+
+    _route_json(page, server, "/api/auth/me", lambda req: (
+        200, {"ok": True, "user": {"surname": "Самойлов", "name": "Михаил"}}))
+    _route_json(page, server, "/api/instructor/dashboard", lambda req: (
+        200, {"ok": True, "instructor": {"surname": "Самойлов",
+                                         "name": "Михаил"}}))
+    _route_json(page, server, "/api/instructor/summary", lambda req: (
+        200, {"ok": True, "students": [
+            {"full_name": "Смирнова Ольга Павловна",
+             "car": "Škoda Rapid 2020",
+             "decided_at": "2026-10-20 14:05:00"}],
+            "today_lessons": []}))
+    _route_json(page, server, "/api/instructor/requests", lambda req: (
+        200, {"ok": True, "requests": []}))
+    _route_json(page, server, "/api/instructor/availability", lambda req: (
+        200, {"ok": True, "intervals": []}))
+    _route_json(page, server, "/api/instructor/bookings", lambda req: (
+        200, {"ok": True, "bookings": []}))
+    _route_json(page, server, "/api/instructor/documents", lambda req: (
+        200, {"ok": True, "documents": []}))
+
+    page.goto(f"{server}/instructor/dashboard")
+    expect(page.locator(".user b")).to_have_text("Самойлов Михаил")
+
+    # --- сайдбар: РОВНО ожидаемый перечень (без Бронирования / Мой автомобиль /
+    # Запросы учеников; «Мои документы» переименована в «Профиль и документы») ---
+    tabs = page.locator(".nav button").evaluate_all(
+        "els => els.map(e => e.dataset.tab)")
+    assert tabs == ["Мой день", "Расписание", "Календарь", "Мои ученики",
+                    "Мои автомобили", "Доходы и выплаты",
+                    "Материалы и обучение", "Профиль и документы",
+                    "__logout__"], tabs
+
+    # --- «Мои ученики»: вкладка «Ученики» — карточка привязанного ученика ---
+    page.locator('.nav button[data-tab="Мои ученики"]').click()
+    expect(page.locator("#sec-students")).to_be_visible()
+    expect(page.locator("#page-title")).to_have_text("Мои ученики")
+    expect(page.locator(".nav button[data-tab='Мои ученики']")).to_have_class("active")
+    expect(page.locator("#tab-students")).to_be_visible()
+    expect(page.locator("#stu-cards .stu-card")).to_have_count(1)
+    card = page.locator("#stu-cards .stu-card").first
+    expect(card.locator("b")).to_have_text("Смирнова Ольга Павловна")
+    expect(card.locator("small")).to_have_text("с инструктора с 2026-10-20")
+    expect(card.locator(".car-pill")).to_have_text("Škoda Rapid 2020")
+
+    # --- переключение на «Запросы учеников» и обратно ---
+    page.locator('#stu-subtabs button[data-subtab="requests"]').click()
+    expect(page.locator("#tab-requests")).to_be_visible()
+    expect(page.locator("#tab-students")).to_be_hidden()
+    expect(page.locator("#rq-list")).to_be_visible()
+    page.locator('#stu-subtabs button[data-subtab="students"]').click()
+    expect(page.locator("#tab-students")).to_be_visible()
+    expect(page.locator("#tab-requests")).to_be_hidden()
+
+    # --- «Профиль и документы» (бывшая «Мои документы»): раздел документов ---
+    page.locator('.nav button[data-tab="Профиль и документы"]').click()
+    expect(page.locator("#sec-docs")).to_be_visible()
+    expect(page.locator("#page-title")).to_have_text("Профиль и документы")
+    expect(page.locator('.nav button[data-tab="Профиль и документы"]')).to_have_class("active")
+    expect(page.locator("#lic-docs .doc")).to_have_count(0)
+    expect(page.locator("#no-license")).to_be_visible()  # документов нет — честное пустое состояние
+
+    # --- «Календарь»: сетка графика + подраздел броней (бывший «Бронирования») ---
+    page.locator('.nav button[data-tab="Календарь"]').click()
+    expect(page.locator("#sec-calendar")).to_be_visible()
+    expect(page.locator("#cal-grid")).to_be_visible()
+    expect(page.locator("#sec-calendar #bk-list")).to_be_visible()
+    expect(page.locator("#sec-calendar #bk-grid")).to_be_visible()
+    expect(page.locator("#sec-calendar #bk-filters")).to_be_visible()
 
 
 def test_bug047_mycars_route_redirects_into_dashboard(page, server):
@@ -2051,8 +2154,9 @@ def test_s5_booking_flow_slots_request_confirm_and_409(browser, server):
     """TC-UI-025 (change add-booking-docs): интеграция «бронирование» на
     живом бэкенде. Ученик принятой пары видит слоты инструктора в разделе
     «Мои брони» (свободные кликабельны) → отправил запрос (слот стал «запрос
-    отправлен», в «Моих бронях» — желтый статус); инструктор в разделе
-    «Бронирования» видит запрос и подтверждает → бронь в календарях ОБОИХ
+    отправлен», в «Моих бронях» — желтый статус); инструктор в «Календаре»
+    (BUG-051: подраздел броней, бывший раздел «Бронирования») видит запрос и
+    подтверждает → бронь в календарях ОБОИХ
     (ученик «Подтверждена», слот инструктора помечен учеником); повторная
     бронь занятого слота → 409 без записи (NFR-8)."""
     instr_token, instructor_id = _approve_instructor(server)
@@ -2110,12 +2214,13 @@ def test_s5_booking_flow_slots_request_confirm_and_409(browser, server):
     finally:
         ctx.close()
 
-    # --- инструктор: раздел «Бронирования» — запрос виден, подтверждение
+    # --- инструктор: раздел «Календарь» (BUG-051: впитал «Бронирования») —
+    # запрос виден, подтверждение
     page, ctx = _fresh_page(browser, instr_token)
     try:
         page.goto(f"{server}/instructor/dashboard")
-        page.locator('.nav button[data-tab="Бронирования"]').click()
-        expect(page.locator("#sec-bookings")).to_be_visible()
+        page.locator('.nav button[data-tab="Календарь"]').click()
+        expect(page.locator("#sec-calendar")).to_be_visible()
         req = page.locator("#bk-list .req", has_text="Смирнова Ольга Павловна")
         expect(req).to_have_count(1)
         expect(req.locator(".status")).to_have_text("Новый запрос")
@@ -2165,7 +2270,8 @@ def test_s5_booking_flow_slots_request_confirm_and_409(browser, server):
 
 def test_bug049_cancel_confirmed_booking_ui_flow(browser, server):
     """TC-UI-026 (change add-booking-docs, BUG-049 MAJ-1): сквозной cancel-флоу
-    на живом бэкенде. Инструктор в разделе «Бронирования» видит подтвержденную
+    на живом бэкенде. Инструктор в «Календаре» (BUG-051: подраздел броней,
+    бывший раздел «Бронирования») видит подтвержденную
     бронь с кнопкой «✕ Отменить бронь» → клик → тост, список перезагружен:
     статус «Отклонена», кнопки отмены больше нет; у ученика в «Моих бронях» —
     «Отклонена» без блока комментария (cancel не пишет reject_comment) и с
@@ -2194,11 +2300,14 @@ def test_bug049_cancel_confirmed_booking_ui_flow(browser, server):
         base=server, token=instr_token)
     assert status == 200 and data["ok"], (status, data)
 
-    # --- инструктор: «Бронирования» → подтвержденная бронь → отмена ---
+    # --- инструктор: «Календарь» (BUG-051: подраздел броней) →
+    # подтвержденная бронь → отмена ---
     page, ctx = _fresh_page(browser, instr_token)
     try:
         page.goto(f"{server}/instructor/dashboard")
-        page.locator('.nav button[data-tab="Бронирования"]').click()
+        page.locator('.nav button[data-tab="Календарь"]').click()
+        expect(page.locator("#sec-calendar")).to_be_visible()
+        expect(page.locator("#sec-calendar #bk-list")).to_be_visible()
         req = page.locator("#bk-list .req", has_text="Смирнова Ольга Павловна")
         expect(req).to_have_count(1)
         expect(req.locator(".status")).to_have_text("Подтверждена")
