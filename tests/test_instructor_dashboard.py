@@ -285,16 +285,23 @@ def test_dashboard_page_nav_sections_fr19():
     from conftest import frontend_source
 
     html = PAGE.read_text(encoding="utf-8")
+    # BUG-051 (Постановка Заказчика 2026-10-23): из перечня FR-19 удалены
+    # «Запросы учеников» (подраздел «Моих учеников»), «Бронирования» (слит
+    # с «Календарем»), «Мой автомобиль» (ДЕМО-заглушка); «Мои документы»
+    # переименована в «Профиль и документы»
     for section in (
         "Мой день",
         "Расписание",
         "Мои ученики",
+        "Мои автомобили",
         "Доходы и выплаты",
-        "Мой автомобиль",
         "Материалы и обучение",
         "Профиль и документы",
     ):
         assert f'data-tab="{section}"' in html, section
+    for removed in ("Запросы учеников", "Бронирования", "Мой автомобиль"):
+        assert f'data-tab="{removed}"' not in html, \
+            f"BUG-051: сайдбар-кнопка «{removed}» удалена"
     js = frontend_source("instructor-dashboard.html")
     assert "navTo" in js
     assert "document.querySelectorAll('.nav button')" in js

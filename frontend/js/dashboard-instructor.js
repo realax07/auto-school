@@ -46,32 +46,35 @@ function navTo(name){
   // BUG-047 (скрины Заказчика 2026-10-17): «Мои автомобили» — раздел этого
   // дашборда (таб), отдельной страницы /my-cars больше нет (301 →
   // /instructor/dashboard#/my-cars открывает этот же раздел)
-  // Спринт 3: реальные разделы «Календарь» и «Запросы учеников»
-  // Спринт 5 (change add-booking-docs): разделы «Бронирования», «Мои документы»
-  // — тоже ВНУТРИ дашборда (BUG-047-прецедент: standalone-страницы запрещены)
-  var isCal=(name==='Календарь'),isReq=(name==='Запросы учеников'),isCars=(name==='Мои автомобили');
-  var isDocs=(name==='Мои документы'),isBk=(name==='Бронирования');
-  document.querySelectorAll('.day-content').forEach(function(el){el.style.display=(isCal||isReq||isCars||isDocs||isBk)?'none':''});
+  // BUG-051 (Постановка Заказчика 2026-10-23, п.6/9/10 + Спринт 7):
+  // «Запросы учеников» — подраздел раздела «Мои ученики» (сайдбар-кнопки
+  // больше нет); «Бронирования» слит с «Календарем» (брони и запросы —
+  // на слотах графика); «Мои документы» переименована в «Профиль и
+  // документы»; ДЕМО-заглушка «Мой автомобиль» из сайдбара удалена
+  var isCal=(name==='Календарь'),isStu=(name==='Мои ученики'),isCars=(name==='Мои автомобили');
+  var isDocs=(name==='Профиль и документы');
+  var real=isCal||isStu||isCars||isDocs;
+  document.querySelectorAll('.day-content').forEach(function(el){el.style.display=real?'none':''});
   document.getElementById('sec-calendar').style.display=isCal?'block':'none';
-  document.getElementById('sec-requests').style.display=isReq?'block':'none';
+  document.getElementById('sec-students').style.display=isStu?'block':'none';
   document.getElementById('sec-cars').style.display=isCars?'block':'none';
   document.getElementById('sec-docs').style.display=isDocs?'block':'none';
-  document.getElementById('sec-bookings').style.display=isBk?'block':'none';
   if(isCal)openCalendar();
-  if(isReq)openRequests();
+  if(isStu)openStudents();
   if(isCars)openCars();
   if(isDocs)openDocs();
-  if(isBk)openBookings();
   var pp=document.getElementById('profile-panel');
   if(pp)pp.style.display='none';
   document.getElementById('page-title').textContent=name;
   document.getElementById('crumb').textContent=name;
   document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
   // BUG-047: хеш раздела синхронизируется с табом — reload не сбрасывает
-  // раздел, старые ссылки#/my-cars открывают его напрямую
-  var wantHash=isCars?'#/my-cars':isDocs?'#/my-docs':isBk?'#/bookings':'';
+  // раздел, старые ссылки#/my-cars открывают его напрямую. Хеши #/my-docs
+  // и #/bookings (прежние «Мои документы»/«Бронирования») ведут в
+  // переименованный «Профиль и документы» и «Календарь» (BUG-051)
+  var wantHash=isCars?'#/my-cars':isDocs?'#/my-docs':'';
   if(location.hash!==wantHash){try{history.replaceState(null,'',location.pathname+location.search+(wantHash||''))}catch(e){}}
-  if(name!=='Мой день'&&!isCal&&!isReq&&!isCars&&!isDocs&&!isBk)toast('Раздел «'+name+'» — демо-данные, следующий экран в концепции кабинета')
+  if(!real&&name!=='Мой день')toast('Раздел «'+name+'» — демо-данные, следующий экран в концепции кабинета')
 }
 
 // --- Виджеты главной (change add-instructor-student-loop, FR-40/FR-41):
@@ -149,11 +152,13 @@ function countNewRequests(){
         row.appendChild(go);
         box.appendChild(row);
       });
-      box.querySelectorAll('[data-goto-requests]').forEach(function(g){g.addEventListener('click',function(){navTo('Запросы учеников')})});
+      box.querySelectorAll('[data-goto-requests]').forEach(function(g){g.addEventListener('click',function(){
+        // BUG-051: «Запросы учеников» — подраздел «Моих учеников»
+        navTo('Мои ученики');stuSwitch('requests');
+      })});
     }
-    var badge=el('nav-req-badge');
-    badge.style.display=list.length?'inline-block':'none';
-    badge.textContent='+'+list.length;
+    var sub=el('stu-sub-new');
+    if(sub)sub.textContent=list.length?('·'+list.length):'';
   });
 }
 
@@ -246,6 +251,10 @@ function openCalendar(){
     });
     el('cal-changed').style.display='none';
   });
+  // BUG-051: брони и запросы — подраздел «Календаря» (п.9 Постановки
+  // Заказчика 2026-10-23, бывший раздел «Бронирования»): открываются
+  // вместе с графиком
+  openBookings();
 }
 el('cal-save').addEventListener('click',function(){
   var intervals=Object.keys(calSelected).map(function(k){
@@ -377,6 +386,39 @@ function openRequests(){
     apiGet('/api/instructor/requests',function(res){
       rqState.list=res?(res.requests||res.items||[]):[];
       renderRequests();
+    });
+  });
+}
+// BUG-051: «Мои ученики» — подразделы «Ученики» (карточки привязанных) и
+// «Запросы учеников» (входящие; бывшая сайдбар-кнопка «Запросы учеников»)
+function stuSwitch(sub){
+  document.querySelectorAll('#stu-subtabs button').forEach(function(b){b.classList.toggle('on',b.dataset.subtab===sub)});
+  var isReq=sub==='requests';
+  el('tab-students').style.display=isReq?'none':'block';
+  el('tab-requests').style.display=isReq?'block':'none';
+  if(isReq)openRequests();
+}
+document.querySelectorAll('#stu-subtabs button').forEach(function(b){
+  b.addEventListener('click',function(){stuSwitch(b.dataset.subtab)});
+});
+// Карточки привязанных учеников — шейп GET /api/instructor/summary
+// (backend/instructor_summary.py: full_name, car, decided_at)
+function openStudents(){
+  apiGet('/api/instructor/summary',function(res){
+    if(!res)return;
+    var students=res.students||[];
+    var box=el('stu-cards');box.innerHTML='';
+    el('stu-empty').style.display=students.length?'none':'block';
+    students.forEach(function(s){
+      var card=node('div','stu-card');
+      card.appendChild(node('span','w-sic',stuInitials(s.full_name)));
+      var who=node('div');
+      who.appendChild(node('b',null,s.full_name||''));
+      var date=s.decided_at?String(s.decided_at).split(' ')[0]:'';
+      if(date)who.appendChild(node('small',null,'с инструктора с '+date));
+      card.appendChild(who);
+      card.appendChild(node('span','car-pill',s.car||'авто не выбрано'));
+      box.appendChild(card);
     });
   });
 }
@@ -1038,7 +1080,8 @@ function openDocs(){
   });
 }
 
-// --- Раздел «Бронирования» (мокап booking-instructor.html, FR-48/FR-49):
+// --- Брони/запросы — подраздел «Календаря» (BUG-051, бывший раздел
+// «Бронирования»; мокап booking-instructor.html, FR-48/FR-49):
 // GET /api/instructor/bookings: новые — Принять (без комментария, ОВ-2) /
 // Отклонить (комментарий обязателен — 422, иначе слот не освободится);
 // подтверждённые — в сетке недели поверх графика availability ---
@@ -1054,13 +1097,12 @@ function openBookings(){
   apiGet('/api/instructor/availability',function(res){
     bkState.intervals=res?(res.intervals||[]):[];
     apiGet('/api/instructor/bookings',function(res2){
-      bkState.list=res2?(res2.bookings||[]):[];
+      if(!res2)return;
+      bkState.list=res2.bookings||[];
       bkRenderList();
       bkRenderGrid();
-      var n=bkState.list.filter(function(b){return b.status==='new'}).length;
-      var badge=el('nav-bk-badge');
-      badge.style.display=n?'inline-block':'none';
-      badge.textContent='+'+n;
+      // BUG-051: бейдж сайдбара «Бронирования» удален вместе с кнопкой —
+      // новые запросы видны в списке и сетке «Календаря»
     });
   });
 }
@@ -1242,10 +1284,12 @@ function bkRenderGrid(){
 }
 
 // Хвост старых ссылок (BUG-047): /my-cars теперь 301 на этот дашборд с
-// хешем — открываем раздел «Мои автомобили» напрямую
+// хешем — открываем раздел «Мои автомобили» напрямую.
+// BUG-051: прежние хеши #/my-docs и #/bookings ведут в переименованный
+// «Профиль и документы» и в «Календарь» (впитал «Бронирования»)
 if(location.hash==='#/my-cars')navTo('Мои автомобили');
-if(location.hash==='#/my-docs')navTo('Мои документы');
-if(location.hash==='#/bookings')navTo('Бронирования');
+if(location.hash==='#/my-docs')navTo('Профиль и документы');
+if(location.hash==='#/bookings')navTo('Календарь');
 
 // Выход (FR-22): POST /api/auth/logout -> по любому ответу очистка
 // sessionStorage -> редирект на лендинг инструкторов (спринт 3, правка:
