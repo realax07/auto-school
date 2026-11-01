@@ -150,3 +150,30 @@ JS и HTML + дубликаты id исключены), подразделы «�
 и покрыты e2e на моках и на живом бэкенде, design-guard цел (CSS-строки
 мокапа дословно), полный сьют — 341 passed. MIN-1 (комментарии) и INFO-1/2
 (предсуществующее) в возврат не ведут; INFO-1 рекомендовано в бэклог.
+
+## Рекондукция (сессия восстановления, 2026-11-01 ~18:20 UTC)
+
+Артефакт сальважирован из main tree при INC-007 (4edf7c8) и независимо
+перепроверен делегированной сессией role=code_reviewer («BUG-051
+восстановление»). Результаты рекондукции — без расхождений с телом ревью:
+
+- (1) нав-перечень перепарсен из живого HTML: ровно 9 data-tab в ожидаемом
+  порядке (включая __logout__), дублей id нет;
+- (2) grep по JS/HTML: ссылок nav-req-badge/nav-bk-badge/sec-requests/
+  sec-bookings в инструкторском модуле нет; все el()-id из
+  dashboard-instructor.js существуют в HTML (кроме предсуществующего
+  profile-panel под if-guard — INFO-2); node --check — OK;
+  sec-bookings в cabinet.html/cabinet.js — учениская сторона, не тронута;
+- (3) subtabs students/requests + stuSwitch подтверждены; биндинг на
+  module-load валиден (script type=module в конце body);
+- (4) design-guard: перенесенные тексты дословны (сверено с diff),
+  новые CSS-строки только добавлены;
+- (5) nav{display:none} 901–1200 — вне скоупа ветки (frontend/index.html:13,
+  комментарий-документация на месте, в diff ветки не входит);
+- (6) регресс этой сессией (LD_LIBRARY_PATH с распакованными libatk):
+  `pytest tests/test_ui_playwright.py -q` → «41 passed in 168.60s»;
+  `pytest tests/ -q` без LD_LIBRARY_PATH → «305 passed, 1 warning,
+  36 errors in 388.51s» — все 36 error это ERROR at setup (старт браузера,
+  окружение, не код), 0 failed; сумма 300 не-UI + 41 UI = 341 passed —
+  сходится с рекордом п.5. (Полный сьют одним прогоном не повторен:
+  капа команды 420s < ~460s сьюта; разбивка эквивалентна.)
