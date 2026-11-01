@@ -1,0 +1,364 @@
+<!doctype html>
+<!-- Мокап: «Календарь» — раздел кабинета инструктора. Спринт 8
+     (change add-s8-cars-docs-booking; FR-74, ОВ-5; наследование FR-67/FR-68/ОВ-6 Спринта 7).
+     Сетка недели, совмещённая с availability-графиком. Запросы учеников отображаются
+     РОВНО на выбранных слотах (дата+время запроса = слот availability; никаких
+     агрегированных списков «рядом с календарём») — жёлтая метка «Запрос» на слоте;
+     клик по такому слоту — решение: Принять / Отклонить (причина обязательна).
+     Подтверждённые брони — синяя метка: имя ученика + авто (немедленное решение,
+     FR-68/ОВ-6). Раздел «Бронирования» удалён без остатков (FR-74) — в сайдбаре его нет,
+     старые ссылки редиректят сюда (механика BUG-047). Правка графика: клик по свободному
+     слоту включается/выключает его; кнопки «Сохранить»/«Отменить» активны ТОЛЬКО после
+     изменений. Данные демо. -->
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#071015"><title>СберАвтошкола — Кабинет инструктора · Календарь</title>
+<style>
+:root{--bg:#071015;--line:#ffffff16;--text:#f3f7f8;--muted:#93a6b1;--green:#35d879}
+*{box-sizing:border-box}html,body{margin:0;min-width:320px}
+body{background:radial-gradient(ellipse at 78% 0%,#123b2c4d,transparent 38%),radial-gradient(ellipse at 8% 90%,#27465f26,transparent 40%),var(--bg);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh}
+button{font:inherit;color:inherit;cursor:pointer}
+/* лейаут кабинета */
+.app{min-height:100vh;display:grid;grid-template-columns:236px 1fr}
+.sidebar{padding:25px 17px;border-right:1px solid #ffffff12;background:#071016b8;display:flex;flex-direction:column;gap:26px;position:sticky;top:0;height:100vh;overflow:auto}
+.nav-label{font-size:10px;color:#637681;text-transform:uppercase;letter-spacing:.16em;padding:0 11px;margin-bottom:-17px}
+.nav{display:grid;gap:5px}
+.nav button{border:1px solid transparent;background:transparent;color:#aab8c0;text-align:left;padding:11px 12px;border-radius:12px;font-size:13px;display:flex;align-items:center;gap:12px}
+.nav button .ico{width:20px;text-align:center;font-size:16px;flex:none}
+.nav button.active{color:#8ff2b5;background:#143023;border-color:#286445}
+.nav button:hover{background:#ffffff09}
+.side-bottom{margin-top:auto;border:1px solid #ffffff13;border-radius:15px;padding:14px;background:#ffffff04}
+.side-bottom strong{font-size:12px}
+.side-bottom p{font-size:11px;color:#8d9da6;line-height:1.5;margin:7px 0 12px}
+.side-bottom button{width:100%;background:#143222;border:1px solid #2e6a47;color:#a2f5bf;border-radius:10px;padding:10px;font-size:11px}
+main{min-width:0;padding:0 clamp(20px,3vw,40px) 45px}
+.frame{max-width:1240px;margin:auto;padding:26px 0 0}
+header{display:flex;align-items:center;justify-content:space-between;gap:14px;height:48px;margin-bottom:6px}
+.brand{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:650;letter-spacing:-.4px;min-width:0}
+.brand>span:last-child{min-width:0}
+.brand em{font-style:normal;color:var(--green)}
+.check{width:32px;height:32px;flex:none;display:grid;place-items:center;border:3px solid var(--green);border-radius:50%;color:var(--green);font-size:20px;transform:rotate(-8deg)}
+.brand small{display:block;font-size:9px;color:#80919b;letter-spacing:.14em;text-transform:uppercase;margin-top:3px;font-weight:500}
+.crumb{font-size:12px;color:#8fa2ad;justify-self:center}
+.user{justify-self:end;display:flex;align-items:center;gap:13px}
+.uname{font-size:13px;color:#d6e4e2}
+.avatar{width:34px;height:34px;border-radius:11px;background:linear-gradient(145deg,#315744,#14261e);display:grid;place-items:center;color:#a0f2bd;font-size:11px;font-weight:700}
+.logout{padding:8px 20px;border:1px solid #ffffff40;border-radius:999px;background:transparent;font-size:13px}
+.logout:hover{border-color:var(--green)}
+.page-head{margin:26px 0 6px;display:flex;align-items:end;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.kicker{font-size:10px;color:#79eaa5;text-transform:uppercase;letter-spacing:.18em}
+h1{font-size:28px;letter-spacing:-.05em;font-weight:600;margin:9px 0 8px}
+.page-head p{font-size:12px;color:var(--muted);margin:0;max-width:640px;line-height:1.6}
+/* Сохранить/Отменить — активны только после изменений (FR-68) */
+.savebar{display:flex;align-items:center;gap:10px}
+.savebar .dirty-note{font-size:11px;color:#ffd479;opacity:0;transition:opacity .15s}
+.savebar .dirty-note.on{opacity:1}
+.savebar button{border-radius:11px;padding:11px 20px;font-size:12px;font-weight:550;border:1px solid}
+.sb-save{background:#123524;border-color:#2b9c62;color:#c9ffdd}
+.sb-save:hover:not(:disabled){filter:brightness(1.12)}
+.sb-cancel{background:transparent;border-color:#ffffff22;color:#b9c8ce}
+.sb-cancel:hover:not(:disabled){border-color:#8a3c3c66;color:#ffb28e}
+.savebar button:disabled{opacity:.35;cursor:not-allowed;filter:none}
+/* календарь */
+.cal{border:1px solid var(--line);border-radius:19px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:19px;margin-top:22px}
+.cal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:15px;flex-wrap:wrap}
+.cal-head b{font-size:15px;font-weight:600;letter-spacing:-.02em}
+.cal-head .sub{font-size:11px;color:#8799a3;margin-top:5px}
+.tools{display:flex;align-items:center;gap:8px}
+.tools button{background:#ffffff08;border:1px solid #ffffff14;color:#b9c8ce;border-radius:9px;padding:7px 11px;font-size:11px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 14px;color:#91a1aa;font-size:10px}
+.legend span{display:flex;align-items:center;gap:6px}
+.legend i{width:7px;height:7px;border-radius:50%;display:inline-block}
+.lg-on{background:var(--green)}
+.lg-book{background:#9bc5ff}
+.lg-req{background:#ffd479}
+/* сетка 7 × интервалы */
+.grid{display:grid;grid-template-columns:56px repeat(7,minmax(0,1fr));gap:6px}
+.corner{font-size:9px;color:#637681;display:grid;place-items:end center;padding-bottom:6px;text-transform:uppercase;letter-spacing:.08em}
+.dh{text-align:center;padding:7px 2px;border-radius:10px;background:#ffffff04;border:1px solid #ffffff0e}
+.dh small{display:block;font-size:9px;color:#84959e;text-transform:uppercase;letter-spacing:.08em}
+.dh b{display:block;font-size:14px;margin-top:4px;font-weight:600}
+.dh.today{background:#143322;border-color:#2c8651}
+.dh.today small{color:#a3efbd}
+.tlabel{font-size:10px;color:#7e909a;display:flex;align-items:center;justify-content:flex-end;padding-right:6px}
+.slot{height:56px;border-radius:9px;border:1px solid #ffffff10;background:#ffffff03;font-size:9px;line-height:1.35;display:grid;place-items:center;text-align:center;padding:2px 4px;overflow:hidden}
+/* слот в графике — свободно */
+.slot.on{background:#12331e;border-color:#2c8651;color:#7fe3a3;cursor:pointer}
+.slot.on:hover{filter:brightness(1.2)}
+/* помечен к изменению графика (dirty) */
+.slot.edit{background:#1a2c3f;border-color:#4a7fae;border-style:dashed;color:#9bc5ff}
+.slot.edit.removed{text-decoration:line-through;opacity:.6}
+/* подтверждённая бронь: ученик + авто */
+.slot.booked{background:#17283a;border-color:#2d4a68;color:#cfe6ff;cursor:default}
+.slot.booked small{display:block;color:#9bc5ff;font-weight:600;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slot.booked em{font-style:normal;font-size:8px;color:#7e9dc0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+/* новый запрос РОВНО на слоте */
+.slot.reqslot{background:#2a2010;border-color:#6b5426;color:#ffe4a3;cursor:pointer}
+.slot.reqslot:hover{filter:brightness(1.18)}
+.slot.reqslot small{display:block;color:#ffd479;font-weight:600;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slot.reqslot .rq{font-size:7.5px;letter-spacing:.1em;text-transform:uppercase;color:#ffd479}
+.hint{margin-top:14px;font-size:11px;color:#7e909a;line-height:1.7}
+footer{margin-top:32px;padding-top:18px;border-top:1px solid #ffffff10;display:flex;justify-content:space-between;gap:14px;font-size:11px;color:#5f717b;flex-wrap:wrap}
+/* модалка решения по запросу на слоте */
+.backdrop{position:fixed;inset:0;background:#02070bd8;backdrop-filter:blur(6px);display:none;place-items:center;padding:24px;z-index:30}
+.backdrop.open{display:grid}
+.modal{width:min(540px,100%);max-height:calc(100vh - 60px);overflow:auto;border:1px solid #ffffff20;border-radius:22px;background:linear-gradient(150deg,#16242c,#0b1418);box-shadow:0 30px 80px #000c;padding:22px 24px 24px}
+.modal-head{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.modal-head h2{font-size:16px;letter-spacing:-.02em;font-weight:600;margin:0}
+.modal-head small{display:block;font-size:11px;color:#8fa0aa;margin-top:5px}
+.close{margin-left:auto;flex:none;width:36px;height:36px;border-radius:11px;border:1px solid #ffffff18;background:#ffffff06;color:#b9c8ce;font-size:17px}
+.close:hover{border-color:#ff6b6b66;color:#ffb28e}
+.slotbig{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:#ffe4a3;border:1px solid #6b5426;background:#2a201066;border-radius:999px;padding:8px 15px;margin-top:6px}
+.slotbig i{font-style:normal;color:#ffd479}
+.modal p.txt{font-size:12px;color:#c9d6db;line-height:1.7;margin:12px 0 0}
+.carchoice{margin-top:12px}
+.carchoice h4{font-size:10px;color:#8fa0aa;text-transform:uppercase;letter-spacing:.12em;margin:0 0 9px;font-weight:500}
+.carline{font-size:12px;color:#c9d6db;border:1px solid #2a5c4066;background:#0d241744;border-radius:11px;padding:10px 13px}
+.deny-lbl{display:block;font-size:10px;color:#e8b877;text-transform:uppercase;letter-spacing:.12em;margin:16px 0 9px;font-weight:550}
+.deny-lbl em{font-style:normal;color:#ffb28e}
+textarea{width:100%;min-height:78px;resize:vertical;border:1px solid #ffffff16;background:#0b161c;border-radius:11px;padding:11px 13px;font-size:12px;color:#dcebe9;line-height:1.5;font-family:inherit}
+textarea:focus{outline:none;border-color:#35d87966}
+.m-actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+.m-btn{flex:1;min-width:140px;border-radius:12px;padding:12px;font-size:13px;font-weight:550;border:1px solid}
+.m-btn.ok{background:#123524;border-color:#2b9c62;color:#c9ffdd}
+.m-btn.ok:hover{filter:brightness(1.12)}
+.m-btn.ok:disabled{opacity:.4;cursor:not-allowed;filter:none}
+.m-btn.danger{background:#33201a;border-color:#8a3c3c;color:#ffb28e}
+.m-btn.danger:disabled{opacity:.4;cursor:not-allowed}
+.m-btn.ghost{background:#ffffff06;border-color:#ffffff16;color:#aab8c0}
+.toast{position:fixed;bottom:22px;right:22px;max-width:400px;background:#143323;border:1px solid #367b50;color:#b5f8cc;padding:13px 16px;border-radius:13px;font-size:12px;box-shadow:0 10px 40px #0008;display:none;z-index:40}
+.toast.show{display:block}
+@media(max-width:1024px){.grid{grid-template-columns:44px repeat(7,minmax(0,1fr));gap:4px}.slot{height:44px;font-size:7.5px}}
+@media(max-width:850px){.frame{padding:20px 16px 36px}.crumb{display:none}h1{font-size:24px}}
+@media(max-width:560px){header{grid-template-columns:1fr auto}.brand{font-size:19px}.uname{display:none}.dh small{font-size:8px}.dh b{font-size:11px}.slot{height:30px;font-size:6.5px;padding:1px}.tlabel{font-size:8px}.savebar{width:100%}.savebar button{flex:1}.backdrop{padding:12px}}
+</style></head>
+<body>
+<div class="app">
+<aside class="sidebar">
+  <div class="brand"><span class="check">✓</span><span><em>Сбер</em>Автошкола<small>Кабинет инструктора</small></span></div>
+  <div class="nav-label">Рабочее пространство</div>
+  <nav class="nav">
+    <button><span class="ico">⌂</span>Мой день</button>
+    <button class="active"><span class="ico">▦</span>Календарь</button>
+    <button><span class="ico">♧</span>Мои ученики</button>
+    <button><span class="ico">▰</span>Мои автомобили</button>
+    <button><span class="ico">▤</span>Мои документы</button>
+    <button><span class="ico">₽</span>Доходы и выплаты</button>
+    <button><span class="ico">⚙</span>Профиль</button>
+    <button><span class="ico">⎋</span>Выход</button>
+  </nav>
+  <div class="side-bottom"><strong>Нужна помощь?</strong><p>Поддержка инструкторов поможет с расписанием и бронями.</p><button id="side-help">Связаться с поддержкой ↗</button></div>
+</aside>
+<main><div class="frame">
+<header>
+  <div class="crumb">Кабинет инструктора · Календарь</div>
+  <div class="user"><span class="uname">Михаил Самойлов</span><span class="avatar">МС</span><button class="logout">Выйти</button></div>
+</header>
+
+<div class="page-head">
+  <div>
+    <div class="kicker">Расписание</div>
+    <h1>Календарь</h1>
+    <p>Ваш график на неделю. Запросы учеников показываются ровно на выбранных ими слотах — жёлтая метка «Запрос», решение по клику. Подтверждённые брони помечены учеником и авто. Правьте график и сохраняйте изменения кнопкой «Сохранить».</p>
+  </div>
+  <!-- Сохранить/Отменить: активны только после изменений (FR-68/ОВ-6) -->
+  <div class="savebar">
+    <span class="dirty-note" id="dirty-note">есть несохранённые изменения</span>
+    <button class="sb-save" id="btn-save" disabled>Сохранить</button>
+    <button class="sb-cancel" id="btn-cancel" disabled>Отменить</button>
+  </div>
+</div>
+
+<div class="cal">
+  <div class="cal-head">
+    <div><b>Неделя 2–8 ноября 2026</b><div class="sub">график availability + подтверждённые брони + запросы учеников на их слотах</div></div>
+    <div class="tools"><button>←</button><button>Неделя →</button></div>
+  </div>
+  <div class="legend">
+    <span><i class="lg-on"></i>в графике — свободно (клик — правка графика)</span>
+    <span><i class="lg-book"></i>подтверждённая бронь</span>
+    <span><i class="lg-req"></i>новый запрос ученика</span>
+  </div>
+  <div class="grid" id="grid"></div>
+  <div class="hint">Запрос размещён строго на выбранном учеником слоте (дата+время запроса совпадают со слотом графика). Подтверждение закрепляет бронь; отклонение требует причины — слот освободится, и ученик сможет запросить его снова. Раздел «Бронирования» объединён с календарём: старые ссылки ведут сюда.</div>
+</div>
+
+<footer><span>СберАвтошкола · мокап «Календарь», Спринт 8 (запросы на слотах, без раздела «Бронирования»)</span><span>Демонстрационный интерфейс · данные вымышлены</span></footer>
+</div></main>
+</div>
+
+<!-- решение по запросу на слоте -->
+<div class="backdrop" id="m-req" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="modal-head">
+      <div><h2>Запрос ученика</h2><small id="rq-sub">—</small></div>
+      <button class="close" data-close="m-req" aria-label="Закрыть">×</button>
+    </div>
+    <p class="txt" id="rq-who" style="margin-top:10px"></p>
+    <span class="slotbig"><i>◷</i><span id="rq-slot">—</span></span>
+    <p class="txt" id="rq-comment" style="color:#8fa0aa"></p>
+    <!-- При отклонении — причина обязательна -->
+    <label class="deny-lbl" id="deny-wrap" style="display:none">Причина отказа <em>— обязательна</em></label>
+    <textarea id="rq-reason" style="display:none" placeholder="Например: в это время пересдача экзамена в ГИБДД, выберите другой слот на неделе"></textarea>
+    <div class="m-actions">
+      <button class="m-btn ok" id="rq-accept">Принять</button>
+      <button class="m-btn danger" id="rq-deny">Отклонить…</button>
+      <button class="m-btn ghost" data-close="m-req">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script>
+var DAYS=[['пн','2'],['вт','3'],['ср','4'],['чт','5'],['пт','6'],['сб','7'],['вс','8']];
+var TODAY=0; // демо: сегодня понедельник 2 ноября
+var TIMES=['09:00–11:00','11:00–13:00','14:00–16:00','16:00–18:00','18:00–20:00'];
+// содержимое слотов: 0 — не в графике; 1 — в графике (свободно); {book} — подтверждённая бронь; {req} — запрос
+// базовый график (сохранённое состояние availability)
+var base=[
+ [1,1,2,1,1],
+ [1,0,1,3,1],
+ [1,1,1,0,2],
+ [1,3,1,1,1],
+ [1,1,2,1,1],
+ [1,1,1,1,3],
+ [0,1,1,1,1]
+];
+// рабочая копия для правки графика
+var work=JSON.parse(JSON.stringify(base));
+var bookings={}; // key d+':'+t -> {student,car} для confirmed
+function putBook(d,t,student,car){work[d][t]={book:1};bookings[d+':'+t]={student:student,car:car}}
+putBook(0,2,'Иван Ковалёв','Škoda Rapid');
+putBook(2,4,'Павел Ежов','Škoda Rapid');
+putBook(4,2,'Елена Титова','Kia Rio');
+// запросы учеников — РОВНО на выбранных слотах (FR-74)
+var requests=[
+ {id:201,d:3,t:1,student:'Дарья Крылова',when:'четверг, 5 ноября · 11:00–13:00',comment:'Утром удобно, до работы успею вернуться.'},
+ {id:202,d:5,t:4,student:'Артур Сафин',when:'суббота, 7 ноября · 18:00–20:00',comment:'Хочу отработать параллельную парковку перед экзаменом.'}
+];
+requests.forEach(function(r){work[r.d][r.t]={req:r.id}});
+var dirty=false,reqTarget=null,denyMode=false;
+function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(window._tt);window._tt=setTimeout(function(){t.classList.remove('show')},3800)}
+function esc(s){return String(s).replace(/[<>&"]/g,function(c){return{'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]})}
+function setDirty(v){
+  dirty=v;
+  document.getElementById('btn-save').disabled=!v;
+  document.getElementById('btn-cancel').disabled=!v;
+  document.getElementById('dirty-note').classList.toggle('on',v);
+}
+function renderGrid(){
+  var g=document.getElementById('grid');g.innerHTML='<span class="corner">время</span>';
+  DAYS.forEach(function(d,i){g.insertAdjacentHTML('beforeend','<div class="dh'+(i===TODAY?' today':'')+'"><small>'+d[0]+'</small><b>'+d[1]+'</b></div>')});
+  TIMES.forEach(function(t,ti){
+    g.insertAdjacentHTML('beforeend','<span class="tlabel">'+t+'</span>');
+    work.forEach(function(col,di){
+      var v=col[ti];
+      var btn=document.createElement('button');btn.className='slot';
+      var base_=base[di][ti],w=work[di][ti];
+      var cell=di+'-'+ti;
+      if(typeof w==='object'&&w.book){
+        var b=bookings[di+':'+ti];
+        btn.classList.add('booked');
+        btn.title=t+', '+DAYS[di][0]+' '+DAYS[di][1]+' — подтверждённая бронь: '+b.student+', '+b.car;
+        btn.innerHTML='<small>'+esc(b.student)+'</small><em>'+esc(b.car)+'</em>';
+      }else if(typeof w==='object'&&w.req){
+        btn.classList.add('reqslot');
+        var r=requests.find(function(x){return x.id===w.req});
+        btn.title=t+', '+DAYS[di][0]+' '+DAYS[di][1]+' — новый запрос: '+r.student+' (клик — принять/отклонить)';
+        btn.innerHTML='<small>'+esc(r.student)+'</small><span class="rq">Запрос</span>';
+        btn.addEventListener('click',function(){openReq(r)});
+      }else{
+        // 0/1 — правка графика
+        var edited=(typeof w==='number'&&w!==base_);
+        if(w===1){btn.classList.add('on');if(edited)btn.classList.add('edit')}
+        if(w===0&&edited)btn.classList.add('edit','removed');
+        btn.title=t+', '+DAYS[di][0]+' '+DAYS[di][1]+' — '+(w===1?'в графике, свободно (клик — убрать из графика)':'не в графике (клик — добавить)');
+        btn.innerHTML=w===1?'свободно':'—';
+        btn.addEventListener('click',function(){
+          work[di][ti]=work[di][ti]===1?0:1;
+          setDirty(true);
+          renderGrid();
+        });
+      }
+      g.appendChild(btn);
+    });
+  });
+}
+// решение по запросу на слоте (FR-74)
+function openReq(r){
+  reqTarget=r;denyMode=false;
+  document.getElementById('rq-sub').textContent=r.student+' · запрос на ваш слот';
+  document.getElementById('rq-who').innerHTML='<b style="color:#e4eef0">'+esc(r.student)+'</b> просит занятие на слоте вашего графика:';
+  document.getElementById('rq-slot').textContent=r.when;
+  document.getElementById('rq-comment').textContent=r.comment?('«'+r.comment+'»'):'';
+  document.getElementById('deny-wrap').style.display='none';
+  document.getElementById('rq-reason').style.display='none';
+  document.getElementById('rq-reason').value='';
+  document.getElementById('rq-accept').style.display='';
+  document.getElementById('rq-deny').textContent='Отклонить…';
+  document.getElementById('m-req').classList.add('open');document.body.style.overflow='hidden';
+}
+document.getElementById('rq-accept').addEventListener('click',function(){
+  if(!reqTarget)return;
+  var r=reqTarget;
+  // прод: POST /api/instructor/bookings/{id}/confirm — немедленное решение (FR-68)
+  requests=requests.filter(function(x){return x.id!==r.id});
+  putBook(r.d,r.t,r.student,'Škoda Rapid');
+  document.getElementById('m-req').classList.remove('open');document.body.style.overflow='';
+  renderGrid();
+  toast('Запрос принят: '+r.student+' закреплён за слотом '+r.when+'. Бронь подтверждена немедленно.');
+});
+document.getElementById('rq-deny').addEventListener('click',function(){
+  if(!denyMode){
+    denyMode=true;
+    document.getElementById('deny-wrap').style.display='block';
+    document.getElementById('rq-reason').style.display='block';
+    document.getElementById('rq-deny').textContent='Отклонить';
+    document.getElementById('rq-reason').focus();
+    return;
+  }
+  var reason=document.getElementById('rq-reason').value.trim();
+  if(!reason){toast('Причина отказа обязательна — без неё сервер вернёт 422.');return}
+  var r=reqTarget;
+  // прод: POST /api/instructor/bookings/{id}/reject {comment} — слот освобождается
+  requests=requests.filter(function(x){return x.id!==r.id});
+  work[r.d][r.t]=1; // слот снова свободен
+  document.getElementById('m-req').classList.remove('open');document.body.style.overflow='';
+  renderGrid();
+  toast('Запрос отклонён с причиной. Слот '+r.when+' снова свободен — '+r.student.split(' ')[0]+' может запросить его повторно.');
+});
+// Сохранить/Отменить (FR-68): активны только после изменений
+document.getElementById('btn-save').addEventListener('click',function(){
+  if(!dirty)return;
+  base=JSON.parse(JSON.stringify(work.map(function(c){return c.map(function(x){return typeof x==='object'?(x.book?2:1):x})})));
+  // восстановить объекты поверх числовой базы
+  work.forEach(function(c,di){c.forEach(function(v,ti){if(typeof v==='object'){base[di][ti]=v}})});
+  work=JSON.parse(JSON.stringify(base));
+  setDirty(false);renderGrid();
+  toast('График сохранён. Изменения слотов availability применены; подтверждённые брони и запросы не затронуты.');
+});
+document.getElementById('btn-cancel').addEventListener('click',function(){
+  if(!dirty)return;
+  work=JSON.parse(JSON.stringify(base));
+  requests.forEach(function(r){work[r.d][r.t]={req:r.id}});
+  bookings={};
+  // восстановить confirmed поверх
+  putBook(0,2,'Иван Ковалёв','Škoda Rapid');
+  putBook(2,4,'Павел Ежов','Škoda Rapid');
+  putBook(4,2,'Елена Титова','Kia Rio');
+  requests.forEach(function(r){work[r.d][r.t]={req:r.id}});
+  setDirty(false);renderGrid();
+  toast('Изменения графика отменены — показан сохранённый вариант.');
+});
+document.querySelectorAll('[data-close]').forEach(function(b){
+  b.addEventListener('click',function(){document.getElementById(b.dataset.close).classList.remove('open');document.body.style.overflow=''});
+});
+document.querySelectorAll('.backdrop').forEach(function(bd){
+  bd.addEventListener('click',function(e){if(e.target===bd){bd.classList.remove('open');document.body.style.overflow=''}});
+});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){document.querySelectorAll('.backdrop.open').forEach(function(bd){bd.classList.remove('open')});document.body.style.overflow=''}});
+// сайдбар: пункт «Бронирования» удалён без остатков (FR-74); старые ссылки — редирект сюда
+document.querySelectorAll('.nav button:not(.active)').forEach(function(b){
+  b.addEventListener('click',function(){toast('Раздел «'+b.textContent.trim()+'» — другой экран кабинета (демо-мокап)')});
+});
+document.getElementById('side-help').addEventListener('click',function(){toast('Раздел поддержки — демонстрационный макет')});
+renderGrid();
+</script></body></html>

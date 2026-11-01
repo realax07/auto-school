@@ -1,0 +1,348 @@
+<!doctype html>
+<!-- Мокап: «Мои ученики» — раздел кабинета инструктора. Спринт 8
+     (change add-s8-cars-docs-booking; FR-75, ОВ-5). Карточки привязанных учеников
+     (пары = student_requests.status='accepted'): ФИО, статус авто пары («Проверено» ✓ /
+     «Не проверено» жёлтый — статус валидации авто, FR-65), СЛЕДУЮЩЕЕ ПЛАНОВОЕ ЗАНЯТИЕ
+     (ближайшая ПОДТВЕРЖДЕННАЯ бронь, при отсутствии — «нет»), счётчики: плановых занятий
+     дальше N (подтверждённые брони после следующей), проведённых M (подтверждённые
+     брони в прошлом) — ТОЛЬКО confirmed (ОВ-5). «Запросы учеников» — ПОДРАЗДЕЛ:
+     вкладка внутри раздела (не пункт сайдбара), показывается по переключению;
+     Принять — с выбором авто пары, Отклонить — причина обязательна. Данные демо. -->
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#071015"><title>СберАвтошкола — Кабинет инструктора · Мои ученики</title>
+<style>
+:root{--bg:#071015;--line:#ffffff16;--text:#f3f7f8;--muted:#93a6b1;--green:#35d879}
+*{box-sizing:border-box}html,body{margin:0;min-width:320px}
+body{background:radial-gradient(ellipse at 78% 0%,#123b2c4d,transparent 38%),radial-gradient(ellipse at 8% 90%,#27465f26,transparent 40%),var(--bg);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh}
+button{font:inherit;color:inherit;cursor:pointer}
+/* лейаут кабинета: сайдбар + контент */
+.app{min-height:100vh;display:grid;grid-template-columns:236px 1fr}
+.sidebar{padding:25px 17px;border-right:1px solid #ffffff12;background:#071016b8;display:flex;flex-direction:column;gap:26px;position:sticky;top:0;height:100vh;overflow:auto}
+.nav-label{font-size:10px;color:#637681;text-transform:uppercase;letter-spacing:.16em;padding:0 11px;margin-bottom:-17px}
+.nav{display:grid;gap:5px}
+.nav button{border:1px solid transparent;background:transparent;color:#aab8c0;text-align:left;padding:11px 12px;border-radius:12px;font-size:13px;display:flex;align-items:center;gap:12px}
+.nav button .ico{width:20px;text-align:center;font-size:16px;flex:none}
+.nav button.active{color:#8ff2b5;background:#143023;border-color:#286445}
+.nav button:hover{background:#ffffff09}
+.side-bottom{margin-top:auto;border:1px solid #ffffff13;border-radius:15px;padding:14px;background:#ffffff04}
+.side-bottom strong{font-size:12px}
+.side-bottom p{font-size:11px;color:#8d9da6;line-height:1.5;margin:7px 0 12px}
+.side-bottom button{width:100%;background:#143222;border:1px solid #2e6a47;color:#a2f5bf;border-radius:10px;padding:10px;font-size:11px}
+main{min-width:0;padding:0 clamp(20px,3vw,40px) 45px}
+.frame{max-width:1080px;margin:auto;padding:26px 0 0}
+header{display:flex;align-items:center;justify-content:space-between;gap:14px;height:48px;margin-bottom:6px}
+.brand{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:650;letter-spacing:-.4px;min-width:0}
+.brand>span:last-child{min-width:0}
+.brand em{font-style:normal;color:var(--green)}
+.check{width:32px;height:32px;flex:none;display:grid;place-items:center;border:3px solid var(--green);border-radius:50%;color:var(--green);font-size:20px;transform:rotate(-8deg)}
+.brand small{display:block;font-size:9px;color:#80919b;letter-spacing:.14em;text-transform:uppercase;margin-top:3px;font-weight:500}
+.crumb{font-size:12px;color:#8fa2ad;justify-self:center}
+.user{justify-self:end;display:flex;align-items:center;gap:13px}
+.uname{font-size:13px;color:#d6e4e2}
+.avatar{width:34px;height:34px;border-radius:11px;background:linear-gradient(145deg,#315744,#14261e);display:grid;place-items:center;color:#a0f2bd;font-size:11px;font-weight:700}
+.logout{padding:8px 20px;border:1px solid #ffffff40;border-radius:999px;background:transparent;font-size:13px}
+.logout:hover{border-color:var(--green)}
+.page-head{margin:26px 0 14px}
+.kicker{font-size:10px;color:#79eaa5;text-transform:uppercase;letter-spacing:.18em}
+h1{font-size:28px;letter-spacing:-.05em;font-weight:600;margin:9px 0 8px}
+.page-head p{font-size:12px;color:var(--muted);margin:0;max-width:760px;line-height:1.6}
+/* вкладки-подразделы: «Ученики» / «Запросы учеников» (FR-75, ОВ-5) */
+.subtabs{display:flex;gap:5px;border:1px solid #ffffff14;background:#ffffff05;border-radius:12px;padding:5px;width:max-content;margin-bottom:20px}
+.subtabs button{border:1px solid transparent;background:transparent;color:#aab8c0;border-radius:9px;padding:9px 16px;font-size:12px;white-space:nowrap}
+.subtabs button.on{background:#143322;border-color:#2c8651;color:#a3efbd}
+.subtabs button .n{color:#ffd479}
+/* карточки учеников */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:14px}
+.student{border:1px solid var(--line);border-radius:18px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:16px;display:flex;flex-direction:column;gap:13px}
+.st-top{display:flex;align-items:center;gap:12px}
+.sic{width:46px;height:46px;flex:none;border-radius:13px;background:linear-gradient(145deg,#2c4f3d,#132119);display:grid;place-items:center;color:#a0f2bd;font-size:12px;font-weight:700}
+.st-top b{font-size:14px;font-weight:600;letter-spacing:-.01em;display:block}
+.st-top small{display:block;font-size:11px;color:#8fa0aa;margin-top:4px}
+.status{font-size:10px;padding:5px 11px;border-radius:999px;border:1px solid;white-space:nowrap}
+.st-ok{background:#143322;color:#91efb1;border-color:#2a5c40}
+.st-ok:before{content:"✓ "}
+.st-val{background:#2a2010;color:#ffd479;border-color:#6b5426}
+/* следующее плановое занятие */
+.next{border:1px solid #2a5c4066;background:#0d241744;border-radius:12px;padding:10px 13px;font-size:11px;color:#c9d6db;line-height:1.6}
+.next span{display:block;font-size:9px;color:#7fe3a3;text-transform:uppercase;letter-spacing:.12em;margin-bottom:4px}
+.next.none{border-color:#ffffff10;background:#ffffff04;color:#8fa0aa}
+.next.none span{color:#7e909a}
+/* счётчики */
+.counters{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.cnt{border:1px solid #ffffff10;background:#ffffff04;border-radius:12px;padding:10px 13px}
+.cnt b{font-size:20px;font-weight:600;letter-spacing:-.03em;display:block}
+.cnt span{font-size:10px;color:#8fa0aa;display:block;margin-top:3px;line-height:1.4}
+.carline{font-size:10px;color:#7e909a;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+/* запросы учеников (подраздел) */
+.list{display:grid;gap:11px}
+.req{border:1px solid var(--line);border-radius:18px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:17px 19px}
+.req-top{display:flex;gap:13px;align-items:center;flex-wrap:wrap}
+.req-top b{font-size:14px;font-weight:600;letter-spacing:-.02em;display:block}
+.req-top small{display:block;font-size:11px;color:#8fa0aa;margin-top:4px}
+.slotpill{display:inline-flex;align-items:center;gap:7px;font-size:11px;color:#ffe4a3;border:1px solid #6b5426;background:#2a201066;border-radius:999px;padding:6px 12px;margin-top:7px}
+.slotpill i{font-style:normal;color:#ffd479}
+.status.new{margin-left:auto;background:#2a2010;color:#ffd479;border:1px solid #6b5426}
+.comment{margin:12px 0 0;padding:11px 14px;border:1px solid #ffffff10;background:#ffffff04;border-radius:12px;font-size:12px;color:#c9d6db;line-height:1.55}
+.comment span{display:block;font-size:10px;color:#8fa0aa;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+.actions{display:flex;gap:9px;margin-top:14px;flex-wrap:wrap}
+.act{border-radius:11px;padding:11px 20px;font-size:12px;font-weight:550;border:1px solid}
+.act.accept{background:#123524;border-color:#2b9c62;color:#c9ffdd}
+.act.accept:hover{filter:brightness(1.12)}
+.act.deny{background:transparent;border-color:#8a3c3c66;color:#ffb28e}
+.act.deny:hover{background:#33201a55}
+.empty{border:1px dashed #ffffff22;border-radius:18px;padding:36px 20px;text-align:center;color:#8fa0a9;font-size:12px;line-height:1.7}
+.empty b{display:block;font-size:14px;color:#c9d6db;margin-bottom:7px}
+footer{margin-top:32px;padding-top:18px;border-top:1px solid #ffffff10;display:flex;justify-content:space-between;gap:14px;font-size:11px;color:#5f717b;flex-wrap:wrap}
+/* модалки: выбор авто при принятии / причина отказа */
+.backdrop{position:fixed;inset:0;background:#02070bd8;backdrop-filter:blur(6px);display:none;place-items:center;padding:24px;z-index:30}
+.backdrop.open{display:grid}
+.modal{width:min(540px,100%);max-height:calc(100vh - 60px);overflow:auto;border:1px solid #ffffff20;border-radius:22px;background:linear-gradient(150deg,#16242c,#0b1418);box-shadow:0 30px 80px #000c;padding:22px 24px 24px}
+.modal-head{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.modal-head h2{font-size:16px;letter-spacing:-.02em;font-weight:600;margin:0}
+.modal-head small{display:block;font-size:11px;color:#8fa0aa;margin-top:5px}
+.close{margin-left:auto;flex:none;width:36px;height:36px;border-radius:11px;border:1px solid #ffffff18;background:#ffffff06;color:#b9c8ce;font-size:17px}
+.close:hover{border-color:#ff6b6b66;color:#ffb28e}
+.modal p.txt{font-size:12px;color:#c9d6db;line-height:1.7;margin:10px 0 0}
+.cars{display:grid;gap:8px;margin-top:14px}
+.car-opt{display:flex;align-items:center;gap:12px;border:1px solid #ffffff14;background:#ffffff04;border-radius:12px;padding:12px 14px;cursor:pointer;font-size:12px;transition:border-color .12s}
+.car-opt:hover{border-color:#35d87966}
+.car-opt.sel{border-color:var(--green);background:#14332233}
+.car-opt .pl{font-weight:600;color:#c9ffdd;white-space:nowrap}
+.car-opt small{color:#8fa0aa;display:block;margin-top:2px}
+.car-opt .radio{margin-left:auto;width:18px;height:18px;border:2px solid #ffffff30;border-radius:50%;flex:none;display:grid;place-items:center}
+.car-opt.sel .radio{border-color:var(--green)}
+.car-opt.sel .radio:after{content:"";width:8px;height:8px;border-radius:50%;background:var(--green)}
+.deny-lbl{display:block;font-size:10px;color:#e8b877;text-transform:uppercase;letter-spacing:.12em;margin:16px 0 9px;font-weight:550}
+.deny-lbl em{font-style:normal;color:#ffb28e}
+textarea{width:100%;min-height:80px;resize:vertical;border:1px solid #ffffff16;background:#0b161c;border-radius:11px;padding:11px 13px;font-size:12px;color:#dcebe9;line-height:1.5;font-family:inherit}
+textarea:focus{outline:none;border-color:#35d87966}
+.m-actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+.m-btn{flex:1;min-width:140px;border-radius:12px;padding:12px;font-size:13px;font-weight:550;border:1px solid}
+.m-btn.ok{background:#123524;border-color:#2b9c62;color:#c9ffdd}
+.m-btn.ok:hover{filter:brightness(1.12)}
+.m-btn.ok:disabled{opacity:.4;cursor:not-allowed;filter:none}
+.m-btn.danger{background:#33201a;border-color:#8a3c3c;color:#ffb28e}
+.m-btn.danger:disabled{opacity:.4;cursor:not-allowed}
+.m-btn.ghost{background:#ffffff06;border-color:#ffffff16;color:#aab8c0}
+.toast{position:fixed;bottom:22px;right:22px;max-width:400px;background:#143323;border:1px solid #367b50;color:#b5f8cc;padding:13px 16px;border-radius:13px;font-size:12px;box-shadow:0 10px 40px #0008;display:none;z-index:40}
+.toast.show{display:block}
+@media(max-width:850px){.frame{padding:20px 16px 36px}.crumb{display:none}h1{font-size:24px}.status.new{margin-left:58px;order:3}}
+@media(max-width:560px){header{grid-template-columns:1fr auto}.brand{font-size:19px}.uname{display:none}.cards{grid-template-columns:1fr}.subtabs{width:100%;overflow-x:auto}.backdrop{padding:12px}.actions .act{flex:1}}
+</style></head>
+<body>
+<div class="app">
+<aside class="sidebar">
+  <div class="brand"><span class="check">✓</span><span><em>Сбер</em>Автошкола<small>Кабинет инструктора</small></span></div>
+  <div class="nav-label">Рабочее пространство</div>
+  <nav class="nav">
+    <button><span class="ico">⌂</span>Мой день</button>
+    <button><span class="ico">▦</span>Календарь</button>
+    <button class="active"><span class="ico">♧</span>Мои ученики</button>
+    <button><span class="ico">▰</span>Мои автомобили</button>
+    <button><span class="ico">▤</span>Мои документы</button>
+    <button><span class="ico">₽</span>Доходы и выплаты</button>
+    <button><span class="ico">⚙</span>Профиль</button>
+    <button><span class="ico">⎋</span>Выход</button>
+  </nav>
+  <div class="side-bottom"><strong>Нужна помощь?</strong><p>Поддержка инструкторов поможет с расписанием, учениками и выплатами.</p><button id="side-help">Связаться с поддержкой ↗</button></div>
+</aside>
+<main><div class="frame">
+<header>
+  <div class="crumb">Кабинет инструктора · Мои ученики</div>
+  <div class="user"><span class="uname">Михаил Самойлов</span><span class="avatar">МС</span><button class="logout">Выйти</button></div>
+</header>
+
+<div class="page-head">
+  <div class="kicker">Ученики</div>
+  <h1>Мои ученики</h1>
+  <p>Привязанные ученики и ваши пары с ними. Для каждого — следующее плановое занятие и счётчики по подтверждённым броням; новые запросы в счётчики не входят. Запросы учеников — во вкладке-подразделе.</p>
+</div>
+
+<!-- подраздел-вкладки: «Запросы учеников» показывается по переключению (ОВ-5) -->
+<div class="subtabs">
+  <button class="on" data-tab="students">Ученики <span class="n">·3</span></button>
+  <button data-tab="requests">Запросы учеников <span class="n" id="req-n">·2</span></button>
+</div>
+
+<div id="tab-students"><div class="cards" id="cards"></div></div>
+<div id="tab-requests" style="display:none">
+  <div class="list" id="req-list"></div>
+</div>
+
+<footer><span>СберАвтошкола · мокап «Мои ученики», Спринт 8 (счётчики по confirmed-броням)</span><span>Демонстрационный интерфейс · данные вымышлены</span></footer>
+</div></main>
+</div>
+
+<!-- Принять: выбор авто (FR-75, наследование контура Спринта 3) -->
+<div class="backdrop" id="m-accept" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="modal-head">
+      <div><h2>Принять в пару</h2><small id="ac-sub">—</small></div>
+      <button class="close" data-close="m-accept" aria-label="Закрыть">×</button>
+    </div>
+    <p class="txt">Выберите автомобиль для занятий с учеником. После принятия ученик появится в основном списке «Мои ученики».</p>
+    <div class="cars" id="ac-cars"></div>
+    <div class="m-actions">
+      <button class="m-btn ok" id="ac-go" disabled>Принять</button>
+      <button class="m-btn ghost" data-close="m-accept">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<!-- Отклонить: причина обязательна (наследование ОВ Спринта 3) -->
+<div class="backdrop" id="m-deny" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="modal-head">
+      <div><h2>Отклонить запрос</h2><small id="dn-sub">—</small></div>
+      <button class="close" data-close="m-deny" aria-label="Закрыть">×</button>
+    </div>
+    <label class="deny-lbl">Причина отказа <em>— обязательна</em></label>
+    <textarea id="dn-reason" placeholder="Например: в этом месяце набор закрыт, авто на плановом обслуживании — напишите позже"></textarea>
+    <div class="m-actions">
+      <button class="m-btn danger" id="dn-go" disabled>Отклонить</button>
+      <button class="m-btn ghost" data-close="m-deny">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script>
+// Ученики (пары student_requests.status='accepted' + разрез booking) — демо.
+// carStatus — статус валидации авто пары (FR-65); lesson — следующая ПОДТВЕРЖДЁННАЯ бронь;
+// ahead/behind — только confirmed (ОВ-5): плановых дальше / проведено.
+var CARSTATUS={ok:['Проверено','st-ok'],val:['Не проверено','st-val']};
+var students=[
+ {name:'Павел Ежов',init:'ПЕ',since:'с 02.10.2026',car:'Škoda Rapid · А 123 АА 777',carStatus:'ok',
+  lesson:'вторник, 3 ноября · 14:00–16:00',ahead:2,behind:5},
+ {name:'Елена Титова',init:'ЕТ',since:'с 12.10.2026',car:'Kia Rio · В 456 ВВ 777',carStatus:'val',
+  lesson:'пятница, 6 ноября · 18:00–20:00',ahead:1,behind:0},
+ {name:'Иван Ковалёв',init:'ИК',since:'с 18.09.2026',car:'Škoda Rapid · А 123 АА 777',carStatus:'ok',
+  lesson:null,ahead:0,behind:8}
+];
+// Запросы учеников (GET /api/instructor/student-requests, status='new') — демо
+var requests=[
+ {id:91,name:'Артур Сафин',init:'АС',when:'суббота, 7 ноября · 11:00–13:00',comment:'Хочу восстановить навыки после перерыва, рядом с домом — район «Парнас».'},
+ {id:92,name:'Дарья Крылова',init:'ДК',when:'воскресенье, 8 ноября · 09:00–11:00',comment:'Готова начать с любой даты, важно по выходным и утром.'}
+];
+var CARS=[
+ {id:11,name:'Škoda Rapid',plate:'А 123 АА 777',meta:'2020 · автомат · проверено',ok:true},
+ {id:12,name:'Kia Rio',plate:'В 456 ВВ 777',meta:'2022 · механика · не проверено',ok:false},
+ {id:13,name:'Lada Vesta',plate:'Е 789 ЕЕ 777',meta:'2021 · механика · проверено',ok:true}
+];
+var tab='students',acceptTarget=null,acceptCar=null,denyTarget=null;
+function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(window._tt);window._tt=setTimeout(function(){t.classList.remove('show')},3800)}
+function esc(s){return String(s).replace(/[<>&"]/g,function(c){return{'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]})}
+function renderStudents(){
+  var box=document.getElementById('cards');box.innerHTML='';
+  if(!students.length){box.innerHTML='<div class="empty" style="grid-column:1/-1"><b>Учеников пока нет</b>Принятые запросы появятся здесь: ученик, авто пары, следующее занятие и счётчики.</div>';return}
+  students.forEach(function(s){
+    var st=CARSTATUS[s.carStatus];
+    var el=document.createElement('article');el.className='student';
+    el.innerHTML='<div class="st-top"><span class="sic">'+s.init+'</span><div style="min-width:0;flex:1"><b>'+esc(s.name)+'</b><small>в паре '+esc(s.since)+'</small></div>'+
+      '<span class="status '+st[1]+'" title="Статус валидации авто пары">'+st[0]+'</span></div>'+
+      '<div class="carline">🚗 '+esc(s.car)+'</div>'+
+      (s.lesson
+        ?'<div class="next"><span>Следующее плановое занятие</span>'+esc(s.lesson)+'</div>'
+        :'<div class="next none"><span>Следующее плановое занятие</span>нет — подтверждённых броней впереди не запланировано</div>')+
+      '<div class="counters">'+
+        '<div class="cnt"><b>'+s.ahead+'</b><span>плановых занятий дальше</span></div>'+
+        '<div class="cnt"><b>'+s.behind+'</b><span>проведено</span></div>'+
+      '</div>';
+    box.appendChild(el);
+  });
+}
+function renderRequests(){
+  var box=document.getElementById('req-list');box.innerHTML='';
+  if(!requests.length){box.innerHTML='<div class="empty"><b>Новых запросов нет</b>Входящие заявки учеников появятся здесь. Вкладка показывается только по переключению.</div>';return}
+  requests.forEach(function(r){
+    var el=document.createElement('article');el.className='req';
+    el.innerHTML='<div class="req-top"><span class="sic">'+r.init+'</span>'+
+      '<div><b>'+esc(r.name)+'</b><small>хочет заниматься у вас · слот в вашем графике</small>'+
+      '<span class="slotpill"><i>◷</i>'+esc(r.when)+'</span></div>'+
+      '<span class="status new">Новый запрос</span></div>'+
+      '<div class="comment"><span>Комментарий ученика</span>'+esc(r.comment)+'</div>'+
+      '<div class="actions"><button class="act accept" data-accept="'+r.id+'">Принять…</button>'+
+      '<button class="act deny" data-deny="'+r.id+'">Отклонить…</button></div>';
+    box.appendChild(el);
+  });
+  document.getElementById('req-n').textContent='·'+requests.length;
+  bindReq();
+}
+function bindReq(){
+  document.querySelectorAll('[data-accept]').forEach(function(b){
+    b.addEventListener('click',function(){
+      acceptTarget=+b.dataset.accept;acceptCar=null;
+      var r=requests.find(function(x){return x.id===acceptTarget});
+      document.getElementById('ac-sub').textContent=r.name+' · '+r.when;
+      var box=document.getElementById('ac-cars');box.innerHTML='';
+      CARS.forEach(function(c){
+        var d=document.createElement('div');d.className='car-opt';d.dataset.car=c.id;
+        d.innerHTML='<div style="min-width:0"><span class="pl">'+esc(c.plate)+'</span><small>'+esc(c.name)+' · '+esc(c.meta)+'</small></div><span class="radio"></span>';
+        d.addEventListener('click',function(){
+          box.querySelectorAll('.car-opt').forEach(function(x){x.classList.remove('sel')});
+          d.classList.add('sel');acceptCar=c;
+          document.getElementById('ac-go').disabled=false;
+        });
+        box.appendChild(d);
+      });
+      document.getElementById('ac-go').disabled=true;
+      document.getElementById('m-accept').classList.add('open');document.body.style.overflow='hidden';
+    });
+  });
+  document.querySelectorAll('[data-deny]').forEach(function(b){
+    b.addEventListener('click',function(){
+      denyTarget=+b.dataset.deny;
+      var r=requests.find(function(x){return x.id===denyTarget});
+      document.getElementById('dn-sub').textContent=r.name+' · '+r.when;
+      document.getElementById('dn-reason').value='';
+      document.getElementById('dn-go').disabled=true;
+      document.getElementById('m-deny').classList.add('open');document.body.style.overflow='hidden';
+      document.getElementById('dn-reason').focus();
+    });
+  });
+}
+document.getElementById('dn-reason').addEventListener('input',function(){
+  document.getElementById('dn-go').disabled=!this.value.trim(); // причина обязательна
+});
+document.getElementById('ac-go').addEventListener('click',function(){
+  if(!acceptCar)return;
+  var r=requests.find(function(x){return x.id===acceptTarget});
+  requests=requests.filter(function(x){return x.id!==acceptTarget});
+  students.unshift({name:r.name,init:r.init,since:'с сегодня',car:acceptCar.name+' · '+acceptCar.plate,carStatus:acceptCar.ok?'ok':'val',lesson:null,ahead:0,behind:0});
+  document.getElementById('m-accept').classList.remove('open');document.body.style.overflow='';
+  renderStudents();renderRequests();
+  document.querySelector('.subtabs [data-tab="students"] .n').textContent='·'+students.length;
+  toast('Запрос принят. '+r.name.split(' ')[0]+' в паре на авто '+acceptCar.name+' — появился в списке «Ученики».');
+});
+document.getElementById('dn-go').addEventListener('click',function(){
+  var reason=document.getElementById('dn-reason').value.trim();
+  if(!reason)return; // без причины действие заблокировано
+  var r=requests.find(function(x){return x.id===denyTarget});
+  requests=requests.filter(function(x){return x.id!==denyTarget});
+  document.getElementById('m-deny').classList.remove('open');document.body.style.overflow='';
+  renderRequests();
+  toast('Запрос отклонён. Причина отправлена '+r.name.split(' ')[0]+'у.');
+});
+// переключение подраздела (ОВ-5: запросы — только по требованию)
+document.querySelectorAll('.subtabs button').forEach(function(b){
+  b.addEventListener('click',function(){
+    document.querySelectorAll('.subtabs button').forEach(function(x){x.classList.remove('on')});
+    b.classList.add('on');
+    tab=b.dataset.tab;
+    document.getElementById('tab-students').style.display=tab==='students'?'block':'none';
+    document.getElementById('tab-requests').style.display=tab==='requests'?'block':'none';
+  });
+});
+document.querySelectorAll('[data-close]').forEach(function(b){
+  b.addEventListener('click',function(){document.getElementById(b.dataset.close).classList.remove('open');document.body.style.overflow=''});
+});
+document.querySelectorAll('.backdrop').forEach(function(bd){
+  bd.addEventListener('click',function(e){if(e.target===bd){bd.classList.remove('open');document.body.style.overflow=''}});
+});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){document.querySelectorAll('.backdrop.open').forEach(function(bd){bd.classList.remove('open')});document.body.style.overflow=''}});
+// сайдбар: «Запросы учеников» и «Бронирования» удалены из навигации (FR-74/FR-75)
+document.querySelectorAll('.nav button:not(.active)').forEach(function(b){
+  b.addEventListener('click',function(){toast('Раздел «'+b.textContent.trim()+'» — другой экран кабинета (демо-мокап)')});
+});
+document.getElementById('side-help').addEventListener('click',function(){toast('Раздел поддержки — демонстрационный макет')});
+renderStudents();renderRequests();
+</script></body></html>
