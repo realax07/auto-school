@@ -1216,9 +1216,13 @@ def test_bug051_sidebar_exact_items_students_subtabs_profile_docs(page, server):
     page.locator('.nav button[data-tab="Календарь"]').click()
     expect(page.locator("#sec-calendar")).to_be_visible()
     expect(page.locator("#cal-grid")).to_be_visible()
-    expect(page.locator("#sec-calendar #bk-list")).to_be_visible()
-    expect(page.locator("#sec-calendar #bk-grid")).to_be_visible()
-    expect(page.locator("#sec-calendar #bk-filters")).to_be_visible()
+    # BUG-052: унаследованный bk-block снесен — носителей старого контура
+    # (bk-list/bk-grid/bk-filters/.bk-block) в #sec-calendar быть не должно
+    for dead in ("#bk-list", "#bk-grid", "#bk-filters", ".bk-block"):
+        assert page.locator(f"#sec-calendar {dead}").count() == 0, \
+            f"BUG-052: {dead} должен отсутствовать в #sec-calendar"
+    assert page.locator("#sec-calendar .cal-grid").count() == 1, \
+        "BUG-052: в #sec-calendar ровно одна сетка — слотовая .cal-grid"
 
 
 def test_bug047_mycars_route_redirects_into_dashboard(page, server):
@@ -3599,6 +3603,80 @@ def test_s8_bookings_section_removed_redirect_and_slot_reject(page, server):
     assert json.loads(reject_posts[0].post_data) == {
         "comment": "В это время пересдача экзамена в ГИБДД"}
     # календарь перезагружен: метки запроса нет, слот снова в графике
+    expect(page.locator("#cal-grid .cal-slot.reqslot")).to_have_count(0)
+    expect(page.locator("#cal-grid .cal-slot[data-k='2-14']")).to_have_class(
+        "cal-slot on")
+
+
+# =========================================================================
+# TC-UI-041 — BUG-052: после сноса унаследованного bk-block в «Календаре»
+# ровно одна сетка (.cal-grid), единственная поверхность решений — слот
+# календаря + модалка #m-bk (отклонение с обязательной причиной).
+# =========================================================================
+
+def test_bug052_calendar_single_grid_slot_reject_via_modal(page, server):
+    """TC-UI-041 (BUG-052): в #sec-calendar РОВНО ОДНА сетка (.cal-grid) —
+    унаследованный bk-block (#bk-list/#bk-grid/#bk-filters/.bk-block)
+    отсутствует. Решение по запросу ученика — клик по слоту с запросом:
+    открывается #m-bk, «✕ Отклонить…» → обязательный комментарий →
+    «✕ Отклонить запрос» → тост «Запрос отклонён», POST …/reject {comment},
+    слот освобождается (метка запроса снята, слот снова в графике). Моки
+    как в TC-UI-038 (API замокан через page.route, бэкенд не задействован)."""
+    _mock_instructor_shell(page, server)
+    state = {"bookings": [{
+        "id": 91, "status": "new", "weekday": 2,
+        "lesson_date": "2026-11-02", "start_time": "14:00",
+        "end_time": "16:00", "student_full_name": "Крылова Дарья Игоревна",
+        "reject_comment": None,
+        "car": {"id": 52, "brand": "Škoda", "model": "Rapid", "year": 2020,
+                "transmission": "automatic"},
+    }]}
+    reject_posts: list = []
+
+    def _bookings(req):
+        return 200, {"ok": True, "bookings": list(state["bookings"])}
+
+    _route_json(page, server, "/api/instructor/availability", lambda req: (
+        200, {"ok": True, "intervals": [
+            {"weekday": 2, "start_time": "14:00", "end_time": "16:00"},
+            {"weekday": 2, "start_time": "16:00", "end_time": "18:00"}]}))
+    _route_json(page, server, "/api/instructor/bookings", _bookings)
+    _route_json(page, server, "/api/instructor/bookings/91/reject",
+                lambda req: (
+                    state["bookings"].clear() or (200, {"ok": True})),
+                method="POST", capture=reject_posts)
+
+    page.goto(f"{server}/instructor/dashboard")
+    expect(page.locator("#sec-calendar")).to_be_visible()
+
+    # --- МИШУРА: ровно одна сетка, bk-block снесен без остатков ---
+    assert page.locator("#sec-calendar .cal-grid").count() == 1, \
+        "BUG-052: в #sec-calendar ровно одна (слотовая) сетка .cal-grid"
+    for dead in ("#bk-list", "#bk-grid", "#bk-filters", ".bk-block"):
+        assert page.locator(f"#sec-calendar {dead}").count() == 0, \
+            f"BUG-052: {dead} не должен остаться в #sec-calendar"
+
+    # --- запрос РОВНО на слоте Пн 14:00–16:00 ---
+    req = page.locator("#cal-grid .cal-slot.reqslot")
+    expect(req).to_have_count(1)
+    assert req.get_attribute("data-k") == "2-14", req.get_attribute("data-k")
+    expect(req.locator("small")).to_have_text("Крылова Дарья Игоревна")
+
+    # --- решение: клик по слоту → #m-bk → отклонение с причиной ---
+    req.click()
+    expect(page.locator("#m-bk")).to_be_visible()
+    expect(page.locator("#bk-slot-who")).to_have_text("Крылова Дарья Игоревна")
+    page.locator("#bk-slot-reject-btn").click()
+    expect(page.locator("#bk-slot-reject-go")).to_be_disabled()  # без причины
+    page.fill("#bk-slot-reason", "В это время пересдача экзамена в ГИБДД")
+    expect(page.locator("#bk-slot-reject-go")).to_be_enabled()
+    page.locator("#bk-slot-reject-go").click()
+    expect(page.locator("#toast")).to_contain_text("Запрос отклонён")
+    assert len(reject_posts) == 1
+    assert reject_posts[0].url.endswith("/api/instructor/bookings/91/reject")
+    assert json.loads(reject_posts[0].post_data) == {
+        "comment": "В это время пересдача экзамена в ГИБДД"}
+    # слот освобожден: метки запроса нет, слот снова в графике
     expect(page.locator("#cal-grid .cal-slot.reqslot")).to_have_count(0)
     expect(page.locator("#cal-grid .cal-slot[data-k='2-14']")).to_have_class(
         "cal-slot on")
