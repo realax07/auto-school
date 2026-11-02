@@ -3247,6 +3247,80 @@ def test_s8_sts_gallery_replace_dialog(page, server, tmp_path):
     assert sts_posts[0].url.endswith("/api/instructor/cars/52/photo/sts")
 
 
+# =========================================================================
+# TC-UI-042 — BUG-053: компоновка модалки фото авто по прямойве Заказчика
+# (decisions/2026-11-02-photo-modal-layout.md): галерея вверху (большое
+# окно, миниатюры ПОД ним, крупнее), «Информация»/«Комплектность» — внизу;
+# длинный инструктивный текст удален.
+# =========================================================================
+
+def test_bug053_car_modal_single_column_photo_layout(page, server):
+    """TC-UI-042 (change add-s8-cars-docs-booking, BUG-053): в модалке
+    фото авто (#m-car) миниатюры (#mc-thumbs) идут в DOM ПОСЛЕ большого
+    окна (#mc-big) и ВЫШЕ панели «Информация» (#mc-info) — низ модалки;
+    длинный инструктивный form-note («Клик по миниатюре — открыть в
+    большом окне…») ОТСУТСТВУЕТ (замена — короткий title на mc-big);
+    большое окно выше миниатюры (boundingBox: min-height 340px против
+    ~78px у миниатюры 104×4:3). id/обработчики не переименованы.
+    Моки как в TC-UI-040, бэкенд замокан."""
+    _mock_instructor_shell(page, server)
+
+    def _docs(req):
+        docs = [_doc_sts(52, "Škoda", "Rapid", "А 123 АА 777")]
+        return 200, {"ok": True, "documents": docs, "license": None,
+                     "license_hint": "Заявка без фото ВУ"}
+
+    def _cars(req):
+        cars = [{"id": 52, "brand": "Škoda", "model": "Rapid", "year": 2020,
+                 "transmission": "automatic", "plate": "А 123 АА 777",
+                 "status": "validated", "photos": {}, "has_sts": True,
+                 "sts_url": None, "created_at": "2026-10-02 12:00:00"}]
+        return 200, {"ok": True, "cars": cars}
+
+    _route_json(page, server, "/api/instructor/documents", _docs)
+    _route_json(page, server, "/api/instructor/cars", _cars)
+    _route_png(page, server, "/api/instructor/documents/sts-52/file")
+
+    page.goto(f"{server}/instructor/dashboard")
+    page.locator('.nav button[data-tab="Мои автомобили"]').click()
+    card = page.locator(".car", has_text="Škoda Rapid")
+    card.click()
+    expect(page.locator("#m-car")).to_be_visible()
+    expect(page.locator("#mc-thumbs .gal-thumb")).to_have_count(6)  # 5 ракурсов + СТС
+
+    # (а)/(б) порядок в DOM: mc-big → mc-thumbs → mc-info (низ модалки)
+    order = page.evaluate(
+        "() => {"
+        " const big = document.getElementById('mc-big');"
+        " const thumbs = document.getElementById('mc-thumbs');"
+        " const info = document.getElementById('mc-info');"
+        " return {"
+        "  big_then_thumbs: Boolean(big.compareDocumentPosition(thumbs)"
+        "                           & Node.DOCUMENT_POSITION_FOLLOWING),"
+        "  thumbs_then_info: Boolean(thumbs.compareDocumentPosition(info)"
+        "                            & Node.DOCUMENT_POSITION_FOLLOWING)};"
+        "}")
+    assert order["big_then_thumbs"], \
+        "BUG-053: #mc-thumbs должен идти в DOM ПОСЛЕ #mc-big"
+    assert order["thumbs_then_info"], \
+        "BUG-053: #mc-info должен идти в DOM ПОСЛЕ #mc-thumbs (низ модалки)"
+
+    # (в) длинный инструктивный form-note удален
+    assert page.locator(
+        "#m-car :text('открыть в большом окне')").count() == 0, \
+        "BUG-053: длинного form-note быть не должно"
+
+    # (г) большое окно крупнее: выше миниатюры (boundingBox-сравнение)
+    big_box = page.locator("#mc-big").bounding_box()
+    thumb_box = page.locator("#mc-thumbs .gal-thumb").first.bounding_box()
+    assert big_box and thumb_box, "модалка отрисована без геометрии"
+    assert big_box["height"] > thumb_box["height"], \
+        (f"BUG-053: большое окно ({big_box['height']:.0f}px) должно быть "
+         f"выше миниатюры ({thumb_box['height']:.0f}px)")
+    assert big_box["height"] >= 320, \
+        f"BUG-053: большое окно слишком низкое: {big_box['height']:.0f}px"
+
+
 def test_s8_cars_and_docs_screens_have_no_widgets(page, server):
     """TC-UI-035 (change add-s8-cars-docs-booking, задача 6.1, FR-73):
     экраны «Мои автомобили» и «Мои документы» НЕ содержат ни одного из
