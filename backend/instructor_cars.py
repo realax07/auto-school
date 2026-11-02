@@ -155,11 +155,15 @@ _ANGLE_COLUMNS = {
 
 def _car_counters(row) -> dict:
     """Комплектность для владельца/админа (задача 1.1): загружено ракурсов
-    из 5, СТС да/нет — для кнопок submit и чек-листа ОВ-4."""
+    из 5, СТС да/нет — для кнопок submit и чек-листа ОВ-4. Правило «есть
+    СТС» — единое с seed/sts-веткой (has_canonical_file, review-003 #3)."""
     angles = sum(
         1 for angle in ANGLES if row[_ANGLE_COLUMNS[angle]] is not None
     )
-    return {"angles": angles, "sts": row["photo_sts"] is not None}
+    return {
+        "angles": angles,
+        "sts": instructor_documents.has_canonical_file(row["photo_sts"]),
+    }
 
 
 
@@ -275,6 +279,7 @@ def list_cars(
             )
             for angle in ANGLES
         }
+        has_sts = instructor_documents.has_canonical_file(row["photo_sts"])
         cars.append(
             {
                 key: row[key]
@@ -285,11 +290,9 @@ def list_cars(
             }
             | {
                 "photos": photos,
-                "has_sts": row["photo_sts"] is not None,
+                "has_sts": has_sts,
                 "sts_url": (
-                    f"/api/instructor/cars/{car_id}/sts"
-                    if row["photo_sts"] is not None
-                    else None
+                    f"/api/instructor/cars/{car_id}/sts" if has_sts else None
                 ),
                 "counters": _car_counters(row),
             }
@@ -572,7 +575,8 @@ async def upload_car_photo_angle(
     legacy-маршрут kind=car_sts удален — корень симптома) → иначе 404;
     только владелец (чужой авто → 404); JPEG/PNG ≤5 МБ по содержимому →
     иначе 422; остальные ракурсы не трогает. Спринт 8 (задача 3.1):
-    angle='sts' — документные версии (ОВ-2): при ОТСУТСТВИИ photo_sts —
+    angle='sts' — документные версии (ОВ-2): при ОТСУТСТВИИ действующего
+    СТС (None и '' — has_canonical_file) —
     первичная дозагрузка → photo_sts + verified v1 (FR-69); ПРИ ЗАМЕНЕ —
     pending-версия, photo_sts не перезаписывается (FR-70), статус авто
     НЕ меняется — validated остается validated (ОВ-6); ответ несет
@@ -581,7 +585,9 @@ async def upload_car_photo_angle(
     его в validating (та же транзакция, guard-WHERE) — валидатор обязан
     видеть актуальные фото, гейт ОВ-4 не обходится задним числом;
     ответ содержит итоговый status. Файл, записанный на диск при сбое
-    UPDATE, удаляется (NIT-4)."""
+    UPDATE, удаляется (NIT-4). Правило «есть действующий СТС» — единое
+    с seed-миграцией (None и '' — документа нет; has_canonical_file,
+    review-003 #3)."""
     instructor_id, err = require_role(x_session_token, "instructor")
     if err is not None:
         return err
@@ -620,10 +626,14 @@ async def upload_car_photo_angle(
                     conn.rollback()
                     Path(path).unlink(missing_ok=True)
                     return _error(404, "Автомобиль не найден")
-                if row["photo_sts"] is None:
+                if not instructor_documents.has_canonical_file(
+                    row["photo_sts"]
+                ):
                     # Первичная дозагрузка (FR-69): photo_sts + verified v1
                     # сразу (двойная human-верификация не вводится);
-                    # статус авто не меняется.
+                    # статус авто не меняется. Правило «нет действующего
+                    # СТС» — ЕДИНОЕ с seed (None и '' — документа нет,
+                    # review-003 #3): '' не уходит в «замена» (pending).
                     cur = conn.execute(
                         "UPDATE instructor_cars SET photo_sts = ?"
                         " WHERE id = ?",
@@ -823,7 +833,9 @@ def admin_cars_completeness(
                 "left": row["photo_left"] is not None,
                 "right": row["photo_right"] is not None,
             },
-            "has_sts": row["photo_sts"] is not None,
+            "has_sts": instructor_documents.has_canonical_file(
+                row["photo_sts"]
+            ),
             "status": row["status"],
             "counters": _car_counters(row),
         }
@@ -865,14 +877,15 @@ def admin_validate_car(
             if row[_ANGLE_COLUMNS[angle]] is None
         ]
         loaded = len(ANGLES) - len(missing)
-        if loaded < 3 or row["photo_sts"] is None:
+        no_sts = not instructor_documents.has_canonical_file(row["photo_sts"])
+        if loaded < 3 or no_sts:
             parts = []
             if loaded < 3:
                 parts.append(
                     "загружено ракурсов: {} из 5 (нужно минимум 3;"
                     " не хватает: {})".format(loaded, ", ".join(missing))
                 )
-            if row["photo_sts"] is None:
+            if no_sts:
                 parts.append("нет фото СТС")
             return _error(409, "Комплект неполный: " + "; ".join(parts))
         conn.execute(

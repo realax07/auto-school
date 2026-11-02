@@ -226,7 +226,12 @@ def _seed_document_versions(conn: sqlite3.Connection) -> None:
     (license_photo_path) и СТС авто (photo_sts) — получают verified v1
     (uploaded_at = created_at строки; решили de facto при загрузке).
     Анкета без ВУ / авто без СТС — строк не создают (пустые состояния
-    сохраняются). Вызывается ПОСЛЕ _COLUMN_MIGRATIONS (колонки могут
+    сохраняются). Правило «есть документ» — НЕПУСТАЯ строка канонической
+    колонки (IS NOT NULL AND <> ''); это то же правило, что в sts-ветке
+    инструктор_cars и флагах has_sts (хелпер
+    instructor_documents.has_canonical_file — review-003 #3: одно правило
+    для NULL и пустой строки; db.py — нижний слой, хелпер домена не
+    импортирует). Вызывается ПОСЛЕ _COLUMN_MIGRATIONS (колонки могут
     добавляться миграцией). SQL статический, только ?-плейсхолдеры."""
     rows = conn.execute(
         "SELECT id, license_photo_path, created_at"

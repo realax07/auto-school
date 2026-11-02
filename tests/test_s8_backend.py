@@ -28,13 +28,24 @@
   TC-S8BE-006;
 - баг 5.2 регресс: список авто выдает URL авторизованных фото-эндпоинтов
   (photos{angle}, sts_url), без файловых путей — плитки переживают
-  повторный вход — TC-S8BE-007.
+  повторный вход — TC-S8BE-007;
+- единое правило «пустой СТС» (MINOR review-003 #3): photo_sts NULL и ''
+  неотличимы — seed не создает версию, has_sts/sts_url/counters — «нет»,
+  загрузка идет как первичная дозагрузка → photo_sts + verified v1 —
+  TC-S8BE-008;
+- «Мои ученики» (задача 9.1, FR-75, ОВ-5): GET /api/instructor/students —
+  состав списка (только принятые пары ЭТОГО инструктора), сценарий
+  дельты (1 завтра / 2 на следующей неделе / 3 в прошлом → «завтра»,
+  2, 3), пара без броней → «нет»/0/0, запрос (new) и rejected в
+  счетчики не входят, чужие пары не выдаются, гость → 401, ученик →
+  403 — TC-S8BE-009.
 
 Трассировка TC-S8BE-NNN в docstring каждого теста (rule 6). Тесты
 tests/test_s5_backend.py НЕ изменялись. Фикстуры — общий client из
 conftest; каталог загрузок — env AUTOSCHOOL_UPLOADS_DIR в tmp_path;
 time.sleep запрещен (спека qa-pipeline).
 """
+import datetime
 import sqlite3
 from pathlib import Path
 
@@ -696,6 +707,64 @@ def test_s8_sts_replacement_keeps_validated_ov6(api, client):
     assert status == "validating"
 
 
+# --- Единое правило «пустой СТС» (MINOR review-003 #3) ------------------------
+
+
+def test_s8_empty_sts_rule_seed_branch_agree(api, client):
+    """TC-S8BE-008 (change add-s8-cars-docs-booking, задача 3.1, MINOR
+    review-003 #3): правило «пустой photo_sts» ЕДИНО для seed-миграции,
+    sts-ветки и флагов списка — NULL и '' неотличимы («документа нет»):
+    легаси-строка photo_sts='' не засеивается verified v1 (init_db);
+    has_sts=False, sts_url=None, counters.sts=False; загрузка СТС по
+    такому авто идет по первичной дозагрузке → photo_sts + verified v1
+    (а не «замена» с pending-версией, как было при правиле is None)."""
+    import backend.db as db
+
+    instr = create_instructor(client)
+    car_id = add_car_json(client, instr["token"])
+    # легаси-мусор: пустая строка в канонической колонке (в живых данных
+    # не встречается — миграция добавляет колонку с NULL, uploads пишет
+    # реальные пути; проверяем согласованность правила)
+    conn = sqlite3.connect(db_path())
+    conn.execute(
+        "UPDATE instructor_cars SET photo_sts = '' WHERE id = ?", (car_id,)
+    )
+    conn.commit()
+    conn.close()
+
+    # (1) seed: init_db по пустой строке версию НЕ создает
+    db.init_db()
+    assert doc_versions(car_id, "car_sts") == []
+
+    # (2) флаги списка: '' — «документа нет»
+    listed = client.get(
+        "/api/instructor/cars", headers=_headers(instr["token"])
+    ).json()["cars"][0]
+    assert listed["has_sts"] is False
+    assert listed["sts_url"] is None
+    assert listed["counters"]["sts"] is False
+
+    # (3) sts-ветка: '' → первичная дозагрузка (verified v1), не замена
+    resp = upload_sts(client, instr["token"], car_id, ROOT_JPEG)
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["document"]["status"] == "verified", "'' — не замена"
+    assert resp.json()["document"]["version"] == 1
+    conn = sqlite3.connect(db_path())
+    sts_path = conn.execute(
+        "SELECT photo_sts FROM instructor_cars WHERE id = ?", (car_id,)
+    ).fetchone()[0]
+    conn.close()
+    assert Path(sts_path).read_bytes() == ROOT_JPEG
+    assert doc_versions(car_id, "car_sts") == [(1, "verified", sts_path)]
+
+    # (4) после загрузки флаги согласованы: «есть СТС»
+    listed = client.get(
+        "/api/instructor/cars", headers=_headers(instr["token"])
+    ).json()["cars"][0]
+    assert listed["has_sts"] is True and listed["sts_url"]
+    assert listed["counters"]["sts"] is True
+
+
 # --- Доступ (NFR-22) ----------------------------------------------------------
 
 
@@ -766,19 +835,62 @@ def test_s8_access_matrix(api, client):
         == 403
     )
 
-    # чужой документ → 404-неразличение (NFR-7)
+    # чужой документ → 404-неразличение (NFR-22, фикс review-002 #1):
+    # проверка на документах с ДЕЙСТВУЮЩЕЙ версией — ВУ (upload + admin
+    # verify) и СТС (первичная загрузка → verified v1): чужая сессия
+    # получает 404 (никогда 403/200), владелец — 200 со своим файлом
+    car_id = add_car_json(client, instr["token"])
+    assert upload_sts(client, instr["token"], car_id, ROOT_JPEG).status_code == 200
+    assert upload_license(client, instr["token"], ROOT_PNG).status_code == 200
+    conn = sqlite3.connect(db_path())
+    pending_id = conn.execute(
+        "SELECT id FROM document_versions WHERE target_type = 'license'"
+        " AND target_id = ? AND status = 'pending'",
+        (instr["application_id"],),
+    ).fetchone()[0]
+    conn.close()
+    resp = client.post(
+        f"/api/admin/documents/{pending_id}/verify", headers=admin
+    )
+    assert resp.status_code == 200, resp.text
+
     own_docs = client.get(
         "/api/instructor/documents", headers=_headers(instr["token"])
     ).json()
-    license_doc = own_docs.get("license")
-    if license_doc is not None:
-        url = f"/api/instructor/documents/{license_doc['doc_id']}/file"
-        assert (
-            client.get(url, headers=_headers(other["token"])).status_code == 404
-        )
+    license_doc = own_docs["license"]
+    assert license_doc is not None, "ВУ с verified-версией виден владельцу"
+    license_url = f"/api/instructor/documents/{license_doc['doc_id']}/file"
+    sts_url = f"/api/instructor/documents/sts-{car_id}/file"
+    got = client.get(license_url, headers=_headers(instr["token"]))
+    assert got.status_code == 200 and got.content == ROOT_PNG
+    got = client.get(sts_url, headers=_headers(instr["token"]))
+    assert got.status_code == 200 and got.content == ROOT_JPEG
+    assert (
+        client.get(license_url, headers=_headers(other["token"])).status_code
+        == 404
+    ), "чужой ВУ → 404-неразличение"
+    assert (
+        client.get(sts_url, headers=_headers(other["token"])).status_code
+        == 404
+    ), "чужой СТС → 404-неразличение"
+    assert (
+        client.get(license_url, headers=_headers(student["token"])).status_code
+        == 403
+    )
+    assert (
+        client.get(sts_url, headers=_headers(student["token"])).status_code
+        == 403
+    )
     assert (
         client.get(
             "/api/instructor/documents/license-999999/file",
+            headers=_headers(instr["token"]),
+        ).status_code
+        == 404
+    )
+    assert (
+        client.get(
+            "/api/instructor/documents/sts-999999/file",
             headers=_headers(instr["token"]),
         ).status_code
         == 404
@@ -848,6 +960,166 @@ def test_s8_my_documents_versions_and_empty_state(api, client):
     assert sts_docs[0]["pending"] is None
     assert sts_docs[0]["last_rejected"] is None
     assert sts_docs[0]["car"]["id"] == car_id
+
+
+# --- «Мои ученики» (задача 9.1, FR-75, ОВ-5) ----------------------------------
+
+
+def _accept_pair(client, instructor, student, car_id):
+    """Пара: заявка ученика → accept инструктором (контур Спринта 3)."""
+    resp = client.post(
+        "/api/student/requests",
+        json={"instructor_id": instructor["id"]},
+        headers=_headers(student["token"]),
+    )
+    assert resp.status_code == 200, resp.text
+    requests = client.get(
+        "/api/instructor/requests", headers=_headers(instructor["token"])
+    ).json()["requests"]
+    request_id = next(
+        q["id"] for q in requests if q["status"] == "new"
+    )
+    resp = client.post(
+        f"/api/instructor/requests/{request_id}/accept",
+        json={"car_id": car_id},
+        headers=_headers(instructor["token"]),
+    )
+    assert resp.status_code == 200, resp.text
+
+
+def _add_slot(instructor_id, start_time):
+    """Слот в БД (прямой контроль — механика conftest)."""
+    conn = sqlite3.connect(db_path())
+    cur = conn.execute(
+        "INSERT INTO availability (instructor_id, weekday, start_time,"
+        " end_time) VALUES (?, 3, ?, ?)",
+        (instructor_id, start_time, "23:00"),
+    )
+    slot_id = cur.lastrowid
+    conn.commit()
+    conn.close()
+    return slot_id
+
+
+def _booking(client, student, instructor, slot_id, lesson_date, confirm=True):
+    """Бронь: запрос ученика → (confirm) → lesson_date задается явно
+    (материализация MIN-1 — правило локальной даты сервера)."""
+    resp = client.post(
+        "/api/student/bookings",
+        json={"availability_id": slot_id},
+        headers=_headers(student["token"]),
+    )
+    assert resp.status_code == 200, resp.text
+    booking_id = resp.json()["booking_id"]
+    if confirm:
+        resp = client.post(
+            f"/api/instructor/bookings/{booking_id}/confirm",
+            headers=_headers(instructor["token"]),
+        )
+        assert resp.status_code == 200, resp.text
+    conn = sqlite3.connect(db_path())
+    conn.execute(
+        "UPDATE booking SET lesson_date = ? WHERE id = ?",
+        (lesson_date, booking_id),
+    )
+    conn.commit()
+    conn.close()
+    return booking_id
+
+
+def test_s8_my_students_list_counters_and_access(api, client):
+    """TC-S8BE-009 (change add-s8-cars-docs-booking, задача 9.1, FR-75,
+    ОВ-5, NFR-22): GET /api/instructor/students — состав: только принятые
+    пары ЭТОГО инструктора; сценарий дельты — 1 бронь на завтра, 2 на
+    следующей неделе, 3 в прошлом → next_lesson «завтра» (дата/время
+    слота), planned_count 2, completed_count 3; пара без броней →
+    next_lesson None («нет»), 0/0; запрос (new) и отклоненная бронь в
+    «следующее»/счетчики не входят (только confirmed); чужие пары не
+    выдаются (второй инструктор видит только свою пару); гость → 401,
+    неверный токен → 401, ученик → 403."""
+    instr_a = create_instructor(client)
+    instr_b = create_instructor(client, email="instr-b@example.com")
+    s1 = create_student(client)
+    s2 = create_student(client, email="student2@example.com")
+    s3 = create_student(client, email="student3@example.com")
+    car_a = add_car_json(client, instr_a["token"])
+    car_b = add_car_json(client, instr_b["token"], plate="В456ВВ777")
+
+    _accept_pair(client, instr_a, s1, car_a)
+    _accept_pair(client, instr_a, s2, car_a)
+    _accept_pair(client, instr_b, s3, car_b)
+
+    today = datetime.date.today()
+    iso = lambda offset: (today + datetime.timedelta(days=offset)).isoformat()
+    # слоты с разными start_time — детерминированный порядок внутри даты
+    _booking(client, s1, instr_a, _add_slot(instr_a["id"], "09:00"), iso(1))
+    _booking(client, s1, instr_a, _add_slot(instr_a["id"], "10:00"), iso(7))
+    _booking(client, s1, instr_a, _add_slot(instr_a["id"], "11:00"), iso(8))
+    _booking(client, s1, instr_a, _add_slot(instr_a["id"], "12:00"), iso(-1))
+    _booking(client, s1, instr_a, _add_slot(instr_a["id"], "13:00"), iso(-2))
+    _booking(client, s1, instr_a, _add_slot(instr_a["id"], "14:00"), iso(-3))
+    # rejected-бронь s1 (прошлое) — в счетчиках не участвует (только confirmed)
+    rejected_id = _booking(
+        client, s1, instr_a, _add_slot(instr_a["id"], "15:00"), iso(-5),
+        confirm=False,
+    )
+    resp = client.post(
+        f"/api/instructor/bookings/{rejected_id}/reject",
+        json={"comment": "не могу"},
+        headers=_headers(instr_a["token"]),
+    )
+    assert resp.status_code == 200, resp.text
+    # запрос (new) s2 — НЕ входит в «следующее»/счетчики (ОВ-5)
+    _booking(
+        client, s2, instr_a, _add_slot(instr_a["id"], "16:00"), iso(2),
+        confirm=False,
+    )
+
+    # состав + счетчики у инструктора A
+    resp = client.get(
+        "/api/instructor/students", headers=_headers(instr_a["token"])
+    )
+    assert resp.status_code == 200, resp.text
+    students = resp.json()["students"]
+    assert [s["student_id"] for s in students] == [s1["id"], s2["id"]]
+    assert all(s["student_id"] != s3["id"] for s in students), "чужая пара"
+    s1_card, s2_card = students
+    assert "Петрова" in s1_card["full_name"] and "Анна" in s1_card["full_name"]
+    assert s1_card["next_lesson"] == {
+        "date": iso(1),
+        "time": "09:00",
+        "end_time": "23:00",
+    }
+    assert s1_card["planned_count"] == 2
+    assert s1_card["completed_count"] == 3
+    # пара без броней (только new-запрос) → «нет», 0/0
+    assert s2_card["next_lesson"] is None
+    assert s2_card["planned_count"] == 0
+    assert s2_card["completed_count"] == 0
+
+    # чужие пары не выдаются: B видит только свою пару (s3)
+    resp = client.get(
+        "/api/instructor/students", headers=_headers(instr_b["token"])
+    )
+    assert resp.status_code == 200
+    b_students = resp.json()["students"]
+    assert [s["student_id"] for s in b_students] == [s3["id"]]
+
+    # доступ: гость/неверный токен → 401, ученик → 403
+    assert client.get("/api/instructor/students").status_code == 401
+    assert (
+        client.get(
+            "/api/instructor/students",
+            headers={"X-Session-Token": "bogus"},
+        ).status_code
+        == 401
+    )
+    assert (
+        client.get(
+            "/api/instructor/students", headers=_headers(s1["token"])
+        ).status_code
+        == 403
+    )
 
 
 # --- Баг 5.2: плитки от авторизованных эндпоинтов (регресс) -------------------

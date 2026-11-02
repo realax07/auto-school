@@ -1,5 +1,6 @@
 """student_requests.py — заявки учеников (задача 6.1, домен
-student-requests; design.md блок 6 + arch-review итерация 2: MAJ-1, MAJ-2).
+student-requests; design.md блок 6 + arch-review итерация 2: MAJ-1, MAJ-2;
+Спринт 8 add-s8-cars-docs-booking — РАСШИРЕНИЕ: задача 9.1).
 
 POST   /api/student/requests                     — подача (FR-36, ОВ-1/2)
 GET    /api/student/requests                     — «Мои заявки» (FR-38)
@@ -7,6 +8,11 @@ GET    /api/instructor/requests                  — входящие (FR-37)
 POST   /api/instructor/requests/{id}/accept      — принять (FR-39, ОВ-1/4)
 POST   /api/instructor/requests/{id}/deny        — отказ (FR-38)
 PATCH  /api/instructor/students/{id}/car         — перекрепление авто (MAJ-2)
+GET    /api/instructor/students                  — «Мои ученики» (FR-75,
+     ОВ-5, задача 9.1): карточки принятых пар + следующее плановое
+     занятие + счетчики (только confirmed) — данные раздела «Мои
+     ученики»; чтение поверх booking/student_requests, новые сущности
+     не заводятся (ADR-005).
 
 Жизненный цикл (design.md): new → accepted (accept: car_id — авто ЭТОГО
 инструктора → иначе 422; 0 авто → 409 «заведите автомобиль», ОВ-4);
@@ -34,6 +40,7 @@ from fastapi import APIRouter, Header
 from pydantic import BaseModel
 
 import backend.db as db
+from backend.booking import local_today
 from backend.guards import _error, full_name, require_role
 
 router = APIRouter()
@@ -370,3 +377,84 @@ def assign_student_car(
     finally:
         conn.close()
     return {"ok": True}
+
+
+# --- Спринт 8 (задача 9.1, FR-75, ОВ-5): «Мои ученики» ------------------------
+
+
+@router.get("/api/instructor/students")
+def my_students(
+    x_session_token: str | None = Header(default=None, alias="X-Session-Token"),
+):
+    """Карточки принятых учеников (FR-75, ОВ-5; данные раздела «Мои
+    ученики»): пары student_requests.status='accepted' ЭТОГО инструктора.
+    По каждой паре: student_id, full_name (ФИО ученика — только из users,
+    ADR-004), next_lesson — ближайшая confirmed бронь с lesson_date ≥
+    сегодня {date, time, end_time} (локальная дата сервера — MIN-1, то
+    же правило, что materialize_lesson_date; time/end_time — время слота
+    пары) / None → «нет», planned_count — confirmed ПОСЛЕ следующей,
+    completed_count — confirmed с датой < сегодня (материализация
+    lesson_date — MIN-1). ТОЛЬКО confirmed (ОВ-5): запросы (new) и
+    отклоненные (rejected) в «следующее» и счетчики не входят. Чтение
+    поверх booking/student_requests — новые сущности не заводятся
+    (ADR-005). Пустые состояния: пара без броней → next_lesson None,
+    0/0; нет пар → students: [].
+
+    NFR-22: instructor_id вычисляется серверно из сессии на каждом
+    запросе — чужие пары невыдаемы по построению (выборка только по
+    своей сессии; «чужой инструктор» эндпоинтом не адресуем); гость →
+    401, ученик → 403. SQL — параметризованный (NFR-10); ФИО не
+    логируются (NFR-4)."""
+    instructor_id, err = require_role(x_session_token, "instructor")
+    if err is not None:
+        return err
+
+    today = local_today().isoformat()
+    conn = db.get_conn()
+    try:
+        rows = conn.execute(
+            "SELECT sr.student_id"
+            " FROM student_requests AS sr"
+            " WHERE sr.instructor_id = ? AND sr.status = 'accepted'"
+            " ORDER BY sr.decided_at, sr.id",
+            (instructor_id,),
+        ).fetchall()
+        students = []
+        for row in rows:
+            student = conn.execute(
+                "SELECT surname, name, patronymic FROM users WHERE id = ?",
+                (row["student_id"],),
+            ).fetchone()
+            lessons = conn.execute(
+                "SELECT b.lesson_date, a.start_time, a.end_time, b.id"
+                " FROM booking AS b JOIN availability AS a"
+                " ON a.id = b.availability_id"
+                " WHERE b.student_id = ? AND b.instructor_id = ?"
+                " AND b.status = 'confirmed'"
+                " ORDER BY b.lesson_date, a.start_time, b.id",
+                (row["student_id"], instructor_id),
+            ).fetchall()
+            upcoming = [
+                lesson for lesson in lessons if lesson["lesson_date"] >= today
+            ]
+            next_lesson = None
+            planned_count = 0
+            if upcoming:
+                next_lesson = {
+                    "date": upcoming[0]["lesson_date"],
+                    "time": upcoming[0]["start_time"],
+                    "end_time": upcoming[0]["end_time"],
+                }
+                planned_count = len(upcoming) - 1
+            students.append({
+                "student_id": row["student_id"],
+                "full_name": (
+                    full_name(student) if student is not None else ""
+                ),
+                "next_lesson": next_lesson,
+                "planned_count": planned_count,
+                "completed_count": len(lessons) - len(upcoming),
+            })
+    finally:
+        conn.close()
+    return {"ok": True, "students": students}

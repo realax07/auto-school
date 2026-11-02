@@ -200,6 +200,16 @@ def active_version_file(
     return row["file_path"] if row is not None else None
 
 
+def has_canonical_file(value: str | None) -> bool:
+    """ЕДИНОЕ правило «есть действующий документ в канонической колонке»
+    (review-003 #3): непустая строка; None И '' — документа нет. Одно
+    правило для NULL и пустой строки (design.md: каноническая колонка
+    хранит файл действующей версии и «остается непустым»); согласует
+    seed-миграцию (db.py: SQL WHERE … IS NOT NULL AND <> ''), sts-ветку
+    (первичная дозагрузка vs замена) и флаги has_sts/counters."""
+    return bool(value)
+
+
 # --- «Мои документы» (владелец-инструктор) -----------------------------------
 
 
@@ -310,7 +320,7 @@ def document_file(
     doc_id: str,
     x_session_token: str | None = Header(default=None, alias="X-Session-Token"),
 ):
-    """Файл документа (FR-45, NFR-7): только владельцу; выдается файл
+    """Файл документа (FR-45, NFR-7/22): только владельцу; выдается файл
     ДЕЙСТВУЮЩЕЙ версии (после seed-миграции — прежний файл, после verify —
     файл новой; легаси-строки без версий — каноническая колонка);
     чужой/неизвестный doc_id → 404 (не раскрываем); ученик → 403;
@@ -327,25 +337,40 @@ def document_file(
 
     conn = db.get_conn()
     try:
+        # NFR-22 (фикс блокера review-002 #1): владелец вычисляется
+        # серверно ДО выборки файла версии — license: анкета по email
+        # сессии, car_sts: авто по instructor_id. Чужой документ и
+        # несуществующий неразличимы (404 в обоих случаях — никогда
+        # 403/200). Только затем — файл действующей версии; версий нет
+        # → каноническая колонка (легаси; владение уже проверено).
+        if kind == "license":
+            user = conn.execute(
+                "SELECT email FROM users WHERE id = ?", (instructor_id,)
+            ).fetchone()
+            owner_row = conn.execute(
+                "SELECT license_photo_path FROM instructor_applications"
+                " WHERE id = ? AND email = ?",
+                (entity_id, user["email"] if user else ""),
+            ).fetchone()
+            canonical = (
+                owner_row["license_photo_path"]
+                if owner_row is not None
+                else None
+            )
+        else:
+            owner_row = conn.execute(
+                "SELECT photo_sts FROM instructor_cars"
+                " WHERE id = ? AND instructor_id = ?",
+                (entity_id, instructor_id),
+            ).fetchone()
+            canonical = (
+                owner_row["photo_sts"] if owner_row is not None else None
+            )
+        if owner_row is None:
+            return _error(404, "Документ не найден")
         path = active_version_file(conn, target_type, entity_id)
         if path is None:
-            if kind == "license":
-                user = conn.execute(
-                    "SELECT email FROM users WHERE id = ?", (instructor_id,)
-                ).fetchone()
-                row = conn.execute(
-                    "SELECT license_photo_path FROM instructor_applications"
-                    " WHERE id = ? AND email = ?",
-                    (entity_id, user["email"] if user else ""),
-                ).fetchone()
-                path = row["license_photo_path"] if row is not None else None
-            else:
-                row = conn.execute(
-                    "SELECT photo_sts FROM instructor_cars"
-                    " WHERE id = ? AND instructor_id = ?",
-                    (entity_id, instructor_id),
-                ).fetchone()
-                path = row["photo_sts"] if row is not None else None
+            path = canonical
     finally:
         conn.close()
 
