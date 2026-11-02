@@ -1106,13 +1106,24 @@ def test_back_links_lead_to_role_home(page, server):
     dash = (base / "instructor-dashboard.html").read_text(encoding="utf-8")
     cab = (base / "cabinet.html").read_text(encoding="utf-8")
     assert 'data-tab="Мои автомобили"' in dash, "нет раздела «Мои автомобили» в дашборде"
-    assert 'data-tab="Мои документы"' in dash, "нет раздела «Мои документы» в дашборде"
+    # BUG-051: «Мои документы» переименована в «Профиль и документы»
+    assert 'data-tab="Профиль и документы"' in dash, \
+        "нет раздела «Профиль и документы» в дашборде"
+    assert 'data-tab="Мои документы"' not in dash, \
+        "BUG-051: прежнее имя «Мои документы» не должно оставаться в сайдбаре"
     # Спринт 8 (FR-74): «Бронирования» удалены без остатков (пункт + секция)
     assert 'data-tab="Бронирования"' not in dash, \
-        "FR-74: пункта меню «Бронирования» быть не должно"
+        "FR-74/BUG-051: пункта меню «Бронирования» быть не должно"
     assert 'id="sec-bookings"' not in dash, \
         "FR-74: секции «Бронирования» в дашборде инструктора быть не должно"
-    assert 'id="sec-docs"' in dash, "секция «Мои документы» должна быть внутри дашборда"
+    assert 'data-tab="Мой автомобиль"' not in dash, \
+        "BUG-051: ДЕМО-заглушка «Мой автомобиль» удалена из сайдбара"
+    assert 'data-tab="Запросы учеников"' not in dash, \
+        "ОВ-5/BUG-051: «Запросы учеников» — подраздел «Моих учеников», без сайдбар-кнопки"
+    assert 'id="sec-docs"' in dash and 'id="sec-students"' in dash, \
+        "секции «Профиль и документы»/«Мои ученики» должны быть внутри дашборда"
+    assert 'id="stu-tabs"' in dash and 'id="rq-list"' in dash, \
+        "ОВ-5: подразделы «Ученики»/«Запросы учеников» внутри «Моих учеников» (Спринт 8)"
     assert 'data-tab="Мои заявки"' in cab, "нет раздела «Мои заявки» в кабинете"
     assert 'data-tab="Мои брони"' in cab, "нет раздела «Мои брони» в кабинете"
     assert 'id="sec-bookings"' in cab, "секция «Мои брони» должна быть внутри кабинета"
@@ -1121,6 +1132,93 @@ def test_back_links_lead_to_role_home(page, server):
     review = (base / "review-form.html").read_text(encoding="utf-8")
     assert 'href="/my-requests"' in review, \
         "review-form: нет кнопки «Назад к заявкам» (/my-requests → 301 в кабинет)"
+
+
+def test_bug051_sidebar_exact_items_students_subtabs_profile_docs(page, server):
+    """TC-UI-028 (change add-car-validation-booking, BUG-051): сайдбар кабинета
+    инструктора содержит РОВНО ожидаемый перечень пунктов (удалены
+    «Бронирования», «Мой автомобиль» — ДЕМО-заглушка, «Запросы учеников»);
+    в «Моих учениках» вкладки «Ученики» (карточки привязанных) / «Запросы
+    учеников» переключаются; «Профиль и документы» (бывшая «Мои документы»)
+    открывает раздел документов (ВУ + СТС); «Календарь» содержит подраздел
+    броней (бывший раздел «Бронирования»). API замокан через page.route."""
+    _seed_session(page, "session_token", INSTRUCTOR_TOKEN)
+
+    _route_json(page, server, "/api/auth/me", lambda req: (
+        200, {"ok": True, "user": {"surname": "Самойлов", "name": "Михаил"}}))
+    _route_json(page, server, "/api/instructor/dashboard", lambda req: (
+        200, {"ok": True, "instructor": {"surname": "Самойлов",
+                                         "name": "Михаил"}}))
+    _route_json(page, server, "/api/instructor/summary", lambda req: (
+        200, {"ok": True, "students": [
+            {"full_name": "Смирнова Ольга Павловна",
+             "car": "Škoda Rapid 2020",
+             "decided_at": "2026-10-20 14:05:00"}],
+            "today_lessons": []}))
+    # Спринт 8 (ОВ-5): «Мои ученики» — контракт GET /api/instructor/students
+    _route_json(page, server, "/api/instructor/students", lambda req: (
+        200, {"ok": True, "students": [
+            {"student_id": 901, "full_name": "Смирнова Ольга Павловна",
+             "next_lesson": None, "planned_count": 1, "completed_count": 3}]}))
+    _route_json(page, server, "/api/instructor/requests", lambda req: (
+        200, {"ok": True, "requests": []}))
+    _route_json(page, server, "/api/instructor/availability", lambda req: (
+        200, {"ok": True, "intervals": []}))
+    _route_json(page, server, "/api/instructor/bookings", lambda req: (
+        200, {"ok": True, "bookings": []}))
+    _route_json(page, server, "/api/instructor/documents", lambda req: (
+        200, {"ok": True, "documents": []}))
+
+    page.goto(f"{server}/instructor/dashboard")
+    expect(page.locator(".user b")).to_have_text("Самойлов Михаил")
+
+    # --- сайдбар: РОВНО ожидаемый перечень (без Бронирования / Мой автомобиль /
+    # Запросы учеников; «Мои документы» переименована в «Профиль и документы») ---
+    tabs = page.locator(".nav button").evaluate_all(
+        "els => els.map(e => e.dataset.tab)")
+    assert tabs == ["Мой день", "Расписание", "Календарь", "Мои ученики",
+                    "Мои автомобили", "Доходы и выплаты",
+                    "Материалы и обучение", "Профиль и документы",
+                    "__logout__"], tabs
+
+    # --- «Мои ученики»: вкладка «Ученики» — карточка привязанного ученика ---
+    page.locator('.nav button[data-tab="Мои ученики"]').click()
+    expect(page.locator("#sec-students")).to_be_visible()
+    expect(page.locator("#page-title")).to_have_text("Мои ученики")
+    expect(page.locator(".nav button[data-tab='Мои ученики']")).to_have_class("active")
+    expect(page.locator("#stu-tab-students")).to_be_visible()
+    # Спринт 8 (ОВ-5): карточка по контракту GET /api/instructor/students
+    expect(page.locator("#stu-cards .student")).to_have_count(1)
+    card = page.locator("#stu-cards .student").first
+    expect(card.locator("b").first).to_have_text("Смирнова Ольга Павловна")
+    expect(card.locator(".stu-next.none")).to_contain_text("нет")
+    expect(card.locator(".stu-cnt b").nth(0)).to_have_text("1")
+    expect(card.locator(".stu-cnt b").nth(1)).to_have_text("3")
+
+    # --- переключение на «Запросы учеников» и обратно ---
+    page.locator('#stu-tabs button[data-stu="requests"]').click()
+    expect(page.locator("#stu-tab-requests")).to_be_visible()
+    expect(page.locator("#stu-tab-students")).to_be_hidden()
+    expect(page.locator("#rq-list")).to_be_visible()
+    page.locator('#stu-tabs button[data-stu="students"]').click()
+    expect(page.locator("#stu-tab-students")).to_be_visible()
+    expect(page.locator("#stu-tab-requests")).to_be_hidden()
+
+    # --- «Профиль и документы» (бывшая «Мои документы»): раздел документов ---
+    page.locator('.nav button[data-tab="Профиль и документы"]').click()
+    expect(page.locator("#sec-docs")).to_be_visible()
+    expect(page.locator("#page-title")).to_have_text("Профиль и документы")
+    expect(page.locator('.nav button[data-tab="Профиль и документы"]')).to_have_class("active")
+    expect(page.locator("#lic-docs .doc")).to_have_count(0)
+    expect(page.locator("#no-license")).to_be_visible()  # документов нет — честное пустое состояние
+
+    # --- «Календарь»: сетка графика + подраздел броней (бывший «Бронирования») ---
+    page.locator('.nav button[data-tab="Календарь"]').click()
+    expect(page.locator("#sec-calendar")).to_be_visible()
+    expect(page.locator("#cal-grid")).to_be_visible()
+    expect(page.locator("#sec-calendar #bk-list")).to_be_visible()
+    expect(page.locator("#sec-calendar #bk-grid")).to_be_visible()
+    expect(page.locator("#sec-calendar #bk-filters")).to_be_visible()
 
 
 def test_bug047_mycars_route_redirects_into_dashboard(page, server):
@@ -2873,7 +2971,7 @@ def test_s8_my_documents_statuses_versions_and_license_replace(page, server,
     _route_png(page, server, "/api/instructor/documents/sts-52/file")
 
     page.goto(f"{server}/instructor/dashboard")
-    page.locator('.nav button[data-tab="Мои документы"]').click()
+    page.locator('.nav button[data-tab="Профиль и документы"]').click()
     expect(page.locator("#sec-docs")).to_be_visible()
 
     # --- карточки: ВУ 1 + СТС 2 (по авто), статусы версий (FR-70) ---
@@ -3012,7 +3110,7 @@ def test_s8_sts_upload_missing_and_replace_car_modal_422_honest(
     _route_png(page, server, "/api/instructor/documents/sts-53/file")
 
     page.goto(f"{server}/instructor/dashboard")
-    page.locator('.nav button[data-tab="Мои документы"]').click()
+    page.locator('.nav button[data-tab="Профиль и документы"]').click()
     expect(page.locator("#sec-docs")).to_be_visible()
 
     # --- авто БЕЗ СТС: карточка «нет СТС» с кнопкой «Загрузить» (FR-69) ---
@@ -3064,7 +3162,7 @@ def test_s8_sts_upload_missing_and_replace_car_modal_422_honest(
 
     # --- 422: ошибка сервера показывается честно, список не меняется ---
     state["fail_next"] = True
-    page.locator('.nav button[data-tab="Мои документы"]').click()
+    page.locator('.nav button[data-tab="Профиль и документы"]').click()
     expect(page.locator("#sec-docs")).to_be_visible()
     sts_card = page.locator("#sts-docs .doc", has_text="Škoda Rapid")
     gets_before_fail = len(docs_gets)  # GET от открытия раздела уже учтен
@@ -3174,7 +3272,7 @@ def test_s8_cars_and_docs_screens_have_no_widgets(page, server):
     assert _hidden(widgets), "виджеты видны на экране «Мои автомобили» (FR-73)"
 
     # «Мои документы»: аналогично без виджетов
-    page.locator('.nav button[data-tab="Мои документы"]').click()
+    page.locator('.nav button[data-tab="Профиль и документы"]').click()
     expect(page.locator("#sec-docs")).to_be_visible()
     assert _hidden(widgets), "виджеты видны на экране «Мои документы» (FR-73)"
 
