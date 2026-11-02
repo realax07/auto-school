@@ -1,16 +1,16 @@
 # Regress add-s8-cars-docs-booking — regress-final.md
 
 - change: add-s8-cars-docs-booking
-- date: 2026-11-02T13:26:47+00:00
-- commit: e06c47c56101941481e2eed41ad9acf7b92dd27d
+- date: 2026-11-02T14:04:13+00:00
+- commit: 0c950262977f58c686e966172809e602b13a86b3
 - worktree: /home/hermes-bot/.hermes/cache/scratch/wt-s8-int
 - verdict: PASS
 - tier: domain (эшелон 1: доменный regress)
-- duration: 508.0s
+- duration: 549.1s
 - diff source: git diff main...HEAD
 - domain map: project map test-model/regress-domains.json задана, правил нет — применен дефолт
-- changed files: 81
-- changed files: 81
+- changed files: 83
+- changed files: 83
   - architecture/adr/007-document-versions.md
   - architecture/map.md
   - backend/db.py
@@ -61,7 +61,7 @@
   - test-model/approved/add-s8-cars-docs-booking/TC-S8BE-006.md
   - test-model/approved/add-s8-cars-docs-booking/TC-S8BE-007.md
   - test-model/approved/add-s8-cars-docs-booking/TC-S8BE-008.md
-  - … и еще 31
+  - … и еще 33
 - suites: tests
 - pytest exit code: 0
 
@@ -79,5 +79,5 @@
     from starlette.testclient import TestClient as TestClient  # noqa
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-359 passed, 1 warning in 504.29s (0:08:24)
+359 passed, 1 warning in 546.96s (0:09:06)
 ```
