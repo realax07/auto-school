@@ -12,7 +12,7 @@ design.md, не против кода друг друга). Модульност
 
 ## 1. Статусная модель документов: таблица версий + миграция (backend)
 
-- [ ] 1.1 [P] backend/db.py + backend/instructor_documents.py — таблица
+- [x] 1.1 [P] backend/db.py + backend/instructor_documents.py — таблица
       document_versions (target_type license/car_sts, target_id, version,
       file_path, status pending/verified/rejected, reject_reason с CHECK
       «при rejected причина непуста», uploaded_at, decided_at; UNIQUE
@@ -32,7 +32,7 @@ design.md, не против кода друг друга). Модульност
 
 ## 2. Загрузка/замена ВУ и выдача «Мои документы» со статусами (backend)
 
-- [ ] 2.1 [P] backend/instructor_documents.py — POST
+- [x] 2.1 [P] backend/instructor_documents.py — POST
       /api/instructor/documents/license (multipart, JPEG/PNG ≤5 МБ →
       иначе 422, прежний файл не затронут): при анкете с действующим ВУ —
       pending-версия (замещает ожидающую, ОВ-7); при анкете без ВУ —
@@ -51,7 +51,7 @@ design.md, не против кода друг друга). Модульност
 
 ## 3. СТС: диагностика симптома + фикс эндпоинта и статуса авто (FR-69, ОВ-6)
 
-- [ ] 3.1 [P] backend/instructor_cars.py (sts-ветка) +
+- [x] 3.1 [P] backend/instructor_cars.py (sts-ветка) +
       backend/instructor_documents.py — ДИАГНОСТИКА + ФИКС (диагностика
       ОБЯЗАТЕЛЬНО ДО фикса, корень — в отчете задачи; план design.md
       «Диагностика»): (а) воспроизведением подтвердить поведение POST
@@ -78,7 +78,7 @@ design.md, не против кода друг друга). Модульност
 
 ## 4. Верификация документов админом (backend, ОВ-1/ОВ-4)
 
-- [ ] 4.1 [P] backend/instructor_documents.py — GET
+- [x] 4.1 [P] backend/instructor_documents.py — GET
       /api/admin/documents?status=pending (default pending; версия,
       тип, uploaded_at; license — ФИО инструктора; car_sts — марка/
       модель/госномер + владелец; без токена → 401); GET
@@ -101,7 +101,7 @@ design.md, не против кода друг друга). Модульност
 
 ## 5. Фронт: «Мои документы» — загрузка/замена со статусами (FR-71/FR-72)
 
-- [ ] 5.1 [P] frontend/instructor-dashboard.html +
+- [x] 5.1 [P] frontend/instructor-dashboard.html +
       frontend/js/dashboard-instructor.js — раздел «Мои документы»:
       кнопки загрузки/замены у ВУ и у каждого СТС (POST
       /api/instructor/documents/license и POST …/cars/{id}/photo/sts);
@@ -119,7 +119,7 @@ design.md, не против кода друг друга). Модульност
 
 ## 6. Фронт: экраны без виджетов (FR-73)
 
-- [ ] 6.1 [P] frontend/instructor-dashboard.html +
+- [x] 6.1 [P] frontend/instructor-dashboard.html +
       frontend/js/dashboard-instructor.js — с экранов «Мои автомобили»
       и «Мои документы» удалить виджеты «привязанные ученики», «запросы
       учеников», «занятия на сегодня» (явные исключения; главная
@@ -132,7 +132,7 @@ design.md, не против кода друг друга). Модульност
 
 ## 7. Фронт: админ-раздел «Документы» (ОВ-1/ОВ-4)
 
-- [ ] 7.1 [P] frontend/admin-dashboard.html + frontend/js/admin-dashboard.js —
+- [x] 7.1 [P] frontend/admin-dashboard.html + frontend/js/admin-dashboard.js —
       раздел «Документы»: таблица ожидающих версий (тип; ВУ — ФИО
       инструктора; СТС — марка/модель/госномер + владелец; дата
       загрузки), предпросмотр — изображение ДОЛЖНО ОТКРЫВАТЬСЯ (ОВ-4;
@@ -148,7 +148,7 @@ design.md, не против кода друг друга). Модульност
 
 ## 8. Фронт: календарь — запросы/брони на слотах, без «Бронирований» (FR-74)
 
-- [ ] 8.1 [P] frontend/instructor-dashboard.html +
+- [x] 8.1 [P] frontend/instructor-dashboard.html +
       frontend/js/dashboard-instructor.js — календарь: запросы (new) и
       брони (confirmed) отображаются РОВНО на выбранных слотах (дата+
       время запроса = слоту availability; никаких агрегированных
@@ -170,7 +170,7 @@ design.md, не против кода друг друга). Модульност
 
 ## 9. «Мои ученики»: карточки со счетчиками + подраздел «Запросы» (FR-75, ОВ-5)
 
-- [ ] 9.1 [P] backend/student_requests.py — GET /api/instructor/students:
+- [x] 9.1 [P] backend/student_requests.py — GET /api/instructor/students:
       принятые ученики (пары status='accepted'); по каждому: ФИО/имя,
       next_lesson {date, time} — ближайшая confirmed бронь с
       lesson_date ≥ сегодня (ЛОКАЛЬНАЯ дата сервера, правило
@@ -184,7 +184,7 @@ design.md, не против кода друг друга). Модульност
       выдаются.
       FR: FR-75, ОВ-5. NFR: NFR-22, NFR-10. Зависит от: —.
 
-- [ ] 9.2 [P] frontend/instructor-dashboard.html +
+- [x] 9.2 [P] frontend/instructor-dashboard.html +
       frontend/js/dashboard-instructor.js — раздел «Мои ученики»:
       карточки принятых учеников (следующее плановое занятие или
       «нет», «плановых дальше: N», «проведенных: N» — данные 9.1);
@@ -202,7 +202,7 @@ design.md, не против кода друг друга). Модульност
 
 ## 10. Сборка
 
-- [ ] 10.1 backend/app.py + backend/db.py — финальные миграции
+- [x] 10.1 backend/app.py + backend/db.py — финальные миграции
       (document_versions + seed verified v1 — idempotent) и проверка
       include (новых роутеров нет — расширения внутри
       instructor_documents.py/instructor_cars.py/student_requests.py);
