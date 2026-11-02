@@ -153,7 +153,6 @@ main{padding:28px clamp(20px,3vw,44px) 45px;max-width:1600px;width:100%;margin:a
 .stu-card b{font-size:12px;font-weight:550;display:block}
 .stu-card small{display:block;font-size:10px;color:#8fa0aa;margin-top:3px}
 .stu-card .car-pill{margin-left:auto;font-size:10px;color:#9db0ba;border:1px solid #ffffff12;background:#ffffff05;border-radius:999px;padding:4px 10px;white-space:nowrap;flex:none}
-.bk-block{margin-top:26px;border-top:1px solid var(--line);padding-top:22px}
 @media(max-width:560px){.subtabs{width:100%;overflow-x:auto}}
 /* Раздел «Мои автомобили» (BUG-047: верстка перенесена из frontend/my-cars.html
    внутрь дашборда как таб; имена классов сохранены 1в1 — коллизий со стилями
@@ -278,10 +277,12 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
 .compl .missing{margin-top:8px;font-size:10px;color:#7e909a;line-height:1.55;max-width:100%}
 .compl .missing b{color:#ffd479;font-weight:500}
 /* модалка-галерея авто (мокап my-cars-s7): большое окно + миниатюры */
-.gal-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(240px,1fr);gap:14px;margin-top:14px}
+/* BUG-053: компоновка модалки фото — ОДНА колонка (галерея вверху,
+   «Информация»/«Комплектность» внизу; decisions/2026-11-02-photo-modal-layout.md) */
+.gal-grid{display:grid;grid-template-columns:1fr;gap:14px;margin-top:14px}
 .gal-panel{border:1px solid #ffffff12;border-radius:15px;background:#ffffff04;padding:15px;min-width:0}
 .gal-panel h3,.gal-h{font-size:10px;color:#8fa0aa;text-transform:uppercase;letter-spacing:.14em;margin:0 0 12px;font-weight:500}
-.gal-big{position:relative;aspect-ratio:16/9;border-radius:13px;overflow:hidden;border:1px solid #ffffff14;margin-bottom:11px;background:#0d2b1c55;cursor:pointer}
+.gal-big{position:relative;aspect-ratio:16/9;min-height:340px;border-radius:13px;overflow:hidden;border:1px solid #ffffff14;margin-bottom:11px;background:#0d2b1c55;cursor:pointer}
 .gal-big img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .gal-big .ph{position:absolute;inset:0;display:grid;place-items:center;color:#7fe3a3;font-size:34px}
 .gal-big .up-hint{position:absolute;left:0;right:0;bottom:0;padding:5px 8px;font-size:10px;color:#d6e4e2;background:#02070bb8;text-align:center;z-index:3}
@@ -289,7 +290,8 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
 .gal-big .prog.on{display:block}
 .gal-big .prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,#1c6b41,var(--green))}
 .gal-big.busy{pointer-events:none}
-.gal-thumbs{display:grid;grid-template-columns:repeat(6,1fr);gap:7px}
+/* BUG-053: миниатюры крупнее (6 фото = 5 ракурсов + СТС, ~104–110px) */
+.gal-thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:7px}
 .gal-thumb{position:relative;aspect-ratio:4/3;border-radius:9px;overflow:hidden;border:1.5px solid #ffffff14;background:#0d141a;padding:0;transition:border-color .12s;cursor:pointer}
 .gal-thumb:hover{border-color:#35d879aa}
 .gal-thumb.sel{border-color:#35d879}
@@ -309,7 +311,6 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
 .act-btn{border:1px solid #ffffff14;background:#ffffff05;color:#b9c8ce;border-radius:11px;padding:11px 18px;font-size:12px;font-weight:550;flex:0 0 auto}
 .act-btn.warn{border-color:#6b5426;background:#2a2010;color:#ffd479}
 .act-btn.warn:hover{filter:brightness(1.12)}
-@media(max-width:900px){.gal-grid{grid-template-columns:1fr}}
 /* «Мои документы» (мокап my-documents.html) */
 .sect{margin-top:20px}
 .sect:first-of-type{margin-top:0}
@@ -486,34 +487,6 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
       <div class="cal-grid" id="cal-grid"></div>
       <div class="cal-hint">Сохранение заменяет весь график недели: интервалы, снятые с выбора, будут удалены. Дубликаты объединяются автоматически. Запрос ученика показан ровно на выбранном им слоте — подтверждение или отказ (с обязательным комментарием) применяются сразу, без «Сохранить».</div>
     </div>
-    <!-- BUG-051: брони/запросы — подраздел «Календаря» (п.9 Постановки
-         Заказчика 2026-10-23: раздел «Бронирования» убран из сайдбара,
-         функционал слит с календарем; мокап booking-instructor.html,
-         FR-48/FR-49): входящие запросы — Принять (без комментария) /
-         Отклонить (комментарий обязателен, иначе 422); подтверждённые —
-         в сетке недели поверх графика -->
-    <div class="bk-block">
-      <div class="panel-head"><div><div class="panel-title">Запросы на занятия</div><div class="panel-sub">Ученики бронируют слоты вашего графика. Принять можно одним нажатием; при отказе обязателен комментарий — его увидит ученик, и слот освободится.</div></div></div>
-      <div class="filters" id="bk-filters">
-        <button class="on" data-f="all" type="button">Все</button>
-        <button data-f="new" type="button">Новые <span class="n" id="bk-new-n"></span></button>
-        <button data-f="confirmed" type="button">Подтверждённые</button>
-        <button data-f="rejected" type="button">Отклонённые</button>
-      </div>
-      <div class="bk-list" id="bk-list"></div>
-      <div class="bk-cal">
-        <div class="cal-head">
-          <div><b>Календарь на неделю</b><div class="sub">Ваш график + подтверждённые брони</div></div>
-        </div>
-        <div class="legend">
-          <span><i class="green"></i>В графике — свободно</span>
-          <span><i class="blue"></i>Подтверждённая бронь</span>
-          <span><i class="orange"></i>Новый запрос</span>
-        </div>
-        <div class="grid" id="bk-grid"></div>
-        <div class="bk-hint">Слот бронируется целиком. Отклонение освобождает слот — ученик сможет отправить запрос на него снова. Подтверждённые брони попадают в «Занятия на сегодня» на главной.</div>
-      </div>
-    </div>
   </section>
 
   <!-- Раздел «Мои ученики» (мокап my-students.html, Спринт 8 change
@@ -615,9 +588,15 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
     </div>
 
     <!-- Спринт 7 (мокап my-cars-s7.html, FR-63/64/65): модалка-галерея авто —
-         инфо + большое окно с фото (клик — загрузить/заменить ракурс или СТС,
-         стрелки ‹ › с полупрозрачным фоном) + комплектность + статусные
-         действия («Отправить на валидацию» / «Вернуть в черновик», ОВ-3) -->
+         большое окно с фото (клик — загрузить/заменить ракурс или СТС,
+         стрелки ‹ › с полупрозрачным фоном) + миниатюры ПОД ним +
+         комплектность + статусные действия («Отправить на валидацию» /
+         «Вернуть в черновик», ОВ-3). BUG-053 (прямива Заказчика,
+         decisions/2026-11-02-photo-modal-layout.md): компоновка
+         ОДНОКОЛОНОЧНАЯ — галерея вверху (большое окно, миниатюры внизу
+         под ним, крупнее), «Информация» и «Комплектность» — внизу
+         модалки; длинный инструктивный текст удален (короткий title
+         на mc-big) -->
     <div class="backdrop" id="m-car" role="dialog" aria-modal="true" aria-labelledby="mc-title">
       <div class="modal">
         <div class="modal-head">
@@ -626,27 +605,22 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
           <button class="close" data-close="m-car" aria-label="Закрыть">×</button>
         </div>
         <div class="gal-grid">
-          <div>
-            <div class="gal-h">Галерея · 5 ракурсов + СТС</div>
-            <div class="gal-big" id="mc-big" title="Клик — загрузить или заменить фото этого ракурса">
-              <span class="ph">🚗</span>
-              <span class="up-hint" id="mc-big-hint">—</span>
-              <div class="prog" id="mc-prog"><i></i></div>
-            </div>
-            <div class="gal-thumbs" id="mc-thumbs"></div>
-            <div class="form-note" style="margin-top:12px">Клик по миниатюре — открыть в большом окне; клик по большому окну — <b>загрузить или заменить</b> фото этого ракурса (JPEG/PNG, ≤5 МБ). СТС дозагружается на уже созданном авто — и появится в «Моих документах». Замена СТС статус авто не меняет (Спринт 8, ОВ-6): новая версия уходит администратору в раздел «Документы»; замена фото ракурсов у «Проверено» возвращает авто на валидацию.</div>
+          <div class="gal-h">Галерея · 5 ракурсов + СТС</div>
+          <div class="gal-big" id="mc-big" title="Клик — загрузить или заменить фото этого ракурса">
+            <span class="ph">🚗</span>
+            <span class="up-hint" id="mc-big-hint">—</span>
+            <div class="prog" id="mc-prog"><i></i></div>
           </div>
-          <div>
-            <div class="gal-panel">
-              <h3>Информация</h3>
-              <div class="gal-rows" id="mc-info"></div>
-            </div>
-            <div class="gal-panel" style="margin-top:12px">
-              <h3>Комплектность</h3>
-              <div class="gal-compl-lab"><span id="mc-compl-lab">—</span><span class="status st-draft" id="mc-compl-badge">—</span></div>
-              <div class="compl-bar" id="mc-bar"></div>
-              <div class="missing" id="mc-missing" style="margin-top:9px"></div>
-            </div>
+          <div class="gal-thumbs" id="mc-thumbs"></div>
+          <div class="gal-panel">
+            <h3>Информация</h3>
+            <div class="gal-rows" id="mc-info"></div>
+          </div>
+          <div class="gal-panel">
+            <h3>Комплектность</h3>
+            <div class="gal-compl-lab"><span id="mc-compl-lab">—</span><span class="status st-draft" id="mc-compl-badge">—</span></div>
+            <div class="compl-bar" id="mc-bar"></div>
+            <div class="missing" id="mc-missing" style="margin-top:9px"></div>
           </div>
         </div>
         <div class="form-actions" id="mc-acts"></div>

@@ -265,10 +265,6 @@ function openCalendar(){
     el('cal-changed').style.display='none';
     calLoadBookings(); // метки запросов/броней поверх графика (FR-74)
   });
-  // BUG-051: брони и запросы — подраздел «Календаря» (п.9 Постановки
-  // Заказчика 2026-10-23, бывший раздел «Бронирования»): открываются
-  // вместе с графиком
-  openBookings();
 }
 el('cal-save').addEventListener('click',function(){
   var intervals=Object.keys(calSelected).map(function(k){
@@ -1349,8 +1345,9 @@ function bkCarText(c){return c?[c.brand,c.model].filter(Boolean).join(' ')+(c.ye
 // {comment}, пустой на сервере — 422), у подтвержденной брони —
 // «Отменить бронь» (POST …/cancel, BUG-049); NFR-23: контракты booking
 // без изменений ---
-// --- Брони/запросы — подраздел «Календаря» (BUG-051, бывший раздел
-// «Бронирования»; FR-48/FR-49): список bk-list + сетка bk-grid ---
+// --- Брони/запросы — подраздел «Календаря» (бывший раздел
+// «Бронирования»; FR-48/FR-49): метки на слотах cal-grid,
+// решения — в модалке #m-bk (BUG-052: унаследованный блок снесен) ---
 function calLoadBookings(){
   apiGet('/api/instructor/bookings',function(res){
     calBookings={};
@@ -1466,200 +1463,6 @@ if(location.hash==='#/bookings')navTo('Календарь');
 // Выход (FR-22): POST /api/auth/logout -> по любому ответу очистка
 // sessionStorage -> редирект на лендинг инструкторов (спринт 3, правка:
 // выход из кабинета ведет на /instructors, а не на главную).
-// --- BUG-051: брони/запросы — подраздел «Календаря» (bk-list/bk-grid),
-// resurrect из origin/main: список + сетка недели + биндинги фильтров
-var bkState={list:[],filter:'all',open:null,intervals:[]};
-
-function openBookings(){
-  apiGet('/api/instructor/availability',function(res){
-    bkState.intervals=res?(res.intervals||[]):[];
-    apiGet('/api/instructor/bookings',function(res2){
-      if(!res2)return;
-      bkState.list=res2.bookings||[];
-      bkRenderList();
-      bkRenderGrid();
-      // BUG-051: бейдж сайдбара «Бронирования» удален вместе с кнопкой —
-      // новые запросы видны в списке и сетке «Календаря»
-    });
-  });
-}
-function bkRenderList(){
-  var box=el('bk-list');box.innerHTML='';
-  el('bk-new-n').textContent=(function(){
-    var n=bkState.list.filter(function(b){return b.status==='new'}).length;
-    return n?('·'+n):'';
-  })();
-  var list=bkState.list.filter(function(b){return bkState.filter==='all'||b.status===bkState.filter});
-  if(!list.length){box.innerHTML='<div class="bk-none">Броней в этой категории нет.</div>';return}
-  var BK_ST={new:['Новый запрос','st-new'],confirmed:['Подтверждена','st-ok'],rejected:['Отклонена','st-den']};
-  list.forEach(function(b){
-    var art=node('article','req');
-    var top=node('div','req-top');
-    top.appendChild(node('span','sic',stuInitials(b.student_full_name)));
-    var who=node('div');
-    who.appendChild(node('b',null,b.student_full_name||'Ученик'));
-    who.appendChild(node('small',null,bkWhen(b)+' · авто: '+bkCarText(b.car)));
-    top.appendChild(who);
-    var st=BK_ST[b.status]||BK_ST.new;
-    top.appendChild(node('span','status '+st[1],st[0]));
-    art.appendChild(top);
-    if(b.reject_comment){
-      var com=node('div','comment'+(b.status==='rejected'?' denied':''));
-      com.appendChild(node('span',null,b.status==='rejected'?'Ваш комментарий при отказе':'Комментарий ученика'));
-      com.appendChild(document.createTextNode(b.reject_comment));
-      art.appendChild(com);
-    }
-    if(b.decided_at)art.appendChild(node('div','bk-hint','Решение: '+String(b.decided_at).split('.')[0]));
-    if(b.status==='new'){
-      var actions=node('div','bk-actions');
-      var acc=node('button','act accept','✓ Принять');acc.type='button';acc.dataset.confirm=String(b.id);
-      var den=node('button','act deny','✕ Отклонить…');den.type='button';den.dataset.denypanel=String(b.id);
-      actions.appendChild(acc);actions.appendChild(den);
-      art.appendChild(actions);
-      // панель отказа: подтверждение заблокировано до непустого комментария
-      // (ОВ-2; пустой комментарий на сервере → 422)
-      var panel=node('div','deny-panel'+(bkState.open===b.id?' open':''));
-      panel.id='bk-deny-'+b.id;
-      panel.appendChild(node('h4',null,'Комментарий при отказе — обязателен (без него действие заблокировано)'));
-      var ta=document.createElement('textarea');
-      ta.id='bk-ta-'+b.id;
-      ta.placeholder='Например: в это время пересдача экзамена, выберите другой слот';
-      panel.appendChild(ta);
-      var da=node('div','deny-actions');
-      var dbt=node('button','deny-confirm','✕ Отклонить запрос');dbt.type='button';dbt.dataset.senddeny=String(b.id);dbt.disabled=true;
-      da.appendChild(dbt);
-      da.appendChild(node('span','deny-note','Комментарий увидит ученик; слот освободится для повторного запроса.'));
-      panel.appendChild(da);
-      art.appendChild(panel);
-    }
-    // BUG-049: у подтвержденной брони должна работать отмена
-    // (POST …/cancel — эндпоинт guard-статусом 'confirmed')
-    if(b.status==='confirmed'){
-      var cact=node('div','bk-actions');
-      var cbtn=node('button','act deny','✕ Отменить бронь');
-      cbtn.type='button';cbtn.dataset.cancel=String(b.id);
-      cact.appendChild(cbtn);
-      art.appendChild(cact);
-    }
-    box.appendChild(art);
-  });
-  bkBindList();
-}
-function bkBindList(){
-  // селекторы скоуплены #bk-list: те же data-атрибуты использует
-  // раздел «Запросы учеников» — глобальный querySelectorAll дважды
-  // навесил бы обработчики (см. bindRequests)
-  document.querySelectorAll('#bk-list [data-confirm]').forEach(function(b){b.addEventListener('click',function(){
-    // ОВ-2: подтверждение — БЕЗ комментария, атомарно
-    apiSend('POST','/api/instructor/bookings/'+b.dataset.confirm+'/confirm',{},function(res){
-      if(res.status===200&&res.data&&res.data.ok){
-        toast('Бронь подтверждена. Слот закреплён в календаре и попадёт в «Занятия на сегодня».');
-        openBookings();loadSummary();
-      }else{
-        toast((res.data&&res.data.error)||'Не удалось подтвердить бронь');
-      }
-    });
-  })});
-  document.querySelectorAll('#bk-list [data-cancel]').forEach(function(b){b.addEventListener('click',function(){
-    // BUG-049: отмена подтвержденной брони — слот освобождается
-    apiSend('POST','/api/instructor/bookings/'+b.dataset.cancel+'/cancel',{},function(res){
-      if(res.status===200&&res.data&&res.data.ok){
-        toast('Бронь отменена. Слот снова свободен — ученик может запросить его повторно.');
-        openBookings();loadSummary();
-      }else{
-        toast((res.data&&res.data.error)||'Не удалось отменить бронь');
-      }
-    });
-  })});
-  document.querySelectorAll('#bk-list [data-denypanel]').forEach(function(b){b.addEventListener('click',function(){
-    var id=b.dataset.denypanel;
-    bkState.open=bkState.open===id?null:id;
-    bkRenderList();
-    var ta=el('bk-ta-'+id);if(ta)ta.focus();
-  })});
-  document.querySelectorAll('#bk-list [data-senddeny]').forEach(function(btn){
-    var id=btn.dataset.senddeny,ta=el('bk-ta-'+id);
-    ta.addEventListener('input',function(){btn.disabled=!ta.value.trim()});
-    btn.addEventListener('click',function(){
-      if(!ta.value.trim())return;
-      apiSend('POST','/api/instructor/bookings/'+id+'/reject',{comment:ta.value.trim()},function(res){
-        if(res.status===200&&res.data&&res.data.ok){
-          bkState.open=null;
-          toast('Запрос отклонён. Слот снова свободен — ученик может запросить его повторно.');
-          openBookings();
-        }else{
-          toast((res.data&&res.data.error)||'Не удалось отклонить запрос');
-        }
-      });
-    });
-  });
-  document.querySelectorAll('#bk-filters button').forEach(function(b){b.addEventListener('click',function(){
-    document.querySelectorAll('#bk-filters button').forEach(function(x){x.classList.remove('on')});
-    b.classList.add('on');bkState.filter=b.dataset.f;bkRenderList();
-  })});
-}
-// сетка недели: интервалы графика × дни; поверх — брони (confirmed — синяя
-// с учеником, new — жёлтый запрос, клик ведёт к решению)
-function bkRenderGrid(){
-  var grid=el('bk-grid');grid.innerHTML='';
-  var now=nowMoscow();
-  var mon=new Date(now);mon.setDate(mon.getDate()-((mon.getDay()+6)%7));
-  var todayIdx=(now.getDay()+6)%7;
-  var corner=node('span','corner','время');grid.appendChild(corner);
-  for(var d=0;d<7;d++){
-    var dt=new Date(mon);dt.setDate(mon.getDate()+d);
-    var dh=node('div','dh'+(d===todayIdx?' today':''));
-    dh.appendChild(node('small',null,BK_DAYS[d]));
-    dh.appendChild(node('b',null,String(dt.getDate())));
-    grid.appendChild(dh);
-  }
-  var rows={};
-  bkState.intervals.forEach(function(iv){
-    rows[iv.start_time+'-'+iv.end_time]={start_time:iv.start_time,end_time:iv.end_time};
-  });
-  var keys=Object.keys(rows).sort();
-  if(!keys.length){
-    grid.appendChild(node('div','bk-none','График на неделю пуст — задайте его в разделе «Календарь».'));
-    return;
-  }
-  keys.forEach(function(k){
-    var iv=rows[k];
-    var tl=node('span','tlabel',iv.start_time.slice(0,5)+'–'+iv.end_time.slice(0,5));
-    grid.appendChild(tl);
-    for(var d2=0;d2<7;d2++){
-      var booking=null;
-      bkState.list.forEach(function(b){
-        if(b.weekday===d2&&b.start_time===iv.start_time&&b.end_time===iv.end_time
-           &&(b.status==='confirmed'||b.status==='new'))booking=b;
-      });
-      var cell=document.createElement('button');
-      cell.type='button';
-      if(booking&&booking.status==='confirmed'){
-        cell.className='slot booked';
-        cell.appendChild(node('small',null,booking.student_full_name||''));
-        cell.appendChild(document.createTextNode('подтверждено'));
-        cell.title='Подтверждённая бронь: '+(booking.student_full_name||'');
-      }else if(booking){
-        cell.className='slot reqslot';
-        cell.appendChild(node('small',null,booking.student_full_name||''));
-        cell.appendChild(document.createTextNode('запрос'));
-        cell.title='Новый запрос: '+(booking.student_full_name||'')+' (нажмите для перехода к решению)';
-        cell.addEventListener('click',function(){
-          bkState.filter='new';
-          document.querySelectorAll('#bk-filters button').forEach(function(x){x.classList.toggle('on',x.dataset.f==='new')});
-          bkRenderList();
-          window.scrollTo({top:0,behavior:'smooth'});
-        });
-      }else{
-        cell.className='slot on';
-        cell.textContent='свободно';
-        cell.title='В графике — свободно';
-      }
-      grid.appendChild(cell);
-    }
-  });
-}
-
 function logout(){
 fetch('/api/auth/logout',{method:'POST',headers:{'X-Session-Token':token||''}})
   .catch(function(){})
