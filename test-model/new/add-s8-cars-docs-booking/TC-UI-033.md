@@ -1,0 +1,23 @@
+# TC-UI-033 — «Мои документы»: статусы версий, предпросмотр, замена ВУ через диалог FR-71 (ОВ-1)
+
+- Автотест: `tests/test_ui_playwright.py::test_s8_my_documents_statuses_versions_and_license_replace`
+- Приоритет: Must (FR-70/FR-71/FR-72)
+- Статус: автоматизирован (rule 6 — TC-ID в docstring теста); кейс партии change add-s8-cars-docs-booking (Спринт 8)
+- Трассировка:
+  - Requirement: Раздел «Мои документы» инструктора (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
+  - Scenario: Ожидающая замена видна со статусом «Ожидает проверки замены» (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
+  - Scenario: Отклоненная замена видна с причиной отказа — ОВ-1 (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
+  - Scenario: Просмотр и скачивание документа (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
+  - Scenario: Кнопки загрузки/замены в разделе (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
+  - Requirement: Загрузка и замена документов инструктором (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
+  - Scenario: Загрузка замены с предупреждением и явной кнопкой — FR-71 (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
+
+## GIVEN / WHEN / THEN
+- GIVEN дашборд инструктора с API, замоканным по контракту design.md (бэкенд-волна параллельна): GET /api/instructor/documents — ВУ с active v1; СТС Škoda Rapid с pending v2; СТС Lada Vesta с last_rejected {version: 2, reject_reason: «Фото нечитаемо: номер СТС и VIN размыты…»}; PNG-маршруты файлов документов; открыт раздел «Профиль и документы»
+- WHEN проверяются карточки ВУ/СТС; клик миниатюры ВУ (предпросмотр, закрытие Escape); клик «Заменить» → отмена диалога (#rep-cancel); повторно «Заменить» → подтверждение явной кнопкой «Заменить» (#rep-go) → выбор PNG-файла
+- THEN карточки: #lic-docs — 1 («Действует», «версия 1»), #sts-docs — 2; у pending-СТС плашка «замена на проверке» и блок «Ожидает проверки замены» с «действует текущая версия»; у rejected-СТС блок «Причина отказа от администратора» с текстом причины и «действует предыдущая версия, можно загрузить заново» (ОВ-1); предпросмотр: #m-view виден, изображение naturalWidth > 0 (файл открылся — ОВ-4), Escape закрывает; диалог замены содержит предупреждение («Замена не вступает в силу сразу», «после проверки администратором», «действует предыдущая версия») и ЯВНУЮ кнопку «Заменить»; отмена — ни одного POST (файл не отправлен, FR-71); подтверждение → multipart POST /api/instructor/documents/license с файлом в поле file (контракт), toast «…на проверку администратору», список перезагружен — у ВУ «Ожидает проверки замены» при бейдже «Действует» (документ «не мигает»); файл документа запрошен с X-Session-Token владельца
+
+## Примечание
+- Партия change add-s8-cars-docs-booking (Спринт 8); кейсы живут
+  трассировкой TC-ID в docstring автотеста (rule 6); полный прогон
+  359 passed (integration, лог ПМ).
