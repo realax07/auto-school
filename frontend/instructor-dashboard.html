@@ -329,6 +329,36 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
 .bk-cal .slot.reqslot small{display:block;color:#ffd479;font-weight:600;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bk-hint{margin-top:14px;font-size:11px;color:#7e909a;line-height:1.7}
 .bk-none{border:1px dashed #ffffff1c;border-radius:12px;padding:16px 14px;font-size:11px;color:#8fa0aa;text-align:center}
+/* Спринт 8 (change add-s8-cars-docs-booking, мокап my-documents-s8.html):
+   статусная модель документов — бейджи версий (.ds-*), блок «Ожидает
+   проверки замены» (.subver.pend) и причина отказа (.subver.rej);
+   карточка документа — article с кнопками действий (.doc-actions).
+   FR-71: модалка замены с предупреждением (.warnbox) и ЯВНОЙ «Заменить». */
+.doc{cursor:default}
+.doc .pill.okpill{border-color:#2a5c40;background:#143322;color:#91efb1}
+.ds-badge{font-size:10px;padding:5px 11px;border-radius:999px;border:1px solid;white-space:nowrap;margin-top:10px;align-self:flex-start}
+.ds-verified{background:#143322;color:#91efb1;border-color:#2a5c40}
+.ds-verified:before{content:"✓ "}
+.ds-pending{background:#2a2010;color:#ffd479;border-color:#6b5426}
+.ds-rejected{background:#33201a;color:#ffb28e;border-color:#5c3030}
+.doc .meta .ver{color:#7e909a}
+.subver{margin-top:11px;border:1px solid #ffffff10;border-radius:12px;padding:10px 12px;font-size:11px;line-height:1.6;text-align:left}
+.subver.pend{border-color:#6b542666;background:#2a201033}
+.subver.pend b{color:#ffd479;font-weight:550;display:block;font-size:10px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:5px}
+.subver.rej{border-color:#5c303066;background:#33201a33}
+.subver.rej b{color:#ffb28e;font-weight:550;display:block;font-size:10px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:5px}
+.subver span{color:#c9d6db}
+.subver .look{color:#8fa0aa;font-size:10px}
+.doc-actions{display:flex;gap:8px;margin-top:12px}
+.doc-actions .btn-u{flex:1;border-radius:10px;padding:10px 12px;font-size:11px;font-weight:550;border:1px solid #2e6a47;background:#143222;color:#a2f5bf;cursor:pointer}
+.doc-actions .btn-u:hover{filter:brightness(1.12)}
+.doc-actions .btn-u.ghost{background:transparent;border-color:#ffffff22;color:#b9c8ce}
+.doc-actions .btn-u.ghost:hover{border-color:#35d87966;color:#c9ffdd}
+.doc .pendtag{position:absolute;left:8px;top:8px;font-size:9px;color:#ffd479;background:#02070bc0;border:1px solid #6b5426;border-radius:999px;padding:3px 9px;z-index:2}
+.thumb .ph{position:absolute;inset:0;display:grid;place-items:center;color:#7fe3a3;font-size:30px}
+.warnbox{border:1px solid #6b5426;background:#2a201033;border-radius:13px;padding:14px 16px;font-size:12px;line-height:1.7;color:#ffe4a3;text-align:left}
+.warnbox b{color:#ffd479}
+.m-rep-txt{font-size:12px;color:#c9d6db;line-height:1.7;margin:12px 0 0;text-align:left}
 </style>
 </head>
 <body>
@@ -359,8 +389,12 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
   <div class="hello"><div><div class="kicker">Понедельник · 12 октября</div><h2 id="hello-name">Добрый день, Михаил</h2><p>Вот что у тебя сегодня. Всё под контролем.</p></div><div class="online"><i></i> Профиль активен</div></div>
   <!-- Виджеты главной (мокап calendar-availability-a, change add-instructor-student-loop):
        данные GET /api/instructor/summary + GET /api/instructor/requests; до ответа —
-       честные пустые состояния (демо-данных виджеты больше не показывают). -->
-  <section class="widgets">
+       честные пустые состояния (демо-данных виджеты больше не показывают).
+       Спринт 8 (FR-73, change add-s8-cars-docs-booking): класс day-content —
+       виджеты принадлежат ТОЛЬКО главной «Мой день»; разделы «Мои автомобили»
+       и «Мои документы» (и остальные) открываются БЕЗ виджетов (явные
+       исключения Заказчика; place виджетов — главная и «Мои ученики»). -->
+  <section class="widgets day-content">
     <div class="w" id="w-students">
       <div class="w-head"><b>Привязанные ученики</b><span class="w-n" id="w-students-n">0</span></div>
       <div id="w-students-list"><div class="w-empty" id="w-students-empty"><b>Пока нет привязанных учеников</b>Принятые заявки появятся в этом списке.</div></div>
@@ -542,7 +576,7 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
               <div class="prog" id="mc-prog"><i></i></div>
             </div>
             <div class="gal-thumbs" id="mc-thumbs"></div>
-            <div class="form-note" style="margin-top:12px">Клик по миниатюре — открыть в большом окне; клик по большому окну — <b>загрузить или заменить</b> фото этого ракурса (JPEG/PNG, ≤5 МБ). СТС дозагружается на уже созданном авто — и появится в «Моих документах». Замена фото и СТС статус не меняет.</div>
+            <div class="form-note" style="margin-top:12px">Клик по миниатюре — открыть в большом окне; клик по большому окну — <b>загрузить или заменить</b> фото этого ракурса (JPEG/PNG, ≤5 МБ). СТС дозагружается на уже созданном авто — и появится в «Моих документах». Замена СТС статус авто не меняет (Спринт 8, ОВ-6): новая версия уходит администратору в раздел «Документы»; замена фото ракурсов у «Проверено» возвращает авто на валидацию.</div>
           </div>
           <div>
             <div class="gal-panel">
@@ -563,17 +597,21 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
     </div>
   </section>
 
-  <!-- Раздел «Мои документы» (мокап my-documents.html, change add-booking-docs):
-       ВУ из анкеты + СТС по каждому авто; просмотр полного размера —
-       GET /api/instructor/documents/{doc_id}/file (только владелец) -->
+  <!-- Раздел «Мои документы» (мокап my-documents-s8.html, Спринт 8
+       change add-s8-cars-docs-booking): ВУ из анкеты + СТС по каждому авто;
+       статусная модель версий (Действует / Ожидает проверки замены /
+       Отклонено с причиной); загрузка/замена — FR-72 (без виджетов, FR-73);
+       просмотр полного размера — GET /api/instructor/documents/{doc_id}/file
+       (только владелец). Виджетов «привязанные ученики/запросы/занятия»
+       в разделе НЕТ (FR-73). -->
   <section class="card panel" id="sec-docs" style="display:none">
     <section class="sect">
-      <div class="sect-head"><b>Водительское удостоверение</b><span class="n" id="lic-n">0</span><span class="hint">из анкеты инструктора</span></div>
+      <div class="sect-head"><b>Водительское удостоверение</b><span class="n" id="lic-n">0</span><span class="hint">личный документ · из анкеты инструктора</span></div>
       <div class="docs" id="lic-docs"></div>
-      <div class="no-license" id="no-license"><b>ВУ не найдено</b><span id="no-license-hint">В вашей анкете не было фото водительского удостоверения. Досыл документа появится позже — обратитесь в поддержку.</span></div>
+      <div class="no-license" id="no-license"><b>ВУ не загружено</b><span id="no-license-hint">В вашей анкете не было фото водительского удостоверения.</span><div class="doc-actions" style="justify-content:center;margin-top:14px"><button class="btn-u" id="upload-license" type="button" style="flex:0 0 auto;padding:10px 22px">Загрузить ВУ</button></div></div>
     </section>
     <section class="sect">
-      <div class="sect-head"><b>СТС автомобилей</b><span class="n" id="sts-count">0</span><span class="hint">по одному на каждый автомобиль</span></div>
+      <div class="sect-head"><b>СТС автомобилей</b><span class="n" id="sts-count">0</span><span class="hint">по одному на каждый автомобиль · замена — после проверки администратором</span></div>
       <div class="docs" id="sts-docs"></div>
     </section>
   </section>
@@ -616,6 +654,28 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
       <div class="viewer-foot">Выдача — авторизованный эндпоинт GET /api/instructor/documents/{doc_id}/file (Content-Type image/*). Чужой или несуществующий документ вернёт 404 — документы других инструкторов недоступны.</div>
     </div>
   </div>
+
+  <!-- Спринт 8 (FR-71): предупреждение замены — явная кнопка «Заменить»;
+       без клика по ней файл НЕ отправляется, отмена ничего не меняет.
+       Диалог общий для замены ВУ/СТС из «Моих документов» и СТС из
+       модалки авто («Мои автомобили»). -->
+  <div class="backdrop" id="m-replace" role="dialog" aria-modal="true" aria-labelledby="rep-title">
+    <div class="viewer" style="width:min(520px,100%)">
+      <div class="viewer-head">
+        <div><h2 id="rep-title">Заменить документ?</h2><small id="rep-sub">—</small></div>
+        <button class="close" id="rep-close" aria-label="Закрыть">×</button>
+      </div>
+      <div class="warnbox"><b>Замена не вступает в силу сразу.</b> Замена вступит в силу только после проверки администратором: до подтверждения действует предыдущая версия — документ «не мигает». Повторная загрузка до решения заменит ожидающую версию.</div>
+      <p class="m-rep-txt">Если администратор отклонит замену, вы увидите причину отказа, а действующей останется текущая версия — документ не будет утерян.</p>
+      <div class="form-actions">
+        <button class="btn primary" id="rep-go" type="button">Заменить</button>
+        <button class="btn ghost" id="rep-cancel" type="button">Отмена</button>
+      </div>
+    </div>
+  </div>
+  <!-- единый скрытый input загрузки документов (ВУ/СТС): открывается
+       после явного «Заменить» (или сразу — для первой загрузки) -->
+  <input type="file" id="doc-file" accept="image/jpeg,image/png" style="display:none">
 
   <footer><span>СберАвтошкола · Кабинет инструктора</span><span>Демонстрационный интерфейс · Все данные вымышлены</span></footer>
 </main>

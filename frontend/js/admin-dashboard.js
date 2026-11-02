@@ -50,13 +50,16 @@ function showSection(name, btn){
   // Спринт 7: селекторы скоуплены id-ами (в админке три таблицы:
   // пользователи, заявки, автомобили — querySelector('table') больше не годится)
   var users=name==='users',apps=name==='applications',cars=name==='cars';
+  var docs=name==='documents'; // Спринт 8: раздел «Документы» (ОВ-1/ОВ-4)
   document.getElementById('users-table').style.display=users?'':'none';
   document.getElementById('empty').style.display=users?'':'none';
   document.querySelector('.toolbar').style.display=users?'':'none';
   document.getElementById('sec-applications').style.display=apps?'block':'none';
   document.getElementById('sec-cars-admin').style.display=cars?'block':'none';
+  document.getElementById('sec-documents').style.display=docs?'block':'none';
   if(apps)loadApplications();
   if(cars)acLoad();
+  if(docs)dcLoad();
 }
 function loadApplications(){
   fetch('/api/admin/instructor-applications',{headers:{'X-Admin-Token':TOKEN}})
@@ -388,6 +391,273 @@ function toastMsg(m){
   clearTimeout(window._acToastTimer);
   window._acToastTimer=setTimeout(function(){t.classList.remove('show')},3400);
 }
+// =========================================================================
+// Спринт 8 (change add-s8-cars-docs-booking, задачи 4.1/7.1, ОВ-1/ОВ-4;
+// мокап design/mocks/admin-documents.html): раздел «Документы» —
+// верификация замененных версий документов инструкторов (единая модель
+// ВУ+СТС). GET /api/admin/documents?status=pending (default; pending/
+// verified/rejected): тип, версия, uploaded_at; license — ФИО инструктора,
+// car_sts — марка/модель/госномер + владелец. Предпросмотр — GET
+// …/{version_id}/file: ИЗОБРАЖЕНИЕ ДОЛЖНО ОТКРЫВАТЬСЯ (ОВ-4; fetch ->
+// blob -> objectURL — <img> не умеет заголовки). «Подтвердить» → POST
+// …/verify (только pending — иначе 409); «Отклонить» → модалка с
+// ОБЯЗАТЕЛЬНОЙ причиной (кнопка заблокирована без текста; сервер 422 —
+// страховка), POST …/reject {reason}. После решения строка уходит из
+// списка. Вкладка «История» — verified+rejected, фильтры по типу/решению.
+// Пользовательские строки (ФИО/причины) — только textContent (XSS). ---
+var dcState={tab:'pending',ftype:'all',fh:'all',pending:[],history:[],denyTarget:null};
+var DC_ST={pending:['Ожидает верификации','dc-b-pend'],verified:['Подтверждено','dc-b-ok'],rejected:['Отклонено','dc-b-rej']};
+function dcFetch(status){
+  // контракт design.md блок C: X-Admin-Token; status — query-параметр
+  return fetch('/api/admin/documents?status='+encodeURIComponent(status),
+    {headers:{'X-Admin-Token':TOKEN}})
+    .then(function(r){
+      if(r.status===401){location.href='/admin-login';throw new Error('unauthorized');}
+      return r.json();
+    })
+    .then(function(d){
+      if(!d||!d.ok)throw new Error((d&&d.error)||'Не удалось загрузить документы');
+      return d.documents||[];
+    });
+}
+function dcLoad(){
+  Promise.all([dcFetch('pending'),dcFetch('verified'),dcFetch('rejected')])
+    .then(function(res){
+      dcState.pending=res[0];
+      // история: решения (verified + rejected) — свежие сверху
+      dcState.history=res[1].concat(res[2]).sort(function(a,b){
+        return String(b.decided_at||'').localeCompare(String(a.decided_at||''));
+      });
+      dcRender();
+    })
+    .catch(function(e){if(e.message!=='unauthorized'){dcState.pending=[];dcState.history=[];dcRender();toastMsg(e.message||'Не удалось загрузить документы');}});
+}
+function dcTitle(d){
+  if(d.type==='license')return d.instructor_full_name||'—';
+  var c=d.car||{};
+  return [c.brand,c.model].filter(Boolean).join(' ')+(c.plate?' · '+c.plate:'');
+}
+function dcSub(d){
+  if(d.type==='license'){
+    return 'ВУ · версия '+d.version+' · инструктор '+(d.instructor_full_name||'—');
+  }
+  var c=d.car||{};
+  return 'СТС · версия '+d.version+' · инструктор '+(d.owner_full_name||d.instructor_full_name||'—')
+    +([c.brand,c.model].filter(Boolean).join(' ')?' · авто '+[c.brand,c.model].filter(Boolean).join(' '):'');
+}
+function dcWhen(d){return String(d.decided_at||d.uploaded_at||'').split('.')[0]}
+function dcRender(){
+  var tab=dcState.tab,box=document.getElementById('dc-list');
+  document.getElementById('dc-filters').style.display=tab==='pending'?'flex':'none';
+  document.getElementById('dc-filters-hist').style.display=tab==='history'?'flex':'none';
+  document.getElementById('dc-hist-note').style.display=tab==='history'?'block':'none';
+  document.getElementById('dc-n-pending').textContent=dcState.pending.length?('·'+dcState.pending.length):'';
+  var rows,emptyText;
+  if(tab==='pending'){
+    // фильтр «СТС» (data-f="sts") сопоставляется с типом документа car_sts
+    var ftype=dcState.ftype==='sts'?'car_sts':dcState.ftype;
+    rows=dcState.pending.filter(function(d){return ftype==='all'||d.type===ftype});
+    emptyText='Очередь пуста — нет ожидающих версий по выбранному фильтру.';
+    document.getElementById('dc-count').textContent='Ожидающих версий: '+rows.length;
+  }else{
+    rows=dcState.history.filter(function(d){return dcState.fh==='all'||d.status===dcState.fh});
+    emptyText='Нет решений по выбранному фильтру.';
+    document.getElementById('dc-count').textContent='Записей в истории: '+rows.length;
+  }
+  document.getElementById('dc-empty').textContent=emptyText;
+  document.getElementById('dc-empty').style.display=rows.length?'none':'block';
+  box.innerHTML='';
+  rows.forEach(function(d){
+    var row=document.createElement('div');row.className='dc-row';
+    // миниатюра-предпросмотр: клик — модалка с изображением (ОВ-4)
+    var thumb=document.createElement('span');thumb.className='dc-thumb';
+    thumb.dataset.preview=String(d.id);thumb.title='Открыть предпросмотр';
+    thumb.textContent=d.type==='license'?'🪪':'🚗';
+    var zoom=document.createElement('span');zoom.className='zoom';zoom.textContent='⤢ Предпросмотр';
+    thumb.appendChild(zoom);
+    row.appendChild(thumb);
+    var info=document.createElement('div');info.className='dc-info';
+    var line=document.createElement('div');line.className='dc-line';
+    var t=document.createElement('span');
+    t.className='dc-type '+(d.type==='license'?'dc-t-lic':'dc-t-sts');
+    t.textContent=d.type==='license'?'ВУ':'СТС';
+    line.appendChild(t);
+    line.appendChild(Object.assign(document.createElement('b'),{textContent:dcTitle(d)}));
+    info.appendChild(line);
+    info.appendChild(Object.assign(document.createElement('small'),{textContent:dcSub(d)}));
+    info.appendChild(Object.assign(document.createElement('small'),
+      {textContent:(tab==='pending'?'загружено ':'решение от ')+dcWhen(d)+' · версия № '+d.version}));
+    var st=DC_ST[d.status]||DC_ST.pending;
+    var line2=document.createElement('div');line2.className='dc-line';
+    line2.appendChild(Object.assign(document.createElement('span'),{className:'dc-badge '+st[1],textContent:st[0]}));
+    if(tab==='pending'){
+      line2.appendChild(Object.assign(document.createElement('small'),
+        {style:'color:#7e909a',textContent:'действует предыдущая версия'}));
+    }
+    info.appendChild(line2);
+    // причина отказа — в истории (rejected): текст виден админу и инструктору
+    if(d.status==='rejected'&&d.reject_reason){
+      info.appendChild(Object.assign(document.createElement('div'),
+        {className:'dc-rej-reason',textContent:'Причина отказа: '+d.reject_reason}));
+    }
+    row.appendChild(info);
+    var act=document.createElement('div');act.className='dc-actions';
+    var view=document.createElement('button');view.type='button';
+    view.className='dc-act view';view.textContent='Предпросмотр';
+    view.dataset.view=String(d.id);
+    act.appendChild(view);
+    if(tab==='pending'){
+      var ap=document.createElement('button');ap.type='button';
+      ap.className='dc-act approve';ap.textContent='✓ Подтвердить';
+      ap.dataset.approve=String(d.id);
+      act.appendChild(ap);
+      var dn=document.createElement('button');dn.type='button';
+      dn.className='dc-act deny';dn.textContent='Отклонить…';
+      dn.dataset.opendeny=String(d.id);
+      act.appendChild(dn);
+    }
+    row.appendChild(act);
+    box.appendChild(row);
+  });
+}
+function dcOpenPreview(id){
+  var pool=dcState.pending.concat(dcState.history);
+  var d=null;
+  pool.forEach(function(x){if(x.id===id)d=x});
+  if(!d)return;
+  document.getElementById('dc-view-title').textContent=(d.type==='license'?'ВУ · ':'СТС · ')+dcTitle(d);
+  document.getElementById('dc-view-sub').textContent=dcSub(d)+' · загружено '+dcWhen(d);
+  var ph=document.getElementById('dc-view-full');
+  ph.innerHTML='';
+  ph.appendChild(Object.assign(document.createElement('span'),{textContent:'Загрузка…'}));
+  fetch('/api/admin/documents/'+id+'/file',{headers:{'X-Admin-Token':TOKEN}})
+    .then(function(r){
+      if(r.status===401){location.href='/admin-login';throw new Error('unauthorized');}
+      return r.ok?r.blob():null;
+    })
+    .then(function(blob){
+      if(!blob){ph.innerHTML='';ph.appendChild(Object.assign(document.createElement('span'),{textContent:'Изображение недоступно'}));return}
+      ph.innerHTML='';
+      var img=document.createElement('img');
+      img.alt='Предпросмотр документа';
+      img.src=URL.createObjectURL(blob);
+      ph.appendChild(img);
+    })
+    .catch(function(e){if(e.message!=='unauthorized'){ph.innerHTML='';ph.appendChild(Object.assign(document.createElement('span'),{textContent:'Изображение недоступно'}));}});
+  document.getElementById('dc-view').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function dcClosePreview(){
+  var img=document.querySelector('#dc-view-full img');
+  if(img&&img.src.startsWith('blob:'))URL.revokeObjectURL(img.src);
+  document.getElementById('dc-view').classList.remove('open');
+  document.body.style.overflow='';
+}
+function dcOpenDeny(id){
+  var d=null;
+  dcState.pending.forEach(function(x){if(x.id===id)d=x});
+  if(!d)return;
+  dcState.denyTarget=id;
+  document.getElementById('dc-deny-sub').textContent=(d.type==='license'?'ВУ · ':'СТС · ')+dcTitle(d);
+  document.getElementById('dc-reason').value='';
+  document.getElementById('dc-deny-go').disabled=true; // ОВ-1: причина обязательна
+  document.getElementById('dc-deny').classList.add('open');
+  document.body.style.overflow='hidden';
+  document.getElementById('dc-reason').focus();
+}
+function dcCloseDeny(){
+  dcState.denyTarget=null;
+  document.getElementById('dc-deny').classList.remove('open');
+  document.body.style.overflow='';
+}
+document.getElementById('dc-reason').addEventListener('input',function(){
+  // пустая причина → кнопка заблокирована (сервер вернул бы 422 — ОВ-1)
+  document.getElementById('dc-deny-go').disabled=!this.value.trim();
+});
+document.getElementById('dc-deny-go').addEventListener('click',function(){
+  var id=dcState.denyTarget,btn=this;
+  var reason=document.getElementById('dc-reason').value.trim();
+  if(!id||!reason)return;
+  btn.disabled=true;
+  fetch('/api/admin/documents/'+id+'/reject',{
+    method:'POST',headers:{'X-Admin-Token':TOKEN,'Content-Type':'application/json'},
+    body:JSON.stringify({reason:reason})})
+    .then(function(r){return r.json().then(function(d){return {status:r.status,data:d};});})
+    .then(function(res){
+      btn.disabled=false;
+      if(res.status===200&&res.data&&res.data.ok){
+        dcCloseDeny();
+        toastMsg('Замена отклонена с причиной. Действующей осталась предыдущая версия — инструктор не остался без документа.');
+        dcLoad(); // строка уходит из списка
+      }else{
+        // 422 «причина обязательна» / 409 «не pending» — серверная страховка
+        toastMsg((res.data&&res.data.error)||'Не удалось отклонить замену');
+      }
+    })
+    .catch(function(){btn.disabled=false;toastMsg('Не удалось отклонить замену');});
+});
+document.getElementById('dc-deny-cancel').addEventListener('click',dcCloseDeny);
+document.getElementById('dc-deny-close').addEventListener('click',dcCloseDeny);
+document.getElementById('dc-deny').addEventListener('click',function(e){
+  if(e.target===this)dcCloseDeny();
+});
+document.getElementById('dc-view-close').addEventListener('click',dcClosePreview);
+document.getElementById('dc-view').addEventListener('click',function(e){
+  if(e.target===this)dcClosePreview();
+});
+document.getElementById('dc-list').addEventListener('click',function(e){
+  var t=e.target.closest('[data-preview],[data-view]');
+  if(t){dcOpenPreview(+t.dataset.preview||+t.dataset.view);return}
+  var ap=e.target.closest('[data-approve]');
+  if(ap){
+    var id=+ap.dataset.approve,btn=ap;
+    btn.disabled=true;
+    fetch('/api/admin/documents/'+id+'/verify',{method:'POST',headers:{'X-Admin-Token':TOKEN}})
+      .then(function(r){return r.json().then(function(d){return {status:r.status,data:d};});})
+      .then(function(res){
+        btn.disabled=false;
+        if(res.status===200&&res.data&&res.data.ok){
+          toastMsg('Замена подтверждена: новая версия стала действующей, предыдущая переведена в архив.');
+          dcLoad();
+        }else{
+          // 409 «только pending» — серверная страховка
+          toastMsg((res.data&&res.data.error)||'Не удалось подтвердить замену');
+          dcLoad();
+        }
+      })
+      .catch(function(){btn.disabled=false;toastMsg('Не удалось подтвердить замену');});
+    return;
+  }
+  var dn=e.target.closest('[data-opendeny]');
+  if(dn)dcOpenDeny(+dn.dataset.opendeny);
+});
+document.querySelectorAll('#dc-tabs button').forEach(function(b){
+  b.addEventListener('click',function(){
+    document.querySelectorAll('#dc-tabs button').forEach(function(x){x.classList.remove('on')});
+    b.classList.add('on');
+    dcState.tab=b.dataset.tab;
+    dcRender();
+  });
+});
+document.querySelectorAll('#dc-filters button').forEach(function(b){
+  b.addEventListener('click',function(){
+    document.querySelectorAll('#dc-filters button').forEach(function(x){x.classList.remove('on')});
+    b.classList.add('on');
+    dcState.ftype=b.dataset.f;
+    dcRender();
+  });
+});
+document.querySelectorAll('#dc-filters-hist button').forEach(function(b){
+  b.addEventListener('click',function(){
+    document.querySelectorAll('#dc-filters-hist button').forEach(function(x){x.classList.remove('on')});
+    b.classList.add('on');
+    dcState.fh=b.dataset.fh;
+    dcRender();
+  });
+});
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'){dcClosePreview();dcCloseDeny();}
+});
 // onclick-обработчики в HTML — нужна глобальная видимость (ES-модуль
 // глобальные объявления не создает)
 window.exportCsv = exportCsv;

@@ -593,7 +593,7 @@ document.querySelectorAll('#sec-cars [data-close]').forEach(function(b){b.addEve
 el('m-del').addEventListener('click',function(e){if(e.target===this)mcCloseModal('m-del')});
 el('m-add').addEventListener('click',function(e){if(e.target===this)mcCloseModal('m-add')});
 el('m-car').addEventListener('click',function(e){if(e.target===this)mcCloseModal('m-car')});
-document.addEventListener('keydown',function(e){if(e.key==='Escape'){mcCloseModal('m-add');mcCloseModal('m-del');mcCloseModal('m-car')}});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){mcCloseModal('m-add');mcCloseModal('m-del');mcCloseModal('m-car');mcCloseView();docsCloseReplaceSilent()}});
 // валидация формы (поля * обязательны; бэкенд вернёт 422 по конкретному полю)
 ['f-brand','f-model','f-year','f-plate'].forEach(function(id){
   el(id).addEventListener('input',mcValidate);
@@ -788,8 +788,11 @@ function mcNavGal(dir){
 // клик по большому окну → выбор файла для текущего кадра (ракурс или СТС)
 var mcGalTarget=null;
 function mcPickGal(car,key,bigEl){
-  // снимок статуса ДО загрузки: validated → замена вернет авто на валидацию
-  mcGalTarget={carId:car.id,angle:key,big:bigEl,wasValidated:car.status==='validated'};
+  // снимок состояния ДО загрузки: wasValidated — замена РАКУРСА вернет
+  // validated-авто на валидацию (MAJ-1); wasStsReplaced — замена СТС
+  // (создает pending-версию документа, статус авто НЕ меняется — ОВ-6)
+  mcGalTarget={carId:car.id,angle:key,big:bigEl,wasValidated:car.status==='validated',
+    wasStsReplaced:key==='sts'&&!!car.has_sts};
   el('gal-file').value='';
   el('gal-file').click();
 }
@@ -814,16 +817,18 @@ el('gal-file').addEventListener('change',function(){
     if(e)return;
     mcPurgeCarUrls(t.carId);
     // перезагрузка карточек и модалки: кадр стал загруженным, комплектность
-    // пересчитана; у validated-авто бэкенд вернул статус validating
-    // (MAJ-1) — бейдж сменится на желтый «На валидации»
+    // пересчитана; статусы — по контракту Спринта 8 (ОВ-6: замена СТС
+    // статус авто НЕ меняет — только MAJ-1 для 5 ракурсов)
     openCars();
-    if(t.wasValidated){
+    if(t.angle==='sts'){
+      toast(t.wasStsReplaced
+        ?'Замена СТС отправлена на проверку администратору: до подтверждения действует предыдущая версия; статус авто не изменился (ОВ-6).'
+        :'Фото СТС загружено. Оно появится и в «Моих документах»; статус авто не изменился.');
+    }else if(t.wasValidated){
       // MAJ-1 (решение ПМ): честный тост о повторной валидации
       toast('Фото заменены — авто отправлено на повторную валидацию. Подтвердите заново: до этого авто скрыто из каталога новых учеников.');
     }else{
-      toast(t.angle==='sts'
-        ?'Фото СТС сохранено. Оно появится и в «Моих документах»; статус авто не изменился.'
-        :'Фото ракурса сохранено. Остальные ракурсы не тронуты (замена одного — точечная).');
+      toast('Фото ракурса сохранено. Остальные ракурсы не тронуты (замена одного — точечная).');
     }
   });
 });
@@ -861,6 +866,18 @@ function mcRenderGalActs(){
     b.type='button';b.disabled=!!dis;b.addEventListener('click',fn);
     box.appendChild(b);return b;
   }
+  // Спринт 8 (FR-69/FR-71, баг 5.2-СТС): ЯВНАЯ кнопка СТС на созданном
+  // авто — дозагрузка отсутствующего / замена действующего (единый
+  // эндпоинт POST …/cars/{id}/photo/sts); замена — через диалог FR-71.
+  // Класс нейтральный: '.act-btn.warn' зарезервирован за «Вернуть в
+  // черновик» (регресс-локаторы TC-UI-030/032). ---
+  var stsBtn=actBtn('',c.has_sts?'Заменить СТС':'Загрузить СТС',function(){
+    var t={kind:'car_sts',carId:c.id,
+      name:'СТС · '+[c.brand,c.model].filter(Boolean).join(' '),
+      wasMissing:!c.has_sts};
+    if(c.has_sts){docsAskReplace(t)}else{docsStartUpload(t)}
+  });
+  stsBtn.dataset.stsBtn='1';
   if(c.status==='draft'){
     var vm=mcValMissing(c);
     var btn=actBtn('primary','Отправить на валидацию',function(){
@@ -898,12 +915,11 @@ function mcRenderGalActs(){
     });
     note.innerHTML='Авто на валидации у администратора: подтверждение — только его действие. Сейчас авто показывается вашим принятым ученикам с жёлтым бейджем <b>«Не проверено»</b>, из каталога для новых — скрыто. Вернуть в черновик можно в любой момент.';
   }else{
-    // MAJ-1 (review-001, решение ПМ): честная копия — замена фото/СТС
-    // у validated-авто вернет его на валидацию (бэкенд переводит
-    // validated → validating при загрузке), бейдж станет желтым
-    // «На валидации» до повторного подтверждения администратором.
+    // ОВ-6 (Спринт 8): замена СТС НЕ возвращает validated-авто на
+    // валидацию — новая версия уходит администратору в раздел «Документы»;
+    // повторная валидация — только замена ракурсов (MAJ-1) или submit.
     note.classList.add('ok');
-    note.innerHTML='<b>Проверено администратором.</b> Авто с зелёной галочкой видно новым ученикам в каталоге. Изменение фото или СТС вернет авто на валидацию: бейдж сменится на жёлтый «На валидации», а подтверждение придется получить заново.';
+    note.innerHTML='<b>Проверено администратором.</b> Авто с зелёной галочкой видно новым ученикам в каталоге. Замена фото ракурсов вернет авто на валидацию (жёлтый «На валидации» до нового подтверждения); замена СТС статус авто не меняет — новая версия уйдет администратору в раздел «Документы».';
   }
 }
 // сохранить (POST multipart с sts_photo / PATCH JSON-поля)
@@ -974,10 +990,8 @@ el('del-confirm').addEventListener('click',function(){
 });
 el('open-add').addEventListener('click',function(){mcOpenAdd(null)});
 
-// --- Раздел «Мои документы» (мокап my-documents.html, FR-45):
-// GET /api/instructor/documents → ВУ (анкета; без ВУ — пустое состояние
-// с подсказкой) + СТС по каждому авто; просмотр — GET
-// /api/instructor/documents/{doc_id}/file, только владелец ---
+// просмотр документа в полном размере (мокап my-documents, FR-45):
+// авторизованный файл GET /api/instructor/documents/{doc_id}/file
 function mcOpenView(doc){
   el('view-title').textContent=doc.title;
   el('view-sub').textContent=(doc.sub||'')+(doc.doc_id?(' · doc_id '+doc.doc_id):'');
@@ -990,26 +1004,110 @@ function mcOpenView(doc){
 function mcCloseView(){el('m-view').classList.remove('open');document.body.style.overflow=''}
 el('view-close').addEventListener('click',mcCloseView);
 el('m-view').addEventListener('click',function(e){if(e.target===this)mcCloseView()});
+
+// --- Раздел «Мои документы» (мокап my-documents-s8.html; Спринт 8,
+// change add-s8-cars-docs-booking, FR-70/71/72): GET /api/instructor/documents
+// — прежний состав + версии/статусы на каждом документе (active_version /
+// pending / last_rejected — шейп design.md, блок A). Карточки: бейдж
+// «Действует», блок «Ожидает проверки замены», «Отклонено» с ПРИЧИНОЙ
+// (ОВ-1); кнопки Загрузить/Заменить (FR-72) — замена только через диалог
+// FR-71 с явной кнопкой «Заменить» (без клика файл не отправляется).
+// СТС — по КАЖДОМУ авто: авто без СТС → карточка «нет СТС» с «Загрузить»
+// (дозагрузка, POST …/cars/{id}/photo/sts — FR-69). Ошибки API — честно
+// (тост с текстом сервера). Виджетов в разделе нет (FR-73). ---
+var docTarget=null; // цель загрузки/замены {kind:'license'|'car_sts', carId, name, wasMissing}
+function docName(d){
+  if(d.type==='license')return 'Водительское удостоверение';
+  var c=d.car||{};
+  return 'СТС · '+[c.brand,c.model].filter(Boolean).join(' ');
+}
+function docMetaText(d){
+  if(d.type==='license')return d.license_number?('ВУ № '+d.license_number):(d.meta||'');
+  var c=d.car||{};
+  return [c.brand,c.model].filter(Boolean).join(' ')+(c.plate?' · '+c.plate:'');
+}
+function docVersionLine(d){
+  if(d.active_version&&d.active_version.version!=null){
+    return 'версия '+d.active_version.version
+      +' · загружено '+((d.active_version.uploaded_at||d.uploaded_at||'').split(' ')[0]||'—');
+  }
+  if(d.uploaded_at)return 'загружено '+String(d.uploaded_at).split(' ')[0];
+  return 'документ не загружен';
+}
+function docSubverNodes(d){
+  var out=[];
+  if(d.pending){
+    var p=node('div','subver pend');
+    p.appendChild(node('b',null,'Ожидает проверки замены'));
+    var pt=node('span',null,'Загружена новая версия ('
+      +((d.pending.uploaded_at||'').split(' ')[0]||'дата неизвестна')
+      +'). Пока администратор её не подтвердил, действует текущая версия — документ «не мигает».');
+    p.appendChild(pt);
+    out.push(p);
+  }
+  if(d.last_rejected){
+    var r=node('div','subver rej');
+    r.appendChild(node('b',null,'Причина отказа от администратора'));
+    // причина — пользовательский текст: только textContent (XSS-гигиена)
+    r.appendChild(node('span',null,d.last_rejected.reject_reason||''));
+    r.appendChild(node('br'));
+    r.appendChild(node('span','look','решение '+((d.last_rejected.decided_at||'').split(' ')[0]||'—')
+      +' · действует предыдущая версия, можно загрузить заново'));
+    out.push(r);
+  }
+  return out;
+}
 function docCardNode(d){
-  var card=document.createElement('button');
-  card.type='button';card.className='doc';card.dataset.docId=d.doc_id;
+  var hasFile=!!d.doc_id;
+  var card=node('article','doc');
+  card.dataset.docId=d.doc_id||'';
+  card.dataset.kind=d.type;
+  card.dataset.car=String((d.car&&d.car.id)||0);
   var thumb=node('span','thumb');
-  var img=document.createElement('img');img.alt=d.title;
-  thumb.appendChild(img);
-  thumb.appendChild(node('span','zoom','⤢ Смотреть'));
-  mcLoadImg('/api/instructor/documents/'+d.doc_id+'/file',img);
+  if(hasFile){
+    thumb.style.cursor='zoom-in';
+    var img=document.createElement('img');img.alt=docName(d);
+    thumb.appendChild(img);
+    thumb.appendChild(node('span','zoom','⤢ Смотреть'));
+    mcLoadImg('/api/instructor/documents/'+d.doc_id+'/file',img);
+    if(d.pending)thumb.appendChild(node('span','pendtag','замена на проверке'));
+    var open=function(){mcOpenView({
+      title:docName(d),doc_id:d.doc_id,
+      url:'/api/instructor/documents/'+d.doc_id+'/file',sub:docMetaText(d)})};
+    thumb.addEventListener('click',open);
+    card._open=open;
+  }else{
+    thumb.appendChild(node('span','ph','🚗'));
+  }
   card.appendChild(thumb);
-  card.appendChild(node('b','name',d.title));
+  card.appendChild(node('b','name',docName(d)));
   var meta=node('small','meta');
-  meta.appendChild(document.createTextNode(d.meta||''));
+  meta.appendChild(document.createTextNode(docMetaText(d)));
   meta.appendChild(document.createElement('br'));
-  meta.appendChild(document.createTextNode('загружено '+((d.uploaded_at||'').split(' ')[0]||'—')));
+  var ver=node('span','ver',docVersionLine(d));
+  meta.appendChild(ver);
   card.appendChild(meta);
-  card.appendChild(node('span','pill'+(d.type==='car_sts'?'':' warn'),
-    d.type==='car_sts'?'привязан к авто':'основной документ'));
-  card.addEventListener('click',function(){mcOpenView({
-    title:d.title,doc_id:d.doc_id,url:'/api/instructor/documents/'+d.doc_id+'/file',
-    sub:d.meta||''})});
+  if(hasFile){
+    card.appendChild(node('span','ds-badge ds-verified','Действует'));
+  }else{
+    card.appendChild(node('span','ds-badge ds-pending','нет СТС'));
+  }
+  docSubverNodes(d).forEach(function(s){card.appendChild(s)});
+  var act=node('div','doc-actions');
+  if(hasFile){
+    var view=node('button','btn-u ghost','Открыть');view.type='button';
+    view.addEventListener('click',function(){if(card._open)card._open()});
+    act.appendChild(view);
+  }
+  var main=node('button','btn-u',hasFile?'Заменить':'Загрузить');main.type='button';
+  main.dataset.uploadDoc='1';main.dataset.kind=d.type;
+  main.dataset.car=String((d.car&&d.car.id)||0);
+  main.addEventListener('click',function(){
+    var t={kind:d.type,carId:(d.car&&d.car.id)||0,name:docName(d),wasMissing:!hasFile};
+    if(hasFile){docsAskReplace(t)}else{docsStartUpload(t)} // первая загрузка — без предупреждения FR-71
+  });
+  act.appendChild(main);
+  card.appendChild(act);
   return card;
 }
 function openDocs(){
@@ -1017,25 +1115,91 @@ function openDocs(){
     if(!res){toast('Не удалось загрузить документы');return}
     var docs=res.documents||[];
     var lic=docs.filter(function(d){return d.type==='license'});
-    var sts=docs.filter(function(d){return d.type==='car_sts'});
+    var stsDocs=docs.filter(function(d){return d.type==='car_sts'});
     var licBox=el('lic-docs');licBox.innerHTML='';
-    lic.forEach(function(d){
-      var meta=[d.license_number?'ВУ № '+d.license_number:''];
-      d.meta=meta.filter(Boolean).join(' · ');
-      licBox.appendChild(docCardNode(d));
-    });
+    lic.forEach(function(d){licBox.appendChild(docCardNode(d))});
     el('lic-n').textContent=lic.length;
     el('no-license').style.display=lic.length?'none':'block';
     if(!lic.length&&res.license_hint)el('no-license-hint').textContent=res.license_hint;
-    var stsBox=el('sts-docs');stsBox.innerHTML='';
-    sts.forEach(function(d){
-      var c=d.car||{};
-      d.meta=[c.brand,c.model].filter(Boolean).join(' ')
-        +(c.plate?' · '+c.plate:'');
-      stsBox.appendChild(docCardNode(d));
+    // СТС по КАЖДОМУ авто (FR-69/FR-72): авто без СТС (легаси/дозагрузка)
+    // добавляются карточкой «нет СТС» с кнопкой «Загрузить»
+    apiGet('/api/instructor/cars',function(cres){
+      var cars=cres?(cres.cars||[]):[];
+      var withDoc={};
+      stsDocs.forEach(function(d){if(d.car&&d.car.id!=null)withDoc[d.car.id]=1});
+      cars.forEach(function(c){
+        if(c.has_sts||withDoc[c.id])return;
+        stsDocs.push({doc_id:null,type:'car_sts',title:'СТС автомобиля',
+          car:{id:c.id,brand:c.brand,model:c.model,plate:c.plate},uploaded_at:null});
+      });
+      stsDocs.sort(function(a,b){
+        return ((a.car&&a.car.id)||0)-((b.car&&b.car.id)||0);
+      });
+      var stsBox=el('sts-docs');stsBox.innerHTML='';
+      stsDocs.forEach(function(d){stsBox.appendChild(docCardNode(d))});
+      el('sts-count').textContent=stsDocs.length;
     });
-    el('sts-count').textContent=sts.length;
   });
+}
+// ── загрузка/замена документов (FR-71/FR-72): единый flow с модалкой
+// предупреждения #m-replace и скрытым input #doc-file; multipart на
+// контрактные эндпоинты (POST /api/instructor/documents/license,
+// POST …/cars/{id}/photo/sts); ошибка сервера — честный тост, список
+// не меняется до успешной загрузки (после нее — перезагрузка статусов). ---
+function docsAskReplace(t){
+  docTarget=t;
+  el('rep-sub').textContent=t.name;
+  el('m-replace').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function docsCloseReplace(){
+  docTarget=null;
+  el('m-replace').classList.remove('open');
+  document.body.style.overflow='';
+}
+function docsPickFile(){el('doc-file').value='';el('doc-file').click()}
+function docsStartUpload(t){
+  docTarget=t; // первая загрузка (нет предыдущей версии) — без предупреждения
+  docsPickFile();
+}
+el('rep-go').addEventListener('click',function(){
+  if(!docTarget)return;
+  docsPickFile(); // диалог закрывается в обработчике change по результату
+});
+el('rep-cancel').addEventListener('click',docsCloseReplace);
+el('rep-close').addEventListener('click',docsCloseReplace);
+el('m-replace').addEventListener('click',function(e){if(e.target===this)docsCloseReplace()});
+el('upload-license').addEventListener('click',function(){
+  docsStartUpload({kind:'license',carId:0,name:'Водительское удостоверение',wasMissing:true});
+});
+el('doc-file').addEventListener('change',function(){
+  var t=docTarget;docTarget=null;
+  docsCloseReplaceSilent();
+  if(!t||!this.files.length)return;
+  var file=this.files[0];
+  var err=mcValidatePhoto(file); // JPEG/PNG ≤5 МБ — как на бэкенде (NFR-9)
+  if(err){mcShowPhotoError(err);return}
+  if(t.kind==='license'){
+    mcUpload('/api/instructor/documents/license','file',file,null,null,function(e){
+      if(e)return;
+      toast('Замена ВУ отправлена на проверку администратору: до подтверждения действует предыдущая версия.');
+      openDocs(); // перезагрузка списка с актуальными статусами (FR-72)
+    });
+  }else{
+    mcUpload('/api/instructor/cars/'+t.carId+'/photo/sts','photo',file,null,null,function(e){
+      if(e)return;
+      mcPurgeCarUrls(t.carId);
+      toast(t.wasMissing
+        ?'Фото СТС загружено — документ появился в списке.'
+        :'Замена СТС отправлена на проверку администратору: действует предыдущая версия, статус авто не изменился (ОВ-6).');
+      openDocs();
+      openCars(); // комплектность/СТС-точка в «Моих автомобилях» обновляются
+    });
+  }
+});
+function docsCloseReplaceSilent(){
+  el('m-replace').classList.remove('open');
+  document.body.style.overflow='';
 }
 
 // --- Раздел «Бронирования» (мокап booking-instructor.html, FR-48/FR-49):
