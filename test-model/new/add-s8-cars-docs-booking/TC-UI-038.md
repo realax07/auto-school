@@ -4,10 +4,10 @@
 - Приоритет: Must (FR-74)
 - Статус: автоматизирован (rule 6 — TC-ID в docstring теста); кейс партии change add-s8-cars-docs-booking (Спринт 8)
 - Трассировка:
-  - Requirement: Запросы и брони учеников на слотах календаря (openspec/changes/add-s8-cars-docs-booking/specs/instructor-availability/spec.md)
-  - Scenario: Раздел «Бронирования» удален без остатков (openspec/changes/add-s8-cars-docs-booking/specs/instructor-availability/spec.md)
-  - Scenario: Запрос виден именно на выбранном слоте (openspec/changes/add-s8-cars-docs-booking/specs/instructor-availability/spec.md)
-  - Scenario: Решения по брони — немедленно, мимо кнопок графика (openspec/changes/add-s8-cars-docs-booking/specs/instructor-availability/spec.md)
+  - Requirement: Запросы и брони учеников на слотах календаря
+  - Scenario: Запрос виден именно на выбранном слоте
+  - Scenario: Раздел «Бронирования» удален без остатков
+  - Scenario: Решения по брони — немедленно, мимо кнопок графика
 
 ## GIVEN / WHEN / THEN
 - GIVEN дашборд инструктора с замоканным API: availability — Ср(2) 14:00–16:00 и 16:00–18:00; bookings — new-запрос Крыловой Дарьи Игоревны на слот 14:00–16:00 (weekday 2); reject 91 → 200 и очищает список

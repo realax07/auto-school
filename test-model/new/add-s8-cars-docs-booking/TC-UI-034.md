@@ -4,14 +4,10 @@
 - Приоритет: Must (FR-69/FR-72)
 - Статус: автоматизирован (rule 6 — TC-ID в docstring теста); кейс партии change add-s8-cars-docs-booking (Спринт 8)
 - Трассировка:
-  - Requirement: Раздел «Мои документы» инструктора (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Дозагрузка СТС существующему авто обновляет раздел (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Кнопки загрузки/замены в разделе (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Requirement: Загрузка и замена документов инструктором (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Дозагрузка СТС авто без действующего СТС (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Недопустимый файл отклоняется без последствий (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Requirement: Замена СТС не влияет на статус валидации автомобиля (openspec/changes/add-s8-cars-docs-booking/specs/instructor-cars/spec.md)
-  - Scenario: Замена СТС у validated-авто не сбрасывает валидацию — ОВ-6 (openspec/changes/add-s8-cars-docs-booking/specs/instructor-cars/spec.md)
+  - Requirement: Загрузка и замена документов инструктором
+  - Scenario: Дозагрузка СТС авто без действующего СТС
+  - Scenario: Загрузка замены с предупреждением и явной кнопкой
+  - Scenario: Недопустимый файл отклоняется без последствий
 
 ## GIVEN / WHEN / THEN
 - GIVEN дашборд инструктора с API, замоканным по design.md: documents — только СТС Škoda Rapid; cars — Škoda Rapid validated (has_sts) и Kia Rio draft без СТС; мок sts-загрузки умеет вернуть 422 (флаг fail_next)

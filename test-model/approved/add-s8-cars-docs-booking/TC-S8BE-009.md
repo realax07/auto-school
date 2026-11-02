@@ -4,11 +4,10 @@
 - Приоритет: Must (FR-75, NFR-22)
 - Статус: автоматизирован (rule 6 — TC-ID в docstring теста); кейс партии change add-s8-cars-docs-booking (Спринт 8)
 - Трассировка:
-  - Requirement: Раздел «Мои ученики» со счетчиками занятий (openspec/changes/add-s8-cars-docs-booking/specs/student-requests/spec.md)
-  - Scenario: Карточка ученика с занятями показывает счетчики (openspec/changes/add-s8-cars-docs-booking/specs/student-requests/spec.md)
-  - Scenario: Пара без броней — корректное пустое состояние (openspec/changes/add-s8-cars-docs-booking/specs/student-requests/spec.md)
-  - Scenario: Запросы не входят в счетчики (только confirmed) — ОВ-5 (openspec/changes/add-s8-cars-docs-booking/specs/student-requests/spec.md)
-  - Scenario: Раздел доступен только владельцу (openspec/changes/add-s8-cars-docs-booking/specs/student-requests/spec.md)
+  - Requirement: Раздел «Мои ученики» со счетчиками занятий
+  - Scenario: Карточка ученика с занятями показывает счетчики
+  - Scenario: Пара без броней — корректное пустое состояние
+  - Scenario: Раздел доступен только владельцу
 
 ## GIVEN / WHEN / THEN
 - GIVEN два инструктора (A и B) и три ученика; принятые пары: A—s1, A—s2, B—s3 (accept с авто, контур Спринта 3); у s1 брони: завтра (слот 09:00), +7 и +8 дней, вчера/-2/-3 дня — все confirmed; плюс rejected-бронь в прошлом и new-запрос s2 на послезавтра (confirm=False); lesson_date задается явно (материализация MIN-1 — локальная дата сервера)

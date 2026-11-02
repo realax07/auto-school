@@ -4,12 +4,10 @@
 - Приоритет: Must (FR-70, NFR-22; решения ОВ-1/ОВ-4)
 - Статус: автоматизирован (rule 6 — TC-ID в docstring теста); кейс партии change add-s8-cars-docs-booking (Спринт 8)
 - Трассировка:
-  - Requirement: Верификация документов администратором (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Список ожидающих версий с ФИО и автомобилями (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Предпросмотр изображения открывается — ОВ-4 (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Подтверждение переключает действующую версию (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Отклонение требует причину и сохраняет действующую версию — ОВ-1 (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Верификация доступна только админу (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
+  - Requirement: Верификация документов администратором
+  - Scenario: Список ожидающих версий с ФИО и автомобилями
+  - Scenario: Предпросмотр изображения открывается
+  - Scenario: Отклонение требует причину и сохраняет действующую версию
 
 ## GIVEN / WHEN / THEN
 - GIVEN админ-сессия в admin-dashboard; API замокан по design.md (блок C): pending — ВУ v2 (Мищенко Светлана Андреевна) и СТС v2 (Гордеева + Kia Rio · В 456 ВВ 777); verified/rejected — для истории; PNG-маршруты предпросмотра; мок verify 61 → 200 (перенос в verified), reject 62: первый вызов → 422 «Причина отказа обязательна», второй с reason → 200

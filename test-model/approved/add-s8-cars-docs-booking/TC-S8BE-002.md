@@ -4,16 +4,10 @@
 - Приоритет: Must (FR-70/FR-71/FR-72)
 - Статус: автоматизирован (rule 6 — TC-ID в docstring теста); кейс партии change add-s8-cars-docs-booking (Спринт 8)
 - Трассировка:
-  - Requirement: Статусная модель документов (ВУ и СТС) (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Замена создает ожидающую версию, предыдущая действует (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Ожидающая версия одна — повторная загрузка замещает — ОВ-7 (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Отклонение с обязательной причиной не лишает документа — ОВ-1 (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Requirement: Загрузка и замена документов инструктором (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Недопустимый файл отклоняется без последствий (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Requirement: Верификация документов администратором (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Подтверждение переключает действующую версию (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Requirement: Раздел «Мои документы» инструктора (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Отклоненная замена видна с причиной отказа (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
+  - Requirement: Статусная модель документов (ВУ и СТС)
+  - Scenario: Замена создает ожидающую версию, предыдущая действует
+  - Scenario: Ожидающая версия одна — повторная загрузка замещает
+  - Scenario: Отклонение с обязательной причиной не лишает документа
 
 ## GIVEN / WHEN / THEN
 - GIVEN approved-инструктор с легаси-ВУ (license_photo_path → файл с содержимым ROOT_JPEG, версий в document_versions нет) и админ-заголовки X-Admin-Token

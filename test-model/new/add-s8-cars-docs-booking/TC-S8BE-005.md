@@ -4,12 +4,11 @@
 - Приоритет: Must (NFR-22)
 - Статус: автоматизирован (rule 6 — TC-ID в docstring теста); кейс партии change add-s8-cars-docs-booking (Спринт 8)
 - Трассировка:
-  - Requirement: Верификация документов администратором (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Верификация доступна только админу (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Requirement: Загрузка и замена документов инструктором (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Замена доступна только владельцу (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Requirement: Раздел «Мои документы» инструктора (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Документы доступны только владельцу (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
+  - Requirement: Раздел «Мои документы» инструктора
+  - Scenario: Документы доступны только владельцу
+  - Scenario: Верификация доступна только админу
+  - Requirement: Раздел «Мои ученики» со счетчиками занятий
+  - Scenario: Раздел доступен только владельцу
 
 ## GIVEN / WHEN / THEN
 - GIVEN три аккаунта: инструктор-владелец (у него verified-ВУ после admin verify и verified-СТС на авто), второй инструктор, ученик; админ с X-Admin-Token

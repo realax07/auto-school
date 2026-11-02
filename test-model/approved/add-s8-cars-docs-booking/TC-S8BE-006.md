@@ -4,10 +4,9 @@
 - Приоритет: Must (FR-70)
 - Статус: автоматизирован (rule 6 — TC-ID в docstring теста); кейс партии change add-s8-cars-docs-booking (Спринт 8)
 - Трассировка:
-  - Requirement: Раздел «Мои документы» инструктора (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Анкета без ВУ — корректное пустое состояние (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Ожидающая замена видна со статусом «Ожидает проверки замены» (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Список включает ВУ и СТС всех автомобилей (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
+  - Requirement: Раздел «Мои документы» инструктора
+  - Scenario: Список включает ВУ и СТС всех автомобилей
+  - Scenario: Анкета без ВУ — корректное пустое состояние
 
 ## GIVEN / WHEN / THEN
 - GIVEN approved-инструктор с авто без СТС; версий документов нет

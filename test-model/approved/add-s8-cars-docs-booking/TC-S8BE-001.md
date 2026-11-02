@@ -4,10 +4,8 @@
 - Приоритет: Must (FR-70, NFR-24)
 - Статус: автоматизирован (rule 6 — TC-ID в docstring теста); кейс партии change add-s8-cars-docs-booking (Спринт 8)
 - Трассировка:
-  - Requirement: Статусная модель документов (ВУ и СТС) (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Существующие документы мигрируют в verified (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Ожидающая версия одна — повторная загрузка замещает — ОВ-7, частичный UNIQUE на уровне схемы (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Отклонение с обязательной причиной не лишает документа — ОВ-1, CHECK-гард на уровне схемы (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
+  - Requirement: Статусная модель документов (ВУ и СТС)
+  - Scenario: Существующие документы мигрируют в verified
 
 ## GIVEN / WHEN / THEN
 - GIVEN предсозданная legacy-БД (DDL Спринта 7: users / instructor_applications / instructor_cars, таблицы document_versions нет) со строками: анкета с ВУ (license_photo_path = 'data/uploads/license/old1.jpg', created_at = '2026-01-01 10:00:00'), анкета без ВУ, авто с photo_sts = 'data/uploads/car_photo/old-sts.jpg' (created_at = '2026-01-02 12:00:00'), авто без СТС

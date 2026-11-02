@@ -4,10 +4,10 @@
 - Приоритет: Must (FR-71; review-003 MAJ-2)
 - Статус: автоматизирован (rule 6 — TC-ID в docstring теста); кейс партии change add-s8-cars-docs-booking (Спринт 8)
 - Трассировка:
-  - Requirement: Загрузка и замена документов инструктором (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Загрузка замены с предупреждением и явной кнопкой — FR-71 (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Requirement: Замена СТС не влияет на статус валидации автомобиля (openspec/changes/add-s8-cars-docs-booking/specs/instructor-cars/spec.md)
-  - Scenario: Замена СТС у validated-авто не сбрасывает валидацию — ОВ-6 (openspec/changes/add-s8-cars-docs-booking/specs/instructor-cars/spec.md)
+  - Requirement: Загрузка и замена документов инструктором
+  - Scenario: Загрузка замены с предупреждением и явной кнопкой
+  - Requirement: Замена СТС не влияет на статус валидации автомобиля
+  - Scenario: Замена СТС у validated-авто не сбрасывает валидацию
 
 ## GIVEN / WHEN / THEN
 - GIVEN дашборд инструктора с замоканным API: cars — Škoda Rapid validated с has_sts (рамка sts видна в галерее), documents — СТС этого авто; мок POST /api/instructor/cars/52/photo/sts → 200 {document: {status: pending, version: 2}}

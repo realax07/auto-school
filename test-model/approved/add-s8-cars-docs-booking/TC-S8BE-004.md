@@ -4,9 +4,8 @@
 - Приоритет: Must (FR-69/FR-70, решение ОВ-6)
 - Статус: автоматизирован (rule 6 — TC-ID в docstring теста); кейс партии change add-s8-cars-docs-booking (Спринт 8)
 - Трассировка:
-  - Requirement: Замена СТС не влияет на статус валидации автомобиля (openspec/changes/add-s8-cars-docs-booking/specs/instructor-cars/spec.md)
-  - Scenario: Замена СТС у validated-авто не сбрасывает валидацию (openspec/changes/add-s8-cars-docs-booking/specs/instructor-cars/spec.md)
-  - Scenario: Ракурсы сохраняют правило сброса (MAJ-1, наследование) (openspec/changes/add-s8-cars-docs-booking/specs/instructor-cars/spec.md)
+  - Requirement: Замена СТС не влияет на статус валидации автомобиля
+  - Scenario: Замена СТС у validated-авто не сбрасывает валидацию
 
 ## GIVEN / WHEN / THEN
 - GIVEN approved-инструктор; авто с первичным СТС (verified v1), ракурсами front/rear/left и статусом validated (аранжировка — прямой UPDATE instructor_cars в БД)

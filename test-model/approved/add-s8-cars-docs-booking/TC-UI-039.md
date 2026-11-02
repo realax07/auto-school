@@ -4,10 +4,11 @@
 - Приоритет: Must (FR-75, ОВ-5)
 - Статус: автоматизирован (rule 6 — TC-ID в docstring теста); кейс партии change add-s8-cars-docs-booking (Спринт 8)
 - Трассировка:
-  - Requirement: Раздел «Мои ученики» со счетчиками занятий (openspec/changes/add-s8-cars-docs-booking/specs/student-requests/spec.md)
-  - Scenario: Карточка ученика с занятями показывает счетчики (openspec/changes/add-s8-cars-docs-booking/specs/student-requests/spec.md)
-  - Scenario: Пара без броней — корректное пустое состояние (openspec/changes/add-s8-cars-docs-booking/specs/student-requests/spec.md)
-  - Scenario: Запросы — подраздел по требованию внутри раздела — ОВ-5 (openspec/changes/add-s8-cars-docs-booking/specs/student-requests/spec.md)
+  - Requirement: Раздел «Мои ученики» со счетчиками занятий
+  - Scenario: Карточка ученика с занятями показывает счетчики
+  - Scenario: Пара без броней — корректное пустое состояние
+  - Scenario: Запросы — подраздел по требованию внутри раздела
+  - Scenario: Запросы не входят в счетчики (только confirmed)
 
 ## GIVEN / WHEN / THEN
 - GIVEN дашборд инструктора с замоканным API (бэкенд-волна 9.1 параллельна): GET /api/instructor/students — Ежов Павел Дмитриевич (next_lesson 03.11.2026 14:00, planned 2, completed 5) и Титова с XSS-payload в ФИО (next_lesson None, 0/0); GET /api/instructor/requests — new-запрос Сафина Артура Кирилловича; accept 301 → добавляет Сафина в students

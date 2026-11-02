@@ -4,8 +4,8 @@
 - Приоритет: Must (NFR-23 — выдача ученику не ломается; карточка авто — изменение change)
 - Статус: автоматизирован (rule 6 — TC-ID в docstring теста); кейс партии change add-s8-cars-docs-booking (Спринт 8)
 - Трассировка:
-  - Requirement: Запросы и брони учеников на слотах календаря (openspec/changes/add-s8-cars-docs-booking/specs/instructor-availability/spec.md)
-  - Scenario: API-контракты броней и графика не меняются — брони с авто доступны ученику (openspec/changes/add-s8-cars-docs-booking/specs/instructor-availability/spec.md)
+  - Requirement: Выдача фото автомобилей через photo-эндпоинты
+  - Scenario: Карточка авто инструктора видна ученику в «Моих бронях»
 
 ## GIVEN / WHEN / THEN
 - GIVEN кабинет ученика (/cabinet#/my-bookings) с API, замоканным по РЕАЛЬНЫМ шейпам backend/student_marketplace.py и backend/booking.py: accepted-пара с car {id: 11, car_status: validated, photo_url: /api/instructor/cars/11/photo/front}; слот Пт(3) 14:00–16:00 free; confirmed-бронь с тем же car; PNG-маршрут фото

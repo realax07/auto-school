@@ -4,13 +4,10 @@
 - Приоритет: Must (FR-70/FR-71/FR-72)
 - Статус: автоматизирован (rule 6 — TC-ID в docstring теста); кейс партии change add-s8-cars-docs-booking (Спринт 8)
 - Трассировка:
-  - Requirement: Раздел «Мои документы» инструктора (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Ожидающая замена видна со статусом «Ожидает проверки замены» (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Отклоненная замена видна с причиной отказа — ОВ-1 (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Просмотр и скачивание документа (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Кнопки загрузки/замены в разделе (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Requirement: Загрузка и замена документов инструктором (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Загрузка замены с предупреждением и явной кнопкой — FR-71 (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
+  - Requirement: Раздел «Мои документы» инструктора
+  - Scenario: Список включает ВУ и СТС всех автомобилей
+  - Scenario: Ожидающая замена видна со статусом «Ожидает проверки замены»
+  - Scenario: Отклоненная замена видна с причиной отказа
 
 ## GIVEN / WHEN / THEN
 - GIVEN дашборд инструктора с API, замоканным по контракту design.md (бэкенд-волна параллельна): GET /api/instructor/documents — ВУ с active v1; СТС Škoda Rapid с pending v2; СТС Lada Vesta с last_rejected {version: 2, reject_reason: «Фото нечитаемо: номер СТС и VIN размыты…»}; PNG-маршруты файлов документов; открыт раздел «Профиль и документы»

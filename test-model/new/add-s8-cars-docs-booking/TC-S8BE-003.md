@@ -4,16 +4,11 @@
 - Приоритет: Must (FR-69/FR-70)
 - Статус: автоматизирован (rule 6 — TC-ID в docstring теста); кейс партии change add-s8-cars-docs-booking (Спринт 8)
 - Трассировка:
-  - Requirement: Загрузка и замена документов инструктором (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Дозагрузка СТС авто без действующего СТС (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Requirement: Статусная модель документов (ВУ и СТС) (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Ожидающая версия одна — повторная загрузка замещает — ОВ-7 (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Requirement: Верификация документов администратором (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Список ожидающих версий с ФИО и автомобилями (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Предпросмотр изображения открывается — ОВ-4 (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Подтверждение переключает действующую версию (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Requirement: Раздел «Мои документы» инструктора (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Дозагрузка СТС существующему авто обновляет раздел (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
+  - Requirement: Загрузка и замена документов инструктором
+  - Scenario: Дозагрузка СТС авто без действующего СТС
+  - Requirement: Верификация документов администратором
+  - Scenario: Подтверждение переключает действующую версию
+  - Scenario: Отклонение требует причину и сохраняет действующую версию
 
 ## GIVEN / WHEN / THEN
 - GIVEN approved-инструктор с авто, созданным JSON-путем без СТС (Škoda Rapid, А123АА777), и админ-заголовки X-Admin-Token

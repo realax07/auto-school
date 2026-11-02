@@ -4,10 +4,8 @@
 - Приоритет: Must (FR-73)
 - Статус: автоматизирован (rule 6 — TC-ID в docstring теста); кейс партии change add-s8-cars-docs-booking (Спринт 8)
 - Трассировка:
-  - Requirement: Виджет «Привязанные ученики» (openspec/changes/add-s8-cars-docs-booking/specs/student-requests/spec.md)
-  - Scenario: Экраны «Мои автомобили» и «Мои документы» — без виджета (openspec/changes/add-s8-cars-docs-booking/specs/student-requests/spec.md)
-  - Requirement: Виджет «Занятия на сегодня» — честная заглушка (openspec/changes/add-s8-cars-docs-booking/specs/student-requests/spec.md)
-  - Scenario: Экраны «Мои автомобили» и «Мои документы» — без виджета (openspec/changes/add-s8-cars-docs-booking/specs/student-requests/spec.md)
+  - Requirement: Виджет «Привязанные ученики»
+  - Scenario: Экраны «Мои автомобили» и «Мои документы» — без виджета
 
 ## GIVEN / WHEN / THEN
 - GIVEN дашборд инструктора с замоканным API (cars [], documents []); открыт /instructor/dashboard

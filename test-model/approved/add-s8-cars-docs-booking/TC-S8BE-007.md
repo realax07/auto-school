@@ -4,8 +4,8 @@
 - Приоритет: Must (FR-42 — плитки; регресс бага 5.2 задания Спринта 8)
 - Статус: автоматизирован (rule 6 — TC-ID в docstring теста); кейс партии change add-s8-cars-docs-booking (Спринт 8)
 - Трассировка:
-  - Requirement: Замена СТС не влияет на статус валидации автомобиля (openspec/changes/add-s8-cars-docs-booking/specs/instructor-cars/spec.md)
-  - Scenario: Диагностика СТС-симптома предшествует фиксу — после фикса СТС/фото на созданном авто выдаются рабочими авторизованными эндпоинтами (openspec/changes/add-s8-cars-docs-booking/specs/instructor-cars/spec.md)
+  - Requirement: Выдача фото автомобилей через photo-эндпоинты
+  - Scenario: Плитки «Мои автомобили» используют photo-эндпоинты (баг 5.2)
 
 ## GIVEN / WHEN / THEN
 - GIVEN approved-инструктор с авто (JSON-создание); загружены ракурс front и первичный СТС (verified v1)

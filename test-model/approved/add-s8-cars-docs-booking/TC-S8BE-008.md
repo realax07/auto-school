@@ -4,10 +4,8 @@
 - Приоритет: Should (MINOR review-003 #3 — согласованность правила; сами FR-69/FR-70 — Must)
 - Статус: автоматизирован (rule 6 — TC-ID в docstring теста); кейс партии change add-s8-cars-docs-booking (Спринт 8)
 - Трассировка:
-  - Requirement: Статусная модель документов (ВУ и СТС) (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Существующие документы мигрируют в verified — seed не создает версию по пустой строке (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Requirement: Загрузка и замена документов инструктором (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
-  - Scenario: Дозагрузка СТС авто без действующего СТС — '' идет первичной дозагрузкой, не заменой (openspec/changes/add-s8-cars-docs-booking/specs/instructor-documents/spec.md)
+  - Requirement: Замена СТС не влияет на статус валидации автомобиля
+  - Scenario: Правило «пустой СТС» едино для seed и sts-ветки
 
 ## GIVEN / WHEN / THEN
 - GIVEN approved-инструктор с авто, у которого в канонической колонке photo_sts записана пустая строка '' (легаси-мусор; в живых данных не встречается — проверяется согласованность правила)
