@@ -829,7 +829,9 @@ def test_instructor_requests_deny_locked_until_comment_accept_with_car(
     POST …/deny {comment}; «Принять» требует выбор авто и шлёт POST …/accept
     {car_id} (FR-39). Мок /api/instructor/requests — шейп РЕАЛЬНОГО бэкенда
     backend/student_requests.py (review-001 #2/#5): student_full_name,
-    student_experience_years, car-объект; полей student_fio/comment нет."""
+    student_experience_years, car-объект; полей student_fio/comment нет.
+    Спринт 8 (ОВ-5, задача 9.2): «Запросы учеников» — ПОДРАЗДЕЛ-ВКЛАДКА
+    раздела «Мои ученики»; отдельного пункта сайдбара больше нет."""
     _seed_session(page, "session_token", INSTRUCTOR_TOKEN)
 
     reqs = [
@@ -861,6 +863,8 @@ def test_instructor_requests_deny_locked_until_comment_accept_with_car(
     _route_json(page, server, "/api/instructor/summary", lambda req: (
         200, {"ok": True, "students": [], "today_lessons": []}))
     _route_json(page, server, "/api/instructor/requests", _requests)
+    _route_json(page, server, "/api/instructor/students", lambda req: (
+        200, {"ok": True, "students": []}))
     _route_json(page, server, "/api/instructor/cars", lambda req: (
         200, {"ok": True, "cars": cars}))
     _route_json(page, server, "/api/instructor/requests/301/deny",
@@ -876,7 +880,13 @@ def test_instructor_requests_deny_locked_until_comment_accept_with_car(
 
     page.goto(f"{server}/instructor/dashboard")
     expect(page.locator(".user b")).to_have_text("Самойлов Михаил")
-    page.locator('.nav button[data-tab="Запросы учеников"]').click()
+    # Спринт 8 (ОВ-5): подраздел «Запросы учеников» внутри «Моих учеников»
+    assert page.locator('.nav button[data-tab="Запросы учеников"]').count() == 0, \
+        "отдельный пункт сайдбара «Запросы учеников» должен отсутствовать"
+    page.locator('.nav button[data-tab="Мои ученики"]').click()
+    expect(page.locator("#sec-students")).to_be_visible()
+    page.locator('#stu-tabs button[data-stu="requests"]').click()
+    expect(page.locator("#stu-tab-requests")).to_be_visible()
     expect(page.locator(".rq")).to_have_count(2)
     expect(page.locator(".rq-top b").first).to_have_text("Павел Ежов")
 
@@ -983,8 +993,11 @@ def test_instructor_accept_flow_real_backend(page, server):
     # до принятия виджет «Привязанные ученики» пуст
     expect(page.locator("#w-students-n")).to_have_text("0")
 
-    # раздел «Запросы учеников»: заявка с реальным ФИО и стажем «нет»
-    page.locator('.nav button[data-tab="Запросы учеников"]').click()
+    # подраздел «Запросы учеников» «Моих учеников» (Спринт 8, ОВ-5):
+    # заявка с реальным ФИО и стажем «нет»
+    page.locator('.nav button[data-tab="Мои ученики"]').click()
+    expect(page.locator("#sec-students")).to_be_visible()
+    page.locator('#stu-tabs button[data-stu="requests"]').click()
     expect(page.locator(".rq")).to_have_count(1)
     expect(page.locator(".rq-top b")).to_have_text("Смирнова Ольга Павловна")
     expect(page.locator(".rq-top small")).to_contain_text("Стаж вождения: нет")
@@ -3425,6 +3438,120 @@ def test_s8_bookings_section_removed_redirect_and_slot_reject(page, server):
     expect(page.locator("#cal-grid .cal-slot.reqslot")).to_have_count(0)
     expect(page.locator("#cal-grid .cal-slot[data-k='2-14']")).to_have_class(
         "cal-slot on")
+
+
+# =========================================================================
+# TC-UI-039 — задача 9.2 (FR-75/ОВ-5): «Мои ученики» — карточки со
+# счетчиками (данные GET /api/instructor/students, задача 9.1 — мок),
+# «Запросы учеников» — подраздел-вкладка внутри раздела.
+# =========================================================================
+
+def test_s8_my_students_cards_counters_and_requests_subtab(page, server):
+    """TC-UI-039 (change add-s8-cars-docs-booking, задача 9.2, FR-75/ОВ-5;
+    мокап my-students.html): раздел «Мои ученики» — карточки принятых пар по
+    контракту GET /api/instructor/students (задача 9.1): ФИО, следующее
+    плановое занятие (или «нет»), счетчики «плановых занятий дальше /
+    проведено» — ТОЛЬКО confirmed; пустые состояния (нет пар; пара без
+    броней — «нет», 0/0). «Запросы учеников» — подраздел-ВКЛАДКА внутри
+    раздела, отдельного пункта сайдбара нет; после принятия запроса ученик
+    появляется в основном списке. XSS-гигиена: данные API — createElement +
+    textContent (теги в ФИО не исполняются). API замокан через page.route
+    (бэкенд-волна 9.1 параллельна)."""
+    _mock_instructor_shell(page, server)
+    state = {"students": [
+        {"student_id": 701, "full_name": "Ежов Павел Дмитриевич",
+         "next_lesson": {"date": "2026-11-03", "time": "14:00"},
+         "planned_count": 2, "completed_count": 5},
+        {"student_id": 702, "full_name": 'Титова <img src=x onerror="window.__xss=1">',
+         "next_lesson": None, "planned_count": 0, "completed_count": 0},
+    ]}
+
+    def _students(req):
+        return 200, {"ok": True, "students": list(state["students"])}
+
+    _route_json(page, server, "/api/instructor/students", _students)
+    _route_json(page, server, "/api/instructor/requests", lambda req: (
+        200, {"ok": True, "requests": [
+            {"id": 301, "status": "new", "created_at": "2026-10-15 09:14:00",
+             "decided_at": None, "student_full_name": "Сафин Артур Кириллович",
+             "student_experience_years": 0, "car": None}]}))
+    _route_json(page, server, "/api/instructor/cars", lambda req: (
+        200, {"ok": True, "cars": [
+            {"id": 52, "brand": "Škoda", "model": "Rapid", "year": 2020,
+             "transmission": "automatic", "plate": "А 123 АА 777"}]}))
+    _route_json(page, server, "/api/instructor/requests/301/accept",
+                lambda req: (
+                    state["students"].insert(0, {
+                        "student_id": 703,
+                        "full_name": "Сафин Артур Кириллович",
+                        "next_lesson": None,
+                        "planned_count": 0, "completed_count": 0})
+                    or (200, {"ok": True})),
+                method="POST")
+
+    page.goto(f"{server}/instructor/dashboard")
+    page.locator('.nav button[data-tab="Мои ученики"]').click()
+    expect(page.locator("#sec-students")).to_be_visible()
+    assert page.locator('.nav button[data-tab="Запросы учеников"]').count() == 0, \
+        "ОВ-5: отдельного пункта сайдбара «Запросы учеников» быть не должно"
+
+    # --- карточки: следующее занятие, счетчики, пустое состояние пары ---
+    cards = page.locator("#stu-cards .student")
+    expect(cards).to_have_count(2)
+    expect(page.locator("#stu-n")).to_have_text("·2")
+    c1 = page.locator("#stu-cards .student", has_text="Ежов Павел Дмитриевич")
+    expect(c1.locator(".stu-next")).to_contain_text("03.11.2026 · 14:00")
+    expect(c1.locator(".stu-cnt b").nth(0)).to_have_text("2")
+    expect(c1.locator(".stu-cnt span").nth(0)).to_have_text(
+        "плановых занятий дальше")
+    expect(c1.locator(".stu-cnt b").nth(1)).to_have_text("5")
+    expect(c1.locator(".stu-cnt span").nth(1)).to_have_text("проведено")
+    c2 = page.locator("#stu-cards .student", has_text="Титова")
+    expect(c2.locator(".stu-next.none")).to_contain_text(
+        "нет — подтверждённых броней впереди не запланировано")
+    expect(c2.locator(".stu-cnt b").nth(0)).to_have_text("0")
+    expect(c2.locator(".stu-cnt b").nth(1)).to_have_text("0")
+    # XSS-гигиена: ФИО с тегом отрисовано текстом — img не создан, скрипт не был
+    assert page.locator("#stu-cards img").count() == 0, \
+        "данные API попали в HTML (XSS-гигиена нарушена)"
+    assert page.evaluate("window.__xss === undefined"), "onerror исполнился"
+
+    # --- подраздел «Запросы учеников» — вкладка по требованию (ОВ-5) ---
+    page.locator('#stu-tabs button[data-stu="requests"]').click()
+    expect(page.locator("#stu-tab-requests")).to_be_visible()
+    expect(page.locator("#stu-tab-students")).to_be_hidden()
+    expect(page.locator(".rq")).to_have_count(1)
+    expect(page.locator("#stu-req-n")).to_have_text("·1")
+    expect(page.locator("#rq-new-n")).to_have_text("·1")
+
+    # --- принятие запроса: ученик появляется в основном списке (9.2) ---
+    page.locator("[data-accept='301']").click()
+    expect(page.locator("#rq-accept-301")).to_be_visible()
+    page.locator("[data-confirm='301']").click()
+    expect(page.locator("#toast")).to_contain_text("Заявка принята")
+    expect(page.locator("#stu-cards .student")).to_have_count(3)
+    expect(page.locator("#stu-cards .student").first).to_contain_text(
+        "Сафин Артур Кириллович")
+    expect(page.locator("#stu-n")).to_have_text("·3")
+
+
+def test_s8_my_students_missing_backend_honest_error(page, server):
+    """TC-UI-039b (change add-s8-cars-docs-booking, задача 9.2): бэкенд 9.1
+    недоступен (GET /api/instructor/students → 404) — раздел «Мои ученики»
+    показывает ЧЕСТНУЮ ошибку (блок + тост), НЕ подменяя ее пустым списком
+    («Учеников пока нет» скрыт, карточек нет)."""
+    _mock_instructor_shell(page, server)
+    _route_json(page, server, "/api/instructor/students", lambda req: (
+        404, {"ok": False, "error": "Not Found"}))
+
+    page.goto(f"{server}/instructor/dashboard")
+    page.locator('.nav button[data-tab="Мои ученики"]').click()
+    expect(page.locator("#sec-students")).to_be_visible()
+    err = page.locator("#stu-error")
+    expect(err).to_be_visible()
+    expect(err).to_contain_text("Не удалось загрузить учеников")
+    expect(page.locator("#stu-empty")).to_be_hidden()
+    assert page.locator("#stu-cards .student").count() == 0
 
 
 # ------------------------------------------------------------- design-guard

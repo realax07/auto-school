@@ -46,21 +46,23 @@ function navTo(name){
   // BUG-047 (скрины Заказчика 2026-10-17): «Мои автомобили» — раздел этого
   // дашборда (таб), отдельной страницы /my-cars больше нет (301 →
   // /instructor/dashboard#/my-cars открывает этот же раздел)
-  // Спринт 3: реальные разделы «Календарь» и «Запросы учеников»
+  // Спринт 3: реальный раздел «Календарь»
   // Спринт 5 (change add-booking-docs): раздел «Мои документы» — тоже
   // ВНУТРИ дашборда (BUG-047-прецедент: standalone-страницы запрещены)
   // Спринт 8 (FR-74): раздел «Бронирования» УДАЛЕН (пункт меню, секция,
   // JS-контур) — запросы/брони на слотах календаря; #/bookings — редирект
   // в «Календарь» (хвост файла, механика BUG-047)
-  var isCal=(name==='Календарь'),isReq=(name==='Запросы учеников'),isCars=(name==='Мои автомобили');
+  // Спринт 8 (FR-75/ОВ-5): раздел «Мои ученики» — карточки пар +
+  // подраздел «Запросы учеников» (отдельного пункта сайдбара больше нет)
+  var isCal=(name==='Календарь'),isStu=(name==='Мои ученики'),isCars=(name==='Мои автомобили');
   var isDocs=(name==='Мои документы');
-  document.querySelectorAll('.day-content').forEach(function(el){el.style.display=(isCal||isReq||isCars||isDocs)?'none':''});
+  document.querySelectorAll('.day-content').forEach(function(el){el.style.display=(isCal||isStu||isCars||isDocs)?'none':''});
   document.getElementById('sec-calendar').style.display=isCal?'block':'none';
-  document.getElementById('sec-requests').style.display=isReq?'block':'none';
+  document.getElementById('sec-students').style.display=isStu?'block':'none';
   document.getElementById('sec-cars').style.display=isCars?'block':'none';
   document.getElementById('sec-docs').style.display=isDocs?'block':'none';
   if(isCal)openCalendar();
-  if(isReq)openRequests();
+  if(isStu)openStudents();
   if(isCars)openCars();
   if(isDocs)openDocs();
   var pp=document.getElementById('profile-panel');
@@ -72,7 +74,7 @@ function navTo(name){
   // раздел, старые ссылки#/my-cars открывают его напрямую
   var wantHash=isCars?'#/my-cars':isDocs?'#/my-docs':'';
   if(location.hash!==wantHash){try{history.replaceState(null,'',location.pathname+location.search+(wantHash||''))}catch(e){}}
-  if(name!=='Мой день'&&!isCal&&!isReq&&!isCars&&!isDocs)toast('Раздел «'+name+'» — демо-данные, следующий экран в концепции кабинета')
+  if(name!=='Мой день'&&!isCal&&!isStu&&!isCars&&!isDocs)toast('Раздел «'+name+'» — демо-данные, следующий экран в концепции кабинета')
 }
 
 // --- Виджеты главной (change add-instructor-student-loop, FR-40/FR-41):
@@ -150,11 +152,9 @@ function countNewRequests(){
         row.appendChild(go);
         box.appendChild(row);
       });
-      box.querySelectorAll('[data-goto-requests]').forEach(function(g){g.addEventListener('click',function(){navTo('Запросы учеников')})});
+      // Спринт 8 (ОВ-5): «Запросы учеников» — подраздел «Моих учеников»
+      box.querySelectorAll('[data-goto-requests]').forEach(function(g){g.addEventListener('click',function(){stuOpenRequests()})});
     }
-    var badge=el('nav-req-badge');
-    badge.style.display=list.length?'inline-block':'none';
-    badge.textContent='+'+list.length;
   });
 }
 
@@ -277,7 +277,87 @@ el('cal-save').addEventListener('click',function(){
   });
 });
 
-// --- Раздел «Запросы учеников» (FR-37/38/39): GET /api/instructor/requests;
+// --- Раздел «Мои ученики» (FR-75/ОВ-5, мокап my-students.html): карточки
+// принятых пар по контракту GET /api/instructor/students (задача 9.1):
+// ФИО ученика, next_lesson {date,time} — ближайшая ПОДТВЕРЖДЕННАЯ бронь
+// (правило MIN-1, локальная дата сервера) / null → «нет»; planned_count
+// (confirmed после следующей), completed_count (confirmed в прошлом).
+// ТОЛЬКО confirmed (ОВ-5): запросы в счетчиках не участвуют. Бэкенд 9.1
+// может отсутствовать в этой ветке — ошибка показывается ЧЕСТНО (блок +
+// тост), пустой список не подменяет ошибку. Карточки — createElement +
+// textContent (XSS-гигиена, code-review review-001 #1). ---
+var stuTab='students';
+function stuShowTab(t){
+  stuTab=t;
+  document.querySelectorAll('#stu-tabs button').forEach(function(b){b.classList.toggle('on',b.dataset.stu===t)});
+  el('stu-tab-students').style.display=t==='students'?'block':'none';
+  el('stu-tab-requests').style.display=t==='requests'?'block':'none';
+}
+function stuNextLine(nl){
+  if(!nl)return null; // «нет» — подтвержденных броней впереди нет (ОВ-5)
+  var d=nl.date?String(nl.date).split('-').reverse().join('.'):'';
+  var t=nl.time||'';
+  return [d,t].filter(Boolean).join(' · ')||null;
+}
+function renderStudents(list){
+  var box=el('stu-cards');box.innerHTML='';
+  el('stu-n').textContent='·'+list.length;
+  el('stu-empty').style.display=list.length?'none':'block';
+  list.forEach(function(s){
+    var fio=s.full_name||s.name||'Ученик';
+    var card=node('article','student');
+    var top=node('div','st-top');
+    top.appendChild(node('span','stu-sic',stuInitials(fio)));
+    top.appendChild(node('b',null,fio));
+    card.appendChild(top);
+    var line=stuNextLine(s.next_lesson);
+    var nx=node('div','stu-next'+(line?'':' none'));
+    nx.appendChild(node('span',null,'Следующее плановое занятие'));
+    nx.appendChild(document.createTextNode(line||'нет — подтверждённых броней впереди не запланировано'));
+    card.appendChild(nx);
+    var cnts=node('div','stu-counters');
+    var c1=node('div','stu-cnt');
+    c1.appendChild(node('b',null,String(s.planned_count||0)));
+    c1.appendChild(node('span',null,'плановых занятий дальше'));
+    var c2=node('div','stu-cnt');
+    c2.appendChild(node('b',null,String(s.completed_count||0)));
+    c2.appendChild(node('span',null,'проведено'));
+    cnts.appendChild(c1);cnts.appendChild(c2);
+    card.appendChild(cnts);
+    box.appendChild(card);
+  });
+}
+function stuLoadStudents(){
+  apiGet('/api/instructor/students',function(res){
+    var err=el('stu-error');
+    if(!res||!res.ok){
+      // честная ошибка (данных нет — в счетчиках и «следующем» нули не рисуем)
+      err.textContent='Не удалось загрузить учеников (GET /api/instructor/students): сервис данных недоступен.';
+      err.classList.add('show');
+      el('stu-empty').style.display='none';
+      el('stu-cards').innerHTML='';
+      el('stu-n').textContent='·0';
+      toast('Не удалось загрузить учеников');
+      return;
+    }
+    err.classList.remove('show');err.textContent='';
+    renderStudents(res.students||[]);
+  });
+}
+function openStudents(){
+  stuShowTab(stuTab);
+  stuLoadStudents();
+  openRequests(); // подраздел «Запросы учеников» — контур Спринта 3
+}
+// виджет главной → открыть подраздел «Запросы учеников» по требованию (ОВ-5)
+function stuOpenRequests(){
+  navTo('Мои ученики');
+  stuShowTab('requests');
+}
+document.querySelectorAll('#stu-tabs button').forEach(function(b){b.addEventListener('click',function(){stuShowTab(b.dataset.stu)})});
+
+// --- Подраздел «Запросы учеников» «Моих учеников» (FR-37/38/39, контур
+// Спринта 3 — БЕЗ ИЗМЕНЕНИЙ): GET /api/instructor/requests;
 // Принять -> POST /api/instructor/requests/{id}/accept {car_id} (авто из
 // GET /api/instructor/cars; при 0 авто действие недоступно — ОВ-4);
 // Отказать -> POST …/{id}/deny {comment}, кнопка заблокирована до непустого
@@ -312,6 +392,7 @@ function renderRequests(){
   var list=rqState.list.filter(function(r){return rqState.filter==='all'||r.status===rqState.filter});
   var newN=rqState.list.filter(function(r){return r.status==='new'}).length;
   el('rq-new-n').textContent='·'+newN;
+  el('stu-req-n').textContent='·'+newN; // счетчик подраздела «Мои ученики»
   if(!list.length){box.innerHTML='<div class="rq-none">Заявок в этой категории нет.</div>';return}
   // DOM-строительство (code-review review-001 #1): ФИО/бренд/модель —
   // только textContent, без сборки HTML из пользовательских строк
@@ -429,8 +510,8 @@ function bindRequests(){
     if(!radio){toast('Выберите автомобиль');return}
     apiSend('POST','/api/instructor/requests/'+id+'/accept',{car_id:+radio.value},function(res){
       if(res.status===200&&res.data&&res.data.ok){
-        rqState.open=null;openRequests();loadSummary();countNewRequests();
-        toast('Заявка принята. Остальные активные заявки ученика закроются автоматически.');
+        rqState.open=null;openRequests();stuLoadStudents();loadSummary();countNewRequests();
+        toast('Заявка принята. Ученик появился в списке «Мои ученики»; остальные активные заявки закроются автоматически.');
       }else if(res.status===409){
         toast((res.data&&res.data.error)||'Заведите автомобиль, чтобы принять ученика');
       }else{

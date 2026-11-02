@@ -68,7 +68,35 @@ main{padding:28px clamp(20px,3vw,44px) 45px;max-width:1600px;width:100%;margin:a
 #m-bk .rej-label{display:block;margin-top:12px;font-size:10px;color:#e8b877;text-transform:uppercase;letter-spacing:.12em}
 #m-bk .btn{white-space:nowrap}
 #m-bk .btn.danger{background:#33201a;border-color:#8a3c3c;color:#ffb28e}
-/* Раздел «Запросы учеников» (мокап student-requests) */
+/* Спринт 8 (FR-75/ОВ-5, мокап my-students.html): раздел «Мои ученики» —
+   подразделы-вкладки («Ученики» / «Запросы учеников») и карточки учеников:
+   следующее плановое занятие + счетчики по confirmed-броням. Классы
+   stu-*: в дашборде уже есть .next («Ближайшее занятие» главной). */
+.subtabs{display:flex;gap:5px;border:1px solid #ffffff14;background:#ffffff05;border-radius:12px;padding:5px;width:max-content;margin:0 0 18px}
+.subtabs button{border:1px solid transparent;background:transparent;color:#aab8c0;border-radius:9px;padding:9px 16px;font-size:12px;white-space:nowrap;cursor:pointer}
+.subtabs button.on{background:#143322;border-color:#2c8651;color:#a3efbd}
+.subtabs button .n{color:#ffd479}
+.stu-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.student{border:1px solid var(--line);border-radius:18px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:16px;display:flex;flex-direction:column;gap:13px}
+.st-top{display:flex;align-items:center;gap:12px}
+.stu-sic{width:46px;height:46px;flex:none;border-radius:13px;background:linear-gradient(145deg,#2c4f3d,#132119);display:grid;place-items:center;color:#a0f2bd;font-size:12px;font-weight:700}
+.st-top b{font-size:14px;font-weight:600;letter-spacing:-.01em;display:block;min-width:0}
+.st-top small{display:block;font-size:11px;color:#8fa0aa;margin-top:4px}
+.stu-next{border:1px solid #2a5c4066;background:#0d241744;border-radius:12px;padding:10px 13px;font-size:11px;color:#c9d6db;line-height:1.6}
+.stu-next span{display:block;font-size:9px;color:#7fe3a3;text-transform:uppercase;letter-spacing:.12em;margin-bottom:4px}
+.stu-next.none{border-color:#ffffff10;background:#ffffff04;color:#8fa0aa}
+.stu-next.none span{color:#7e909a}
+.stu-counters{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.stu-cnt{border:1px solid #ffffff10;background:#ffffff04;border-radius:12px;padding:10px 13px}
+.stu-cnt b{font-size:20px;font-weight:600;letter-spacing:-.03em;display:block}
+.stu-cnt span{font-size:10px;color:#8fa0aa;display:block;margin-top:3px;line-height:1.4}
+.stu-empty{border:1px dashed #ffffff22;border-radius:18px;padding:36px 20px;text-align:center;color:#8fa0a9;font-size:12px;line-height:1.7}
+.stu-empty b{display:block;font-size:14px;color:#c9d6db;margin-bottom:7px}
+.stu-error{display:none;margin:0 0 14px;border:1px solid #6b5426;background:#2a201033;border-radius:12px;padding:12px 14px;font-size:12px;color:#ffd479;line-height:1.6}
+.stu-error.show{display:block}
+/* Раздел «Запросы учеников» — с Спринта 8 ПОДРАЗДЕЛ «Моих учеников»
+   (мокап student-requests; FR-37/38/39: принять — с выбором своего авто,
+   отказ — только с непустым комментарием) */
 .rq-filters{display:flex;gap:6px;margin:0 0 14px;flex-wrap:wrap}
 .rq-filters button{border:1px solid #ffffff14;background:#ffffff05;color:#b9c8ce;border-radius:999px;padding:8px 15px;font-size:11px}
 .rq-filters button.on{background:#143322;border-color:#2c8651;color:#a3efbd}
@@ -339,8 +367,7 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
     <button class="active" data-tab="Мой день"><span class="ico">⌂</span>Мой день</button>
     <button data-tab="Расписание"><span class="ico">▦</span>Расписание<small class="demo-tag">демо</small></button>
     <button data-tab="Календарь"><span class="ico">▦</span>Календарь</button>
-    <button data-tab="Мои ученики"><span class="ico">♧</span>Мои ученики<small class="demo-tag">демо</small></button>
-    <button data-tab="Запросы учеников"><span class="ico">✉</span>Запросы учеников<small class="demo-tag" id="nav-req-badge" style="display:none">0</small></button>
+    <button data-tab="Мои ученики"><span class="ico">♧</span>Мои ученики</button>
     <button data-tab="Мои автомобили"><span class="ico">▰</span>Мои автомобили</button>
     <button data-tab="Мои документы"><span class="ico">▤</span>Мои документы</button>
     <button data-tab="Доходы и выплаты"><span class="ico">₽</span>Доходы и выплаты<small class="demo-tag">демо</small></button>
@@ -449,17 +476,36 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
     </div>
   </section>
 
-  <!-- Раздел «Запросы учеников» (мокап student-requests; FR-37/38/39:
-       принять — с выбором своего авто, отказ — только с непустым комментарием) -->
-  <section class="card panel" id="sec-requests" style="display:none">
-    <div class="panel-head"><div><div class="panel-title">Входящие заявки</div><div class="panel-sub">Принять можно только заявку в статусе «новая» — с выбором вашего автомобиля. Отказ требует обязательного комментария.</div></div></div>
-    <div class="rq-filters" id="rq-filters">
-      <button class="on" data-f="all">Все</button>
-      <button data-f="new">Новые <span id="rq-new-n" style="color:#ffd479">·0</span></button>
-      <button data-f="accepted">Принятые</button>
-      <button data-f="denied">Отказанные</button>
+  <!-- Раздел «Мои ученики» (мокап my-students.html, Спринт 8 change
+       add-s8-cars-docs-booking; FR-75/ОВ-5): карточки принятых учеников
+       (пары = student_requests.status='accepted') — ФИО, СЛЕДУЮЩЕЕ ПЛАНОВОЕ
+       ЗАНЯТИЕ (ближайшая ПОДТВЕРЖДЕННАЯ бронь; при отсутствии — «нет»),
+       счётчики «плановых дальше / проведено» — ТОЛЬКО confirmed (ОВ-5);
+       данные — GET /api/instructor/students (задача 9.1, XSS-гигиена:
+       createElement + textContent). «Запросы учеников» — ПОДРАЗДЕЛ-ВКЛАДКА
+       внутри раздела (отдельного пункта сайдбара больше нет): принятие
+       (с выбором авто) / отказ (комментарий обязателен) — контур
+       Спринта 3 без изменений. -->
+  <section class="card panel" id="sec-students" style="display:none">
+    <div class="subtabs" id="stu-tabs">
+      <button class="on" data-stu="students" type="button">Ученики <span class="n" id="stu-n">·0</span></button>
+      <button data-stu="requests" type="button">Запросы учеников <span class="n" id="stu-req-n">·0</span></button>
     </div>
-    <div class="rq-list" id="rq-list"></div>
+    <div id="stu-tab-students">
+      <div class="stu-error" id="stu-error"></div>
+      <div class="stu-cards" id="stu-cards"></div>
+      <div class="stu-empty" id="stu-empty" style="display:none"><b>Учеников пока нет</b>Принятые запросы появятся здесь: ученик, следующее плановое занятие и счётчики по подтверждённым броням.</div>
+    </div>
+    <div id="stu-tab-requests" style="display:none">
+      <div class="panel-head"><div><div class="panel-title">Входящие заявки</div><div class="panel-sub">Принять можно только заявку в статусе «новая» — с выбором вашего автомобиля. Отказ требует обязательного комментария.</div></div></div>
+      <div class="rq-filters" id="rq-filters">
+        <button class="on" data-f="all">Все</button>
+        <button data-f="new">Новые <span id="rq-new-n" style="color:#ffd479">·0</span></button>
+        <button data-f="accepted">Принятые</button>
+        <button data-f="denied">Отказанные</button>
+      </div>
+      <div class="rq-list" id="rq-list"></div>
+    </div>
   </section>
 
   <!-- Раздел «Мои автомобили» (BUG-047: верстка перенесена из
