@@ -200,6 +200,16 @@ def active_version_file(
     return row["file_path"] if row is not None else None
 
 
+def has_canonical_file(value: str | None) -> bool:
+    """ЕДИНОЕ правило «есть действующий документ в канонической колонке»
+    (review-003 #3): непустая строка; None И '' — документа нет. Одно
+    правило для NULL и пустой строки (design.md: каноническая колонка
+    хранит файл действующей версии и «остается непустым»); согласует
+    seed-миграцию (db.py: SQL WHERE … IS NOT NULL AND <> ''), sts-ветку
+    (первичная дозагрузка vs замена) и флаги has_sts/counters."""
+    return bool(value)
+
+
 # --- «Мои документы» (владелец-инструктор) -----------------------------------
 
 

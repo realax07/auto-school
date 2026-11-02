@@ -28,7 +28,11 @@
   TC-S8BE-006;
 - баг 5.2 регресс: список авто выдает URL авторизованных фото-эндпоинтов
   (photos{angle}, sts_url), без файловых путей — плитки переживают
-  повторный вход — TC-S8BE-007.
+  повторный вход — TC-S8BE-007;
+- единое правило «пустой СТС» (MINOR review-003 #3): photo_sts NULL и ''
+  неотличимы — seed не создает версию, has_sts/sts_url/counters — «нет»,
+  загрузка идет как первичная дозагрузка → photo_sts + verified v1 —
+  TC-S8BE-008.
 
 Трассировка TC-S8BE-NNN в docstring каждого теста (rule 6). Тесты
 tests/test_s5_backend.py НЕ изменялись. Фикстуры — общий client из
@@ -694,6 +698,64 @@ def test_s8_sts_replacement_keeps_validated_ov6(api, client):
     ).fetchone()[0]
     conn.close()
     assert status == "validating"
+
+
+# --- Единое правило «пустой СТС» (MINOR review-003 #3) ------------------------
+
+
+def test_s8_empty_sts_rule_seed_branch_agree(api, client):
+    """TC-S8BE-008 (change add-s8-cars-docs-booking, задача 3.1, MINOR
+    review-003 #3): правило «пустой photo_sts» ЕДИНО для seed-миграции,
+    sts-ветки и флагов списка — NULL и '' неотличимы («документа нет»):
+    легаси-строка photo_sts='' не засеивается verified v1 (init_db);
+    has_sts=False, sts_url=None, counters.sts=False; загрузка СТС по
+    такому авто идет по первичной дозагрузке → photo_sts + verified v1
+    (а не «замена» с pending-версией, как было при правиле is None)."""
+    import backend.db as db
+
+    instr = create_instructor(client)
+    car_id = add_car_json(client, instr["token"])
+    # легаси-мусор: пустая строка в канонической колонке (в живых данных
+    # не встречается — миграция добавляет колонку с NULL, uploads пишет
+    # реальные пути; проверяем согласованность правила)
+    conn = sqlite3.connect(db_path())
+    conn.execute(
+        "UPDATE instructor_cars SET photo_sts = '' WHERE id = ?", (car_id,)
+    )
+    conn.commit()
+    conn.close()
+
+    # (1) seed: init_db по пустой строке версию НЕ создает
+    db.init_db()
+    assert doc_versions(car_id, "car_sts") == []
+
+    # (2) флаги списка: '' — «документа нет»
+    listed = client.get(
+        "/api/instructor/cars", headers=_headers(instr["token"])
+    ).json()["cars"][0]
+    assert listed["has_sts"] is False
+    assert listed["sts_url"] is None
+    assert listed["counters"]["sts"] is False
+
+    # (3) sts-ветка: '' → первичная дозагрузка (verified v1), не замена
+    resp = upload_sts(client, instr["token"], car_id, ROOT_JPEG)
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["document"]["status"] == "verified", "'' — не замена"
+    assert resp.json()["document"]["version"] == 1
+    conn = sqlite3.connect(db_path())
+    sts_path = conn.execute(
+        "SELECT photo_sts FROM instructor_cars WHERE id = ?", (car_id,)
+    ).fetchone()[0]
+    conn.close()
+    assert Path(sts_path).read_bytes() == ROOT_JPEG
+    assert doc_versions(car_id, "car_sts") == [(1, "verified", sts_path)]
+
+    # (4) после загрузки флаги согласованы: «есть СТС»
+    listed = client.get(
+        "/api/instructor/cars", headers=_headers(instr["token"])
+    ).json()["cars"][0]
+    assert listed["has_sts"] is True and listed["sts_url"]
+    assert listed["counters"]["sts"] is True
 
 
 # --- Доступ (NFR-22) ----------------------------------------------------------
