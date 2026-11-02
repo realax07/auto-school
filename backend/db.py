@@ -124,6 +124,33 @@ CREATE INDEX IF NOT EXISTS idx_booking_student
 -- не мешают повторному запросу (ОВ-5).
 CREATE UNIQUE INDEX IF NOT EXISTS uq_booking_active_slot
   ON booking(availability_id) WHERE status IN ('new','confirmed');
+
+-- Спринт 8 (add-s8-cars-docs-booking, задача 1.1): статусная модель
+-- документов (FR-70, ОВ-2): версии ВУ анкеты (license) и СТС авто
+-- (car_sts). Канонические колонки (license_photo_path / photo_sts)
+-- остаются указателем ДЕЙСТВУЮЩЕЙ версии; pending-версия живет только
+-- здесь. reject_reason — причина отказа, при rejected обязательна
+-- непустой (CHECK, ОВ-1). Версии не логируются и не выдаются помимо
+-- авторизованных эндпоинтов (NFR-22).
+CREATE TABLE IF NOT EXISTS document_versions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  target_type TEXT NOT NULL CHECK (target_type IN ('license','car_sts')),
+  target_id INTEGER NOT NULL,
+  version INTEGER NOT NULL,
+  file_path TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending','verified','rejected')),
+  reject_reason TEXT
+    CHECK (status <> 'rejected'
+           OR (reject_reason IS NOT NULL AND reject_reason <> '')),
+  uploaded_at TEXT NOT NULL,
+  decided_at TEXT,
+  UNIQUE (target_type, target_id, version)
+);
+-- ОВ-7: ровно одна ОЖИДАЮЩАЯ версия на документ (уровень схемы;
+-- частичный UNIQUE — механика uq_booking_active_slot).
+CREATE UNIQUE INDEX IF NOT EXISTS uq_document_versions_pending
+  ON document_versions(target_type, target_id) WHERE status = 'pending';
 """
 
 # Спринт 0–1: users.role (add-instructor-flow, задача 1.2, sdd.md §16).
@@ -169,12 +196,65 @@ _COLUMN_MIGRATIONS = (
 )
 
 
+def _seed_one_document(
+    conn: sqlite3.Connection,
+    target_type: str,
+    target_id: int,
+    file_path: str,
+    uploaded_at: str,
+) -> None:
+    """Seed ОДНОГО документа (NFR-24): строк нет → verified v1 (тот же
+    файл); строки есть → ничего не менять (idempotent — повторный запуск
+    init_db ничего не делает)."""
+    exists = conn.execute(
+        "SELECT 1 FROM document_versions"
+        " WHERE target_type = ? AND target_id = ? LIMIT 1",
+        (target_type, target_id),
+    ).fetchone()
+    if exists is not None:
+        return
+    conn.execute(
+        "INSERT INTO document_versions (target_type, target_id, version,"
+        " file_path, status, uploaded_at, decided_at)"
+        " VALUES (?, ?, 1, ?, 'verified', ?, ?)",
+        (target_type, target_id, file_path, uploaded_at, uploaded_at),
+    )
+
+
+def _seed_document_versions(conn: sqlite3.Connection) -> None:
+    """Спринт 8 (задача 1.1, NFR-24): существующие документы — ВУ анкет
+    (license_photo_path) и СТС авто (photo_sts) — получают verified v1
+    (uploaded_at = created_at строки; решили de facto при загрузке).
+    Анкета без ВУ / авто без СТС — строк не создают (пустые состояния
+    сохраняются). Вызывается ПОСЛЕ _COLUMN_MIGRATIONS (колонки могут
+    добавляться миграцией). SQL статический, только ?-плейсхолдеры."""
+    rows = conn.execute(
+        "SELECT id, license_photo_path, created_at"
+        " FROM instructor_applications"
+        " WHERE license_photo_path IS NOT NULL AND license_photo_path <> ''"
+    ).fetchall()
+    for row in rows:
+        _seed_one_document(
+            conn, "license", row["id"], row["license_photo_path"],
+            row["created_at"],
+        )
+    rows = conn.execute(
+        "SELECT id, photo_sts, created_at FROM instructor_cars"
+        " WHERE photo_sts IS NOT NULL AND photo_sts <> ''"
+    ).fetchall()
+    for row in rows:
+        _seed_one_document(
+            conn, "car_sts", row["id"], row["photo_sts"], row["created_at"]
+        )
+
+
 def init_db() -> None:
     """Создание схемы (users, instructor_applications + 4 таблицы контура
     «инструктор ↔ ученик»: instructor_cars, availability, reviews,
     student_requests) + idempotent-миграции: существующие базы Спринтов
     0–2 поднимаются без пересоздания, записи остаются учениками
-    (role='student', experience_years=0)."""
+    (role='student', experience_years=0); Спринт 8 — таблица
+    document_versions + seed verified v1 существующих документов."""
     conn = get_conn()
     try:
         conn.executescript(_SCHEMA)
@@ -185,6 +265,7 @@ def init_db() -> None:
             columns = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
             if column not in columns:
                 conn.execute(ddl)
+        _seed_document_versions(conn)
         conn.commit()
     finally:
         conn.close()
