@@ -766,19 +766,62 @@ def test_s8_access_matrix(api, client):
         == 403
     )
 
-    # чужой документ → 404-неразличение (NFR-7)
+    # чужой документ → 404-неразличение (NFR-22, фикс review-002 #1):
+    # проверка на документах с ДЕЙСТВУЮЩЕЙ версией — ВУ (upload + admin
+    # verify) и СТС (первичная загрузка → verified v1): чужая сессия
+    # получает 404 (никогда 403/200), владелец — 200 со своим файлом
+    car_id = add_car_json(client, instr["token"])
+    assert upload_sts(client, instr["token"], car_id, ROOT_JPEG).status_code == 200
+    assert upload_license(client, instr["token"], ROOT_PNG).status_code == 200
+    conn = sqlite3.connect(db_path())
+    pending_id = conn.execute(
+        "SELECT id FROM document_versions WHERE target_type = 'license'"
+        " AND target_id = ? AND status = 'pending'",
+        (instr["application_id"],),
+    ).fetchone()[0]
+    conn.close()
+    resp = client.post(
+        f"/api/admin/documents/{pending_id}/verify", headers=admin
+    )
+    assert resp.status_code == 200, resp.text
+
     own_docs = client.get(
         "/api/instructor/documents", headers=_headers(instr["token"])
     ).json()
-    license_doc = own_docs.get("license")
-    if license_doc is not None:
-        url = f"/api/instructor/documents/{license_doc['doc_id']}/file"
-        assert (
-            client.get(url, headers=_headers(other["token"])).status_code == 404
-        )
+    license_doc = own_docs["license"]
+    assert license_doc is not None, "ВУ с verified-версией виден владельцу"
+    license_url = f"/api/instructor/documents/{license_doc['doc_id']}/file"
+    sts_url = f"/api/instructor/documents/sts-{car_id}/file"
+    got = client.get(license_url, headers=_headers(instr["token"]))
+    assert got.status_code == 200 and got.content == ROOT_PNG
+    got = client.get(sts_url, headers=_headers(instr["token"]))
+    assert got.status_code == 200 and got.content == ROOT_JPEG
+    assert (
+        client.get(license_url, headers=_headers(other["token"])).status_code
+        == 404
+    ), "чужой ВУ → 404-неразличение"
+    assert (
+        client.get(sts_url, headers=_headers(other["token"])).status_code
+        == 404
+    ), "чужой СТС → 404-неразличение"
+    assert (
+        client.get(license_url, headers=_headers(student["token"])).status_code
+        == 403
+    )
+    assert (
+        client.get(sts_url, headers=_headers(student["token"])).status_code
+        == 403
+    )
     assert (
         client.get(
             "/api/instructor/documents/license-999999/file",
+            headers=_headers(instr["token"]),
+        ).status_code
+        == 404
+    )
+    assert (
+        client.get(
+            "/api/instructor/documents/sts-999999/file",
             headers=_headers(instr["token"]),
         ).status_code
         == 404
