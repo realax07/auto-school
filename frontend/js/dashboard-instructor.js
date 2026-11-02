@@ -1347,7 +1347,7 @@ function bkCarText(c){return c?[c.brand,c.model].filter(Boolean).join(' ')+(c.ye
 // без изменений ---
 // --- Брони/запросы — подраздел «Календаря» (бывший раздел
 // «Бронирования»; FR-48/FR-49): метки на слотах cal-grid,
-// решения — в модалке #m-bk (BUG-052: bk-list/bk-grid снесены) ---
+// решения — в модалке #m-bk (BUG-052: унаследованный блок снесен) ---
 function calLoadBookings(){
   apiGet('/api/instructor/bookings',function(res){
     calBookings={};
