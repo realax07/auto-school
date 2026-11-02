@@ -1345,8 +1345,9 @@ function bkCarText(c){return c?[c.brand,c.model].filter(Boolean).join(' ')+(c.ye
 // {comment}, пустой на сервере — 422), у подтвержденной брони —
 // «Отменить бронь» (POST …/cancel, BUG-049); NFR-23: контракты booking
 // без изменений ---
-// --- Брони/запросы — подраздел «Календаря» (BUG-051, бывший раздел
-// «Бронирования»; FR-48/FR-49): список bk-list + сетка bk-grid ---
+// --- Брони/запросы — подраздел «Календаря» (бывший раздел
+// «Бронирования»; FR-48/FR-49): метки на слотах cal-grid,
+// решения — в модалке #m-bk (BUG-052: bk-list/bk-grid снесены) ---
 function calLoadBookings(){
   apiGet('/api/instructor/bookings',function(res){
     calBookings={};
