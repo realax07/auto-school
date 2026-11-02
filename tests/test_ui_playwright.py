@@ -3079,6 +3079,72 @@ def test_s8_sts_upload_missing_and_replace_car_modal_422_honest(
     assert len(docs_gets) == gets_before_fail
 
 
+def test_s8_sts_gallery_replace_dialog(page, server, tmp_path):
+    """TC-UI-040 (change add-s8-cars-docs-booking, задача 3.1, review-003
+    MAJ-2): FR-71 на галерейном пути СТС — рамка sts видна только при
+    has_sts, т.е. клик по большому окну галереи модалки авто — это ВСЕГДА
+    замена: открывается диалог «Заменить» (тот же, что у явной кнопки),
+    файл выбирается только после подтверждения; «Отмена» не отправляет
+    POST; подтверждение — POST …/cars/{id}/photo/sts. Бэкенд замокан."""
+    _mock_instructor_shell(page, server)
+    sts_posts: list = []
+
+    def _docs(req):
+        docs = [_doc_sts(52, "Škoda", "Rapid", "А 123 АА 777")]
+        return 200, {"ok": True, "documents": docs, "license": None,
+                     "license_hint": "Заявка без фото ВУ"}
+
+    def _cars(req):
+        cars = [{"id": 52, "brand": "Škoda", "model": "Rapid", "year": 2020,
+                 "transmission": "automatic", "plate": "А 123 АА 777",
+                 "status": "validated", "photos": {}, "has_sts": True,
+                 "sts_url": None, "created_at": "2026-10-02 12:00:00"}]
+        return 200, {"ok": True, "cars": cars}
+
+    def _sts_upload(req):
+        return 200, {"ok": True, "url": "/api/instructor/cars/52/photo/sts",
+                     "status": "validated",
+                     "document": {"status": "pending", "version": 2}}
+
+    _route_json(page, server, "/api/instructor/documents", _docs)
+    _route_json(page, server, "/api/instructor/cars", _cars)
+    # ВАЖНО: sts-маршрут регистрируется ПОСЛЕ 'cars*' — побеждает последний
+    _route_json(page, server, "/api/instructor/cars/52/photo/sts",
+                _sts_upload, method="POST", capture=sts_posts)
+    _route_png(page, server, "/api/instructor/documents/sts-52/file")
+
+    page.goto(f"{server}/instructor/dashboard")
+    page.locator('.nav button[data-tab="Мои автомобили"]').click()
+    card = page.locator(".car", has_text="Škoda Rapid")
+    card.click()
+    expect(page.locator("#m-car")).to_be_visible()
+
+    # --- галерейный путь: рамка sts → клик по большому окну → ДИАЛОГ ---
+    page.locator("#mc-thumbs .gal-thumb[data-galkey='sts']").click()
+    # без fix клик #mc-big открыл бы file chooser (тихая замена мимо FR-71)
+    page.locator("#mc-big").click()
+    expect(page.locator("#m-replace")).to_be_visible()
+    expect(page.locator("#m-replace .warnbox")).to_contain_text(
+        "Замена не вступает в силу сразу")
+    assert len(sts_posts) == 0  # отмена: ни одного POST не ушло
+    page.locator("#rep-cancel").click()
+    expect(page.locator("#m-replace")).to_be_hidden()
+    assert len(sts_posts) == 0
+
+    # --- подтверждение замены через галерею → POST на контракт ---
+    page.locator("#mc-big").click()
+    expect(page.locator("#m-replace")).to_be_visible()
+    png = tmp_path / "sts52-gal.png"
+    png.write_bytes(PNG_1PX + b"\x11")
+    with page.expect_file_chooser() as fc_info:
+        page.locator("#rep-go").click()
+    fc_info.value.set_files(str(png))
+    # ОВ-6: честный тост — статус авто не изменился
+    expect(page.locator("#toast")).to_contain_text("статус авто не изменился")
+    assert len(sts_posts) == 1
+    assert sts_posts[0].url.endswith("/api/instructor/cars/52/photo/sts")
+
+
 def test_s8_cars_and_docs_screens_have_no_widgets(page, server):
     """TC-UI-035 (change add-s8-cars-docs-booking, задача 6.1, FR-73):
     экраны «Мои автомобили» и «Мои документы» НЕ содержат ни одного из
@@ -3139,7 +3205,7 @@ def test_s8_admin_documents_verify_reject_preview_history(page, server):
             {"id": 62, "type": "car_sts", "version": 2, "status": "pending",
              "uploaded_at": "2026-10-31 18:40:00", "decided_at": None,
              "reject_reason": None,
-             "owner_full_name": "Гордеева Анна Викторовна",
+             "instructor_full_name": "Гордеева Анна Викторовна",
              "car": {"id": 33, "brand": "Kia", "model": "Rio",
                      "plate": "В 456 ВВ 777"}},
         ],
@@ -3154,7 +3220,7 @@ def test_s8_admin_documents_verify_reject_preview_history(page, server):
              "uploaded_at": "2026-10-28 10:00:00",
              "decided_at": "2026-10-29 09:00:00",
              "reject_reason": "Нечитаемый VIN",
-             "owner_full_name": "Белов Артём Дмитриевич",
+             "instructor_full_name": "Белов Артём Дмитриевич",
              "car": {"id": 34, "brand": "Lada", "model": "Vesta",
                      "plate": "Е 789 ЕЕ 777"}},
         ],
@@ -3192,7 +3258,7 @@ def test_s8_admin_documents_verify_reject_preview_history(page, server):
             "uploaded_at": "2026-10-31 18:40:00",
             "decided_at": "2026-11-02 10:05:00",
             "reject_reason": body["reason"],
-            "owner_full_name": "Гордеева Анна Викторовна",
+            "instructor_full_name": "Гордеева Анна Викторовна",
             "car": {"id": 33, "brand": "Kia", "model": "Rio",
                     "plate": "В 456 ВВ 777"}})
         return 200, {"ok": True}

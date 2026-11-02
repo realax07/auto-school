@@ -884,11 +884,19 @@ function mcNavGal(dir){
 // клик по большому окну → выбор файла для текущего кадра (ракурс или СТС)
 var mcGalTarget=null;
 function mcPickGal(car,key,bigEl){
+  // FR-71 (review-003 #2): рамка sts видна только при has_sts, т.е. клик по
+  // большому окну галереи — это ВСЕГДА ЗАМЕНА СТС → тот же диалог замены,
+  // что и у явной кнопки «Заменить СТС»; файл выбирается только после
+  // подтверждения (doc-file: kind car_sts → /cars/{id}/photo/sts, ОВ-6)
+  if(key==='sts'&&car.has_sts){
+    docsAskReplace({kind:'car_sts',carId:car.id,
+      name:'СТС · '+[car.brand,car.model].filter(Boolean).join(' '),
+      wasMissing:false});
+    return;
+  }
   // снимок состояния ДО загрузки: wasValidated — замена РАКУРСА вернет
-  // validated-авто на валидацию (MAJ-1); wasStsReplaced — замена СТС
-  // (создает pending-версию документа, статус авто НЕ меняется — ОВ-6)
-  mcGalTarget={carId:car.id,angle:key,big:bigEl,wasValidated:car.status==='validated',
-    wasStsReplaced:key==='sts'&&!!car.has_sts};
+  // validated-авто на валидацию (MAJ-1)
+  mcGalTarget={carId:car.id,angle:key,big:bigEl,wasValidated:car.status==='validated'};
   el('gal-file').value='';
   el('gal-file').click();
 }
@@ -913,14 +921,11 @@ el('gal-file').addEventListener('change',function(){
     if(e)return;
     mcPurgeCarUrls(t.carId);
     // перезагрузка карточек и модалки: кадр стал загруженным, комплектность
-    // пересчитана; статусы — по контракту Спринта 8 (ОВ-6: замена СТС
-    // статус авто НЕ меняет — только MAJ-1 для 5 ракурсов)
+    // пересчитана; замена СТС идет через doc-file (kind car_sts, FR-71),
+    // поэтому здесь только 5 ракурсов (ОВ-6: замена ракурса validated-авто
+    // вернет его на валидацию — MAJ-1)
     openCars();
-    if(t.angle==='sts'){
-      toast(t.wasStsReplaced
-        ?'Замена СТС отправлена на проверку администратору: до подтверждения действует предыдущая версия; статус авто не изменился (ОВ-6).'
-        :'Фото СТС загружено. Оно появится и в «Моих документах»; статус авто не изменился.');
-    }else if(t.wasValidated){
+    if(t.wasValidated){
       // MAJ-1 (решение ПМ): честный тост о повторной валидации
       toast('Фото заменены — авто отправлено на повторную валидацию. Подтвердите заново: до этого авто скрыто из каталога новых учеников.');
     }else{
@@ -1278,7 +1283,10 @@ el('doc-file').addEventListener('change',function(){
   if(t.kind==='license'){
     mcUpload('/api/instructor/documents/license','file',file,null,null,function(e){
       if(e)return;
-      toast('Замена ВУ отправлена на проверку администратору: до подтверждения действует предыдущая версия.');
+      // review-005 MINOR: первичная загрузка — не «замена»
+      toast(t.wasMissing
+        ?'ВУ отправлено на проверку администратору: документ появится после подтверждения.'
+        :'Замена ВУ отправлена на проверку администратору: до подтверждения действует предыдущая версия.');
       openDocs(); // перезагрузка списка с актуальными статусами (FR-72)
     });
   }else{

@@ -442,7 +442,7 @@ function dcSub(d){
     return 'ВУ · версия '+d.version+' · инструктор '+(d.instructor_full_name||'—');
   }
   var c=d.car||{};
-  return 'СТС · версия '+d.version+' · инструктор '+(d.owner_full_name||d.instructor_full_name||'—')
+  return 'СТС · версия '+d.version+' · инструктор '+(d.instructor_full_name||'—')
     +([c.brand,c.model].filter(Boolean).join(' ')?' · авто '+[c.brand,c.model].filter(Boolean).join(' '):'');
 }
 function dcWhen(d){return String(d.decided_at||d.uploaded_at||'').split('.')[0]}
