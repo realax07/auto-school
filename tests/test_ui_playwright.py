@@ -3647,6 +3647,7 @@ def test_bug052_calendar_single_grid_slot_reject_via_modal(page, server):
                 method="POST", capture=reject_posts)
 
     page.goto(f"{server}/instructor/dashboard")
+    page.locator('.nav button[data-tab="Календарь"]').click()
     expect(page.locator("#sec-calendar")).to_be_visible()
 
     # --- МИШУРА: ровно одна сетка, bk-block снесен без остатков ---
