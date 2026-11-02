@@ -3611,7 +3611,7 @@ def test_s8_bookings_section_removed_redirect_and_slot_reject(page, server):
     раздел «Бронирования» удален БЕЗ остатков — пункта меню нет, секции
     #sec-bookings в DOM нет; старая ссылка #/bookings редиректит в раздел
     «Календарь» (механика BUG-047: хеш очищен, «Календарь» активен). Запрос
-    ученика виден РОВНО на выбранном им слоте (Пн 14:00–16:00; соседние слоты
+    ученика виден РОВНО на выбранном им слоте (Ср 14:00–16:00; соседние слоты
     чистые) с кнопками решений на слоте; отклонение требует комментария
     (кнопка заблокирована без него) и шлет POST …/reject {comment} — слот
     освобождается. API замокан через page.route (бэкенд не задействован)."""
@@ -3652,7 +3652,7 @@ def test_s8_bookings_section_removed_redirect_and_slot_reject(page, server):
     assert page.url.endswith("/instructor/dashboard"), \
         f"хеш #/bookings не очищен редиректом: {page.url}"
 
-    # --- запрос РОВНО на слоте Пн 14:00–16:00 (соседний 16:00–18:00 чист) ---
+    # --- запрос РОВНО на слоте Ср 14:00–16:00 (соседний 16:00–18:00 чист) ---
     req = page.locator("#cal-grid .cal-slot.reqslot")
     expect(req).to_have_count(1)
     assert req.get_attribute("data-k") == "2-14", req.get_attribute("data-k")
@@ -3731,7 +3731,7 @@ def test_bug052_calendar_single_grid_slot_reject_via_modal(page, server):
         assert page.locator(f"#sec-calendar {dead}").count() == 0, \
             f"BUG-052: {dead} не должен остаться в #sec-calendar"
 
-    # --- запрос РОВНО на слоте Пн 14:00–16:00 ---
+    # --- запрос РОВНО на слоте Ср 14:00–16:00 ---
     req = page.locator("#cal-grid .cal-slot.reqslot")
     expect(req).to_have_count(1)
     assert req.get_attribute("data-k") == "2-14", req.get_attribute("data-k")
