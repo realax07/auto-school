@@ -153,7 +153,6 @@ main{padding:28px clamp(20px,3vw,44px) 45px;max-width:1600px;width:100%;margin:a
 .stu-card b{font-size:12px;font-weight:550;display:block}
 .stu-card small{display:block;font-size:10px;color:#8fa0aa;margin-top:3px}
 .stu-card .car-pill{margin-left:auto;font-size:10px;color:#9db0ba;border:1px solid #ffffff12;background:#ffffff05;border-radius:999px;padding:4px 10px;white-space:nowrap;flex:none}
-.bk-block{margin-top:26px;border-top:1px solid var(--line);padding-top:22px}
 @media(max-width:560px){.subtabs{width:100%;overflow-x:auto}}
 /* Раздел «Мои автомобили» (BUG-047: верстка перенесена из frontend/my-cars.html
    внутрь дашборда как таб; имена классов сохранены 1в1 — коллизий со стилями
@@ -485,34 +484,6 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
     <div class="cal-grid-wrap">
       <div class="cal-grid" id="cal-grid"></div>
       <div class="cal-hint">Сохранение заменяет весь график недели: интервалы, снятые с выбора, будут удалены. Дубликаты объединяются автоматически. Запрос ученика показан ровно на выбранном им слоте — подтверждение или отказ (с обязательным комментарием) применяются сразу, без «Сохранить».</div>
-    </div>
-    <!-- BUG-051: брони/запросы — подраздел «Календаря» (п.9 Постановки
-         Заказчика 2026-10-23: раздел «Бронирования» убран из сайдбара,
-         функционал слит с календарем; мокап booking-instructor.html,
-         FR-48/FR-49): входящие запросы — Принять (без комментария) /
-         Отклонить (комментарий обязателен, иначе 422); подтверждённые —
-         в сетке недели поверх графика -->
-    <div class="bk-block">
-      <div class="panel-head"><div><div class="panel-title">Запросы на занятия</div><div class="panel-sub">Ученики бронируют слоты вашего графика. Принять можно одним нажатием; при отказе обязателен комментарий — его увидит ученик, и слот освободится.</div></div></div>
-      <div class="filters" id="bk-filters">
-        <button class="on" data-f="all" type="button">Все</button>
-        <button data-f="new" type="button">Новые <span class="n" id="bk-new-n"></span></button>
-        <button data-f="confirmed" type="button">Подтверждённые</button>
-        <button data-f="rejected" type="button">Отклонённые</button>
-      </div>
-      <div class="bk-list" id="bk-list"></div>
-      <div class="bk-cal">
-        <div class="cal-head">
-          <div><b>Календарь на неделю</b><div class="sub">Ваш график + подтверждённые брони</div></div>
-        </div>
-        <div class="legend">
-          <span><i class="green"></i>В графике — свободно</span>
-          <span><i class="blue"></i>Подтверждённая бронь</span>
-          <span><i class="orange"></i>Новый запрос</span>
-        </div>
-        <div class="grid" id="bk-grid"></div>
-        <div class="bk-hint">Слот бронируется целиком. Отклонение освобождает слот — ученик сможет отправить запрос на него снова. Подтверждённые брони попадают в «Занятия на сегодня» на главной.</div>
-      </div>
     </div>
   </section>
 
