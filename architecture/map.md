@@ -24,6 +24,7 @@
 | 14 | Спринт-3 контур, Партия A (add-instructor-student-loop, arch-review needs-rework — MAJ-1…3 в работе СА) | **Контур «инструктор ↔ ученик»: профиль инструктора (авто 1-ко-многим instructor_cars + интервалы availability) → каталог одобренных для ученика (карточки + фильтры) → заявки student_requests (new/accepted/denied) → принять (с car_id) / отказать (обязательный комментарий) → отзывы reviews (UNIQUE пара, рейтинг агрегатом AVG/COUNT на лету); ФИО — только в users (JOIN по id, без дублирования); файлы — data/uploads/ вне статики, выдача авторизованными эндпоинтами (ВУ — X-Admin-Token, фото авто — владельцу)** — ADR-004 | Авто-закрытие заявок при чужом accept → denied + системный комментарий (допущение proposal; объем закрытия — MAJ-1 ревью); стаж для карточки/фильтра — MAJ-3 (материализация в схеме не завершена); правило префиксов /api/instructors|instructor|student|admin — закрытие MIN-3 ревью 2.2 |
 | 15 | Спринт-5 контур (add-booking-docs, arch-review needs-rework — MAJ-1 в работе СА) | **Бронирование ПОВЕРХ сущностей Спринта 3: таблица booking (student_id, instructor_id, availability_id — слот ЦЕЛИКОМ, ОВ-3; lesson_date материализован; статусы new/confirmed/rejected) с частичным UNIQUE-индексом по availability_id WHERE status IN ('new','confirmed') + BEGIN IMMEDIATE — «один слот = одна активная/подтвержденная бронь» гарантией хранилища (NFR-8), проигравший в гонке получает 409; ракурсы фото и СТС — kinds существующего uploads.py (car_photo/car_sts, механика magic bytes/5 МБ/uuid без изменений) + фиксированные колонки instructor_cars; комплектность фотонабора валидирует ЧЕЛОВЕК в админке (ОВ-1: completeness + block, флаг blocked); домены booking и «Мои документы» — отдельные модули booking.py/instructor_documents.py (директива Заказчика: существующие не раздувать); пара = student_requests.status='accepted' без новой сущности** — ADR-005 | Повторение слота по неделям/завершение занятия — точки расширения (слот с подтвержденной бронью закрыт в объеме); lesson_date не следует за заменой графика — взаимодействие PUT availability с активными бронями доопределяет СА (MAJ-1 ревью); блокировка авто необратима в объеме (разблокировка — точка расширения) |
 | 16 | Спринт-6 контур (add-containerization, arch-review needs-rework — MAJ-1 в работе СА) | **Контейнеризация сервисного контура: multi-stage Dockerfile (pinned python:3.12-slim, .venv из builder-этапа, non-root appuser, HEALTHCHECK по /api/health средствами python stdlib); compose-стек app + nginx (reverse proxy, TLS-файлы монтируются) + MinIO (контур под S3-адаптер uploads.py — задача 6.3); две сети (frontend nginx↔app, backend app↔MinIO), наружу только 80/443; named volumes db/uploads/minio-data; секреты — только env_file/монтирования вне образов (.dockerignore: .env*, deploy/tls/, data/); bare-metal systemd-режим сохраняется — переключение окружением без правок кода (env-изоляция config.py/db.py/uploads.py, FR-57); тесты — внутри того же образа (один digest), CI собирает образ и гоняет pytest на каждый PR** — ADR-006 | Механика доставки tests/ в контейнер (mount vs COPY) — MAJ-1 ревью; nginx в сети backend (лишняя достижимость MinIO) и процедура переключения режимов/переноса data/ в тома — MIN-1/MIN-2 ревью; dev-зависимости в прод-образе и root-обслуживание томов на хосте — принятый техдолг (ADR-006) |
+| 17 | Спринт-8 контур (add-s8-cars-docs-booking, arch-review approve) | **Версии документов ВУ/СТС: таблица document_versions (target_type license/car_sts + target_id, status pending/verified/rejected; частичный UNIQUE по pending — одна ожидающая на документ, ОВ-7; CHECK — rejected только с причиной, ОВ-1); канонические колонки license_photo_path/photo_sts ОСТАЮТСЯ указателями файла действующей версии (все существующие потребители без переделки, NFR-23); seed-миграция verified v1 — idempotent, init_db через lifespan (NFR-24); асимметрия первичной загрузки — СТС у авто без СТС → verified v1 сразу (гейт человека Спринта 7), ВУ у анкеты без ВУ → pending; машины состояний документа и авто НЕЗАВИСИМЫ — замена СТС не сбрасывает validated (ОВ-6), правило MAJ-1 «validated → validating» — только 5 ракурсов; админ-верификация замен — X-Admin-Token, reject с обязательной причиной (ОВ-1), предпросмотр открывается (ОВ-4)** — ADR-007 | Файлы-сироты версий — расширение унаследованного техдолга; асимметрия первичной загрузки — особый случай эксплуатации (первичное СТС не в админской очереди); влияние статусов документов на активность инструктора — точка расширения (ОВ-3 «пока что»); атомарность «замещающая загрузка × verify/reject» — условный UPDATE/BEGIN IMMEDIATE + тесты (MIN-1 ревью); расхождение дословной цитаты п.6 с записью ОВ-6 — подтверждение ПМ/БА (MIN-4 ревью) |
 
 Паттерны 1, 2 в спринте-0 не задействованы: nginx/TLS, gateway
 **отложены Заказчиком** (решение 2026-10-06 — оба
@@ -76,7 +77,10 @@ FastAPI-сервис (uvicorn, single-worker)          ← единственн�
    ├── app.py      — create_app(): роутеры, статика, /api/health, init_db (lifespan)
    ├── config.py   — окружение: ADMIN_USER, ADMIN_PASSWORD_HASH, SECRET (из .env)
    ├── db.py       — SQLite data/app.db (WAL, Row), init_db(): таблицы users,
-   │                 instructor_applications; миграция users.role (idempotent)
+   │                 instructor_applications; миграция users.role (idempotent);
+   │                 СПРИНТ-8 (ADR-007): таблица document_versions + seed
+   │                 verified v1 из существующих license_photo_path/photo_sts
+   │                 (idempotent, NFR-24)
    ├── register.py — POST /api/register (валидация → bcrypt → INSERT)
    ├── admin.py    — POST /api/admin/login; GET /api/admin/users[.csv]; require_admin
    │                 (in-memory реестр токенов {token: expires}, TTL 12 ч)
@@ -110,7 +114,20 @@ FastAPI-сервис (uvicorn, single-worker)          ← единственн�
    │                        /api/instructor/documents (ВУ из анкеты + СТС
    │                        всех своих авто — «Мои документы», FR-45) +
    │                        GET …/{doc_id}/file (просмотр/скачивание,
-   │                        только владелец)
+   │                        только владелец);
+   │                        СПРИНТ-8 (ADR-007, РАСШИРЕНИЕ): таблица
+   │                        document_versions и правила версий (действует —
+   │                        последняя verified, pending одна, ОВ-7);
+   │                        POST /api/instructor/documents/license
+   │                        (загрузка/замена ВУ → pending, FR-71/72);
+   │                        GET /api/instructor/documents — + версии/
+   │                        статусы (active/pending/last_rejected, ОВ-1);
+   │                        админ-контур: GET /api/admin/documents
+   │                        ?status=pending (ВУ — ФИО, СТС — авто/госномер),
+   │                        GET …/{version_id}/file (предпросмотр, ОВ-4),
+   │                        POST …/verify (переключение канонической
+   │                        колонки), POST …/reject (причина обязательна,
+   │                        422 без нее — ОВ-1; не-pending → 409)
    ├── booking.py          — СПРИНТ-5 (ADR-005, новый модуль): GET
    │                        /api/student/instructors/{id}/slots (серверная
    │                        проверка пары — FR-46), POST/GET
@@ -134,7 +151,14 @@ FastAPI-сервис (uvicorn, single-worker)          ← единственн�
    │                        (только владелец); GET
    │                        /api/admin/cars/completeness + POST
    │                        /api/admin/cars/{id}/block (X-Admin-Token,
-   │                        ОВ-1 — комплектность валидирует человек)
+   │                        ОВ-1 — комплектность валидирует человек);
+   │                        СПРИНТ-8 (ADR-007, sts-ветка): POST
+   │                        …/{id}/photo/sts — первичная дозагрузка →
+   │                        photo_sts + verified v1; ЗАМЕНА → pending-
+   │                        версия документа, photo_sts не перезаписывается,
+   │                        статус авто НЕ меняется (ОВ-6: validated
+   │                        остается validated); ветки 5 ракурсов — без
+   │                        изменений (MAJ-1: validated → validating)
    ├── instructor_availability.py — СПРИНТ-3A: GET/PUT
    │                        /api/instructor/availability (полная замена
    │                        графика в одной транзакции)
@@ -150,7 +174,15 @@ FastAPI-сервис (uvicorn, single-worker)          ← единственн�
    │                        …/{id}/accept|deny (accept: car_id своего авто,
    │                        0 авто → 409, авто-закрытие остальных активных
    │                        заявок ученика → denied + системный комментарий,
-   │                        ОВ-1; deny: комментарий обязателен)
+   │                        ОВ-1; deny: комментарий обязателен);
+   │                        СПРИНТ-8 (РАСШИРЕНИЕ, ОВ-5): GET
+   │                        /api/instructor/students — «Мои ученики»:
+   │                        карточки пар accepted + next_lesson (ближайшая
+   │                        confirmed ≥ сегодня, локальная дата сервера,
+   │                        MIN-1) + счетчики planned/completed — ТОЛЬКО
+   │                        confirmed (запросы new не участвуют); чтение
+   │                        поверх booking/student_requests, новых
+   │                        сущностей нет
    ├── instructor_summary.py — СПРИНТ-3A: GET /api/instructor/summary
    │                        («Привязанные ученики», today_lessons = [] —
    │                        честная заглушка FR-41); СПРИНТ-5: today_lessons
@@ -197,6 +229,7 @@ instructor_applications (email UNIQUE, password_hash, status), сессии — 
 | [004-instructor-student-loop](adr/004-instructor-student-loop.md) | Контур «инструктор ↔ ученик» (Спринт 3, Партия A): ФИО — гранулярно в users, новые таблицы не дублируют; файлы — data/uploads/ вне статики, выдача только авторизованными эндпоинтами; рейтинг — агрегат AVG/COUNT на лету без денормализации; связь «принят» = статус accepted заявки | Принято (Заказчик — «Дефолты принимаю», 2026-10-15; ревью — arch-review add-instructor-student-loop, needs-rework: MAJ-1…3 — не касаются решений ADR) |
 | [005-booking-slots](adr/005-booking-slots.md) | Бронирование и документы (Спринт 5): booking поверх availability (слот целиком) с частичным UNIQUE + BEGIN IMMEDIATE против гонок NFR-8; ракурсы фото/СТС — kinds uploads.py + фиксированные колонки instructor_cars; комплектность фотонабора валидирует человек в админке (флаг blocked); домены booking/«Мои документы» — отдельные модули по директиве Заказчика | Принято (Заказчик — дословная цитата ОВ-1…ОВ-6, 2026-10-22; ревью — arch-review add-booking-docs, needs-rework: MAJ-1 согласование PUT availability с бронями — не касается решений ADR) |
 | [006-containerization](adr/006-containerization.md) | Контейнеризация (Спринт 6): multi-stage образ (pinned python:3.12-slim, .venv, non-root); compose app+nginx+MinIO, две сети, наружу только 80/443; состояние — named volumes (db/uploads/minio-data); секреты — env_file/монтирования вне образов (наследование NFR-3/INC-006); bare-metal systemd сохраняется — переключение окружением без правок кода (INC-001/FR-57); MinIO в стеке сразу, S3-адаптер uploads.py — задача 6.3 | Принято (Заказчик — «контейнеризация + модульный JS», 2026-10-23; решения-дефолты утверждены составом Спринта 6; ревью — arch-review add-containerization, needs-rework: MAJ-1 механика доставки тестов в контейнер — не касается решений ADR) |
+| [007-document-versions](adr/007-document-versions.md) | Версии документов ВУ/СТС (Спринт 8): таблица document_versions pending/verified/rejected — частичный UNIQUE (одна ожидающая на документ, ОВ-7) и CHECK (rejected только с причиной, ОВ-1) на уровне схемы; канонические колонки license_photo_path/photo_sts остаются указателями действующей версии (потребители Спринтов 3–7 без переделки, NFR-23); seed-миграция verified v1, idempotent (NFR-24); асимметрия первичной загрузки — СТС → verified сразу (гейт Спринта 7), ВУ → pending; машины состояний документа и авто независимы — замена СТС не сбрасывает validated (ОВ-6), MAJ-1 — только 5 ракурсов | Принято (Заказчик — решения ОВ-1…ОВ-7, 2026-11-01; ревью — arch-review add-s8-cars-docs-booking, approve: MIN-1…MIN-4 — вне решений ADR) |
 
 ## Долг / открытые вопросы
 
@@ -343,3 +376,28 @@ instructor_applications (email UNIQUE, password_hash, status), сессии — 
   (ADR-001/002), статика тем же сервисом (ADR-001), SQLite WAL, нет
   rate-limit на публичных эндпоинтах, файлы-сироты в data/uploads/
   (cleanup вне объема), отсутствующие внешние ключи в схеме (фикс ревью 3A).
+
+## Техдолг спринта-8 (документ-версии, «Мои ученики», календарь; arch-review add-s8-cars-docs-booking — approve, 2026-11-01)
+
+- MIN-1 ревью: атомарность «замещающая загрузка × verify/reject» одной
+  pending-строки document_versions — механизм (условный UPDATE … WHERE
+  status='pending' / BEGIN IMMEDIATE, паттерн NFR-8) не назван в пакете;
+  контроль — тесты задач 2.1/3.1/4.1.
+- MIN-2 ревью: состав списка «Мои документы» после первичной загрузки ВУ
+  (pending есть, active_version=null) — не pinned; контроль — задача 2.1.
+- Файлы-сироты версий: замещение ожидающей версии (ОВ-7) и rejected-версии
+  оставляют файлы в data/uploads/ без cleanup — расширение унаследованного
+  техдолга MIN-3 ревью 3A (ADR-004); cleanup вне объема.
+- MIN-4 ревью (вне пакета): расхождение дословной цитаты Заказчика п.6
+  («Да, сбрасывает») с записью решения ОВ-6 («НЕ сбрасывает») в
+  requirements-sprint8.md; пакет следует оперативной записи (не сбрасывать,
+  ADR-007) — подтверждение ПМ/БА у Заказчика + правка транскрипции.
+- Асимметрия первичной загрузки (ADR-007, решение 3): первичное СТС не
+  попадает в админскую очередь «Документы» (verified v1 сразу) — особый
+  случай для эксплуатации; «отозвать pending», история версий с архивом,
+  пакетное подтверждение, влияние статусов на активность инструктора
+  (ОВ-3 «пока что») — точки расширения.
+- Наследуются без изменений: single-worker + in-memory сессии/токены
+  (ADR-001/002), статика без серверной защиты страниц (спринт-1 паттерн),
+  нет rate-limit на публичных эндпоинтах, файлы-сироты uploads (cleanup
+  вне объема).

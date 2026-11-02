@@ -1,0 +1,316 @@
+<!doctype html>
+<!-- Мокап: «Мои документы» — раздел кабинета инструктора. Спринт 8
+     (change add-s8-cars-docs-booking; FR-70/FR-71/FR-72/FR-73, ОВ-1/ОВ-2/ОВ-7).
+     Единая статусная модель ДОКУМЕНТОВ: verified (действует) / pending-revalidation
+     («на верификации» — замена ждёт решения админа, предыдущая версия ПРОДОЛЖАЕТ
+     действовать) / rejected (замена отклонена админом — показывается ПРИЧИНА ОТКАЗА,
+     предыдущая версия остаётся verified, ОВ-1). ВУ — личный документ; СТС — по ОДНОМУ
+     на каждый автомобиль (ОВ-2). Кнопки «Загрузить»/«Заменить»: замена — предупреждение
+     FR-71 («Текущая версия действует до подтверждения админом», явная кнопка «Заменить»
+     в диалоге); повторная загрузка замещает ожидающую версию (ОВ-7). Клик по изображению
+     — просмотр в полном размере (ОВ-4). Виджетов «привязанные ученики / запросы /
+     занятия на сегодня» НЕТ (FR-73). Данные демо. -->
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#071015"><title>СберАвтошкола — Кабинет инструктора · Мои документы</title>
+<style>
+:root{--bg:#071015;--line:#ffffff16;--text:#f3f7f8;--muted:#93a6b1;--green:#35d879}
+*{box-sizing:border-box}html,body{margin:0;min-width:320px}
+body{background:radial-gradient(ellipse at 78% 0%,#123b2c4d,transparent 38%),radial-gradient(ellipse at 8% 90%,#27465f26,transparent 40%),var(--bg);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh}
+button{font:inherit;color:inherit;cursor:pointer}
+/* лейаут кабинета: сайдбар + контент */
+.app{min-height:100vh;display:grid;grid-template-columns:236px 1fr}
+.sidebar{padding:25px 17px;border-right:1px solid #ffffff12;background:#071016b8;display:flex;flex-direction:column;gap:26px;position:sticky;top:0;height:100vh;overflow:auto}
+.nav-label{font-size:10px;color:#637681;text-transform:uppercase;letter-spacing:.16em;padding:0 11px;margin-bottom:-17px}
+.nav{display:grid;gap:5px}
+.nav button{border:1px solid transparent;background:transparent;color:#aab8c0;text-align:left;padding:11px 12px;border-radius:12px;font-size:13px;display:flex;align-items:center;gap:12px}
+.nav button .ico{width:20px;text-align:center;font-size:16px;flex:none}
+.nav button.active{color:#8ff2b5;background:#143023;border-color:#286445}
+.nav button:hover{background:#ffffff09}
+.side-bottom{margin-top:auto;border:1px solid #ffffff13;border-radius:15px;padding:14px;background:#ffffff04}
+.side-bottom strong{font-size:12px}
+.side-bottom p{font-size:11px;color:#8d9da6;line-height:1.5;margin:7px 0 12px}
+.side-bottom button{width:100%;background:#143222;border:1px solid #2e6a47;color:#a2f5bf;border-radius:10px;padding:10px;font-size:11px}
+main{min-width:0;padding:0 clamp(20px,3vw,40px) 45px}
+.frame{max-width:1080px;margin:auto;padding:26px 0 0}
+header{display:flex;align-items:center;justify-content:space-between;gap:14px;height:48px;margin-bottom:6px}
+.brand{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:650;letter-spacing:-.4px;min-width:0}
+.brand>span:last-child{min-width:0}
+.brand em{font-style:normal;color:var(--green)}
+.check{width:32px;height:32px;flex:none;display:grid;place-items:center;border:3px solid var(--green);border-radius:50%;color:var(--green);font-size:20px;transform:rotate(-8deg)}
+.brand small{display:block;font-size:9px;color:#80919b;letter-spacing:.14em;text-transform:uppercase;margin-top:3px;font-weight:500}
+.crumb{font-size:12px;color:#8fa2ad;justify-self:center}
+.user{justify-self:end;display:flex;align-items:center;gap:13px}
+.uname{font-size:13px;color:#d6e4e2}
+.avatar{width:34px;height:34px;border-radius:11px;background:linear-gradient(145deg,#315744,#14261e);display:grid;place-items:center;color:#a0f2bd;font-size:11px;font-weight:700}
+.logout{padding:8px 20px;border:1px solid #ffffff40;border-radius:999px;background:transparent;font-size:13px}
+.logout:hover{border-color:var(--green)}
+.page-head{margin:26px 0 6px}
+.kicker{font-size:10px;color:#79eaa5;text-transform:uppercase;letter-spacing:.18em}
+h1{font-size:28px;letter-spacing:-.05em;font-weight:600;margin:9px 0 8px}
+.page-head p{font-size:12px;color:var(--muted);margin:0;max-width:760px;line-height:1.6}
+/* секции документов */
+.sect{margin-top:22px}
+.sect-head{display:flex;align-items:center;gap:12px;margin-bottom:13px}
+.sect-head b{font-size:15px;font-weight:600;letter-spacing:-.02em}
+.sect-head .n{font-size:10px;color:#91efb1;border:1px solid #2a5c40;background:#143322;border-radius:999px;padding:3px 9px}
+.sect-head .hint{font-size:11px;color:#7e909a;margin-left:auto}
+.docs{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px}
+.doc{border:1px solid var(--line);border-radius:18px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:14px;display:flex;flex-direction:column;min-width:0}
+.doc:hover{border-color:#35d87933}
+.thumb{position:relative;aspect-ratio:16/10;border-radius:12px;overflow:hidden;border:1px solid #ffffff14;margin-bottom:12px;flex:none;cursor:zoom-in}
+.thumb:hover{border-color:#35d87966}
+.thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.thumb .zoom{position:absolute;right:8px;bottom:8px;font-size:10px;color:#c9ffdd;background:#02070bc0;border:1px solid #2c8651;border-radius:999px;padding:4px 10px}
+.thumb .pendtag{position:absolute;left:8px;top:8px;font-size:9px;color:#ffd479;background:#02070bc0;border:1px solid #6b5426;border-radius:999px;padding:3px 9px}
+.doc b.name{font-size:13px;font-weight:600;letter-spacing:-.01em;display:block}
+.doc small.meta{display:block;font-size:11px;color:#8fa0aa;margin-top:5px;line-height:1.6}
+/* статусы документов (FR-70) */
+.doc-status{font-size:10px;padding:5px 11px;border-radius:999px;border:1px solid;white-space:nowrap}
+.ds-verified{background:#143322;color:#91efb1;border-color:#2a5c40}
+.ds-verified:before{content:"✓ "}
+.ds-pending{background:#2a2010;color:#ffd479;border-color:#6b5426}
+.ds-rejected{background:#33201a;color:#ffb28e;border-color:#5c3030}
+.doc .pills{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.pill{font-size:10px;padding:5px 10px;border-radius:999px;border:1px solid #3a4a52;background:#1a242b;color:#aebfc7}
+/* ожидающая замена / причина отказа */
+.subver{margin-top:11px;border:1px solid #ffffff10;border-radius:12px;padding:10px 12px;font-size:11px;line-height:1.6}
+.subver.pend{border-color:#6b542666;background:#2a201033}
+.subver.pend b{color:#ffd479;font-weight:550;display:block;font-size:10px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:5px}
+.subver.rej{border-color:#5c303066;background:#33201a33}
+.subver.rej b{color:#ffb28e;font-weight:550;display:block;font-size:10px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:5px}
+.subver span{color:#c9d6db}
+.subver .look{color:#8fa0aa;font-size:10px}
+/* кнопки действий FR-72 */
+.doc-actions{display:flex;gap:8px;margin-top:12px}
+.btn-u{flex:1;border-radius:10px;padding:10px 12px;font-size:11px;font-weight:550;border:1px solid #2e6a47;background:#143222;color:#a2f5bf}
+.btn-u:hover{filter:brightness(1.12)}
+.btn-u.ghost{background:transparent;border-color:#ffffff22;color:#b9c8ce}
+.btn-u.ghost:hover{border-color:#35d87966;color:#c9ffdd}
+/* демо-«скан»: фоновый градиент имитирует фото документа */
+.scan{position:relative;display:grid;place-items:center}
+.scan i{font-style:normal;font-size:34px;opacity:.85;filter:drop-shadow(0 3px 10px #000a)}
+.scan:after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(105deg,transparent 0 26px,#ffffff06 26px 28px)}
+.scan-lic{background:linear-gradient(160deg,#1d3a4a,#0c1a24 55%,#14333d)}
+.scan-sts1{background:linear-gradient(160deg,#243b2c,#0c1a12 55%,#1b3a26)}
+.scan-sts2{background:linear-gradient(160deg,#3a2f1d,#1a140c 55%,#3a301a)}
+.scan-sts3{background:linear-gradient(160deg,#2c2440,#14101f 55%,#241f38)}
+footer{margin-top:32px;padding-top:18px;border-top:1px solid #ffffff10;display:flex;justify-content:space-between;gap:14px;font-size:11px;color:#5f717b;flex-wrap:wrap}
+/* модалки: просмотр, предупреждение замены, загрузка */
+.backdrop{position:fixed;inset:0;background:#02070bd8;backdrop-filter:blur(6px);display:none;place-items:center;padding:24px;z-index:30}
+.backdrop.open{display:grid}
+.modal{width:min(760px,100%);max-height:calc(100vh - 60px);overflow:auto;border:1px solid #ffffff20;border-radius:22px;background:linear-gradient(150deg,#16242c,#0b1418);box-shadow:0 30px 80px #000c;padding:20px 22px 22px}
+.modal.small{width:min(520px,100%)}
+.modal-head{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.modal-head h2{font-size:16px;letter-spacing:-.02em;font-weight:600;margin:0}
+.modal-head small{display:block;font-size:11px;color:#8fa0aa;margin-top:5px}
+.close{margin-left:auto;flex:none;width:36px;height:36px;border-radius:11px;border:1px solid #ffffff18;background:#ffffff06;color:#b9c8ce;font-size:17px}
+.close:hover{border-color:#ff6b6b66;color:#ffb28e}
+.viewer .full{position:relative;aspect-ratio:16/10;border-radius:14px;overflow:hidden;border:1px solid #ffffff14}
+.viewer .full img{width:100%;height:100%;object-fit:contain;background:#060d12}
+.viewer .full .scan{position:absolute;inset:0}
+.viewer-foot{margin-top:12px;font-size:10px;color:#7e909a;line-height:1.6}
+/* предупреждение FR-71 */
+.warnbox{border:1px solid #6b5426;background:#2a201033;border-radius:13px;padding:14px 16px;font-size:12px;line-height:1.7;color:#ffe4a3}
+.warnbox b{color:#ffd479}
+.modal p.txt{font-size:12px;color:#c9d6db;line-height:1.7;margin:12px 0 0}
+.m-actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+.m-btn{flex:1;min-width:140px;border-radius:12px;padding:12px;font-size:13px;font-weight:550;border:1px solid}
+.m-btn.confirm{background:#123524;border-color:#2b9c62;color:#c9ffdd}
+.m-btn.confirm:hover{filter:brightness(1.12)}
+.m-btn.ghost{background:#ffffff06;border-color:#ffffff16;color:#aab8c0}
+.hidden-input{display:none}
+.toast{position:fixed;bottom:22px;right:22px;max-width:400px;background:#143323;border:1px solid #367b50;color:#b5f8cc;padding:13px 16px;border-radius:13px;font-size:12px;box-shadow:0 10px 40px #0008;display:none;z-index:40}
+.toast.show{display:block}
+@media(max-width:850px){.frame{padding:20px 16px 36px}.crumb{display:none}h1{font-size:24px}.sect-head .hint{display:none}}
+@media(max-width:560px){header{grid-template-columns:1fr auto}.brand{font-size:19px}.uname{display:none}.docs{grid-template-columns:1fr}.backdrop{padding:12px}.doc-actions{flex-direction:column}}
+</style></head>
+<body>
+<div class="app">
+<aside class="sidebar">
+  <div class="brand"><span class="check">✓</span><span><em>Сбер</em>Автошкола<small>Кабинет инструктора</small></span></div>
+  <div class="nav-label">Рабочее пространство</div>
+  <nav class="nav">
+    <button><span class="ico">⌂</span>Мой день</button>
+    <button><span class="ico">▦</span>Календарь</button>
+    <button><span class="ico">♧</span>Мои ученики</button>
+    <button><span class="ico">▰</span>Мои автомобили</button>
+    <button class="active"><span class="ico">▤</span>Мои документы</button>
+    <button><span class="ico">₽</span>Доходы и выплаты</button>
+    <button><span class="ico">⚙</span>Профиль</button>
+    <button><span class="ico">⎋</span>Выход</button>
+  </nav>
+  <div class="side-bottom"><strong>Нужна помощь?</strong><p>Поддержка инструкторов поможет с документами, расписанием и выплатами.</p><button id="side-help">Связаться с поддержкой ↗</button></div>
+</aside>
+<main><div class="frame">
+<header>
+  <div class="crumb">Кабинет инструктора · Мои документы</div>
+  <div class="user"><span class="uname">Михаил Самойлов</span><span class="avatar">МС</span><button class="logout">Выйти</button></div>
+</header>
+
+<div class="page-head">
+  <div class="kicker">Документы</div>
+  <h1>Мои документы</h1>
+  <p>Водительское удостоверение и СТС каждого автомобиля — по одному на машину. Замена документа вступает в силу только после проверки администратором: до решения действует предыдущая версия. Отклонённую замену можно загрузить заново. Клик по изображению — просмотр в полном размере.</p>
+</div>
+
+<!-- секция: ВУ -->
+<section class="sect">
+  <div class="sect-head"><b>Водительское удостоверение</b><span class="n">1</span><span class="hint">личный документ · из анкеты инструктора</span></div>
+  <div class="docs" id="lic-docs"></div>
+</section>
+
+<!-- секция: СТС по каждому авто (по 1 на авто, ОВ-2) -->
+<section class="sect">
+  <div class="sect-head"><b>СТС автомобилей</b><span class="n" id="sts-count"></span><span class="hint">по одному на каждый автомобиль</span></div>
+  <div class="docs" id="sts-docs"></div>
+</section>
+
+<footer><span>СберАвтошкола · мокап «Мои документы», Спринт 8 (статусная модель документов)</span><span>Демонстрационный интерфейс · данные вымышлены</span></footer>
+</div></main>
+</div>
+
+<!-- просмотр документа в полном размере (ОВ-4) -->
+<div class="backdrop" id="m-view" role="dialog" aria-modal="true">
+  <div class="modal viewer">
+    <div class="modal-head">
+      <div><h2 id="view-title">—</h2><small id="view-sub">—</small></div>
+      <button class="close" data-close="m-view" aria-label="Закрыть">×</button>
+    </div>
+    <div class="full" id="view-full"></div>
+    <div class="viewer-foot" id="view-foot">Выдача — авторизованный эндпоинт GET /api/instructor/documents/{doc_id}/file (Content-Type image/*). Чужой документ вернёт 404 — документы других инструкторов недоступны.</div>
+  </div>
+</div>
+
+<!-- предупреждение замены (FR-71): явная кнопка «Заменить» -->
+<div class="backdrop" id="m-replace" role="dialog" aria-modal="true">
+  <div class="modal small">
+    <div class="modal-head">
+      <div><h2>Заменить документ?</h2><small id="rep-sub">—</small></div>
+      <button class="close" data-close="m-replace" aria-label="Закрыть">×</button>
+    </div>
+    <div class="warnbox"><b>Замена не вступает в силу сразу.</b> Текущая версия действует до подтверждения админом: она останется активной, пока администратор не проверит новый файл. Повторная загрузка до решения заменит ожидающую версию.</div>
+    <p class="txt">Если администратор отклонит замену, вы увидите причину отказа, а действующей останется текущая версия — документ не будет утерян.</p>
+    <div class="m-actions">
+      <button class="m-btn confirm" id="rep-go">Заменить</button>
+      <button class="m-btn ghost" data-close="m-replace">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<input type="file" id="file-input" class="hidden-input" accept="image/jpeg,image/png">
+
+<script>
+// Документы (GET /api/instructor/documents) — демо.
+// docStatus: 'verified' | 'pending' (замена на верификации) | 'rejected' (замена отклонена, причина от админа)
+var DOCSTATUS={verified:['Действует','ds-verified'],pending:['На верификации','ds-pending'],rejected:['Замена отклонена','ds-rejected']};
+var docs=[
+ {id:51,kind:'license',name:'Водительское удостоверение',meta:'серия 99 22 · выдано 12.03.2019 · категория B',date:'14.09.2026',scan:'scan-lic',status:'pending',
+  pending:{date:'сегодня, 09:12'},car:null},
+ {id:52,kind:'sts',car:11,name:'СТС · Škoda Rapid',meta:'госномер А 123 АА 777 · 2020 · автомат',date:'02.10.2026',scan:'scan-sts1',status:'verified',carplate:'А 123 АА 777'},
+ {id:53,kind:'sts',car:12,name:'СТС · Kia Rio',meta:'госномер В 456 ВВ 777 · 2022 · механика',date:'05.10.2026',scan:'scan-sts2',status:'pending',carplate:'В 456 ВВ 777',
+  pending:{date:'вчера, 18:40'}},
+ {id:54,kind:'sts',car:13,name:'СТС · Lada Vesta',meta:'госномер Е 789 ЕЕ 777 · 2021 · механика',date:'28.10.2026',scan:'scan-sts1',status:'rejected',carplate:'Е 789 ЕЕ 777',
+  rejected:{reason:'Фото нечитаемо: номер СТС и VIN размыты. Загрузите снимок при дневном свете, без бликов — полностью в кадре.',by:'Администратор, 30.10.2026'}},
+ {id:null,kind:'sts',car:14,name:'СТС · Volkswagen Polo',meta:'госномер К 321 КК 777 · 2021 · автомат',date:null,scan:'scan-sts3',status:'none',carplate:'К 321 КК 777'}
+];
+var replaceTarget=null;
+function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(window._tt);window._tt=setTimeout(function(){t.classList.remove('show')},4200)}
+function esc(s){return String(s).replace(/[<>&"]/g,function(c){return{'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]})}
+function docCard(d){
+  var el=document.createElement('div');el.className='doc';
+  var thumbInner;
+  if(d.status==='none'){
+    thumbInner='<span class="scan '+d.scan+'" style="position:absolute;inset:0;opacity:.35"><i>🚗</i></span><span class="zoom" style="left:8px;right:auto;border-color:#6b5426;color:#ffd479">нет СТС</span>';
+  }else{
+    thumbInner='<span class="scan '+d.scan+'" style="position:absolute;inset:0"><i>'+(d.kind==='sts'?'🚗':'🪪')+'</i></span><span class="zoom">⤢ Смотреть</span>'+
+      (d.status==='pending'?'<span class="pendtag">замена на проверке</span>':'');
+  }
+  var pills='<div class="pills">';
+  if(d.kind==='sts')pills+='<span class="pill">авто · '+esc(d.carplate)+'</span>';
+  if(d.status!=='none'){var st=DOCSTATUS[d.status];pills+='<span class="doc-status '+st[1]+'">'+st[0]+'</span>'}
+  pills+='</div>';
+  var subver='';
+  if(d.status==='pending'){
+    subver='<div class="subver pend"><b>Ожидает проверки замены</b><span>Загружена новая версия ('+d.pending.date+'). Пока администратор её не подтвердил, действует текущая версия — документ «не мигает».</span></div>';
+  }
+  if(d.status==='rejected'){
+    subver='<div class="subver rej"><b>Причина отказа от администратора</b><span>'+esc(d.rejected.reason)+'</span><br><span class="look">'+esc(d.rejected.by)+' · действует предыдущая версия, можно загрузить заново</span></div>';
+  }
+  var actions;
+  if(d.status==='none'){
+    actions='<div class="doc-actions"><button class="btn-u" data-upload="'+(d.car||0)+'" data-kind="'+d.kind+'">Загрузить</button></div>';
+  }else{
+    actions='<div class="doc-actions"><button class="btn-u ghost" data-view="'+(d.id||'')+'">Открыть</button><button class="btn-u" data-replace="'+(d.id||'')+'" data-kind="'+d.kind+'" data-car="'+(d.car||0)+'">Заменить</button></div>';
+  }
+  el.innerHTML='<span class="thumb" data-thumb="'+(d.id||'')+'" data-none="'+(d.status==='none'?1:0)+'" data-scan="'+d.scan+'" data-kind="'+d.kind+'" data-name="'+esc(d.name)+'">'+thumbInner+'</span>'+
+    '<b class="name">'+esc(d.name)+'</b>'+
+    '<small class="meta">'+esc(d.meta)+(d.date?'<br>загружено '+d.date:'<br>документ не загружен')+'</small>'+
+    pills+subver+actions;
+  return el;
+}
+function render(){
+  var lic=document.getElementById('lic-docs');lic.innerHTML='';
+  docs.filter(function(d){return d.kind==='license'}).forEach(function(d){lic.appendChild(docCard(d))});
+  var sts=document.getElementById('sts-docs');sts.innerHTML='';
+  var stsDocs=docs.filter(function(d){return d.kind==='sts'});
+  stsDocs.forEach(function(d){sts.appendChild(docCard(d))});
+  document.getElementById('sts-count').textContent=stsDocs.length;
+  bind();
+}
+function bind(){
+  // просмотр в полном размере — клик по изображению
+  document.querySelectorAll('[data-thumb]').forEach(function(th){
+    if(th.dataset.none==='1')return;
+    th.addEventListener('click',function(){
+      var name=th.dataset.name;
+      document.getElementById('view-title').textContent=name;
+      document.getElementById('view-sub').textContent=th.dataset.kind==='sts'?'СТС · просмотр в полном размере':'ВУ · просмотр в полном размере';
+      document.getElementById('view-full').innerHTML='<div class="scan '+th.dataset.scan+'"><i>'+(th.dataset.kind==='sts'?'🚗':'🪪')+'</i></div><img alt="'+esc(name)+'" onerror="this.remove()">';
+      document.getElementById('m-view').classList.add('open');document.body.style.overflow='hidden';
+    });
+  });
+  document.querySelectorAll('[data-view]').forEach(function(b){
+    b.addEventListener('click',function(){b.closest('.doc').querySelector('[data-thumb]').click()});
+  });
+  // замена: предупреждение FR-71, затем файл (POST …/photo/sts или заменa ВУ)
+  document.querySelectorAll('[data-replace]').forEach(function(b){
+    b.addEventListener('click',function(){
+      replaceTarget={kind:b.dataset.kind,car:+b.dataset.car,name:b.closest('.doc').querySelector('.name').textContent};
+      document.getElementById('rep-sub').textContent=replaceTarget.name;
+      document.getElementById('m-replace').classList.add('open');document.body.style.overflow='hidden';
+    });
+  });
+  // загрузка отсутствующего СТС — без предупреждения (первая загрузка)
+  document.querySelectorAll('[data-upload]').forEach(function(b){
+    b.addEventListener('click',function(){pickFile(false)});
+  });
+}
+function pickFile(){document.getElementById('file-input').click()}
+document.getElementById('rep-go').addEventListener('click',function(){
+  document.getElementById('m-replace').classList.remove('open');
+  pickFile();
+});
+document.getElementById('file-input').addEventListener('change',function(e){
+  var f=e.target.files[0];e.target.value='';
+  if(!f)return;
+  // прод: JPEG/PNG ≤5 МБ (NFR-9); иначе 422 — предыдущее не затронуто
+  var t=replaceTarget&&replaceTarget.name?replaceTarget.name:'документ';
+  replaceTarget=null;
+  toast('Файл «'+f.name+'» принят ('+Math.round(f.size/1024)+' КБ). Создана версия pending-revalidation для «'+t+'»; действует предыдущая версия до решения админа.');
+  setTimeout(function(){toast('Демо: состояние списка не меняется — дождитесь подтверждения администратора.')},4600);
+});
+// закрытие модалок
+document.querySelectorAll('[data-close]').forEach(function(b){
+  b.addEventListener('click',function(){document.getElementById(b.dataset.close).classList.remove('open');document.body.style.overflow=''});
+});
+document.querySelectorAll('.backdrop').forEach(function(bd){
+  bd.addEventListener('click',function(e){if(e.target===bd){bd.classList.remove('open');document.body.style.overflow=''}});
+});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){document.querySelectorAll('.backdrop.open').forEach(function(bd){bd.classList.remove('open')});document.body.style.overflow=''}});
+// сайдбар: активный раздел подсвечен; «Запросы учеников» и «Бронирования» удалены (FR-74, FR-75)
+document.querySelectorAll('.nav button:not(.active)').forEach(function(b){
+  b.addEventListener('click',function(){toast('Раздел «'+b.textContent.trim()+'» — другой экран кабинета (демо-мокап)')});
+});
+document.getElementById('side-help').addEventListener('click',function(){toast('Раздел поддержки — демонстрационный макет')});
+render();
+</script></body></html>

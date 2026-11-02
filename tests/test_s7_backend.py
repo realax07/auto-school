@@ -940,11 +940,14 @@ def test_s7_booking_deleted_car_empty_state(api, client):
 
 
 def test_s7_sts_upload_and_replace_via_angle(api, client):
-    """TC-S7BE-016 (change add-car-validation-booking, задача 4.1):
-    POST …/photo/sts сохраняет СТС СУЩЕСТВУЮЩЕМУ авто (ранее — корень
-    симптома «kind=car_sts не сохраняется» через legacy-маршрут);
-    JPEG/PNG принимаются; PDF/6 МБ → 422 (прежнее СТС не изменено);
-    замена СТС не трогает ракурсы и статус; файл в data/uploads/car_sts/."""
+    """TC-S7BE-016 (change add-car-validation-booking, задача 4.1;
+    Спринт 8 add-s8-cars-docs-booking — ветка переведена на документные
+    версии, ОВ-2/ОВ-6): POST …/photo/sts сохраняет СТС СУЩЕСТВУЮЩЕМУ
+    авто (ранее — корень симптома «kind=car_sts не сохраняется» через
+    legacy-маршрут); JPEG/PNG принимаются; PDF/6 МБ → 422 (прежнее СТС
+    не изменено); первичная дозагрузка → verified v1, замена → pending
+    без перезаписи photo_sts (FR-70) и без смены статуса авто; файл в
+    data/uploads/car_photo/."""
     import backend.uploads as uploads
 
     instr = create_instructor(client)
@@ -975,6 +978,10 @@ def test_s7_sts_upload_and_replace_via_angle(api, client):
         headers=_headers(instr["token"]),
     )
     assert resp.status_code == 200, resp.text
+    # Спринт 8 (задача 3.1, FR-69): авто БЕЗ действующего СТС → первичная
+    # дозагрузка: photo_sts + verified v1 сразу (без human-верификации)
+    doc = resp.json()["document"]
+    assert doc["status"] == "verified" and doc["version"] == 1
     conn = sqlite3.connect(db_path())
     row = conn.execute(
         "SELECT photo_sts, photo_front, status FROM instructor_cars"
@@ -990,7 +997,9 @@ def test_s7_sts_upload_and_replace_via_angle(api, client):
     assert front_path, "замена СТС не трогает ракурсы"
     assert status == "validating", "загрузка СТС статус не меняет"
 
-    # PNG-замена: файл обновлен, ракурсы/статус прежние
+    # PNG-замена (Спринт 8, FR-70/ОВ-6): pending-версия документа;
+    # photo_sts НЕ перезаписывается до верификации («документ не мигает»),
+    # ракурсы/статус прежние, повторная pending замещает (ОВ-7)
     old_sts = sts_path
     resp = client.post(
         f"/api/instructor/cars/{car_id}/photo/sts",
@@ -998,15 +1007,31 @@ def test_s7_sts_upload_and_replace_via_angle(api, client):
         headers=_headers(instr["token"]),
     )
     assert resp.status_code == 200
+    assert resp.json()["document"]["status"] == "pending"
+    resp = client.post(
+        f"/api/instructor/cars/{car_id}/photo/sts",
+        files={"photo": ("sts3.jpg", ROOT_JPEG, "image/jpeg")},
+        headers=_headers(instr["token"]),
+    )
+    assert resp.status_code == 200
+    doc = resp.json()["document"]
+    assert doc["status"] == "pending", "повторная загрузка замещает ожидающую"
     conn = sqlite3.connect(db_path())
     new_sts, status2 = conn.execute(
         "SELECT photo_sts, status FROM instructor_cars WHERE id = ?",
         (car_id,),
     ).fetchone()
+    versions = conn.execute(
+        "SELECT version, status FROM document_versions"
+        " WHERE target_type = 'car_sts' AND target_id = ? ORDER BY version",
+        (car_id,),
+    ).fetchall()
     conn.close()
-    assert new_sts != old_sts
-    assert Path(new_sts).read_bytes() == ROOT_PNG
+    assert new_sts == old_sts, "действующее СТС не меняется до верификации"
+    assert Path(new_sts).read_bytes() == ROOT_JPEG
     assert status2 == "validating"
+    # ОВ-7: ровно одна ожидающая (v2, та же строка), verified v1 — архив
+    assert [(v, s) for v, s in versions] == [(1, "verified"), (2, "pending")]
 
     # гость/чужой при загрузке
     assert (
@@ -1025,8 +1050,9 @@ def test_s7_sts_upload_and_replace_via_angle(api, client):
         ).status_code
         == 404
     )
-    # сохраненная механика uploads не изменилась (NFR-9)
-    assert uploads.image_media_type(new_sts) == "image/png"
+    # сохраненная механика uploads не изменилась (NFR-9): действующий
+    # файл — прежний JPEG (замена не мигает до верификации)
+    assert uploads.image_media_type(new_sts) == "image/jpeg"
 
 
 def test_s7_documents_sts_all_statuses_and_dosylka(api, client):
@@ -1099,13 +1125,15 @@ def test_s7_documents_sts_all_statuses_and_dosylka(api, client):
 
 
 def test_s7_upload_to_validated_returns_to_validating_and_revalidate(api, client):
-    """TC-S7BE-019 (MAJ-1 review-001, решение ПМ, итерация 3): замена
-    ЛЮБОГО ракурса или СТС у авто в status='validated' переводит его
-    обратно в validating (ответ upload-ручки несет итоговый status);
-    у draft/validating загрузка статус не меняет (ОВ-7); после дозагрузки
-    повторный admin validate снова проходит (гейт ОВ-4 не обходится
-    задним числом: пока авто в validating — оно скрыто из каталога новых
-    учеников)."""
+    """TC-S7BE-019 (MAJ-1 review-001, решение ПМ, итерация 3; Спринт 8
+    ОВ-6 — правило УТОЧНЕНО): замена ЛЮБОГО ракурса у авто в
+    status='validated' переводит его обратно в validating (ответ
+    upload-ручки несет итоговый status); у draft/validating загрузка
+    статус не меняет (ОВ-7); после дозагрузки повторный admin validate
+    снова проходит (гейт ОВ-4 не обходится задним числом: пока авто в
+    validating — оно скрыто из каталога новых учеников). Замена СТС
+    статус авто НЕ сбрасывает (ОВ-6 Спринта 8) — уходит в pending-версию
+    документов."""
     instr = create_instructor(client)
     car_id = add_car_json(client, instr["token"])
     # baseline (draft): загрузка статус не меняет, ответ несет статус
@@ -1154,20 +1182,32 @@ def test_s7_upload_to_validated_returns_to_validating_and_revalidate(api, client
     )
     assert resp.status_code == 200 and resp.json()["status"] == "validated"
 
-    # замена СТС у validated — тот же переход validated → validating
+    # Спринт 8 (ОВ-6): замена СТС у validated статус НЕ сбрасывает —
+    # validated остается validated; создается pending-версия документа
+    # (админ решает в разделе «Документы», не «Автомобили»)
     resp = client.post(
         f"/api/instructor/cars/{car_id}/photo/sts",
         files={"photo": ("sts2.png", ROOT_PNG, "image/png")},
         headers=_headers(instr["token"]),
     )
     assert resp.status_code == 200, resp.text
-    assert resp.json()["status"] == "validating"
-    # повторный admin validate по НОВОМУ комплекту (right загружен,
-    # СТС заменен — комплект полный) — снова validated
-    resp = client.post(
-        f"/api/admin/cars/{car_id}/validate", headers=admin_headers(client)
-    )
-    assert resp.status_code == 200 and resp.json()["status"] == "validated"
+    assert resp.json()["status"] == "validated"
+    assert resp.json()["document"]["status"] == "pending"
+    conn = sqlite3.connect(db_path())
+    sts_path, status = conn.execute(
+        "SELECT photo_sts, status FROM instructor_cars WHERE id = ?",
+        (car_id,),
+    ).fetchone()
+    pending = conn.execute(
+        "SELECT COUNT(*) FROM document_versions"
+        " WHERE target_type = 'car_sts' AND target_id = ?"
+        " AND status = 'pending'",
+        (car_id,),
+    ).fetchone()[0]
+    conn.close()
+    assert status == "validated", "замена СТС не сбрасывает валидацию (ОВ-6)"
+    assert Path(sts_path).read_bytes() == ROOT_JPEG, "прежнее СТС действует"
+    assert pending == 1, "замена СТС — pending-версия документа"
 
 
 # --- MAJ-1 регресс: PUT availability × брони (наследование Спринта 5) ---------

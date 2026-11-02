@@ -54,7 +54,49 @@ main{padding:28px clamp(20px,3vw,44px) 45px;max-width:1600px;width:100%;margin:a
 .cal-slot.on{background:#143322;border-color:#2c8651;background-image:linear-gradient(180deg,#1c4a2e,#12331f)}
 .cal-slot.on:after{content:"✓";color:#7fe3a3;font-size:11px}
 .cal-hint{margin-top:14px;font-size:11px;color:#7e909a}
-/* Раздел «Запросы учеников» (мокап student-requests) */
+/* Спринт 8 (FR-74): запросы/брони НА слотах календаря; клик по слоту —
+   немедленное решение (модалка #m-bk), мимо «Сохранить» */
+.cal-slot.booked,.cal-slot.reqslot{font-size:9px;line-height:1.35;text-align:center;padding:2px 3px;overflow:hidden}
+.cal-slot.booked{background:#17283a;border-color:#2d4a68;color:#cfe6ff}
+.cal-slot.booked small{display:block;font-weight:600;color:#9bc5ff;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-slot.reqslot{background:#2a2010;border-color:#6b5426;color:#ffe4a3}
+.cal-slot.reqslot:hover{filter:brightness(1.15)}
+.cal-slot.reqslot small{display:block;font-weight:600;color:#ffd479;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* модалка решения по запросу/брони на слоте */
+#m-bk textarea{width:100%;min-height:74px;resize:vertical;border:1px solid #ffffff16;background:#0b161c;border-radius:11px;padding:11px 13px;font:inherit;font-size:12px;color:#dcebe9;line-height:1.5;margin-top:8px}
+#m-bk textarea:focus{outline:none;border-color:#35d87966}
+#m-bk .rej-label{display:block;margin-top:12px;font-size:10px;color:#e8b877;text-transform:uppercase;letter-spacing:.12em}
+#m-bk .btn{white-space:nowrap}
+#m-bk .btn.danger{background:#33201a;border-color:#8a3c3c;color:#ffb28e}
+/* Спринт 8 (FR-75/ОВ-5, мокап my-students.html): раздел «Мои ученики» —
+   подразделы-вкладки («Ученики» / «Запросы учеников») и карточки учеников:
+   следующее плановое занятие + счетчики по confirmed-броням. Классы
+   stu-*: в дашборде уже есть .next («Ближайшее занятие» главной). */
+.subtabs{display:flex;gap:5px;border:1px solid #ffffff14;background:#ffffff05;border-radius:12px;padding:5px;width:max-content;margin:0 0 18px}
+.subtabs button{border:1px solid transparent;background:transparent;color:#aab8c0;border-radius:9px;padding:9px 16px;font-size:12px;white-space:nowrap;cursor:pointer}
+.subtabs button.on{background:#143322;border-color:#2c8651;color:#a3efbd}
+.subtabs button .n{color:#ffd479}
+.stu-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.student{border:1px solid var(--line);border-radius:18px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:16px;display:flex;flex-direction:column;gap:13px}
+.st-top{display:flex;align-items:center;gap:12px}
+.stu-sic{width:46px;height:46px;flex:none;border-radius:13px;background:linear-gradient(145deg,#2c4f3d,#132119);display:grid;place-items:center;color:#a0f2bd;font-size:12px;font-weight:700}
+.st-top b{font-size:14px;font-weight:600;letter-spacing:-.01em;display:block;min-width:0}
+.st-top small{display:block;font-size:11px;color:#8fa0aa;margin-top:4px}
+.stu-next{border:1px solid #2a5c4066;background:#0d241744;border-radius:12px;padding:10px 13px;font-size:11px;color:#c9d6db;line-height:1.6}
+.stu-next span{display:block;font-size:9px;color:#7fe3a3;text-transform:uppercase;letter-spacing:.12em;margin-bottom:4px}
+.stu-next.none{border-color:#ffffff10;background:#ffffff04;color:#8fa0aa}
+.stu-next.none span{color:#7e909a}
+.stu-counters{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.stu-cnt{border:1px solid #ffffff10;background:#ffffff04;border-radius:12px;padding:10px 13px}
+.stu-cnt b{font-size:20px;font-weight:600;letter-spacing:-.03em;display:block}
+.stu-cnt span{font-size:10px;color:#8fa0aa;display:block;margin-top:3px;line-height:1.4}
+.stu-empty{border:1px dashed #ffffff22;border-radius:18px;padding:36px 20px;text-align:center;color:#8fa0a9;font-size:12px;line-height:1.7}
+.stu-empty b{display:block;font-size:14px;color:#c9d6db;margin-bottom:7px}
+.stu-error{display:none;margin:0 0 14px;border:1px solid #6b5426;background:#2a201033;border-radius:12px;padding:12px 14px;font-size:12px;color:#ffd479;line-height:1.6}
+.stu-error.show{display:block}
+/* Раздел «Запросы учеников» — с Спринта 8 ПОДРАЗДЕЛ «Моих учеников»
+   (мокап student-requests; FR-37/38/39: принять — с выбором своего авто,
+   отказ — только с непустым комментарием) */
 .rq-filters{display:flex;gap:6px;margin:0 0 14px;flex-wrap:wrap}
 .rq-filters button{border:1px solid #ffffff14;background:#ffffff05;color:#b9c8ce;border-radius:999px;padding:8px 15px;font-size:11px}
 .rq-filters button.on{background:#143322;border-color:#2c8651;color:#a3efbd}
@@ -199,11 +241,12 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
 .side-logout:hover{background:#34251f33}
 .today-empty{display:none;padding:14px;border:1px dashed #ffffff1c;border-radius:12px;color:#8fa0a9;font-size:12px;text-align:center}
 /* Спринт 5 (change add-booking-docs): разделы «Мои автомобили» (5 ракурсов +
-   СТС + комплектность), «Мои документы», «Бронирования» — внутри дашборда
+   СТС + комплектность), «Мои документы» — внутри дашборда
    (BUG-047-прецедент: standalone-страницы запрещены). Имена классов — 1в1 из
-   мокапов design/mocks/my-cars.html, my-documents.html, booking-instructor.html;
-   коллизий с правилами выше нет (проверено: .slot/.doc/.req/.filters здесь
-   не определены, .status переопределяется точечно в .req-top). */
+   мокапов design/mocks/my-cars.html, my-documents.html;
+   коллизий со стилями выше нет (проверено: .slot/.doc/.req/.filters здесь
+   не определены, .status переопределяется точечно в .rq-top).
+   Спринт 8 (FR-74): раздел «Бронирования» удален без остатков. */
 /* Спринт 7 (change add-car-validation-booking): статусы валидации
    (мокап design/mocks/my-cars-s7.html, FR-65): «Черновик» — серый,
    «На валидации» — жёлтый, «Проверено» — зелёный + галочка (.st-ok:before).
@@ -293,56 +336,40 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
 .viewer .full{position:relative;aspect-ratio:16/10;border-radius:14px;overflow:hidden;border:1px solid #ffffff14;background:#060d12}
 .viewer .full img{width:100%;height:100%;object-fit:contain}
 .viewer-foot{margin-top:12px;font-size:10px;color:#7e909a;line-height:1.6}
-/* «Бронирования» (мокап booking-instructor.html) */
-.filters{display:flex;gap:6px;margin:16px 0 14px;flex-wrap:wrap}
-.filters button{border:1px solid #ffffff14;background:#ffffff05;color:#b9c8ce;border-radius:999px;padding:8px 15px;font-size:11px}
-.filters button.on{background:#143322;border-color:#2c8651;color:#a3efbd}
-.filters button .n{color:#ffd479}
-.bk-list{display:grid;gap:11px}
-.req{border:1px solid var(--line);border-radius:18px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:17px 19px}
-.req-top{display:flex;gap:13px;align-items:center;flex-wrap:wrap}
-.req-top .status{margin-left:auto;flex:none;font-size:10px;padding:6px 12px;border-radius:999px;white-space:nowrap}
-.st-new{background:#2a2010;color:#ffd479;border:1px solid #6b5426}
-.st-ok{background:#143322;color:#91efb1;border:1px solid #2a5c40}
-.st-den{background:#33201a;color:#ffb28e;border:1px solid #5c3030}
-.slotpill{display:inline-flex;align-items:center;gap:7px;font-size:11px;color:#c9ffdd;border:1px solid #2a5c40;background:#0d241766;border-radius:999px;padding:6px 12px;margin-top:7px}
-.slotpill i{font-style:normal;color:#7fe3a3}
-.comment{margin:12px 0 0;padding:11px 14px;border:1px solid #ffffff10;background:#ffffff04;border-radius:12px;font-size:12px;color:#c9d6db;line-height:1.55}
-.comment span{display:block;font-size:10px;color:#8fa0aa;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
-.comment.denied span{color:#e8b877}
-.bk-actions{display:flex;gap:9px;margin-top:14px;flex-wrap:wrap}
-.act{border-radius:11px;padding:11px 20px;font-size:12px;font-weight:550;border:1px solid;cursor:pointer}
-.act.accept{background:#123524;border-color:#2b9c62;color:#c9ffdd}
-.act.accept:hover{filter:brightness(1.12)}
-.act.deny{background:transparent;border-color:#8a3c3c66;color:#ffb28e}
-.act.deny:hover{background:#33201a55}
-.deny-panel{display:none;margin-top:14px;border:1px solid #5c3030;border-radius:13px;background:#24131366;padding:15px}
-.deny-panel.open{display:block}
-.deny-panel h4{margin:0 0 11px;font-size:10px;color:#e8b877;text-transform:uppercase;letter-spacing:.12em;font-weight:500}
-.deny-panel textarea{width:100%;min-height:74px;resize:vertical;border:1px solid #ffffff16;background:#0b161c;border-radius:11px;padding:11px 13px;font:inherit;font-size:12px;color:#dcebe9;line-height:1.5}
-.deny-panel textarea:focus{outline:none;border-color:#35d87966}
-.deny-actions{display:flex;align-items:center;gap:11px;margin-top:11px;flex-wrap:wrap}
-.deny-confirm{border:1px solid #8a3c3c;background:#33201a;color:#ffb28e;border-radius:11px;padding:11px 20px;font-size:12px;font-weight:550;cursor:pointer}
-.deny-confirm:disabled{opacity:.4;cursor:not-allowed}
-.deny-note{font-size:10px;color:#8fa0aa}
-.bk-cal{border:1px solid var(--line);border-radius:19px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:19px;margin-top:24px}
-.bk-cal .grid{display:grid;grid-template-columns:64px repeat(7,minmax(0,1fr));gap:6px}
-.bk-cal .corner{font-size:9px;color:#637681;display:grid;place-items:end center;padding-bottom:6px;text-transform:uppercase;letter-spacing:.08em}
-.bk-cal .dh{text-align:center;padding:7px 2px;border-radius:10px;background:#ffffff04;border:1px solid #ffffff0e}
-.bk-cal .dh small{display:block;font-size:9px;color:#84959e;text-transform:uppercase;letter-spacing:.08em}
-.bk-cal .dh b{display:block;font-size:14px;margin-top:4px;font-weight:600}
-.bk-cal .dh.today{background:#143322;border-color:#2c8651}
-.bk-cal .dh.today small{color:#a3efbd}
-.bk-cal .tlabel{font-size:10px;color:#7e909a;display:flex;align-items:center;justify-content:flex-end;padding-right:6px}
-.bk-cal .slot{height:44px;aspect-ratio:auto;border-radius:9px;border:1px solid #ffffff10;background:#ffffff03;font-size:9px;line-height:1.35;display:grid;place-items:center;text-align:center;padding:2px 3px;overflow:hidden;cursor:default}
-.bk-cal .slot.on{background:#143322;border-color:#2c8651;color:#a3efbd}
-.bk-cal .slot.booked{background:#17283a;border-color:#2d4a68;color:#cfe6ff}
-.bk-cal .slot.booked small{display:block;color:#9bc5ff;font-weight:600;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.bk-cal .slot.reqslot{background:#2a2010;border-color:#6b5426;color:#ffe4a3;cursor:pointer}
-.bk-cal .slot.reqslot:hover{filter:brightness(1.15)}
-.bk-cal .slot.reqslot small{display:block;color:#ffd479;font-weight:600;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.bk-hint{margin-top:14px;font-size:11px;color:#7e909a;line-height:1.7}
-.bk-none{border:1px dashed #ffffff1c;border-radius:12px;padding:16px 14px;font-size:11px;color:#8fa0aa;text-align:center}
+/* Спринт 8 (change add-s8-cars-docs-booking, FR-74): раздел «Бронирования»
+   удален БЕЗ остатков (CSS-блок booking-instructor.html включительно);
+   запросы/брони отображаются на слотах раздела «Календарь» — стили меток
+   слотов .cal-slot.booked/.reqslot и модалка решения #m-bk ниже. */
+/* Спринт 8 (change add-s8-cars-docs-booking, мокап my-documents-s8.html):
+   статусная модель документов — бейджи версий (.ds-*), блок «Ожидает
+   проверки замены» (.subver.pend) и причина отказа (.subver.rej);
+   карточка документа — article с кнопками действий (.doc-actions).
+   FR-71: модалка замены с предупреждением (.warnbox) и ЯВНОЙ «Заменить». */
+.doc{cursor:default}
+.doc .pill.okpill{border-color:#2a5c40;background:#143322;color:#91efb1}
+.ds-badge{font-size:10px;padding:5px 11px;border-radius:999px;border:1px solid;white-space:nowrap;margin-top:10px;align-self:flex-start}
+.ds-verified{background:#143322;color:#91efb1;border-color:#2a5c40}
+.ds-verified:before{content:"✓ "}
+.ds-pending{background:#2a2010;color:#ffd479;border-color:#6b5426}
+.ds-rejected{background:#33201a;color:#ffb28e;border-color:#5c3030}
+.doc .meta .ver{color:#7e909a}
+.subver{margin-top:11px;border:1px solid #ffffff10;border-radius:12px;padding:10px 12px;font-size:11px;line-height:1.6;text-align:left}
+.subver.pend{border-color:#6b542666;background:#2a201033}
+.subver.pend b{color:#ffd479;font-weight:550;display:block;font-size:10px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:5px}
+.subver.rej{border-color:#5c303066;background:#33201a33}
+.subver.rej b{color:#ffb28e;font-weight:550;display:block;font-size:10px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:5px}
+.subver span{color:#c9d6db}
+.subver .look{color:#8fa0aa;font-size:10px}
+.doc-actions{display:flex;gap:8px;margin-top:12px}
+.doc-actions .btn-u{flex:1;border-radius:10px;padding:10px 12px;font-size:11px;font-weight:550;border:1px solid #2e6a47;background:#143222;color:#a2f5bf;cursor:pointer}
+.doc-actions .btn-u:hover{filter:brightness(1.12)}
+.doc-actions .btn-u.ghost{background:transparent;border-color:#ffffff22;color:#b9c8ce}
+.doc-actions .btn-u.ghost:hover{border-color:#35d87966;color:#c9ffdd}
+.doc .pendtag{position:absolute;left:8px;top:8px;font-size:9px;color:#ffd479;background:#02070bc0;border:1px solid #6b5426;border-radius:999px;padding:3px 9px;z-index:2}
+.thumb .ph{position:absolute;inset:0;display:grid;place-items:center;color:#7fe3a3;font-size:30px}
+.warnbox{border:1px solid #6b5426;background:#2a201033;border-radius:13px;padding:14px 16px;font-size:12px;line-height:1.7;color:#ffe4a3;text-align:left}
+.warnbox b{color:#ffd479}
+.m-rep-txt{font-size:12px;color:#c9d6db;line-height:1.7;margin:12px 0 0;text-align:left}
 </style>
 </head>
 <body>
@@ -369,8 +396,12 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
   <div class="hello"><div><div class="kicker">Понедельник · 12 октября</div><h2 id="hello-name">Добрый день, Михаил</h2><p>Вот что у тебя сегодня. Всё под контролем.</p></div><div class="online"><i></i> Профиль активен</div></div>
   <!-- Виджеты главной (мокап calendar-availability-a, change add-instructor-student-loop):
        данные GET /api/instructor/summary + GET /api/instructor/requests; до ответа —
-       честные пустые состояния (демо-данных виджеты больше не показывают). -->
-  <section class="widgets">
+       честные пустые состояния (демо-данных виджеты больше не показывают).
+       Спринт 8 (FR-73, change add-s8-cars-docs-booking): класс day-content —
+       виджеты принадлежат ТОЛЬКО главной «Мой день»; разделы «Мои автомобили»
+       и «Мои документы» (и остальные) открываются БЕЗ виджетов (явные
+       исключения Заказчика; place виджетов — главная и «Мои ученики»). -->
+  <section class="widgets day-content">
     <div class="w" id="w-students">
       <div class="w-head"><b>Привязанные ученики</b><span class="w-n" id="w-students-n">0</span></div>
       <div id="w-students-list"><div class="w-empty" id="w-students-empty"><b>Пока нет привязанных учеников</b>Принятые заявки появятся в этом списке.</div></div>
@@ -440,16 +471,20 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
   </div>
 
   <!-- Раздел «Календарь» (мокап calendar-availability-a, вариант A: сетка недели;
-       FR-29/FR-30: GET /api/instructor/availability при входе, PUT — полная замена) -->
+       FR-29/FR-30: GET /api/instructor/availability при входе, PUT — полная замена.
+       Спринт 8, FR-74: запросы (new) и брони (confirmed) — РОВНО на выбранных
+       слотах; решения — на слоте, немедленно, мимо «Сохранить» (наследование
+       ОВ-6 Спринта 7); раздел «Бронирования» удален, старые ссылки #/bookings —
+       редирект сюда) -->
   <section class="card panel" id="sec-calendar" style="display:none">
     <div class="cal-head">
-      <div><b>Мой график на неделю</b><div class="sub">Клик по слоту — отметить или снять интервал · шаг 2 часа</div></div>
+      <div><b>Мой график на неделю</b><div class="sub">Клик по свободному слоту — отметить или снять интервал · шаг 2 часа · клик по запросу/брони — решение</div></div>
       <div class="cal-save"><span id="cal-changed">Есть несохранённые изменения</span><button id="cal-save" type="button">Сохранить график</button></div>
     </div>
-    <div class="legend"><span><i class="green"></i>Рабочий интервал</span><span><i style="background:#3a4a52"></i>Не работаю</span></div>
+    <div class="legend"><span><i class="green"></i>Рабочий интервал</span><span><i style="background:#3a4a52"></i>Не работаю</span><span><i class="blue"></i>Подтверждённая бронь</span><span><i class="orange"></i>Новый запрос ученика</span></div>
     <div class="cal-grid-wrap">
       <div class="cal-grid" id="cal-grid"></div>
-      <div class="cal-hint">Сохранение заменяет весь график недели: интервалы, снятые с выбора, будут удалены. Дубликаты объединяются автоматически.</div>
+      <div class="cal-hint">Сохранение заменяет весь график недели: интервалы, снятые с выбора, будут удалены. Дубликаты объединяются автоматически. Запрос ученика показан ровно на выбранном им слоте — подтверждение или отказ (с обязательным комментарием) применяются сразу, без «Сохранить».</div>
     </div>
     <!-- BUG-051: брони/запросы — подраздел «Календаря» (п.9 Постановки
          Заказчика 2026-10-23: раздел «Бронирования» убран из сайдбара,
@@ -481,20 +516,27 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
     </div>
   </section>
 
-  <!-- Раздел «Мои ученики» (BUG-051): вкладки-подразделы «Ученики» (карточки
-       привязанных, шейп GET /api/instructor/summary) и «Запросы учеников»
-       (переехали сюда из сайдбара; мокап student-requests; FR-37/38/39:
-       принять — с выбором своего авто, отказ — только с непустым комментарием) -->
+  <!-- Раздел «Мои ученики» (мокап my-students.html, Спринт 8 change
+       add-s8-cars-docs-booking; FR-75/ОВ-5): карточки принятых учеников
+       (пары = student_requests.status='accepted') — ФИО, СЛЕДУЮЩЕЕ ПЛАНОВОЕ
+       ЗАНЯТИЕ (ближайшая ПОДТВЕРЖДЕННАЯ бронь; при отсутствии — «нет»),
+       счётчики «плановых дальше / проведено» — ТОЛЬКО confirmed (ОВ-5);
+       данные — GET /api/instructor/students (задача 9.1, XSS-гигиена:
+       createElement + textContent). «Запросы учеников» — ПОДРАЗДЕЛ-ВКЛАДКА
+       внутри раздела (отдельного пункта сайдбара больше нет): принятие
+       (с выбором авто) / отказ (комментарий обязателен) — контур
+       Спринта 3 без изменений. -->
   <section class="card panel" id="sec-students" style="display:none">
-    <div class="subtabs" id="stu-subtabs">
-      <button class="on" data-subtab="students" type="button">Ученики</button>
-      <button data-subtab="requests" type="button">Запросы учеников <span class="n" id="stu-sub-new"></span></button>
+    <div class="subtabs" id="stu-tabs">
+      <button class="on" data-stu="students" type="button">Ученики <span class="n" id="stu-n">·0</span></button>
+      <button data-stu="requests" type="button">Запросы учеников <span class="n" id="stu-req-n">·0</span></button>
     </div>
-    <div id="tab-students">
+    <div id="stu-tab-students">
+      <div class="stu-error" id="stu-error"></div>
       <div class="stu-cards" id="stu-cards"></div>
-      <div class="w-empty" id="stu-empty"><b>Пока нет привязанных учеников</b>Принятые заявки появятся в этом списке.</div>
+      <div class="stu-empty" id="stu-empty" style="display:none"><b>Учеников пока нет</b>Принятые запросы появятся здесь: ученик, следующее плановое занятие и счётчики по подтверждённым броням.</div>
     </div>
-    <div id="tab-requests" style="display:none">
+    <div id="stu-tab-requests" style="display:none">
       <div class="panel-head"><div><div class="panel-title">Входящие заявки</div><div class="panel-sub">Принять можно только заявку в статусе «новая» — с выбором вашего автомобиля. Отказ требует обязательного комментария.</div></div></div>
       <div class="rq-filters" id="rq-filters">
         <button class="on" data-f="all">Все</button>
@@ -592,7 +634,7 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
               <div class="prog" id="mc-prog"><i></i></div>
             </div>
             <div class="gal-thumbs" id="mc-thumbs"></div>
-            <div class="form-note" style="margin-top:12px">Клик по миниатюре — открыть в большом окне; клик по большому окну — <b>загрузить или заменить</b> фото этого ракурса (JPEG/PNG, ≤5 МБ). СТС дозагружается на уже созданном авто — и появится в «Моих документах». Замена фото и СТС статус не меняет.</div>
+            <div class="form-note" style="margin-top:12px">Клик по миниатюре — открыть в большом окне; клик по большому окну — <b>загрузить или заменить</b> фото этого ракурса (JPEG/PNG, ≤5 МБ). СТС дозагружается на уже созданном авто — и появится в «Моих документах». Замена СТС статус авто не меняет (Спринт 8, ОВ-6): новая версия уходит администратору в раздел «Документы»; замена фото ракурсов у «Проверено» возвращает авто на валидацию.</div>
           </div>
           <div>
             <div class="gal-panel">
@@ -613,23 +655,32 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
     </div>
   </section>
 
-  <!-- Раздел «Мои документы» (мокап my-documents.html, change add-booking-docs):
-       ВУ из анкеты + СТС по каждому авто; просмотр полного размера —
-       GET /api/instructor/documents/{doc_id}/file (только владелец).
-       BUG-051: раздел переименован в «Профиль и документы» (кнопка сайдбара
-       data-tab + заголовок шапки); старая ДЕМО-секция «Профиль и документы»
-       (заглушка) удалена — её место занял этот раздел -->
+  <!-- Раздел «Мои документы» (мокап my-documents-s8.html, Спринт 8
+       change add-s8-cars-docs-booking): ВУ из анкеты + СТС по каждому авто;
+       статусная модель версий (Действует / Ожидает проверки замены /
+       Отклонено с причиной); загрузка/замена — FR-72 (без виджетов, FR-73);
+       просмотр полного размера — GET /api/instructor/documents/{doc_id}/file
+       (только владелец). BUG-051: раздел переименован в «Профиль и документы»
+       (кнопка сайдбара data-tab + заголовок шапки); старая ДЕМО-секция
+       «Профиль и документы» (заглушка) удалена — её место занял этот раздел.
+       Виджетов «привязанные ученики/запросы/занятия» в разделе НЕТ (FR-73). -->
   <section class="card panel" id="sec-docs" style="display:none">
     <section class="sect">
-      <div class="sect-head"><b>Водительское удостоверение</b><span class="n" id="lic-n">0</span><span class="hint">из анкеты инструктора</span></div>
+      <div class="sect-head"><b>Водительское удостоверение</b><span class="n" id="lic-n">0</span><span class="hint">личный документ · из анкеты инструктора</span></div>
       <div class="docs" id="lic-docs"></div>
-      <div class="no-license" id="no-license"><b>ВУ не найдено</b><span id="no-license-hint">В вашей анкете не было фото водительского удостоверения. Досыл документа появится позже — обратитесь в поддержку.</span></div>
+      <div class="no-license" id="no-license"><b>ВУ не загружено</b><span id="no-license-hint">В вашей анкете не было фото водительского удостоверения.</span><div class="doc-actions" style="justify-content:center;margin-top:14px"><button class="btn-u" id="upload-license" type="button" style="flex:0 0 auto;padding:10px 22px">Загрузить ВУ</button></div></div>
     </section>
     <section class="sect">
-      <div class="sect-head"><b>СТС автомобилей</b><span class="n" id="sts-count">0</span><span class="hint">по одному на каждый автомобиль</span></div>
+      <div class="sect-head"><b>СТС автомобилей</b><span class="n" id="sts-count">0</span><span class="hint">по одному на каждый автомобиль · замена — после проверки администратором</span></div>
       <div class="docs" id="sts-docs"></div>
     </section>
   </section>
+
+  <!-- Раздел «Бронирования» УДАЛЕН (Спринт 8, FR-74: без остатков — пункт
+       меню, секция, JS-контур, CSS). Запросы и брони отображаются РОВНО на
+       выбранных слотах в разделе «Календарь» (#sec-calendar); решения — на
+       слоте, немедленно (модалка #m-bk). Старая ссылка #/bookings —
+       редирект в календарь (механика BUG-047). -->
 
   <!-- просмотр документа в полном размере (общий для «Мои автомобили» — СТС —
        и «Мои документы»; вне секций, чтобы открываться из любого раздела) -->
@@ -643,6 +694,53 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
       <div class="viewer-foot">Выдача — авторизованный эндпоинт GET /api/instructor/documents/{doc_id}/file (Content-Type image/*). Чужой или несуществующий документ вернёт 404 — документы других инструкторов недоступны.</div>
     </div>
   </div>
+
+  <!-- Спринт 8 (FR-74): решение по запросу/брони — НА слоте календаря,
+       немедленно, мимо «Сохранить» (наследование ОВ-6 Спринта 7).
+       Принять — одним кликом; Отклонить — комментарий обязателен
+       (без него кнопка заблокирована; пустой на сервере — 422);
+       у подтвержденной брони — «Отменить бронь» (наследование BUG-049). -->
+  <div class="backdrop" id="m-bk" role="dialog" aria-modal="true" aria-labelledby="bk-slot-title">
+    <div class="viewer" style="width:min(520px,100%)">
+      <div class="viewer-head">
+        <div><h2 id="bk-slot-title">Запрос ученика</h2><small id="bk-slot-sub">—</small></div>
+        <button class="close" id="bk-slot-close" aria-label="Закрыть">×</button>
+      </div>
+      <p class="m-rep-txt" style="margin-top:4px"><b id="bk-slot-who">—</b><span id="bk-slot-what"></span></p>
+      <div id="bk-slot-reject" style="display:none">
+        <label class="rej-label" for="bk-slot-reason">Комментарий при отказе — обязателен (без него действие заблокировано)</label>
+        <textarea id="bk-slot-reason" placeholder="Например: в это время пересдача экзамена, выберите другой слот"></textarea>
+      </div>
+      <div class="form-actions">
+        <button class="btn primary" id="bk-slot-confirm" type="button">✓ Принять</button>
+        <button class="btn ghost" id="bk-slot-reject-btn" type="button">✕ Отклонить…</button>
+        <button class="btn ghost danger" id="bk-slot-reject-go" type="button" style="display:none">✕ Отклонить запрос</button>
+        <button class="btn ghost danger" id="bk-slot-cancel" type="button" style="display:none">✕ Отменить бронь</button>
+        <button class="btn ghost" id="bk-slot-close2" type="button">Закрыть</button>
+      </div>
+    </div>
+  </div>
+  <!-- Спринт 8 (FR-71): предупреждение замены — явная кнопка «Заменить»;
+       без клика по ней файл НЕ отправляется, отмена ничего не меняет.
+       Диалог общий для замены ВУ/СТС из «Моих документов» и СТС из
+       модалки авто («Мои автомобили»). -->
+  <div class="backdrop" id="m-replace" role="dialog" aria-modal="true" aria-labelledby="rep-title">
+    <div class="viewer" style="width:min(520px,100%)">
+      <div class="viewer-head">
+        <div><h2 id="rep-title">Заменить документ?</h2><small id="rep-sub">—</small></div>
+        <button class="close" id="rep-close" aria-label="Закрыть">×</button>
+      </div>
+      <div class="warnbox"><b>Замена не вступает в силу сразу.</b> Замена вступит в силу только после проверки администратором: до подтверждения действует предыдущая версия — документ «не мигает». Повторная загрузка до решения заменит ожидающую версию.</div>
+      <p class="m-rep-txt">Если администратор отклонит замену, вы увидите причину отказа, а действующей останется текущая версия — документ не будет утерян.</p>
+      <div class="form-actions">
+        <button class="btn primary" id="rep-go" type="button">Заменить</button>
+        <button class="btn ghost" id="rep-cancel" type="button">Отмена</button>
+      </div>
+    </div>
+  </div>
+  <!-- единый скрытый input загрузки документов (ВУ/СТС): открывается
+       после явного «Заменить» (или сразу — для первой загрузки) -->
+  <input type="file" id="doc-file" accept="image/jpeg,image/png" style="display:none">
 
   <footer><span>СберАвтошкола · Кабинет инструктора</span><span>Демонстрационный интерфейс · Все данные вымышлены</span></footer>
 </main>

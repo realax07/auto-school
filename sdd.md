@@ -871,3 +871,63 @@ send-to-validation/back-to-draft по ОВ-3; админ: validate с компл
 3. sdd-трассировка составлена ПМ (INC-007: leaf-агент Спринта 5 редактировал
    sdd.md в удаленном позже worktree; правка восстановлена вручную по данным
    QA-отчетов и review-артефактов) — содержание верифицировано прогонами.
+
+## 30. Спринт 8 — модель версий документов и контракты API — change add-s8-cars-docs-booking
+
+Модель версий: таблица document_versions (id, target_type license|car_sts,
+target_id, version_no, file_path, status pending/verified/rejected,
+reject_reason с CHECK «при rejected причина непуста» (ОВ-1), created_at,
+decided_at; UNIQUE (target_type, target_id, version_no); частичный UNIQUE
+по pending — ровно одна ожидающая версия на документ, ОВ-7). Идемпотентная
+миграция + seed verified v1 из легаси (license_photo_path анкеты, photo_sts
+авто) — NFR-24: на старой БД не остается документов без verified. Асимметрия
+СА: первичный СТС → verified сразу; первичное ВУ → pending (verify
+переключает license_photo_path). Замена СТС статус авто НЕ меняет (ОВ-6);
+правило «пустого СТС» едино для seed и sts-ветки (None и '' — документа нет).
+Хелперы: действующая (последняя verified), ожидающая, последняя rejected.
+
+Контракты API (design.md, блоки A/B/админ):
+
+| Эндпоинт | Доступ | Контракт |
+|---|---|---|
+| POST /api/instructor/documents/license | сессия + instructor | multipart file, JPEG/PNG ≤5 МБ по magic bytes → 422; pending-версия (замещает ожидающую, ОВ-7); license_photo_path и действующая версия не меняются до verify |
+| GET /api/instructor/documents | владелец | прежний состав + active_version / pending / last_rejected {version, reject_reason, decided_at} на документ |
+| GET /api/instructor/documents/{doc_id}/file | владелец | файл ДЕЙСТВУЮЩЕЙ версии; чужой/несуществующий → 404-неразличение (NFR-22) |
+| POST /api/instructor/cars/{id}/photo/sts | сессия + instructor | первичная → verified v1 сразу; замена → pending-версия; статус авто не меняется (ОВ-6) |
+| GET /api/instructor/students | сессия + instructor | карточки принятых пар (ОВ-5): ФИО, next_lesson (ближайшая confirmed ≥ локальной даты сервера) / null, planned_count (confirmed после следующей), completed_count (confirmed с датой < сегодня); только свои пары (NFR-22) |
+| GET /api/admin/documents?status=pending | X-Admin-Token | ожидающие версии (ФИО инструктора, авто) |
+| GET /api/admin/documents/{version_id}/file | X-Admin-Token | предпросмотр открывается (ОВ-4) |
+| POST /api/admin/documents/{version_id}/verify | X-Admin-Token | версия → verified, каноническая колонка переключается одной транзакцией |
+| POST /api/admin/documents/{version_id}/reject | X-Admin-Token | причина ОБЯЗАТЕЛЬНА (пустая → 422, ОВ-1); предыдущая verified сохраняется |
+
+Наследуемые без изменений: availability (MAJ-1: 409 при брони), bookings
+(немедленные решения на слоте), requests (контур Спринта 3).
+
+## 31. Трассировка (Спринт 8) — change add-s8-cars-docs-booking
+
+| Requirement/дельта specs/ | Реализация | Тесты |
+|---|---|---|
+| instructor-documents: версионная модель, миграция+seed (NFR-24) | backend/db.py + backend/instructor_documents.py | TC-S8BE-001 |
+| instructor-documents: ВУ загрузка/замена, версии в GET (FR-70/72) | backend/instructor_documents.py | TC-S8BE-002, TC-S8BE-006 |
+| instructor-documents: админ-верификация (ОВ-1/ОВ-4) | backend/instructor_documents.py (admin-часть) | TC-S8BE-002/003 (admin-flow), TC-S8BE-005 (матрица) |
+| instructor-cars: СТС диагностика+фикс, замена → pending (ОВ-6) | backend/instructor_cars.py (sts-ветка) + diagnostics-3.1.md | TC-S8BE-003, TC-S8BE-004, TC-S8BE-008 |
+| instructor-documents/cars: доступ и 404-неразличение (NFR-22) | file-эндпоинт + все новые ручки | TC-S8BE-005 |
+| student-requests: GET /api/instructor/students (ОВ-5, FR-75) | backend/student_requests.py | TC-S8BE-009 |
+| instructor-cars: плитки через photo-эндпоинты (баг 5.2) | backend/instructor_cars.py | TC-S8BE-007 |
+| фронт: «Мои документы» версии/статусы, замена (FR-71/72) | frontend/instructor-dashboard.html + js/dashboard-instructor.js | e2e TC-UI-033/034 |
+| фронт: экраны без виджетов (FR-73) | frontend/instructor-dashboard.html | e2e TC-UI-035 |
+| фронт: админ-«Документы», предпросмотр (ОВ-1/ОВ-4) | frontend/admin-dashboard.html + js/admin-dashboard.js | e2e TC-UI-036 |
+| фронт: календарь со слотами вместо «Бронирований» (FR-74) | frontend/instructor-dashboard.html + js | e2e TC-UI-038 (регресс TC-UI-019/025/026) |
+| фронт: «Мои ученики» + «Запросы» подразделом (ОВ-5) | frontend/instructor-dashboard.html + js | e2e TC-UI-039/039b |
+| фронт: FR-71 на галерейном пути СТС (review-003 MAJ-2) | js/dashboard-instructor.js (mcPickGal → диалог до chooser) | e2e TC-UI-040 |
+
+Примечания:
+1. TC-S8BE-001…009 — tests/test_s8_backend.py (rule 6: TC-трассировка в
+   docstring); TC-UI-033…040 — tests/test_ui_playwright.py (change
+   add-s8-cars-docs-booking).
+2. Отчет диагностики СТС-симптома — openspec/changes/
+   add-s8-cars-docs-booking/diagnostics-3.1.md (корень зафиксирован; оформлен
+   в итерации 2 ретроспективно-честно, воспроизведение на 1d40a46).
+3. sdd-трассировка составлена ПМ по данным review-001/002, отчетов волн и
+   логов прогонов; верифицирована полными прогонами integration
+   (352→358 passed, см. спринт-лог ПМ).

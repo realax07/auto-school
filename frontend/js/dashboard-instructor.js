@@ -46,11 +46,15 @@ function navTo(name){
   // BUG-047 (скрины Заказчика 2026-10-17): «Мои автомобили» — раздел этого
   // дашборда (таб), отдельной страницы /my-cars больше нет (301 →
   // /instructor/dashboard#/my-cars открывает этот же раздел)
-  // BUG-051 (Постановка Заказчика 2026-10-23, п.6/9/10 + Спринт 7):
-  // «Запросы учеников» — подраздел раздела «Мои ученики» (сайдбар-кнопки
-  // больше нет); «Бронирования» слит с «Календарем» (брони и запросы —
-  // на слотах графика); «Мои документы» переименована в «Профиль и
-  // документы»; ДЕМО-заглушка «Мой автомобиль» из сайдбара удалена
+  // Спринт 3: реальный раздел «Календарь»; Спринт 5: «Мои документы»
+  // ВНУТРИ дашборда (BUG-047: standalone-страницы запрещены)
+  // Спринт 8 (FR-74): «Бронирования» УДАЛЕН — запросы/брони на слотах
+  // календаря; #/bookings — редирект в «Календарь» (BUG-047-механика)
+  // Спринт 8 (FR-75/ОВ-5): «Мои ученики» — карточки пар + подраздел
+  // «Запросы учеников» (отдельного пункта сайдбара больше нет)
+  // BUG-051 (Постановка 2026-10-23, п.6/9/10 + Спринт 7): «Мои документы»
+  // переименована в «Профиль и документы»; ДЕМО-заглушка «Мой автомобиль»
+  // из сайдбара удалена
   var isCal=(name==='Календарь'),isStu=(name==='Мои ученики'),isCars=(name==='Мои автомобили');
   var isDocs=(name==='Профиль и документы');
   var real=isCal||isStu||isCars||isDocs;
@@ -69,9 +73,9 @@ function navTo(name){
   document.getElementById('crumb').textContent=name;
   document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
   // BUG-047: хеш раздела синхронизируется с табом — reload не сбрасывает
-  // раздел, старые ссылки#/my-cars открывают его напрямую. Хеши #/my-docs
-  // и #/bookings (прежние «Мои документы»/«Бронирования») ведут в
-  // переименованный «Профиль и документы» и «Календарь» (BUG-051)
+  // раздел, старые ссылки #/my-cars открывают его напрямую. Хеши
+  // #/my-docs и #/bookings (прежние «Мои документы»/«Бронирования») ведут в
+  // переименованный «Профиль и документы» и «Календарь» (BUG-051; FR-74)
   var wantHash=isCars?'#/my-cars':isDocs?'#/my-docs':'';
   if(location.hash!==wantHash){try{history.replaceState(null,'',location.pathname+location.search+(wantHash||''))}catch(e){}}
   if(!real&&name!=='Мой день')toast('Раздел «'+name+'» — демо-данные, следующий экран в концепции кабинета')
@@ -152,13 +156,9 @@ function countNewRequests(){
         row.appendChild(go);
         box.appendChild(row);
       });
-      box.querySelectorAll('[data-goto-requests]').forEach(function(g){g.addEventListener('click',function(){
-        // BUG-051: «Запросы учеников» — подраздел «Моих учеников»
-        navTo('Мои ученики');stuSwitch('requests');
-      })});
+      // Спринт 8 (ОВ-5): «Запросы учеников» — подраздел «Моих учеников»
+      box.querySelectorAll('[data-goto-requests]').forEach(function(g){g.addEventListener('click',function(){stuOpenRequests()})});
     }
-    var sub=el('stu-sub-new');
-    if(sub)sub.textContent=list.length?('·'+list.length):'';
   });
 }
 
@@ -194,12 +194,18 @@ fetch('/api/instructor/dashboard',{headers:{'X-Session-Token':token}})
 // (cb получает {ok,...} или null / {status,data})
 
 // --- Раздел «Календарь» (FR-29/FR-30): сетка недели × 2-часовые интервалы,
-// клик переключает выбор, «Сохранить график» -> PUT /api/instructor/availability
-// (полная замена), при входе восстановление через GET.
+// клик по СВОБОДНОМУ слоту переключает выбор, «Сохранить график» ->
+// PUT /api/instructor/availability (полная замена), при входе восстановление
+// через GET. Спринт 8 (FR-74): запросы (new) и брони (confirmed) — РОВНО на
+// выбранных слотах; клик по такому слоту — немедленное решение (модалка
+// #m-bk), мимо «Сохранить» (наследование ОВ-6 Спринта 7). Раздел
+// «Бронирования» удален (его единственную сетку с запросами на слотах
+// заменяет календарь); GET /api/instructor/bookings — контракт без изменений.
 var CAL_HOURS=[8,10,12,14,16,18,20];
 var CAL_DAYS=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
 var calBuilt=false;
 var calSelected={}; // ключ 'weekday-hour'
+var calBookings={}; // ключ 'weekday-hour' -> booking (status new/confirmed)
 function calBuildGrid(){
   var grid=el('cal-grid');
   var now=nowMoscow();
@@ -221,6 +227,8 @@ function calBuildGrid(){
   grid.querySelectorAll('.cal-slot').forEach(function(b){
     b.addEventListener('click',function(){
       var k=b.dataset.k;
+      // FR-74: слот с запросом/бронью — решение, а НЕ правка графика
+      if(calBookings[k]){bkOpenSlot(calBookings[k]);return}
       if(calSelected[k])delete calSelected[k];else calSelected[k]=true;
       b.classList.toggle('on');
       el('cal-changed').style.display='inline';
@@ -232,7 +240,12 @@ function openCalendar(){
   if(!calBuilt)calBuildGrid();
   apiGet('/api/instructor/availability',function(res){
     calSelected={};
-    el('cal-grid').querySelectorAll('.cal-slot').forEach(function(b){b.classList.remove('on')});
+    // полный сброс ячеек: метки запросов/броней (booked/reqslot) тоже
+    // снимаются — перезагрузка рисует актуальное состояние (FR-74)
+    el('cal-grid').querySelectorAll('.cal-slot').forEach(function(b){
+      b.classList.remove('on','booked','reqslot');
+      b.innerHTML='';
+    });
     if(!res)return;
     (res.intervals||[]).forEach(function(iv){
       var s=parseInt((iv.start_time||'').split(':')[0],10);
@@ -250,6 +263,7 @@ function openCalendar(){
       });
     });
     el('cal-changed').style.display='none';
+    calLoadBookings(); // метки запросов/броней поверх графика (FR-74)
   });
   // BUG-051: брони и запросы — подраздел «Календаря» (п.9 Постановки
   // Заказчика 2026-10-23, бывший раздел «Бронирования»): открываются
@@ -271,7 +285,87 @@ el('cal-save').addEventListener('click',function(){
   });
 });
 
-// --- Раздел «Запросы учеников» (FR-37/38/39): GET /api/instructor/requests;
+// --- Раздел «Мои ученики» (FR-75/ОВ-5, мокап my-students.html): карточки
+// принятых пар по контракту GET /api/instructor/students (задача 9.1):
+// ФИО ученика, next_lesson {date,time} — ближайшая ПОДТВЕРЖДЕННАЯ бронь
+// (правило MIN-1, локальная дата сервера) / null → «нет»; planned_count
+// (confirmed после следующей), completed_count (confirmed в прошлом).
+// ТОЛЬКО confirmed (ОВ-5): запросы в счетчиках не участвуют. Бэкенд 9.1
+// может отсутствовать в этой ветке — ошибка показывается ЧЕСТНО (блок +
+// тост), пустой список не подменяет ошибку. Карточки — createElement +
+// textContent (XSS-гигиена, code-review review-001 #1). ---
+var stuTab='students';
+function stuShowTab(t){
+  stuTab=t;
+  document.querySelectorAll('#stu-tabs button').forEach(function(b){b.classList.toggle('on',b.dataset.stu===t)});
+  el('stu-tab-students').style.display=t==='students'?'block':'none';
+  el('stu-tab-requests').style.display=t==='requests'?'block':'none';
+}
+function stuNextLine(nl){
+  if(!nl)return null; // «нет» — подтвержденных броней впереди нет (ОВ-5)
+  var d=nl.date?String(nl.date).split('-').reverse().join('.'):'';
+  var t=nl.time||'';
+  return [d,t].filter(Boolean).join(' · ')||null;
+}
+function renderStudents(list){
+  var box=el('stu-cards');box.innerHTML='';
+  el('stu-n').textContent='·'+list.length;
+  el('stu-empty').style.display=list.length?'none':'block';
+  list.forEach(function(s){
+    var fio=s.full_name||s.name||'Ученик';
+    var card=node('article','student');
+    var top=node('div','st-top');
+    top.appendChild(node('span','stu-sic',stuInitials(fio)));
+    top.appendChild(node('b',null,fio));
+    card.appendChild(top);
+    var line=stuNextLine(s.next_lesson);
+    var nx=node('div','stu-next'+(line?'':' none'));
+    nx.appendChild(node('span',null,'Следующее плановое занятие'));
+    nx.appendChild(document.createTextNode(line||'нет — подтверждённых броней впереди не запланировано'));
+    card.appendChild(nx);
+    var cnts=node('div','stu-counters');
+    var c1=node('div','stu-cnt');
+    c1.appendChild(node('b',null,String(s.planned_count||0)));
+    c1.appendChild(node('span',null,'плановых занятий дальше'));
+    var c2=node('div','stu-cnt');
+    c2.appendChild(node('b',null,String(s.completed_count||0)));
+    c2.appendChild(node('span',null,'проведено'));
+    cnts.appendChild(c1);cnts.appendChild(c2);
+    card.appendChild(cnts);
+    box.appendChild(card);
+  });
+}
+function stuLoadStudents(){
+  apiGet('/api/instructor/students',function(res){
+    var err=el('stu-error');
+    if(!res||!res.ok){
+      // честная ошибка (данных нет — в счетчиках и «следующем» нули не рисуем)
+      err.textContent='Не удалось загрузить учеников (GET /api/instructor/students): сервис данных недоступен.';
+      err.classList.add('show');
+      el('stu-empty').style.display='none';
+      el('stu-cards').innerHTML='';
+      el('stu-n').textContent='·0';
+      toast('Не удалось загрузить учеников');
+      return;
+    }
+    err.classList.remove('show');err.textContent='';
+    renderStudents(res.students||[]);
+  });
+}
+function openStudents(){
+  stuShowTab(stuTab);
+  stuLoadStudents();
+  openRequests(); // подраздел «Запросы учеников» — контур Спринта 3
+}
+// виджет главной → открыть подраздел «Запросы учеников» по требованию (ОВ-5)
+function stuOpenRequests(){
+  navTo('Мои ученики');
+  stuShowTab('requests');
+}
+document.querySelectorAll('#stu-tabs button').forEach(function(b){b.addEventListener('click',function(){stuShowTab(b.dataset.stu)})});
+
+// --- Подраздел «Запросы учеников» «Моих учеников» (FR-37/38/39, контур
+// Спринта 3 — БЕЗ ИЗМЕНЕНИЙ): GET /api/instructor/requests;
 // Принять -> POST /api/instructor/requests/{id}/accept {car_id} (авто из
 // GET /api/instructor/cars; при 0 авто действие недоступно — ОВ-4);
 // Отказать -> POST …/{id}/deny {comment}, кнопка заблокирована до непустого
@@ -306,6 +400,7 @@ function renderRequests(){
   var list=rqState.list.filter(function(r){return rqState.filter==='all'||r.status===rqState.filter});
   var newN=rqState.list.filter(function(r){return r.status==='new'}).length;
   el('rq-new-n').textContent='·'+newN;
+  el('stu-req-n').textContent='·'+newN; // счетчик подраздела «Мои ученики»
   if(!list.length){box.innerHTML='<div class="rq-none">Заявок в этой категории нет.</div>';return}
   // DOM-строительство (code-review review-001 #1): ФИО/бренд/модель —
   // только textContent, без сборки HTML из пользовательских строк
@@ -403,29 +498,10 @@ document.querySelectorAll('#stu-subtabs button').forEach(function(b){
 });
 // Карточки привязанных учеников — шейп GET /api/instructor/summary
 // (backend/instructor_summary.py: full_name, car, decided_at)
-function openStudents(){
-  apiGet('/api/instructor/summary',function(res){
-    if(!res)return;
-    var students=res.students||[];
-    var box=el('stu-cards');box.innerHTML='';
-    el('stu-empty').style.display=students.length?'none':'block';
-    students.forEach(function(s){
-      var card=node('div','stu-card');
-      card.appendChild(node('span','w-sic',stuInitials(s.full_name)));
-      var who=node('div');
-      who.appendChild(node('b',null,s.full_name||''));
-      var date=s.decided_at?String(s.decided_at).split(' ')[0]:'';
-      if(date)who.appendChild(node('small',null,'с инструктора с '+date));
-      card.appendChild(who);
-      card.appendChild(node('span','car-pill',s.car||'авто не выбрано'));
-      box.appendChild(card);
-    });
-  });
-}
 function bindRequests(){
-  // селекторы скоуплены #rq-list: атрибуты data-accept/denypanel/deny/confirm
-  // используются и разделом «Бронирования» (спринт 5) — без скоупа
-  // обработчики навесились бы на чужие кнопки
+  // селекторы скоуплены #rq-list: те же data-атрибуты раньше использовал
+  // и раздел «Бронирования» (спринт 5, удален в Спринте 8 — FR-74) —
+  // скоуп оставлен как страховка от двойных обработчиков
   document.querySelectorAll('#rq-list [data-accept]').forEach(function(b){b.addEventListener('click',function(){
     rqState.open=rqState.open==='accept-'+b.dataset.accept?null:'accept-'+b.dataset.accept;
     renderRequests();
@@ -456,8 +532,8 @@ function bindRequests(){
     if(!radio){toast('Выберите автомобиль');return}
     apiSend('POST','/api/instructor/requests/'+id+'/accept',{car_id:+radio.value},function(res){
       if(res.status===200&&res.data&&res.data.ok){
-        rqState.open=null;openRequests();loadSummary();countNewRequests();
-        toast('Заявка принята. Остальные активные заявки ученика закроются автоматически.');
+        rqState.open=null;openRequests();stuLoadStudents();loadSummary();countNewRequests();
+        toast('Заявка принята. Ученик появился в списке «Мои ученики»; остальные активные заявки закроются автоматически.');
       }else if(res.status===409){
         toast((res.data&&res.data.error)||'Заведите автомобиль, чтобы принять ученика');
       }else{
@@ -635,7 +711,7 @@ document.querySelectorAll('#sec-cars [data-close]').forEach(function(b){b.addEve
 el('m-del').addEventListener('click',function(e){if(e.target===this)mcCloseModal('m-del')});
 el('m-add').addEventListener('click',function(e){if(e.target===this)mcCloseModal('m-add')});
 el('m-car').addEventListener('click',function(e){if(e.target===this)mcCloseModal('m-car')});
-document.addEventListener('keydown',function(e){if(e.key==='Escape'){mcCloseModal('m-add');mcCloseModal('m-del');mcCloseModal('m-car')}});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){mcCloseModal('m-add');mcCloseModal('m-del');mcCloseModal('m-car');mcCloseView();bkCloseSlot();docsCloseReplaceSilent()}});
 // валидация формы (поля * обязательны; бэкенд вернёт 422 по конкретному полю)
 ['f-brand','f-model','f-year','f-plate'].forEach(function(id){
   el(id).addEventListener('input',mcValidate);
@@ -830,7 +906,18 @@ function mcNavGal(dir){
 // клик по большому окну → выбор файла для текущего кадра (ракурс или СТС)
 var mcGalTarget=null;
 function mcPickGal(car,key,bigEl){
-  // снимок статуса ДО загрузки: validated → замена вернет авто на валидацию
+  // FR-71 (review-003 #2): рамка sts видна только при has_sts, т.е. клик по
+  // большому окну галереи — это ВСЕГДА ЗАМЕНА СТС → тот же диалог замены,
+  // что и у явной кнопки «Заменить СТС»; файл выбирается только после
+  // подтверждения (doc-file: kind car_sts → /cars/{id}/photo/sts, ОВ-6)
+  if(key==='sts'&&car.has_sts){
+    docsAskReplace({kind:'car_sts',carId:car.id,
+      name:'СТС · '+[car.brand,car.model].filter(Boolean).join(' '),
+      wasMissing:false});
+    return;
+  }
+  // снимок состояния ДО загрузки: wasValidated — замена РАКУРСА вернет
+  // validated-авто на валидацию (MAJ-1)
   mcGalTarget={carId:car.id,angle:key,big:bigEl,wasValidated:car.status==='validated'};
   el('gal-file').value='';
   el('gal-file').click();
@@ -856,16 +943,15 @@ el('gal-file').addEventListener('change',function(){
     if(e)return;
     mcPurgeCarUrls(t.carId);
     // перезагрузка карточек и модалки: кадр стал загруженным, комплектность
-    // пересчитана; у validated-авто бэкенд вернул статус validating
-    // (MAJ-1) — бейдж сменится на желтый «На валидации»
+    // пересчитана; замена СТС идет через doc-file (kind car_sts, FR-71),
+    // поэтому здесь только 5 ракурсов (ОВ-6: замена ракурса validated-авто
+    // вернет его на валидацию — MAJ-1)
     openCars();
     if(t.wasValidated){
       // MAJ-1 (решение ПМ): честный тост о повторной валидации
       toast('Фото заменены — авто отправлено на повторную валидацию. Подтвердите заново: до этого авто скрыто из каталога новых учеников.');
     }else{
-      toast(t.angle==='sts'
-        ?'Фото СТС сохранено. Оно появится и в «Моих документах»; статус авто не изменился.'
-        :'Фото ракурса сохранено. Остальные ракурсы не тронуты (замена одного — точечная).');
+      toast('Фото ракурса сохранено. Остальные ракурсы не тронуты (замена одного — точечная).');
     }
   });
 });
@@ -903,6 +989,18 @@ function mcRenderGalActs(){
     b.type='button';b.disabled=!!dis;b.addEventListener('click',fn);
     box.appendChild(b);return b;
   }
+  // Спринт 8 (FR-69/FR-71, баг 5.2-СТС): ЯВНАЯ кнопка СТС на созданном
+  // авто — дозагрузка отсутствующего / замена действующего (единый
+  // эндпоинт POST …/cars/{id}/photo/sts); замена — через диалог FR-71.
+  // Класс нейтральный: '.act-btn.warn' зарезервирован за «Вернуть в
+  // черновик» (регресс-локаторы TC-UI-030/032). ---
+  var stsBtn=actBtn('',c.has_sts?'Заменить СТС':'Загрузить СТС',function(){
+    var t={kind:'car_sts',carId:c.id,
+      name:'СТС · '+[c.brand,c.model].filter(Boolean).join(' '),
+      wasMissing:!c.has_sts};
+    if(c.has_sts){docsAskReplace(t)}else{docsStartUpload(t)}
+  });
+  stsBtn.dataset.stsBtn='1';
   if(c.status==='draft'){
     var vm=mcValMissing(c);
     var btn=actBtn('primary','Отправить на валидацию',function(){
@@ -940,12 +1038,11 @@ function mcRenderGalActs(){
     });
     note.innerHTML='Авто на валидации у администратора: подтверждение — только его действие. Сейчас авто показывается вашим принятым ученикам с жёлтым бейджем <b>«Не проверено»</b>, из каталога для новых — скрыто. Вернуть в черновик можно в любой момент.';
   }else{
-    // MAJ-1 (review-001, решение ПМ): честная копия — замена фото/СТС
-    // у validated-авто вернет его на валидацию (бэкенд переводит
-    // validated → validating при загрузке), бейдж станет желтым
-    // «На валидации» до повторного подтверждения администратором.
+    // ОВ-6 (Спринт 8): замена СТС НЕ возвращает validated-авто на
+    // валидацию — новая версия уходит администратору в раздел «Документы»;
+    // повторная валидация — только замена ракурсов (MAJ-1) или submit.
     note.classList.add('ok');
-    note.innerHTML='<b>Проверено администратором.</b> Авто с зелёной галочкой видно новым ученикам в каталоге. Изменение фото или СТС вернет авто на валидацию: бейдж сменится на жёлтый «На валидации», а подтверждение придется получить заново.';
+    note.innerHTML='<b>Проверено администратором.</b> Авто с зелёной галочкой видно новым ученикам в каталоге. Замена фото ракурсов вернет авто на валидацию (жёлтый «На валидации» до нового подтверждения); замена СТС статус авто не меняет — новая версия уйдет администратору в раздел «Документы».';
   }
 }
 // сохранить (POST multipart с sts_photo / PATCH JSON-поля)
@@ -1016,10 +1113,8 @@ el('del-confirm').addEventListener('click',function(){
 });
 el('open-add').addEventListener('click',function(){mcOpenAdd(null)});
 
-// --- Раздел «Мои документы» (мокап my-documents.html, FR-45):
-// GET /api/instructor/documents → ВУ (анкета; без ВУ — пустое состояние
-// с подсказкой) + СТС по каждому авто; просмотр — GET
-// /api/instructor/documents/{doc_id}/file, только владелец ---
+// просмотр документа в полном размере (мокап my-documents, FR-45):
+// авторизованный файл GET /api/instructor/documents/{doc_id}/file
 function mcOpenView(doc){
   el('view-title').textContent=doc.title;
   el('view-sub').textContent=(doc.sub||'')+(doc.doc_id?(' · doc_id '+doc.doc_id):'');
@@ -1032,26 +1127,110 @@ function mcOpenView(doc){
 function mcCloseView(){el('m-view').classList.remove('open');document.body.style.overflow=''}
 el('view-close').addEventListener('click',mcCloseView);
 el('m-view').addEventListener('click',function(e){if(e.target===this)mcCloseView()});
+
+// --- Раздел «Мои документы» (мокап my-documents-s8.html; Спринт 8,
+// change add-s8-cars-docs-booking, FR-70/71/72): GET /api/instructor/documents
+// — прежний состав + версии/статусы на каждом документе (active_version /
+// pending / last_rejected — шейп design.md, блок A). Карточки: бейдж
+// «Действует», блок «Ожидает проверки замены», «Отклонено» с ПРИЧИНОЙ
+// (ОВ-1); кнопки Загрузить/Заменить (FR-72) — замена только через диалог
+// FR-71 с явной кнопкой «Заменить» (без клика файл не отправляется).
+// СТС — по КАЖДОМУ авто: авто без СТС → карточка «нет СТС» с «Загрузить»
+// (дозагрузка, POST …/cars/{id}/photo/sts — FR-69). Ошибки API — честно
+// (тост с текстом сервера). Виджетов в разделе нет (FR-73). ---
+var docTarget=null; // цель загрузки/замены {kind:'license'|'car_sts', carId, name, wasMissing}
+function docName(d){
+  if(d.type==='license')return 'Водительское удостоверение';
+  var c=d.car||{};
+  return 'СТС · '+[c.brand,c.model].filter(Boolean).join(' ');
+}
+function docMetaText(d){
+  if(d.type==='license')return d.license_number?('ВУ № '+d.license_number):(d.meta||'');
+  var c=d.car||{};
+  return [c.brand,c.model].filter(Boolean).join(' ')+(c.plate?' · '+c.plate:'');
+}
+function docVersionLine(d){
+  if(d.active_version&&d.active_version.version!=null){
+    return 'версия '+d.active_version.version
+      +' · загружено '+((d.active_version.uploaded_at||d.uploaded_at||'').split(' ')[0]||'—');
+  }
+  if(d.uploaded_at)return 'загружено '+String(d.uploaded_at).split(' ')[0];
+  return 'документ не загружен';
+}
+function docSubverNodes(d){
+  var out=[];
+  if(d.pending){
+    var p=node('div','subver pend');
+    p.appendChild(node('b',null,'Ожидает проверки замены'));
+    var pt=node('span',null,'Загружена новая версия ('
+      +((d.pending.uploaded_at||'').split(' ')[0]||'дата неизвестна')
+      +'). Пока администратор её не подтвердил, действует текущая версия — документ «не мигает».');
+    p.appendChild(pt);
+    out.push(p);
+  }
+  if(d.last_rejected){
+    var r=node('div','subver rej');
+    r.appendChild(node('b',null,'Причина отказа от администратора'));
+    // причина — пользовательский текст: только textContent (XSS-гигиена)
+    r.appendChild(node('span',null,d.last_rejected.reject_reason||''));
+    r.appendChild(node('br'));
+    r.appendChild(node('span','look','решение '+((d.last_rejected.decided_at||'').split(' ')[0]||'—')
+      +' · действует предыдущая версия, можно загрузить заново'));
+    out.push(r);
+  }
+  return out;
+}
 function docCardNode(d){
-  var card=document.createElement('button');
-  card.type='button';card.className='doc';card.dataset.docId=d.doc_id;
+  var hasFile=!!d.doc_id;
+  var card=node('article','doc');
+  card.dataset.docId=d.doc_id||'';
+  card.dataset.kind=d.type;
+  card.dataset.car=String((d.car&&d.car.id)||0);
   var thumb=node('span','thumb');
-  var img=document.createElement('img');img.alt=d.title;
-  thumb.appendChild(img);
-  thumb.appendChild(node('span','zoom','⤢ Смотреть'));
-  mcLoadImg('/api/instructor/documents/'+d.doc_id+'/file',img);
+  if(hasFile){
+    thumb.style.cursor='zoom-in';
+    var img=document.createElement('img');img.alt=docName(d);
+    thumb.appendChild(img);
+    thumb.appendChild(node('span','zoom','⤢ Смотреть'));
+    mcLoadImg('/api/instructor/documents/'+d.doc_id+'/file',img);
+    if(d.pending)thumb.appendChild(node('span','pendtag','замена на проверке'));
+    var open=function(){mcOpenView({
+      title:docName(d),doc_id:d.doc_id,
+      url:'/api/instructor/documents/'+d.doc_id+'/file',sub:docMetaText(d)})};
+    thumb.addEventListener('click',open);
+    card._open=open;
+  }else{
+    thumb.appendChild(node('span','ph','🚗'));
+  }
   card.appendChild(thumb);
-  card.appendChild(node('b','name',d.title));
+  card.appendChild(node('b','name',docName(d)));
   var meta=node('small','meta');
-  meta.appendChild(document.createTextNode(d.meta||''));
+  meta.appendChild(document.createTextNode(docMetaText(d)));
   meta.appendChild(document.createElement('br'));
-  meta.appendChild(document.createTextNode('загружено '+((d.uploaded_at||'').split(' ')[0]||'—')));
+  var ver=node('span','ver',docVersionLine(d));
+  meta.appendChild(ver);
   card.appendChild(meta);
-  card.appendChild(node('span','pill'+(d.type==='car_sts'?'':' warn'),
-    d.type==='car_sts'?'привязан к авто':'основной документ'));
-  card.addEventListener('click',function(){mcOpenView({
-    title:d.title,doc_id:d.doc_id,url:'/api/instructor/documents/'+d.doc_id+'/file',
-    sub:d.meta||''})});
+  if(hasFile){
+    card.appendChild(node('span','ds-badge ds-verified','Действует'));
+  }else{
+    card.appendChild(node('span','ds-badge ds-pending','нет СТС'));
+  }
+  docSubverNodes(d).forEach(function(s){card.appendChild(s)});
+  var act=node('div','doc-actions');
+  if(hasFile){
+    var view=node('button','btn-u ghost','Открыть');view.type='button';
+    view.addEventListener('click',function(){if(card._open)card._open()});
+    act.appendChild(view);
+  }
+  var main=node('button','btn-u',hasFile?'Заменить':'Загрузить');main.type='button';
+  main.dataset.uploadDoc='1';main.dataset.kind=d.type;
+  main.dataset.car=String((d.car&&d.car.id)||0);
+  main.addEventListener('click',function(){
+    var t={kind:d.type,carId:(d.car&&d.car.id)||0,name:docName(d),wasMissing:!hasFile};
+    if(hasFile){docsAskReplace(t)}else{docsStartUpload(t)} // первая загрузка — без предупреждения FR-71
+  });
+  act.appendChild(main);
+  card.appendChild(act);
   return card;
 }
 function openDocs(){
@@ -1059,33 +1238,103 @@ function openDocs(){
     if(!res){toast('Не удалось загрузить документы');return}
     var docs=res.documents||[];
     var lic=docs.filter(function(d){return d.type==='license'});
-    var sts=docs.filter(function(d){return d.type==='car_sts'});
+    var stsDocs=docs.filter(function(d){return d.type==='car_sts'});
     var licBox=el('lic-docs');licBox.innerHTML='';
-    lic.forEach(function(d){
-      var meta=[d.license_number?'ВУ № '+d.license_number:''];
-      d.meta=meta.filter(Boolean).join(' · ');
-      licBox.appendChild(docCardNode(d));
-    });
+    lic.forEach(function(d){licBox.appendChild(docCardNode(d))});
     el('lic-n').textContent=lic.length;
     el('no-license').style.display=lic.length?'none':'block';
     if(!lic.length&&res.license_hint)el('no-license-hint').textContent=res.license_hint;
-    var stsBox=el('sts-docs');stsBox.innerHTML='';
-    sts.forEach(function(d){
-      var c=d.car||{};
-      d.meta=[c.brand,c.model].filter(Boolean).join(' ')
-        +(c.plate?' · '+c.plate:'');
-      stsBox.appendChild(docCardNode(d));
+    // СТС по КАЖДОМУ авто (FR-69/FR-72): авто без СТС (легаси/дозагрузка)
+    // добавляются карточкой «нет СТС» с кнопкой «Загрузить»
+    apiGet('/api/instructor/cars',function(cres){
+      var cars=cres?(cres.cars||[]):[];
+      var withDoc={};
+      stsDocs.forEach(function(d){if(d.car&&d.car.id!=null)withDoc[d.car.id]=1});
+      cars.forEach(function(c){
+        if(c.has_sts||withDoc[c.id])return;
+        stsDocs.push({doc_id:null,type:'car_sts',title:'СТС автомобиля',
+          car:{id:c.id,brand:c.brand,model:c.model,plate:c.plate},uploaded_at:null});
+      });
+      stsDocs.sort(function(a,b){
+        return ((a.car&&a.car.id)||0)-((b.car&&b.car.id)||0);
+      });
+      var stsBox=el('sts-docs');stsBox.innerHTML='';
+      stsDocs.forEach(function(d){stsBox.appendChild(docCardNode(d))});
+      el('sts-count').textContent=stsDocs.length;
     });
-    el('sts-count').textContent=sts.length;
   });
 }
+// ── загрузка/замена документов (FR-71/FR-72): единый flow с модалкой
+// предупреждения #m-replace и скрытым input #doc-file; multipart на
+// контрактные эндпоинты (POST /api/instructor/documents/license,
+// POST …/cars/{id}/photo/sts); ошибка сервера — честный тост, список
+// не меняется до успешной загрузки (после нее — перезагрузка статусов). ---
+function docsAskReplace(t){
+  docTarget=t;
+  el('rep-sub').textContent=t.name;
+  el('m-replace').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function docsCloseReplace(){
+  docTarget=null;
+  el('m-replace').classList.remove('open');
+  document.body.style.overflow='';
+}
+function docsPickFile(){el('doc-file').value='';el('doc-file').click()}
+function docsStartUpload(t){
+  docTarget=t; // первая загрузка (нет предыдущей версии) — без предупреждения
+  docsPickFile();
+}
+el('rep-go').addEventListener('click',function(){
+  if(!docTarget)return;
+  docsPickFile(); // диалог закрывается в обработчике change по результату
+});
+el('rep-cancel').addEventListener('click',docsCloseReplace);
+el('rep-close').addEventListener('click',docsCloseReplace);
+el('m-replace').addEventListener('click',function(e){if(e.target===this)docsCloseReplace()});
+el('upload-license').addEventListener('click',function(){
+  docsStartUpload({kind:'license',carId:0,name:'Водительское удостоверение',wasMissing:true});
+});
+el('doc-file').addEventListener('change',function(){
+  var t=docTarget;docTarget=null;
+  docsCloseReplaceSilent();
+  if(!t||!this.files.length)return;
+  var file=this.files[0];
+  var err=mcValidatePhoto(file); // JPEG/PNG ≤5 МБ — как на бэкенде (NFR-9)
+  if(err){mcShowPhotoError(err);return}
+  if(t.kind==='license'){
+    mcUpload('/api/instructor/documents/license','file',file,null,null,function(e){
+      if(e)return;
+      // review-005 MINOR: первичная загрузка — не «замена»
+      toast(t.wasMissing
+        ?'ВУ отправлено на проверку администратору: документ появится после подтверждения.'
+        :'Замена ВУ отправлена на проверку администратору: до подтверждения действует предыдущая версия.');
+      openDocs(); // перезагрузка списка с актуальными статусами (FR-72)
+    });
+  }else{
+    mcUpload('/api/instructor/cars/'+t.carId+'/photo/sts','photo',file,null,null,function(e){
+      if(e)return;
+      mcPurgeCarUrls(t.carId);
+      toast(t.wasMissing
+        ?'Фото СТС загружено — документ появился в списке.'
+        :'Замена СТС отправлена на проверку администратору: действует предыдущая версия, статус авто не изменился (ОВ-6).');
+      openDocs();
+      openCars(); // комплектность/СТС-точка в «Моих автомобилях» обновляются
+    });
+  }
+});
+function docsCloseReplaceSilent(){
+  el('m-replace').classList.remove('open');
+  document.body.style.overflow='';
+}
 
-// --- Брони/запросы — подраздел «Календаря» (BUG-051, бывший раздел
-// «Бронирования»; мокап booking-instructor.html, FR-48/FR-49):
-// GET /api/instructor/bookings: новые — Принять (без комментария, ОВ-2) /
-// Отклонить (комментарий обязателен — 422, иначе слот не освободится);
-// подтверждённые — в сетке недели поверх графика availability ---
-var bkState={list:[],filter:'all',open:null,intervals:[]};
+// --- Спринт 8 (FR-74, вместо удаленного раздела «Бронирования»): запросы
+// (new) и брони (confirmed) РОВНО на выбранных слотах календаря; решения —
+// на слоте, немедленно, мимо «Сохранить» (наследование ОВ-6 Спринта 7):
+// Принять — одним кликом (POST …/confirm, без комментария), Отклонить —
+// комментарий обязателен (POST …/reject {comment}, пустой на сервере — 422),
+// у подтвержденной брони — «Отменить бронь» (POST …/cancel, BUG-049).
+// API-контракты booking — без изменений (NFR-23). ---
 var BK_DAYS=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
 function bkWhen(b){
   return BK_DAYS[b.weekday]||''
@@ -1093,6 +1342,134 @@ function bkWhen(b){
     +' · '+(b.start_time||'')+'–'+(b.end_time||'');
 }
 function bkCarText(c){return c?[c.brand,c.model].filter(Boolean).join(' ')+(c.year?' '+c.year:''):'—'}
+// --- Спринт 8 (FR-74): запросы (new) и брони (confirmed) РОВНО на
+// выбранных слотах календаря; решения — на слоте, немедленно, мимо
+// «Сохранить» (наследование ОВ-6 Спринта 7): Принять — одним кликом
+// (POST …/confirm), Отклонить — комментарий обязателен (POST …/reject
+// {comment}, пустой на сервере — 422), у подтвержденной брони —
+// «Отменить бронь» (POST …/cancel, BUG-049); NFR-23: контракты booking
+// без изменений ---
+// --- Брони/запросы — подраздел «Календаря» (BUG-051, бывший раздел
+// «Бронирования»; FR-48/FR-49): список bk-list + сетка bk-grid ---
+function calLoadBookings(){
+  apiGet('/api/instructor/bookings',function(res){
+    calBookings={};
+    (res?(res.bookings||[]):[]).forEach(function(b){
+      if(b.status!=='new'&&b.status!=='confirmed')return;
+      var h=parseInt((b.start_time||'').split(':')[0],10);
+      if(isNaN(h))return;
+      calBookings[b.weekday+'-'+h]=b;
+    });
+    calMarkBookings();
+  });
+}
+
+function calMarkBookings(){
+  if(!calBuilt)return;
+  Object.keys(calBookings).forEach(function(k){
+    var b=calBookings[k];
+    var cell=el('cal-grid').querySelector('.cal-slot[data-k="'+k+'"]');
+    if(!cell)return;
+    cell.classList.remove('on'); // слот занят бронью/запросом — не правка графика
+    cell.classList.add(b.status==='confirmed'?'booked':'reqslot');
+    cell.innerHTML='';
+    cell.appendChild(node('small',null,b.student_full_name||''));
+    cell.appendChild(document.createTextNode(b.status==='confirmed'?'бронь':'запрос'));
+  });
+}
+// ── модалка решения #m-bk (открывается кликом по слоту) ──
+var bkTarget=null;
+function bkOpenSlot(b){
+  bkTarget=b;
+  var confirmed=b.status==='confirmed';
+  el('bk-slot-title').textContent=confirmed?'Подтверждённая бронь':'Запрос ученика';
+  el('bk-slot-sub').textContent=bkWhen(b)+' · авто: '+bkCarText(b.car);
+  el('bk-slot-who').textContent=b.student_full_name||'Ученик';
+  el('bk-slot-what').textContent=confirmed?' — бронь подтверждена на слоте вашего графика.':' просит занятие на слоте вашего графика.';
+  el('bk-slot-reject').style.display='none';
+  el('bk-slot-reason').value='';
+  el('bk-slot-reject-go').disabled=true;
+  el('bk-slot-confirm').style.display=confirmed?'none':'';
+  el('bk-slot-reject-btn').style.display=confirmed?'none':'';
+  el('bk-slot-cancel').style.display=confirmed?'':'none';
+  el('m-bk').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function bkCloseSlot(){
+  bkTarget=null;
+  el('m-bk').classList.remove('open');
+  document.body.style.overflow='';
+}
+function bkApplied(msg){
+  bkCloseSlot();
+  toast(msg);
+  openCalendar(); // перезагрузка графика с актуальными метками слотов
+  loadSummary();  // «Занятия на сегодня» на главной обновляются
+}
+el('bk-slot-confirm').addEventListener('click',function(){
+  if(!bkTarget||bkTarget.status!=='new')return;
+  var id=bkTarget.id;
+  apiSend('POST','/api/instructor/bookings/'+id+'/confirm',{},function(res){
+    if(res.status===200&&res.data&&res.data.ok){
+      bkApplied('Бронь подтверждена. Слот закреплён в календаре и попадёт в «Занятия на сегодня».');
+    }else{
+      toast((res.data&&res.data.error)||'Не удалось подтвердить бронь');
+    }
+  });
+});
+el('bk-slot-reject-btn').addEventListener('click',function(){
+  el('bk-slot-confirm').style.display='none';
+  el('bk-slot-reject-btn').style.display='none';
+  el('bk-slot-reject-go').style.display='';
+  el('bk-slot-reject').style.display='block';
+  el('bk-slot-reason').focus();
+});
+el('bk-slot-reason').addEventListener('input',function(){
+  el('bk-slot-reject-go').disabled=!this.value.trim(); // комментарий обязателен
+});
+el('bk-slot-reject-go').addEventListener('click',function(){
+  if(!bkTarget)return;
+  var comment=el('bk-slot-reason').value.trim();
+  if(!comment)return;
+  apiSend('POST','/api/instructor/bookings/'+bkTarget.id+'/reject',{comment:comment},function(res){
+    if(res.status===200&&res.data&&res.data.ok){
+      bkApplied('Запрос отклонён. Слот снова свободен — ученик может запросить его повторно.');
+    }else{
+      toast((res.data&&res.data.error)||'Не удалось отклонить запрос');
+    }
+  });
+});
+el('bk-slot-cancel').addEventListener('click',function(){
+  if(!bkTarget||bkTarget.status!=='confirmed')return;
+  apiSend('POST','/api/instructor/bookings/'+bkTarget.id+'/cancel',{},function(res){
+    if(res.status===200&&res.data&&res.data.ok){
+      bkApplied('Бронь отменена. Слот снова свободен — ученик может запросить его повторно.');
+    }else{
+      toast((res.data&&res.data.error)||'Не удалось отменить бронь');
+    }
+  });
+});
+el('bk-slot-close').addEventListener('click',bkCloseSlot);
+el('bk-slot-close2').addEventListener('click',bkCloseSlot);
+el('m-bk').addEventListener('click',function(e){if(e.target===this)bkCloseSlot()});
+
+// Хвост старых ссылок (BUG-047): /my-cars теперь 301 на этот дашборд с
+// хешем — открываем раздел «Мои автомобили» напрямую.
+// BUG-051: прежние хеши #/my-docs и #/bookings ведут в переименованный
+// «Профиль и документы» и в «Календарь» (впитал «Бронирования»)
+if(location.hash==='#/my-cars')navTo('Мои автомобили');
+// FR-74: старая ссылка раздела «Бронирования» — редирект в календарь
+// (механика BUG-047; раздел удален без остатков)
+if(location.hash==='#/my-docs')navTo('Профиль и документы');
+if(location.hash==='#/bookings')navTo('Календарь');
+
+// Выход (FR-22): POST /api/auth/logout -> по любому ответу очистка
+// sessionStorage -> редирект на лендинг инструкторов (спринт 3, правка:
+// выход из кабинета ведет на /instructors, а не на главную).
+// --- BUG-051: брони/запросы — подраздел «Календаря» (bk-list/bk-grid),
+// resurrect из origin/main: список + сетка недели + биндинги фильтров
+var bkState={list:[],filter:'all',open:null,intervals:[]};
+
 function openBookings(){
   apiGet('/api/instructor/availability',function(res){
     bkState.intervals=res?(res.intervals||[]):[];
@@ -1283,17 +1660,6 @@ function bkRenderGrid(){
   });
 }
 
-// Хвост старых ссылок (BUG-047): /my-cars теперь 301 на этот дашборд с
-// хешем — открываем раздел «Мои автомобили» напрямую.
-// BUG-051: прежние хеши #/my-docs и #/bookings ведут в переименованный
-// «Профиль и документы» и в «Календарь» (впитал «Бронирования»)
-if(location.hash==='#/my-cars')navTo('Мои автомобили');
-if(location.hash==='#/my-docs')navTo('Профиль и документы');
-if(location.hash==='#/bookings')navTo('Календарь');
-
-// Выход (FR-22): POST /api/auth/logout -> по любому ответу очистка
-// sessionStorage -> редирект на лендинг инструкторов (спринт 3, правка:
-// выход из кабинета ведет на /instructors, а не на главную).
 function logout(){
 fetch('/api/auth/logout',{method:'POST',headers:{'X-Session-Token':token||''}})
   .catch(function(){})

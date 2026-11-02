@@ -41,11 +41,20 @@ transmission IN ('manual','automatic').
 иная роль → 403, чужой/несуществующий/ракурс не загружен → 404, ученик
 НЕ из пары → 403. Статусное правило (ОВ-2): draft → ученику пары 404
 (неразличение, NFR-4); validating/validated → выдается. angle='sts' —
-только владельцу (ученику пары → 403, NFR-7). Замена фото/СТС у авто в
+только владельцу (ученику пары → 403, NFR-7). Замена фото ракурса у авто в
 status='validated' ВОЗВРАЩАЕТ его в validating (MAJ-1 review-001,
 решение ПМ): контент после замены не соответствует подтвержденному
 админом — повторная валидация обязательна (гейт ОВ-4 не обходится
 задним числом); у draft/validating загрузка статус не меняет.
+Спринт 8 (add-s8-cars-docs-booking, задача 3.1, ОВ-6): правило MAJ-1
+остается ТОЛЬКО для 5 ракурсов; ветка СТС (angle='sts') — документные
+версии (instructor_documents.py, единая модель ВУ+СТС — ОВ-2): при
+ОТСУТСТВИИ действующего СТС — первичная дозагрузка → photo_sts +
+verified v1 (FR-69); ПРИ ЗАМЕНЕ — pending-версия, photo_sts НЕ
+перезаписывается до верификации («документ не мигает», FR-70),
+повторная загрузка замещает ожидающую (ОВ-7), статус авто НЕ меняется
+(validated остается validated — ОВ-6, замена СТС не сбрасывает
+валидацию авто).
 
 Баг 5.2 (FR-42, задача 1.1): список авто выдает клиенту URL
 авторизованного фото-эндпоинта (photos{angle}), а не файловый путь
@@ -68,6 +77,7 @@ from pydantic import BaseModel, ValidationError
 
 import backend.auth as auth
 import backend.db as db
+import backend.instructor_documents as instructor_documents
 import backend.uploads as uploads
 from backend.admin import require_admin
 from backend.guards import _error, _forbidden, _unauthorized, full_name, require_role
@@ -145,11 +155,15 @@ _ANGLE_COLUMNS = {
 
 def _car_counters(row) -> dict:
     """Комплектность для владельца/админа (задача 1.1): загружено ракурсов
-    из 5, СТС да/нет — для кнопок submit и чек-листа ОВ-4."""
+    из 5, СТС да/нет — для кнопок submit и чек-листа ОВ-4. Правило «есть
+    СТС» — единое с seed/sts-веткой (has_canonical_file, review-003 #3)."""
     angles = sum(
         1 for angle in ANGLES if row[_ANGLE_COLUMNS[angle]] is not None
     )
-    return {"angles": angles, "sts": row["photo_sts"] is not None}
+    return {
+        "angles": angles,
+        "sts": instructor_documents.has_canonical_file(row["photo_sts"]),
+    }
 
 
 
@@ -265,6 +279,7 @@ def list_cars(
             )
             for angle in ANGLES
         }
+        has_sts = instructor_documents.has_canonical_file(row["photo_sts"])
         cars.append(
             {
                 key: row[key]
@@ -275,11 +290,9 @@ def list_cars(
             }
             | {
                 "photos": photos,
-                "has_sts": row["photo_sts"] is not None,
+                "has_sts": has_sts,
                 "sts_url": (
-                    f"/api/instructor/cars/{car_id}/sts"
-                    if row["photo_sts"] is not None
-                    else None
+                    f"/api/instructor/cars/{car_id}/sts" if has_sts else None
                 ),
                 "counters": _car_counters(row),
             }
@@ -558,15 +571,23 @@ async def upload_car_photo_angle(
     x_session_token: str | None = Header(default=None, alias="X-Session-Token"),
 ):
     """Загрузка/замена ОДНОГО ракурса (FR-43 + задача 4.1): angle ∈
-    front/rear/interior/left/right + НОВОЕ 'sts' (СТС существующего авто
-    → photo_sts; корень симптома «kind=car_sts не сохраняется» — legacy
-    маршрут удален) → иначе 404; только владелец (чужой авто → 404);
-    JPEG/PNG ≤5 МБ по содержимому → иначе 422; остальные ракурсы не
-    трогает. MAJ-1 (review-001, решение ПМ): у авто в status='validated'
-    замена ЛЮБОГО ракурса/СТС возвращает его в validating (та же
-    транзакция, guard-WHERE) — валидатор обязан видеть актуальные фото,
-    гейт ОВ-4 не обходится задним числом; ответ содержит итоговый status.
-    Файл, записанный на диск при сбое UPDATE, удаляется (NIT-4)."""
+    front/rear/interior/left/right + 'sts' (СТС существующего авто;
+    legacy-маршрут kind=car_sts удален — корень симптома) → иначе 404;
+    только владелец (чужой авто → 404); JPEG/PNG ≤5 МБ по содержимому →
+    иначе 422; остальные ракурсы не трогает. Спринт 8 (задача 3.1):
+    angle='sts' — документные версии (ОВ-2): при ОТСУТСТВИИ действующего
+    СТС (None и '' — has_canonical_file) —
+    первичная дозагрузка → photo_sts + verified v1 (FR-69); ПРИ ЗАМЕНЕ —
+    pending-версия, photo_sts не перезаписывается (FR-70), статус авто
+    НЕ меняется — validated остается validated (ОВ-6); ответ несет
+    document {status, version}. MAJ-1 (review-001, решение ПМ):
+    у авто в status='validated' замена ЛЮБОГО из 5 ракурсов возвращает
+    его в validating (та же транзакция, guard-WHERE) — валидатор обязан
+    видеть актуальные фото, гейт ОВ-4 не обходится задним числом;
+    ответ содержит итоговый status. Файл, записанный на диск при сбое
+    UPDATE, удаляется (NIT-4). Правило «есть действующий СТС» — единое
+    с seed-миграцией (None и '' — документа нет; has_canonical_file,
+    review-003 #3)."""
     instructor_id, err = require_role(x_session_token, "instructor")
     if err is not None:
         return err
@@ -585,43 +606,94 @@ async def upload_car_photo_angle(
     if isinstance(read, JSONResponse):
         return read
     content, ext = read
+    # NFR-9: файлы СТС и ракурсов идут через существующую механику
+    # uploads.py (uuid-имя; каталог car_photo — как в Спринте 7).
     path = uploads.save_image("car_photo", content, ext)
 
     conn = db.get_conn()
     try:
         try:
-            cur = conn.execute(_ANGLE_UPDATE_SQL[angle], (path, car_id))
+            if angle == "sts":
+                # Спринт 8 (задача 3.1, FR-69/FR-70, ОВ-6): ветка СТС —
+                # документные версии; rule MAJ-1 «validated → validating»
+                # на СТС НЕ распространяется (статус авто не меняется).
+                row = conn.execute(
+                    "SELECT photo_sts, status FROM instructor_cars"
+                    " WHERE id = ?",
+                    (car_id,),
+                ).fetchone()
+                if row is None:
+                    conn.rollback()
+                    Path(path).unlink(missing_ok=True)
+                    return _error(404, "Автомобиль не найден")
+                if not instructor_documents.has_canonical_file(
+                    row["photo_sts"]
+                ):
+                    # Первичная дозагрузка (FR-69): photo_sts + verified v1
+                    # сразу (двойная human-верификация не вводится);
+                    # статус авто не меняется. Правило «нет действующего
+                    # СТС» — ЕДИНОЕ с seed (None и '' — документа нет,
+                    # review-003 #3): '' не уходит в «замена» (pending).
+                    cur = conn.execute(
+                        "UPDATE instructor_cars SET photo_sts = ?"
+                        " WHERE id = ?",
+                        (path, car_id),
+                    )
+                    if cur.rowcount == 0:
+                        conn.rollback()
+                        Path(path).unlink(missing_ok=True)
+                        return _error(404, "Автомобиль не найден")
+                    document = instructor_documents.create_verified_version(
+                        conn, "car_sts", car_id, path
+                    )
+                else:
+                    # Замена (FR-70): pending-версия документа;
+                    # photo_sts НЕ перезаписывается до верификации
+                    # («документ не мигает»), повторная загрузка
+                    # замещает ожидающую (ОВ-7); статус авто НЕ меняется —
+                    # validated остается validated (ОВ-6).
+                    document = instructor_documents.create_or_replace_pending_version(
+                        conn, "car_sts", car_id, path
+                    )
+                status = row["status"]
+            else:
+                cur = conn.execute(_ANGLE_UPDATE_SQL[angle], (path, car_id))
+                if cur.rowcount == 0:
+                    conn.rollback()
+                    Path(path).unlink(missing_ok=True)
+                    return _error(404, "Автомобиль не найден")
+                document = None
+                # MAJ-1 (review-001, решение ПМ): validated → validating при
+                # замене контента — в той же транзакции, guard-WHERE (паттерн
+                # NIT-3); draft/validating загрузка статус не меняет (ОВ-7).
+                # Спринт 8 (ОВ-6): правило — ТОЛЬКО для 5 ракурсов.
+                row = conn.execute(
+                    "SELECT status FROM instructor_cars WHERE id = ?", (car_id,)
+                ).fetchone()
+                status = row["status"] if row is not None else None
+                if status == "validated":
+                    gated = conn.execute(
+                        "UPDATE instructor_cars SET status = 'validating'"
+                        " WHERE id = ? AND status = 'validated'",
+                        (car_id,),
+                    )
+                    if gated.rowcount:
+                        status = "validating"
         except sqlite3.Error:
             # NIT-4 (review-001): сбой UPDATE — файл не остается сиротой
             Path(path).unlink(missing_ok=True)
             raise
-        if cur.rowcount == 0:
-            conn.rollback()
-            Path(path).unlink(missing_ok=True)
-            return _error(404, "Автомобиль не найден")
-        # MAJ-1 (review-001, решение ПМ): validated → validating при
-        # замене контента — в той же транзакции, guard-WHERE (паттерн
-        # NIT-3); draft/validating загрузка статус не меняет (ОВ-7).
-        row = conn.execute(
-            "SELECT status FROM instructor_cars WHERE id = ?", (car_id,)
-        ).fetchone()
-        status = row["status"] if row is not None else None
-        if status == "validated":
-            gated = conn.execute(
-                "UPDATE instructor_cars SET status = 'validating'"
-                " WHERE id = ? AND status = 'validated'",
-                (car_id,),
-            )
-            if gated.rowcount:
-                status = "validating"
         conn.commit()
     finally:
         conn.close()
-    return {
+    response = {
         "ok": True,
         "url": f"/api/instructor/cars/{car_id}/photo/{angle}",
         "status": status,
     }
+    if document is not None:
+        response["document"] = document
+    return response
 
 
 @router.get("/api/instructor/cars/{car_id}/photo/{angle}")
@@ -761,7 +833,9 @@ def admin_cars_completeness(
                 "left": row["photo_left"] is not None,
                 "right": row["photo_right"] is not None,
             },
-            "has_sts": row["photo_sts"] is not None,
+            "has_sts": instructor_documents.has_canonical_file(
+                row["photo_sts"]
+            ),
             "status": row["status"],
             "counters": _car_counters(row),
         }
@@ -803,14 +877,15 @@ def admin_validate_car(
             if row[_ANGLE_COLUMNS[angle]] is None
         ]
         loaded = len(ANGLES) - len(missing)
-        if loaded < 3 or row["photo_sts"] is None:
+        no_sts = not instructor_documents.has_canonical_file(row["photo_sts"])
+        if loaded < 3 or no_sts:
             parts = []
             if loaded < 3:
                 parts.append(
                     "загружено ракурсов: {} из 5 (нужно минимум 3;"
                     " не хватает: {})".format(loaded, ", ".join(missing))
                 )
-            if row["photo_sts"] is None:
+            if no_sts:
                 parts.append("нет фото СТС")
             return _error(409, "Комплект неполный: " + "; ".join(parts))
         conn.execute(
