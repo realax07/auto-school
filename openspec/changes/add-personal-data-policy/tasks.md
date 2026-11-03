@@ -151,7 +151,7 @@ register.py/instructors.py — только точечные расширени�
 
 ## 7. Тесты и TC-трассировка
 
-- [ ] 7.1 tests/test_policy.py (новый; при необходимости +
+- [x] 7.1 tests/test_policy.py (новый; при необходимости +
       test_register.py/test_instructors_apply.py — матрицы 3.1/4.1) —
       автотесты с TC-ID в docstring (rule 6), трассировка ПО
       ЗАГОЛОВКАМ specs/PersonalData/spec.md (Requirement/Scenario —
