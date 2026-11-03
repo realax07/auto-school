@@ -25,6 +25,7 @@
 | 15 | Спринт-5 контур (add-booking-docs, arch-review needs-rework — MAJ-1 в работе СА) | **Бронирование ПОВЕРХ сущностей Спринта 3: таблица booking (student_id, instructor_id, availability_id — слот ЦЕЛИКОМ, ОВ-3; lesson_date материализован; статусы new/confirmed/rejected) с частичным UNIQUE-индексом по availability_id WHERE status IN ('new','confirmed') + BEGIN IMMEDIATE — «один слот = одна активная/подтвержденная бронь» гарантией хранилища (NFR-8), проигравший в гонке получает 409; ракурсы фото и СТС — kinds существующего uploads.py (car_photo/car_sts, механика magic bytes/5 МБ/uuid без изменений) + фиксированные колонки instructor_cars; комплектность фотонабора валидирует ЧЕЛОВЕК в админке (ОВ-1: completeness + block, флаг blocked); домены booking и «Мои документы» — отдельные модули booking.py/instructor_documents.py (директива Заказчика: существующие не раздувать); пара = student_requests.status='accepted' без новой сущности** — ADR-005 | Повторение слота по неделям/завершение занятия — точки расширения (слот с подтвержденной бронью закрыт в объеме); lesson_date не следует за заменой графика — взаимодействие PUT availability с активными бронями доопределяет СА (MAJ-1 ревью); блокировка авто необратима в объеме (разблокировка — точка расширения) |
 | 16 | Спринт-6 контур (add-containerization, arch-review needs-rework — MAJ-1 в работе СА) | **Контейнеризация сервисного контура: multi-stage Dockerfile (pinned python:3.12-slim, .venv из builder-этапа, non-root appuser, HEALTHCHECK по /api/health средствами python stdlib); compose-стек app + nginx (reverse proxy, TLS-файлы монтируются) + MinIO (контур под S3-адаптер uploads.py — задача 6.3); две сети (frontend nginx↔app, backend app↔MinIO), наружу только 80/443; named volumes db/uploads/minio-data; секреты — только env_file/монтирования вне образов (.dockerignore: .env*, deploy/tls/, data/); bare-metal systemd-режим сохраняется — переключение окружением без правок кода (env-изоляция config.py/db.py/uploads.py, FR-57); тесты — внутри того же образа (один digest), CI собирает образ и гоняет pytest на каждый PR** — ADR-006 | Механика доставки tests/ в контейнер (mount vs COPY) — MAJ-1 ревью; nginx в сети backend (лишняя достижимость MinIO) и процедура переключения режимов/переноса data/ в тома — MIN-1/MIN-2 ревью; dev-зависимости в прод-образе и root-обслуживание томов на хосте — принятый техдолг (ADR-006) |
 | 17 | Спринт-8 контур (add-s8-cars-docs-booking, arch-review approve) | **Версии документов ВУ/СТС: таблица document_versions (target_type license/car_sts + target_id, status pending/verified/rejected; частичный UNIQUE по pending — одна ожидающая на документ, ОВ-7; CHECK — rejected только с причиной, ОВ-1); канонические колонки license_photo_path/photo_sts ОСТАЮТСЯ указателями файла действующей версии (все существующие потребители без переделки, NFR-23); seed-миграция verified v1 — idempotent, init_db через lifespan (NFR-24); асимметрия первичной загрузки — СТС у авто без СТС → verified v1 сразу (гейт человека Спринта 7), ВУ у анкеты без ВУ → pending; машины состояний документа и авто НЕЗАВИСИМЫ — замена СТС не сбрасывает validated (ОВ-6), правило MAJ-1 «validated → validating» — только 5 ракурсов; админ-верификация замен — X-Admin-Token, reject с обязательной причиной (ОВ-1), предпросмотр открывается (ОВ-4)** — ADR-007 | Файлы-сироты версий — расширение унаследованного техдолга; асимметрия первичной загрузки — особый случай эксплуатации (первичное СТС не в админской очереди); влияние статусов документов на активность инструктора — точка расширения (ОВ-3 «пока что»); атомарность «замещающая загрузка × verify/reject» — условный UPDATE/BEGIN IMMEDIATE + тесты (MIN-1 ревью); расхождение дословной цитаты п.6 с записью ОВ-6 — подтверждение ПМ/БА (MIN-4 ревью) |
+| 18 | Спринт-9 контур (add-personal-data-policy, arch-review approve) | **Домен PersonalData: текст политики — ЕДИНЫЙ заменяемый артефакт `deploy/policy/policy.md` (шапка policy-version/policy-date + plain-text; env POLICY_FILE; bind-mount :ro в backend-контур по механике nginx.conf/TLS — ADR-006; Dockerfile артефакт НЕ копирует) — подмена = замена файла на хосте (+ рестарт-страховка), чтение с диска на каждый запрос: ≤ 15 мин без разработчика/правки кода/пересборки (NFR-25); раздача — НОВЫЙ модуль backend/policy.py (единственный парсер read_policy): GET /api/policy публичный (механика /api/health) + страница /policy (оболочка policy.html в _PAGE_ROUTES, текст — fetch, рендер текстовыми узлами, в HTML/JS текста нет — grep-контроль); фиксация согласия: consent_at (UTC сервера) + consent_policy_version (из артефакта на момент сабмита, клиентской не доверять) в users и instructor_applications — 4 NULL-able колонки idempotent-миграцией _COLUMN_MIGRATIONS, легаси NULL без backfill; consent в /api/register — НОВОЕ обязательное поле (422, механика MIN-2 Спринта 3), в apply — проверка без изменений; битый артефакт → 500 {ok:false} и записи НЕ создаются (fail-closed, FR-79)** — ADR-008 | Битый/отсутствующий артефакт блокирует ОБЕ регистрации и /policy при зеленом /api/health (HEALTHCHECK артефакт не проверяет — техдолг спринта-9); текст версии не архивируется (consent_policy_version — ссылка на строку; после подмены текст прежней версии невосстановим — точка расширения при требовании аудита); повторное согласие/консент-журнал/PDF/футеры — точки расширения; строгость формата policy-date в парсере — MIN-3 ревью |
 
 Паттерны 1, 2 в спринте-0 не задействованы: nginx/TLS, gateway
 **отложены Заказчиком** (решение 2026-10-06 — оба
@@ -51,6 +52,9 @@ app (образ из Dockerfile: pinned python:3.12-slim, multi-stage, non-root 
    │  механики); env_file .env (секреты вне образа и git — INC-006/NFR-3)
    │  named volume db     ← AUTOSCHOOL_DB_PATH=/data/db/app.db
    │  named volume uploads← AUTOSCHOOL_UPLOADS_DIR=/data/uploads
+   │  bind (хост) deploy/policy → :ro POLICY_FILE=/app/deploy/policy/policy.md
+   │  (Спринт-9, ADR-008: артефакт политики вне образа — подмена файла
+   │  без пересборки; подмена = замена на хосте + рестарт, NFR-25)
    │  сеть backend (app ↔ MinIO)
    ▼
 minio (pinned образ; S3-совместимое хранилище — контур под задачу 6.3)
@@ -67,7 +71,7 @@ Bare-metal режим (без изменений, FR-57): deploy/autoschool.serv
 томов); CI — сборка образа + pytest в контейнере на каждый PR. Детали
 механики прогона — MAJ-1 arch-review add-containerization (в работе СА).
 
-## Компоненты (спринт-0 контур + спринт-1 auth//cabinet + спринт-2 поток инструктора + спринт-2.2 кабинет инструктора + спринт-3A контур инструктор↔ученик + спринт-5 бронирование и документы)
+## Компоненты (спринт-0 контур + спринт-1 auth//cabinet + спринт-2 поток инструктора + спринт-2.2 кабинет инструктора + спринт-3A контур инструктор↔ученик + спринт-5 бронирование и документы + спринт-9 политика ПД)
 
 ```
 Клиент (браузер)
@@ -80,8 +84,14 @@ FastAPI-сервис (uvicorn, single-worker)          ← единственн�
    │                 instructor_applications; миграция users.role (idempotent);
    │                 СПРИНТ-8 (ADR-007): таблица document_versions + seed
    │                 verified v1 из существующих license_photo_path/photo_sts
-   │                 (idempotent, NFR-24)
-   ├── register.py — POST /api/register (валидация → bcrypt → INSERT)
+   │                 (idempotent, NFR-24); СПРИНТ-9 (ADR-008): +4 колонки
+   │                 consent_at / consent_policy_version (users,
+   │                 instructor_applications) — idempotent _COLUMN_MIGRATIONS,
+   │                 легаси-строки NULL без seed/backfill
+   ├── register.py — POST /api/register (валидация → bcrypt → INSERT);
+   │                 СПРИНТ-9 (ADR-008): +обязательное поле consent
+   │                 (bool=False, MAJ-1; позиция 1a → 422) + фиксация
+   │                 consent_at/consent_policy_version при успехе
    ├── admin.py    — POST /api/admin/login; GET /api/admin/users[.csv]; require_admin
    │                 (in-memory реестр токенов {token: expires}, TTL 12 ч)
    ├── auth.py     — СПРИНТ-1 (ADR-002): POST /api/auth/login (SELECT по email
@@ -92,7 +102,10 @@ FastAPI-сервис (uvicorn, single-worker)          ← единственн�
    │                 route/reason — роутинг по role (cabinet/student-cabinet)
    │                 и по статусу заявки без выдачи сессии (pending/rejected)
    ├── instructors.py     — СПРИНТ-2 (ADR-003): POST /api/instructors/apply
-   │                        (публичная анкета: валидация → bcrypt → INSERT заявки)
+   │                        (публичная анкета: валидация → bcrypt → INSERT заявки);
+   │                        СПРИНТ-9 (ADR-008): при успехе INSERT +
+   │                        consent_at/consent_policy_version (проверка
+   │                        consent — позиция 1a MIN-2, без изменений)
    ├── instructor_admin.py — СПРИНТ-2 (ADR-003): GET /api/admin/instructor-applications;
    │                        POST …/{id}/approve (INSERT users из заявки, перенос
    │                        хэша, role='instructor') и …/{id}/deny (обязательный
@@ -189,6 +202,18 @@ FastAPI-сервис (uvicorn, single-worker)          ← единственн�
    │                        из реальных подтвержденных броней на текущую
    │                        дату (пусто → прежнее «Сегодня занятий нет»,
    │                        FR-49)
+   ├── policy.py           — СПРИНТ-9 (ADR-008, НОВЫЙ МОДУЛЬ, домен
+   │                        PersonalData): read_policy() — единственный
+   │                        парсер артефакта deploy/policy/policy.md
+   │                        (POLICY_FILE, чтение с диска на каждый запрос,
+   │                        без кэша; шапка policy-version/policy-date до
+   │                        '---' + plain-text; поврежден → ошибка без
+   │                        раскрытия содержимого, NFR-10); GET /api/policy
+   │                        — публичный (механика /api/health): 200
+   │                        {ok:true, version, date, text} / 500 {ok:false};
+   │                        хелпер версии для фиксации согласия
+   │                        (register.py/instructors.py); артефакт недоступен
+   │                        при сабмите → 500 и запись НЕ создается (FR-79)
    └── frontend/   — статика из design/mocks (/, /registered, /admin-login,
                      /admin-dashboard) + спринт-1: /cabinet → cabinet.html
                      (модалка «Вход» m-login на /, wiring: X-Session-Token
@@ -210,6 +235,10 @@ FastAPI-сервис (uvicorn, single-worker)          ← единственн�
                      /admin/cars → admin-cars.html (комплектность +
                      блокировка) — дашборды не раздуваем, новые разделы
                      на новых страницах (ADR-005)
+                     + спринт-9: /policy → policy.html (политика ПД —
+                     оболочка БЕЗ текста: текст и версия — fetch GET
+                     /api/policy при загрузке, рендер текстовыми узлами,
+                     ADR-008)
    ▼
 SQLite data/app.db (WAL, в .gitignore) — только хранение (паттерн 5);
 учетные данные — таблица users (email UNIQUE + role), заявки инструкторов —
@@ -230,6 +259,7 @@ instructor_applications (email UNIQUE, password_hash, status), сессии — 
 | [005-booking-slots](adr/005-booking-slots.md) | Бронирование и документы (Спринт 5): booking поверх availability (слот целиком) с частичным UNIQUE + BEGIN IMMEDIATE против гонок NFR-8; ракурсы фото/СТС — kinds uploads.py + фиксированные колонки instructor_cars; комплектность фотонабора валидирует человек в админке (флаг blocked); домены booking/«Мои документы» — отдельные модули по директиве Заказчика | Принято (Заказчик — дословная цитата ОВ-1…ОВ-6, 2026-10-22; ревью — arch-review add-booking-docs, needs-rework: MAJ-1 согласование PUT availability с бронями — не касается решений ADR) |
 | [006-containerization](adr/006-containerization.md) | Контейнеризация (Спринт 6): multi-stage образ (pinned python:3.12-slim, .venv, non-root); compose app+nginx+MinIO, две сети, наружу только 80/443; состояние — named volumes (db/uploads/minio-data); секреты — env_file/монтирования вне образов (наследование NFR-3/INC-006); bare-metal systemd сохраняется — переключение окружением без правок кода (INC-001/FR-57); MinIO в стеке сразу, S3-адаптер uploads.py — задача 6.3 | Принято (Заказчик — «контейнеризация + модульный JS», 2026-10-23; решения-дефолты утверждены составом Спринта 6; ревью — arch-review add-containerization, needs-rework: MAJ-1 механика доставки тестов в контейнер — не касается решений ADR) |
 | [007-document-versions](adr/007-document-versions.md) | Версии документов ВУ/СТС (Спринт 8): таблица document_versions pending/verified/rejected — частичный UNIQUE (одна ожидающая на документ, ОВ-7) и CHECK (rejected только с причиной, ОВ-1) на уровне схемы; канонические колонки license_photo_path/photo_sts остаются указателями действующей версии (потребители Спринтов 3–7 без переделки, NFR-23); seed-миграция verified v1, idempotent (NFR-24); асимметрия первичной загрузки — СТС → verified сразу (гейт Спринта 7), ВУ → pending; машины состояний документа и авто независимы — замена СТС не сбрасывает validated (ОВ-6), MAJ-1 — только 5 ракурсов | Принято (Заказчик — решения ОВ-1…ОВ-7, 2026-11-01; ревью — arch-review add-s8-cars-docs-booking, approve: MIN-1…MIN-4 — вне решений ADR) |
+| [008-policy-artifact-consent](adr/008-policy-artifact-consent.md) | Политика ПД (Спринт 9, ОВ-1/ОВ-2): текст — единый заменяемый артефакт deploy/policy/policy.md в контуре деплоя (шапка policy-version/policy-date + plain-text, POLICY_FILE, bind-mount :ro — механика ADR-006, в образ не входит; чтение на каждый запрос — подмена ≤ 15 мин без разработчика/пересборки, NFR-25); домен PersonalData — отдельный модуль backend/policy.py (парсер + публичный GET /api/policy + хелпер версии); страница /policy — оболочка без текста (fetch + текстовые узлы); фиксация согласия — consent_at + consent_policy_version (версия из артефакта на момент сабмита) в users/instructor_applications — 4 NULL-able колонки idempotent-миграцией, легаси NULL без backfill; consent в /api/register — обязательное поле (422, механика MIN-2 Спринта 3); битый артефакт → 500 и записи не создаются (fail-closed, FR-79) | Принято (Заказчик — «1 пиши стандартный пока, но держи его отдельно для замены. 2 да.», 2026-11-02; ревью — arch-review add-personal-data-policy, approve: MIN-1…MIN-5 — вне решений ADR) |
 
 ## Долг / открытые вопросы
 
@@ -401,3 +431,39 @@ instructor_applications (email UNIQUE, password_hash, status), сессии — 
   (ADR-001/002), статика без серверной защиты страниц (спринт-1 паттерн),
   нет rate-limit на публичных эндпоинтах, файлы-сироты uploads (cleanup
   вне объема).
+
+## Техдолг спринта-9 (политика ПД; arch-review add-personal-data-policy — approve, 2026-11-03)
+
+- MIN-1 ревью: артефакт политики — Tier-1 зависимость эксплуатации: битый/
+  отсутствующий deploy/policy/policy.md блокирует ОБЕ регистрации и /policy
+  (500 {ok:false}) при ЗЕЛЕНОМ /api/health — HEALTHCHECK артефакт не
+  проверяет; периодического контроля нет. Контроль — RUNBOOK (задача 6.1):
+  операция «Подмена политики» обязана заканчиваться проверкой GET /api/policy;
+  проверка артефакта в health — точка расширения (вне объема).
+- MIN-2 ревью: consent_policy_version — ссылка на строку без архива текста:
+  после подмены артефакта текст прежней версии невосстановим, «на что
+  согласился» владелец легаси-записи прошлой версии — только строка версии.
+  Принято сознательно (design «Сознательные ограничения»); архив текстов
+  версий — точка расширения при появлении требования аудита 152-ФЗ.
+- MIN-3 ревью: строгость парсера к policy-date не pinned (перечень
+  «поврежденного» артефакта в design не включает неверный формат даты;
+  дата объявлена документальной) — закрепить правило в границах задачи 2.1
+  (рекомендация: version непустая обязателен, date — наличие обязателен,
+  формат документальный) + тесты парсера.
+- MIN-4 ревью: права на bind-mount для non-root appuser (:ro — чтение
+  хостовых файлов чужого uid): дефолтные 644/755 работают, ограничительный
+  umask на хосте молча дает 500 на все чтения артефакта. Контроль — RUNBOOK
+  (задача 6.1): права доступа — шаг операции подмены.
+- MIN-5 ревью (нарезка, ПМ): формулировка задачи 8.1 («финальная сборка:
+  include роутера…, миграция…») читается как правка app.py/db.py, тогда как
+  раздел «Рекомендации к нарезке» отдаёт эти файлы задачам 2.1/3.1, а 8.1 —
+  «только сверяет»; задачи последовательны (зависимость 8.1 от 2.1/3.1/4.1),
+  коллизии worktree нет — свести формулировку 8.1 к «сверка» во избежание
+  дубль-правок.
+- Наследуются без изменений: single-worker + in-memory сессии/токены
+  (ADR-001/002), статика тем же сервисом (ADR-001), SQLite WAL, нет
+  rate-limit на публичных эндпоинтах (теперь и на GET /api/policy — полный
+  текст на каждый запрос; чтение десятков КБ — незначительная нагрузка),
+  файлы-сироты uploads (cleanup вне объема). Отсутствие rate-limit на
+  /api/policy — то же принятое решение, что и для остальных публичных
+  эндпоинтов (Релиз 1 за Gateway).
