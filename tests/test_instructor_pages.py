@@ -255,8 +255,15 @@ def test_apply_submit_wiring():
 
 def test_pending_page_exists_and_text():
     """FR-12/FR-17: экран «заявка на рассмотрении» — в тоне анкеты/лендинга;
-    при загрузке статус НЕ проверяется (проверка при логине, FR-13)."""
-    html = page("instructor-pending.html")
+    при загрузке статус НЕ проверяется (проверка при логине, FR-13).
+    Спринт 9 (change add-vue-framework-pilot, задача 2.3): источник чтения
+    переключен с удаленного legacy instructor-pending.html на вход пилотной
+    страницы каркаса Vue frontend/vue/instructors-pending.html — проверяемые
+    тексты/селекторы/URL не меняются, маршрут сохранен (design.md
+    «Миграция legacy-тестов страницы ожидания»)."""
+    html = (FRONTEND / "vue" / "instructors-pending.html").read_text(
+        encoding="utf-8"
+    )
     assert "Заявка на рассмотрении" in html
     assert "Заявка инструктора" in html
     assert "СберАвтошкола" in html

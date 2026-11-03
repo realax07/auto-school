@@ -70,7 +70,7 @@ feat/s9-polling-package); предусловие старта 3.1 и услов�
       HEALTHCHECK, CMD uvicorn) не нарушен.
       FR: FR-84. Зависит от: 2.1.
 
-- [ ] 2.3 [P][code] backend/app.py — переключение маршрута и статика
+- [x] 2.3 [P][code] backend/app.py — переключение маршрута и статика
       каркаса: `/instructors/pending` → FileResponse
       frontend/vue/dist/instructors-pending.html; NEW `GET
       /vue/assets/{path}` из frontend/vue/dist/assets (content-type по
