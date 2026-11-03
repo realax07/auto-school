@@ -21,6 +21,14 @@ register.py (MAJ-1): поля модели с дефолтами `str = ""`, о�
 IntegrityError от UNIQUE instructor_applications.email — вторая линия
 защиты гонки параллельных сабмитов → та же контрактная 422
 «Email: уже зарегистрирован» (механика register.py:104).
+
+Спринт 9 (add-personal-data-policy, задача 3.1): при успехе INSERT
+фиксирует consent_at (момент сабмита, UTC сервера, формат created_at
+'YYYY-MM-DD HH:MM:SS') и consent_policy_version (policy-version артефакта
+НА МОМЕНТ САБМИТА — хелпер backend.policy.current_policy_version,
+клиентской версии не доверять, FR-79); артефакт недоступен в момент
+сабмита → 500 {ok:false}, заявка НЕ создается (design.md «Обработка
+ошибок»). Проверки и multipart-нормализация consent — без изменений.
 """
 import datetime
 import json
@@ -33,6 +41,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ValidationError
 
 import backend.db as db
+import backend.policy as policy
 import backend.uploads as uploads
 
 router = APIRouter()
@@ -141,6 +150,27 @@ def _contract_422(message: str) -> JSONResponse:
     return JSONResponse(status_code=422, content={"ok": False, "error": message})
 
 
+def _policy_unavailable_500() -> JSONResponse:
+    """Контрактная 500 при недоступном артефакте в момент сабмита
+    (design.md «Обработка ошибок»): без деталей артефакта (NFR-10)."""
+    return JSONResponse(
+        status_code=500,
+        content={
+            "ok": False,
+            "error": "Сервис: политика персональных данных временно недоступна",
+        },
+    )
+
+
+def _utc_now() -> str:
+    """Момент сабмита по часам сервера, UTC; формат created_at
+    ('YYYY-MM-DD HH:MM:SS', SQLite datetime('now')-совместимый —
+    design.md «Модель данных»)."""
+    return datetime.datetime.now(datetime.timezone.utc).strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
+
+
 def _validate_experience_years(value: int | None) -> str | None:
     """Стаж числом ≥ 0 (arch-review итерация 2, MAJ-3); None — поле пусто."""
     if value is None:
@@ -215,6 +245,7 @@ async def instructor_apply(request: Request):
         if file_error is not None:
             error = file_error
 
+    policy_unavailable = False
     if error is None:
         # 8)–9) уникальность email: users и заявки (единое сообщение, FR-16)
         conn = db.get_conn()
@@ -232,53 +263,67 @@ async def instructor_apply(request: Request):
                 if exists:
                     error = "Email: уже зарегистрирован"
                 else:
-                    password_hash = bcrypt.hashpw(
-                        data.password.encode("utf-8"),
-                        bcrypt.gensalt(rounds=_BCRYPT_ROUNDS),
-                    ).decode("utf-8")
-                    if data.surname.strip() and data.name.strip():
-                        surname, name, patronymic = (data.surname.strip(),
-                                                     data.name.strip(),
-                                                     data.patronymic.strip())
+                    # Спринт 9 (задача 3.1): версия артефакта НА МОМЕНТ
+                    # САБМИТА — после всех проверок (порядок sdd §15.1 не
+                    # меняется), ДО INSERT; артефакт недоступен → 500,
+                    # заявка НЕ создается (FR-79, design.md «Обработка
+                    # ошибок»).
+                    try:
+                        policy_version = policy.current_policy_version()
+                    except policy.PolicyError:
+                        policy_unavailable = True
                     else:
-                        surname, name, patronymic = _split_fio(data.fio.strip())
-                    cur = conn.execute(
-                        "INSERT INTO instructor_applications (surname, name,"
-                        " patronymic, email, phone, address, work_format, plate,"
-                        " license_number, license_date, license_category,"
-                        " experience, experience_years, password_hash, status)"
-                        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,"
-                        " 'waiting')",
-                        (
-                            surname,
-                            name,
-                            patronymic,
-                            data.email,
-                            data.phone,
-                            data.address,
-                            data.work_format,
-                            data.plate,
-                            data.license_number,
-                            data.license_date,
-                            data.license_category,
-                            data.experience,
-                            data.experience_years,
-                            password_hash,
-                        ),
-                    )
-                    application_id = cur.lastrowid
-                    if license_ext is not None:
-                        # Имя генерирует сервер, каталог вне frontend/
-                        # (NFR-1): data/uploads/license/<uuid>.<ext>
-                        path = uploads.save_image(
-                            "license", license_bytes, license_ext
+                        password_hash = bcrypt.hashpw(
+                            data.password.encode("utf-8"),
+                            bcrypt.gensalt(rounds=_BCRYPT_ROUNDS),
+                        ).decode("utf-8")
+                        if data.surname.strip() and data.name.strip():
+                            surname, name, patronymic = (data.surname.strip(),
+                                                         data.name.strip(),
+                                                         data.patronymic.strip())
+                        else:
+                            surname, name, patronymic = _split_fio(data.fio.strip())
+                        consent_at = _utc_now()
+                        cur = conn.execute(
+                            "INSERT INTO instructor_applications (surname, name,"
+                            " patronymic, email, phone, address, work_format, plate,"
+                            " license_number, license_date, license_category,"
+                            " experience, experience_years, password_hash,"
+                            " consent_at, consent_policy_version, status)"
+                            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,"
+                            " ?, ?, 'waiting')",
+                            (
+                                surname,
+                                name,
+                                patronymic,
+                                data.email,
+                                data.phone,
+                                data.address,
+                                data.work_format,
+                                data.plate,
+                                data.license_number,
+                                data.license_date,
+                                data.license_category,
+                                data.experience,
+                                data.experience_years,
+                                password_hash,
+                                consent_at,
+                                policy_version,
+                            ),
                         )
-                        conn.execute(
-                            "UPDATE instructor_applications SET"
-                            " license_photo_path = ? WHERE id = ?",
-                            (path, application_id),
-                        )
-                    conn.commit()
+                        application_id = cur.lastrowid
+                        if license_ext is not None:
+                            # Имя генерирует сервер, каталог вне frontend/
+                            # (NFR-1): data/uploads/license/<uuid>.<ext>
+                            path = uploads.save_image(
+                                "license", license_bytes, license_ext
+                            )
+                            conn.execute(
+                                "UPDATE instructor_applications SET"
+                                " license_photo_path = ? WHERE id = ?",
+                                (path, application_id),
+                            )
+                        conn.commit()
             # Гонка параллельных сабмитов одного email (MAJ-1): оба проходят
             # SELECT до чужого INSERT, но UNIQUE допускает ровно одну заявку —
             # IntegrityError → та же контрактная 422 (register.py:104).
@@ -287,6 +332,8 @@ async def instructor_apply(request: Request):
         finally:
             conn.close()
 
+    if policy_unavailable:
+        return _policy_unavailable_500()
     if error is not None:
         return _contract_422(error)
     return {"ok": True}

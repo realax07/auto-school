@@ -193,6 +193,21 @@ _COLUMN_MIGRATIONS = (
     ("instructor_cars", "status",
      "ALTER TABLE instructor_cars ADD COLUMN status TEXT NOT NULL DEFAULT"
      " 'validated' CHECK (status IN ('draft','validating','validated'))"),
+    # Спринт 9 (add-personal-data-policy, задача 3.1): фиксация согласия
+    # (FR-77/FR-79, NFR-27). TEXT NULL у легаси — записи, созданные ДО
+    # введения фиксации; SEED/BACKFILL НЕ ДЕЛАЕТСЯ (design.md «Модель
+    # данных»: дату/версию согласия легаси-записей взять неоткуда).
+    # Непустоту обоих полей у НОВЫХ записей обеспечивает сервер
+    # (register.py/instructors.py заполняют в одной транзакции с INSERT).
+    ("users", "consent_at",
+     "ALTER TABLE users ADD COLUMN consent_at TEXT"),
+    ("users", "consent_policy_version",
+     "ALTER TABLE users ADD COLUMN consent_policy_version TEXT"),
+    ("instructor_applications", "consent_at",
+     "ALTER TABLE instructor_applications ADD COLUMN consent_at TEXT"),
+    ("instructor_applications", "consent_policy_version",
+     "ALTER TABLE instructor_applications ADD COLUMN"
+     " consent_policy_version TEXT"),
 )
 
 
