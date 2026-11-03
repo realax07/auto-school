@@ -54,7 +54,7 @@ feat/s9-polling-package); предусловие старта 3.1 и услов�
       артефактов); `npm run dev` поднимает страницу.
       FR: FR-84. NFR: NFR-26. Зависит от: 1.1 (решения ADR).
 
-- [ ] 2.2 [P][infra] Dockerfile + .dockerignore — доставка сборки:
+- [x] 2.2 [P][infra] Dockerfile + .dockerignore — доставка сборки:
       node builder-этап (pinned node:22-slim digest; COPY
       frontend/vue/package*.json → npm ci → COPY frontend/vue/ →
       npm run build) перед python builder; runtime-этап: COPY --from=

@@ -18,3 +18,9 @@ tests/
 
 # Прочее, не нужное рантайму
 node_modules/
+
+# Vue workspace (Спринт 9, ADR-008, задача 2.2): сборка в образе идет из
+# манифестов (npm ci в frontend-builder), локальные зависимости и dist
+# (артефакт сборки ОБРАЗА) — вне контекста
+frontend/vue/node_modules/
+frontend/vue/dist/
