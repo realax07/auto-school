@@ -25,6 +25,8 @@ VALID = {
     "name": "Иван",
     "patronymic": "Иванович",
     "phone": "+79990001122",
+    # Спринт 9 (4.1): consent обязателен (FR-78) — [test-adapted]
+    "consent": True,
 }
 
 

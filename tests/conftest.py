@@ -91,7 +91,12 @@ def client(monkeypatch, tmp_path):
 
 
 def valid_body(**overrides):
-    """Базовый валидный пользователь (базовый набор approved-кейсов)."""
+    """Базовый валидный пользователь (базовый набор approved-кейсов).
+
+    Спринт 9 (add-personal-data-policy, 4.1): consent стал обязательным
+    полем /api/register (FR-78) — базовый набор соглашается, иначе падает
+    весь позитивный регресс ученика (полная матрица согласия — 7.2).
+    """
     body = {
         "surname": "Петрова-Водкина",
         "name": "Анна",
@@ -100,6 +105,7 @@ def valid_body(**overrides):
         "phone": "+7 (912) 345-67-89",
         "password": "Qwerty123",
         "password_confirm": "Qwerty123",
+        "consent": True,
     }
     body.update(overrides)
     return body
