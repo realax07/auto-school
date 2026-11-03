@@ -75,11 +75,11 @@ document.getElementById('registration').addEventListener('submit',function(e){
         // Спринт 9 (add-application-status-polling, задача 3.1): токены
         // заявки из ответа apply — в localStorage ДО редиректа на экран
         // ожидания (design.md: ключи application_poll_token /
-        // application_exchange_token; exchange_token в localStorage
-        // осознанно, НЕ sessionStorage — хранение переживает перезагрузки,
-        // arch-review-002 MIN-5). Ошибка записи localStorage не мешает
-        // редиректу. При 422/ошибке токены не сохраняются — эта ветка
-        // не выполняется (ветка else ничего не пишет).
+        // application_exchange_token; хранение в localStorage осознанно —
+        // обязано переживать перезагрузки экрана, arch-review-002 MIN-5).
+        // Ошибка записи localStorage не мешает редиректу. При 422/ошибке
+        // токены не сохраняются — эта ветка не выполняется (ветка else
+        // ничего не пишет).
         try{
           if(res.data.poll_token){localStorage.setItem('application_poll_token',res.data.poll_token);}
           if(res.data.exchange_token){localStorage.setItem('application_exchange_token',res.data.exchange_token);}
