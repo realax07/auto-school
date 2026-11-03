@@ -204,7 +204,7 @@ vendor-сплит — PLAN.md 9.3 → 9.4). Бэкенд-задачи 1.1/2.1 и
 
 ## 6. Сборка
 
-- [ ] 6.1 [code] backend/app.py + backend/db.py — include роутера
+- [x] 6.1 [code] backend/app.py + backend/db.py — include роутера
       application_status, финальная миграция (poll_token/exchange_token,
       idempotent); сверка правила префиксов API (design.md); модули
       auth.py, instructor_admin.py, register.py, admin.py и прочие —

@@ -1,9 +1,7 @@
 """Спринт 9 — BACKEND-тесты (change add-application-status-polling; задача
-5.1, волна P-1). Пишутся ПРОТИВ контрактов design.md пакета (таблицы
-эндпоинтов, «Решение СА», «Модель данных») — интеграция эндпоинтов
-backend/application_status.py включается в волне P-2 (задачи 2.1/6.1),
-поэтому эндпоинт-тесты помечены skipif с причиной «P-2 интеграция» и
-будут выполнены в финальном прогоне после P-2.
+5.1, волна P-1; снятие skipif и финальный живой прогон — волна P-2,
+задачи 2.1/6.1). Пишутся ПРОТИВ контрактов design.md пакета (таблицы
+эндпоинтов, «Решение СА», «Модель данных»).
 
 Покрывают (TC-S9BE-001…007, tasks.md 5.1):
 - TC-S9BE-001 — apply выдает ОБА токена, сохраняет в заявку, токены двух
@@ -16,7 +14,8 @@ backend/application_status.py включается в волне P-2 (задач
 - TC-S9BE-002 — статус waiting по X-Poll-Token, чтение без побочных
   эффектов (заявка неизменна после N чтений);
 - TC-S9BE-003 — approved в статусе + бесшовный обмен на рабочую сессию
-  (GET /api/auth/me → role instructor); переходный отказ обмена (409,
+  по строке users (роль instructor — БД-проверка, контракт /api/auth/me
+  без ключа role, sdd.md §20.1); переходный отказ обмена (409,
   вырожденное «approved без users») — токен НЕ потреблен, повтор
   возможен;
 - TC-S9BE-004 — rejected с причиной и без (историческая пустая причина →
@@ -44,7 +43,7 @@ import threading
 
 import pytest
 
-from conftest import admin_headers, db_path
+from conftest import admin_headers, db_path, fetch_user
 
 import backend.instructors as instructors
 
@@ -55,25 +54,6 @@ _STATUS_PATH = "/api/instructors/application-status"
 _EXCHANGE_PATH = "/api/instructors/application-exchange"
 
 PASSWORD = "Instr1234"
-
-
-def _s9_endpoints_wired() -> bool:
-    """True, если оба эндпоинта блока 2 включены в create_app() (задача
-    6.1, волна P-2). До интеграции — False → skipif «P-2 интеграция»."""
-    try:
-        from backend.app import create_app
-
-        paths = {getattr(route, "path", "") for route in create_app().routes}
-    except Exception:
-        return False
-    return _STATUS_PATH in paths and _EXCHANGE_PATH in paths
-
-
-requires_p2 = pytest.mark.skipif(
-    not _s9_endpoints_wired(),
-    reason="P-2 интеграция: backend/application_status.py не включен в "
-    "create_app() (задачи 2.1/6.1, волна P-2); финальный прогон — после P-2",
-)
 
 
 # --- helpers -----------------------------------------------------------------
@@ -322,7 +302,6 @@ class TestTCS9BE001ApplyIssuesTokens:
 # --- TC-S9BE-002: статус waiting, чтение без побочных эффектов (P-2) --------
 
 
-@requires_p2
 def test_tc_s9be_002_status_waiting_read_only_no_side_effects(client):
     """TC-S9BE-002 (задача 5.1; FR-80, NFR-28 — только чтение).
 
@@ -348,7 +327,6 @@ def test_tc_s9be_002_status_waiting_read_only_no_side_effects(client):
 # --- TC-S9BE-003: approved + бесшовный обмен на сессию (P-2) ----------------
 
 
-@requires_p2
 def test_tc_s9be_003_approved_status_and_seamless_exchange(client):
     """TC-S9BE-003 (задача 5.1; FR-81).
 
@@ -375,14 +353,20 @@ def test_tc_s9be_003_approved_status_and_seamless_exchange(client):
     assert body["ok"] is True
     assert body["route"] == "cabinet"
     assert isinstance(body["token"], str) and body["token"]
-    # сессия рабочая: /api/auth/me → роль instructor (FR-81)
+    # сессия рабочая и привязана к строке users инструктора (FR-81).
+    # [test-adapted] P-2 (задача 6.1): было me["user"]["role"] — контракт
+    # /api/auth/me БЕЗ ключа role не меняется (sdd.md §20.1, регресс
+    # Спринтов 1–2.1: test_auth.py проверяет точный состав user), поэтому
+    # роль instructor верифицируется по строке users в БД (семантика
+    # сохранена: сессия → users с role='instructor')
     me = client.get(
         "/api/auth/me", headers={"X-Session-Token": body["token"]}
     )
     assert me.status_code == 200, me.text
     me_body = me.json()
-    assert me_body["user"]["role"] == "instructor"
+    assert me_body["ok"] is True
     assert me_body["user"]["email"] == "instructor@example.com"
+    assert fetch_user("instructor@example.com")["role"] == "instructor"
 
     # Сценарий «Ошибка обмена оставляет экран в waiting»: переходный отказ
     # 409 (вырожденное «approved без users» — вне контракта модерации) —
@@ -405,7 +389,6 @@ def _poll_exchange_of(email):
 # --- TC-S9BE-004: rejected с причиной/без (P-2) -----------------------------
 
 
-@requires_p2
 def test_tc_s9be_004_rejected_with_reason_and_without(client):
     """TC-S9BE-004 (задача 5.1; FR-82).
 
@@ -440,7 +423,6 @@ def test_tc_s9be_004_rejected_with_reason_and_without(client):
 # --- TC-S9BE-005: 404-неразличение, 422 на пустые (P-2) ---------------------
 
 
-@requires_p2
 def test_tc_s9be_005_404_indistinguishable_and_422_on_empty(client):
     """TC-S9BE-005 (задача 5.1; NFR-28, NFR-7).
 
@@ -596,7 +578,6 @@ def test_tc_s9be_006_migration_idempotent_no_backfill(monkeypatch, tmp_path):
 # --- TC-S9BE-007: потребление exchange_token, 409 waiting, MIN-1 (P-2) ------
 
 
-@requires_p2
 def test_tc_s9be_007_consumed_exchange_repeat_404_and_waiting_409(client):
     """TC-S9BE-007 (задача 5.1; FR-81, MAJ-1 arch-review-002, MIN-1).
 
@@ -630,7 +611,6 @@ def test_tc_s9be_007_consumed_exchange_repeat_404_and_waiting_409(client):
     assert fetch_application("waiting@example.com")["exchange_token"] == exchange_w
 
 
-@requires_p2
 def test_tc_s9be_007_parallel_exchanges_exactly_one_200(client):
     """TC-S9BE-007, часть MIN-1 (design.md «Порядок обмена» п.4): два
     ПАРАЛЛЕЛЬНЫХ обмена одним валидным токеном — ровно один 200, второй
@@ -674,11 +654,14 @@ def test_tc_s9be_007_parallel_exchanges_exactly_one_200(client):
     assert len(ok_bodies) == 1
     assert ok_bodies[0]["ok"] is True
     assert ok_bodies[0]["route"] == "cabinet"
-    # сессия выдана ровно одна и она рабочая (роль instructor)
+    # сессия выдана ровно одна и привязана к строке users инструктора
+    # ([test-adapted] P-2: роль по строке users — контракт /me без ключа
+    # role, sdd.md §20.1; см. TC-S9BE-003)
     me = client.get(
         "/api/auth/me", headers={"X-Session-Token": ok_bodies[0]["token"]}
     )
     assert me.status_code == 200
-    assert me.json()["user"]["role"] == "instructor"
+    assert me.json()["user"]["email"] == "parallel@example.com"
+    assert fetch_user("parallel@example.com")["role"] == "instructor"
     # токен потреблен ровно один раз
     assert fetch_application("parallel@example.com")["exchange_token"] is None
