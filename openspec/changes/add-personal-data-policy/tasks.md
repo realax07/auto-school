@@ -171,7 +171,7 @@ register.py/instructors.py — только точечные расширени�
       Типы: [tests]. FR: FR-76…FR-79. NFR: NFR-25, NFR-10. Зависит
       от: 2.1, 3.1, 4.1.
 
-- [ ] 7.2 [P] tests/conftest.py + tests/test_register.py +
+- [x] 7.2 [P] tests/conftest.py + tests/test_register.py +
       tests/test_instructors_apply.py + tests/test_ui_playwright.py —
       поддержка обязательного согласия: conftest valid_body/register →
       consent:true (иначе падает весь API-регресс ученика); негативные

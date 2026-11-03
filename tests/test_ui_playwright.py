@@ -281,7 +281,12 @@ def test_student_landing_login_modal_centered(page, server):
 
 def test_student_register_redirects_to_cabinet(page, server):
     """TC-UI-002 (change add-instructor-cabinet): регистрация ученика —
-    заполнение формы, сабмит, редирект в кабинет с валидным токеном."""
+    заполнение формы, сабмит, редирект в кабинет с валидным токеном.
+
+    Спринт 9 (add-personal-data-policy, 7.2, FR-78): DOM модалки пополнился
+    обязательным чекбоксом согласия (#reg-consent, ссылка на /policy) —
+    #reg-submit недоступен до установки; перед сабмитом добавлен клик
+    чекбокса, проверки сценария не меняются."""
     page.goto(f"{server}/")
     page.locator('.auth [data-open="register"]').click()
     expect(page.locator("#m-register.overlay")).to_be_visible()
@@ -294,6 +299,11 @@ def test_student_register_redirects_to_cabinet(page, server):
     page.fill("#reg-phone", "+7 900 111-22-33")
     page.fill("#reg-password", "S3cretPass!")
     page.fill("#reg-password-confirm", "S3cretPass!")
+
+    # чекбокс снят → кнопка недоступна (FR-78, 5.2); установка → активна
+    expect(page.locator("#reg-submit")).to_be_disabled()
+    page.locator("#reg-consent").check()
+    expect(page.locator("#reg-submit")).to_be_enabled()
     page.locator("#reg-submit").click()
 
     # редирект в кабинет ученика после успешной регистрации
@@ -957,11 +967,14 @@ def test_instructor_accept_flow_real_backend(page, server):
     car_id = car["car_id"]
 
     # --- ученик: регистрация + подача заявки через API
+    # Спринт 9 (add-personal-data-policy, 7.2, FR-78): consent стал
+    # обязательным полем /api/register — [test-adapted] фикстура.
     stu_email = unique_email("flowstu")
     status, data = api("POST", "/api/register", base=server, body={
         "surname": "Смирнова", "name": "Ольга", "patronymic": "Павловна",
         "email": stu_email, "phone": "+7 901 222-33-44",
         "password": "S3cretPass!", "password_confirm": "S3cretPass!",
+        "consent": True,
     })
     assert status == 200 and data and data["ok"], (status, data)
     status, data = api("POST", "/api/auth/login", base=server, body={
@@ -1053,11 +1066,14 @@ def test_student_choice_xss_instructor_name_not_executed(page, server):
     assert status == 200 and data and data["ok"], (status, data)
 
     # ученик входит и открывает каталог (реальный бэкенд, реальная страница)
+    # Спринт 9 (add-personal-data-policy, 7.2, FR-78): consent обязателен —
+    # [test-adapted] фикстура, семантика сценария (XSS-гард) не меняется.
     stu_email = unique_email("xssstu")
     status, data = api("POST", "/api/register", base=server, body={
         "surname": "Иванов", "name": "Иван", "patronymic": "Иванович",
         "email": stu_email, "phone": "+7 905 888-99-00",
         "password": "S3cretPass!", "password_confirm": "S3cretPass!",
+        "consent": True,
     })
     assert status == 200 and data and data["ok"], (status, data)
     page.goto(f"{server}/")
@@ -1399,12 +1415,16 @@ def _approve_instructor(server, surname="Громов", name="Борис",
 
 
 def _student_token(server):
-    """Регистрация + вход ученика; возвращает токен сессии."""
+    """Регистрация + вход ученика; возвращает токен сессии.
+
+    Спринт 9 (add-personal-data-policy, 7.2, FR-78): consent стал
+    обязательным полем /api/register — [test-adapted] фикстура."""
     email = unique_email("s4stu")
     status, data = api("POST", "/api/register", base=server, body={
         "surname": "Смирнова", "name": "Ольга", "patronymic": "Павловна",
         "email": email, "phone": "+7 901 222-33-44",
         "password": "S3cretPass!", "password_confirm": "S3cretPass!",
+        "consent": True,
     })
     assert status == 200 and data and data["ok"], (status, data)
     status, data = api("POST", "/api/auth/login", base=server, body={
@@ -3904,3 +3924,163 @@ def test_s4_pages_tag_balance(filename):
     p = _Balance()
     p.feed((ROOT / "frontend" / filename).read_text(encoding="utf-8"))
     assert not p.errs and not p.stack, (p.errs, p.stack)
+
+
+# ---------------------------------------------------------------------
+# Спринт 9 (change add-personal-data-policy, задача 7.2): согласие в
+# обоих контурах и страница /policy. Трассировка — specs/PersonalData/
+# spec.md (заголовки дословно); кейсы — test-model/new/
+# add-personal-data-policy/TC-UI-043…045.md.
+
+def test_register_modal_consent_gates_submit_and_links_policy(page, server):
+    """TC-UI-043 (change add-personal-data-policy, 5.2/7.2, FR-78):
+    модалка «Регистрация» — чекбокс снят → #reg-submit недоступен и
+    принудительный клик не регистрирует (сервер: 422 «Согласие: поле
+    обязательно» в #reg-error); ссылка на /policy видна в блоке согласия
+    и ведет на страницу политики; установка чекбокса → регистрация
+    проходит (редирект /cabinet).
+
+    Трассировка: Requirement «Обязательное согласие при регистрации
+    ученика» / Scenario «Чекбокс не установлен — регистрация блокирована
+    на клиенте»; Requirement «Публичная страница политики персональных
+    данных (/policy)» / Scenario «Ссылка на политику видна из обоих мест
+    согласия»; Scenario «Согласие установлено — пользователь создан».
+    """
+    page.goto(f"{server}/")
+    page.locator('.auth [data-open="register"]').click()
+    expect(page.locator("#m-register.overlay")).to_be_visible()
+
+    email = unique_email("reg-consent")
+    page.fill("#reg-surname", "Гейтингов")
+    page.fill("#reg-name", "Гость")
+    page.fill("#reg-patronymic", "Гейтингович")
+    page.fill("#reg-email", email)
+    page.fill("#reg-phone", "+7 900 555-66-77")
+    page.fill("#reg-password", "S3cretPass!")
+    page.fill("#reg-password-confirm", "S3cretPass!")
+
+    # чекбокс снят → кнопка недоступна; клик по недоступной кнопке
+    # регистрацию не выполняет — сервер отвечает контрактным 422
+    expect(page.locator("#reg-submit")).to_be_disabled()
+    page.locator("#reg-submit").dispatch_event("click")
+    expect(page.locator("#reg-error")).to_be_visible()
+    expect(page.locator("#reg-error")).to_have_text(
+        "Согласие: поле обязательно")
+    assert "/cabinet" not in page.url, "регистрация прошла без согласия"
+
+    # ссылка на /policy видна в блоке согласия и ведет на страницу
+    link = page.locator("#m-register .reg-check a[href='/policy']")
+    expect(link).to_be_visible()
+    with page.context.expect_page() as new_page_info:
+        link.click()
+    policy_page = new_page_info.value
+    policy_page.wait_for_load_state()
+    expect(policy_page.locator("#policy-meta")).to_contain_text("Версия:")
+    policy_page.close()
+
+    # установка чекбокса → кнопка активна, регистрация проходит
+    page.locator("#reg-consent").check()
+    expect(page.locator("#reg-submit")).to_be_enabled()
+    page.locator("#reg-submit").click()
+    page.wait_for_url("**/cabinet")
+    token = page.evaluate("sessionStorage.getItem('session_token')")
+    assert token, "session_token не сохранен после регистрации"
+
+
+def test_policy_page_guest_render_from_api_and_honest_error(page, server):
+    """TC-UI-044 (change add-personal-data-policy, 2.1/7.2, FR-76/NFR-25):
+    страница /policy открыта гостю и после загрузки показывает версию
+    с датой и полный текст из GET /api/policy (в исходнике страницы текста
+    нет); ошибка API → честное сообщение в контейнере текста (не пустая
+    страница и не имитация текста).
+
+    Трассировка: Requirement «Публичная страница политики персональных
+    данных (/policy)» / Scenario «Страница открывается без входа и
+    показывает текст и версию»; Scenario «Артефакт поврежден — честная
+    ошибка страницы» (отказ API эмулирован перехватом /api/policy).
+    """
+    status, data = api("GET", "/api/policy", base=server)
+    assert status == 200 and data and data["ok"], (status, data)
+
+    page.goto(f"{server}/policy")  # гость: вход не требуется
+    expect(page.locator("#policy-meta")).to_have_text(
+        f"Версия: {data['version']} от {data['date']}")
+    import re as _re
+
+    paragraphs = [
+        chunk.strip()
+        for chunk in _re.split(r"\n\s*\n", data["text"])
+        if chunk.strip()
+    ]
+    rendered = page.locator("#policy-text p:not(.policy-error)")
+    expect(rendered).to_have_count(len(paragraphs))
+    assert rendered.first.inner_text() == paragraphs[0]
+    assert rendered.last.inner_text() == paragraphs[-1]
+    # текст политики не в исходнике страницы (только из API)
+    assert data["text"][:60] not in page.content()
+
+    # отказ API → честное сообщение (не пустая страница и не имитация)
+    def _policy_unavailable(route):
+        route.fulfill(
+            status=500,
+            content_type="application/json",
+            body='{"ok":false,"error":"Политика: временно недоступна"}',
+        )
+
+    page.route("**/api/policy", _policy_unavailable)
+    try:
+        page.goto(f"{server}/policy")
+        expect(page.locator(".policy-error")).to_have_text(
+            "Политика временно недоступна. Попробуйте позже")
+        expect(page.locator("#policy-meta")).to_have_text("")
+    finally:
+        page.unroute("**/api/policy")
+
+
+def test_instructor_apply_consent_gates_submit_and_links_policy(
+    page, server
+):
+    """TC-UI-045 (change add-personal-data-policy, 5.1/7.2, FR-77):
+    анкета инструктора — чекбокс снят → кнопка «Продолжить →» недоступна;
+    ссылка на /policy видна в блоке согласия и ведет на страницу политики;
+    установка чекбокса → кнопка активна, валидная анкета создается
+    (редирект /instructors/pending).
+
+    Трассировка: Requirement «Обязательное согласие при регистрации
+    инструктора» / Scenario «Чекбокс не установлен — отправка блокирована
+    на клиенте»; Requirement «Публичная страница политики персональных
+    данных (/policy)» / Scenario «Ссылка на политику видна из обоих мест
+    согласия»; Scenario «Согласие установлено — заявка создана».
+    """
+    page.goto(f"{server}/instructors/apply")
+    checkbox = page.locator(".checkline input")
+    submit = page.locator("#registration button.submit")
+    expect(checkbox).not_to_be_checked()
+    expect(submit).to_be_disabled()
+
+    link = page.locator(".checkline a[href='/policy']")
+    expect(link).to_be_visible()
+    with page.context.expect_page() as new_page_info:
+        link.click()
+    policy_page = new_page_info.value
+    policy_page.wait_for_load_state()
+    expect(policy_page.locator("#policy-meta")).to_contain_text("Версия:")
+    policy_page.close()
+
+    # установка чекбокса → кнопка активна; валидная анкета уходит
+    checkbox.check()
+    expect(submit).to_be_enabled()
+    page.fill("#surname", "Гейтингов")
+    page.fill("#name", "Инструктор")
+    page.fill("#patronymic", "Гейтингович")
+    page.fill("#phone", "+7 901 333-44-55")
+    page.fill("#email", unique_email("apply-consent"))
+    page.fill("#address", "г. Москва, ул. Осенняя, д. 9, кв. 3")
+    page.fill("#plate", "А321ББ 777")  # формат по умолчанию «own»
+    page.fill("#license-number", "7712345678")
+    page.select_option("#license-category", "B")
+    page.fill("#password", "Dr1vePass!")
+    page.fill("#password-confirm", "Dr1vePass!")
+    submit.click()
+    page.wait_for_url("**/instructors/pending")
+    expect(page.locator("h1")).to_have_text("Заявка на рассмотрении")
