@@ -188,7 +188,7 @@ register.py/instructors.py — только точечные расширени�
 
 ## 8. Сборка
 
-- [ ] 8.1 backend/app.py + backend/db.py — финальная сборка: include
+- [x] 8.1 backend/app.py + backend/db.py — финальная сборка: include
       роутера policy, страница /policy в _PAGE_ROUTES, миграция 4
       колонок; сверка правила префиксов API (design.md: GET /api/policy
       — публичный без роли, механика /api/health; apply/register —
