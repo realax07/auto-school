@@ -22,6 +22,7 @@ from backend.instructor_cars import router as instructor_cars_router
 from backend.instructor_documents import router as instructor_documents_router
 from backend.instructor_summary import router as instructor_summary_router
 from backend.instructors import router as instructors_router
+from backend.policy import router as policy_router
 from backend.register import router as register_router
 from backend.reviews import router as reviews_router
 from backend.student_marketplace import router as student_marketplace_router
@@ -51,6 +52,10 @@ _PAGE_ROUTES = {
     # Спринт 4, Партия A (change add-s3-frontend-links): форма отзыва —
     # целевая страница (открывается из раздела «Мои заявки» кабинета)
     "/review": "review-form.html",
+    # Спринт 9 (change add-personal-data-policy, задача 2.1): публичная
+    # страница-оболочка политики персональных данных (текст — из артефакта
+    # через GET /api/policy, в HTML его нет — NFR-25)
+    "/policy": "policy.html",
 }
 
 # BUG-047 (решение Заказчика 2026-10-17): отдельных standalone-страниц больше
@@ -92,6 +97,10 @@ def create_app() -> FastAPI:
     app.include_router(reviews_router)
     app.include_router(student_requests_router)
     app.include_router(instructor_summary_router)
+    # Спринт 9 (change add-personal-data-policy, задача 2.1): домен
+    # PersonalData — GET /api/policy публичный, БЕЗ префикса роли
+    # (политика читается гостями до любой регистрации, механика /api/health)
+    app.include_router(policy_router)
 
     @app.get("/api/health")
     def health():
