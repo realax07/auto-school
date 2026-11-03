@@ -62,7 +62,7 @@ vendor-сплит — PLAN.md 9.3 → 9.4). Бэкенд-задачи 1.1/2.1 и
 
 ## 2. Эндпоинт статуса (read-only) + обмен токена на сессию (backend)
 
-- [ ] 2.1 [P] [code] НОВЫЙ backend/application_status.py + include в
+- [x] 2.1 [P] [code] НОВЫЙ backend/application_status.py + include в
       backend/app.py — GET /api/instructors/application-status
       (заголовок X-Poll-Token: нет/пуст → 422; заявки нет →
       404-неразличение, одинаковый для «чужой»/«несуществующий»;
