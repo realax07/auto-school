@@ -10,6 +10,11 @@
   decisions/2026-11-02-sprint9-scope.md. React/Svelte и монолитный SPA
   исключены решением Заказчика (requirements-sprint9.md, «Ограничения»)
 - Change: add-vue-framework-pilot (openspec/changes/add-vue-framework-pilot/)
+- Ревью: openspec/changes/add-vue-framework-pilot/arch-review-002.md
+  (verdict: approve; MAJ-1/MAJ-2 первого ревью arch-review.md закрыты
+  ре-ревью — судьба legacy-тестов страницы ожидания и предусловие
+  polling; MIN-1…MIN-3 — этап реализации/ПМ, решений ADR не касаются —
+  прецедент ADR-007)
 
 ## Контекст
 
@@ -23,7 +28,8 @@ ADR-001; маршруты — `_PAGE_ROUTES` backend/app.py). Спринт 6 в�
 Vue 3 + Vite (ОВ-3/ОВ-4) при жестких ограничениях: не монолитный SPA,
 библиотеки — в отдельные chunks, постранично, существующие Playwright e2e
 (49 сценариев) сохраняются и остаются зелеными (NFR-27), бюджеты чанков —
-150/200 КБ gzip на артефактах сборки (NFR-26). Нужно зафиксировать: каркас
+150/200 КБ gzip на артефактах сборки (NFR-26). Нужно зафиксировать
+(FR-84): каркас
 сборки, доставку артефактов в контур (Dockerfile/compose/nginx — ADR-006),
 правила сплита, план страниц на Спринты 9–11 и критерий приема каждого
 шага.

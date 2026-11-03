@@ -16,7 +16,7 @@ feat/s9-polling-package); предусловие старта 3.1 и услов�
 
 ## 1. ADR-008: стек и каркас миграции
 
-- [ ] 1.1 [docs] architecture/adr/008-vue3-vite-migration.md — по эталону
+- [x] 1.1 [docs] architecture/adr/008-vue3-vite-migration.md — по эталону
       формата ADR-007 (статус/дата/источник решения, change, контекст,
       решение по пунктам, альтернативы, последствия). Зафиксировать: стек
       Vue 3 + Vite (решение Заказчика ОВ-3; React/Svelte — отклонены
