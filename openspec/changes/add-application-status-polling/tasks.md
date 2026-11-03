@@ -96,7 +96,7 @@ vendor-сплит — PLAN.md 9.3 → 9.4). Бэкенд-задачи 1.1/2.1 и
 
 ## 3. Фронт: apply.js сохраняет токены перед редиректом
 
-- [ ] 3.1 [P] [code] frontend/js/apply.js — после 200 apply сохранить
+- [x] 3.1 [P] [code] frontend/js/apply.js — после 200 apply сохранить
       poll_token/exchange_token в localStorage (ключи
       application_poll_token / application_exchange_token — design.md),
       затем СУЩЕСТВУЮЩИЙ редирект /instructors/pending (маршрут и
