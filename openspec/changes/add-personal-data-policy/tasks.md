@@ -120,7 +120,7 @@ register.py/instructors.py — только точечные расширени�
       Типы: [code]. FR: FR-77. Зависит от: — (контракт apply не
       меняется).
 
-- [ ] 5.2 [P] frontend/index.html + frontend/js/landing.js — контур
+- [x] 5.2 [P] frontend/index.html + frontend/js/landing.js — контур
       ученика (FR-78): в модалке «Регистрация» перед кнопками —
       обязательный чекбокс «согласен(на) с политикой персональных
       данных» со ссылкой на /policy (target="_blank"); #reg-submit
