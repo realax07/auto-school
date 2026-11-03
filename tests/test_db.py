@@ -185,6 +185,11 @@ APPLICATION_COLUMNS = {
     # сохраненный файл ВУ анкеты (FR-23, NULL = заявка без ВУ)
     "experience_years": "INTEGER",
     "license_photo_path": "TEXT",
+    # Спринт 9 (add-application-status-polling, задача 1.1): токены заявки —
+    # poll_token (опрос статуса, read-only) и exchange_token (одноразовый
+    # обмен на сессию); NULL у исторических строк — backfill НЕ делается
+    "poll_token": "TEXT",
+    "exchange_token": "TEXT",
     "created_at": "TEXT",
 }
 

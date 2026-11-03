@@ -29,7 +29,7 @@ vendor-сплит — PLAN.md 9.3 → 9.4). Бэкенд-задачи 1.1/2.1 и
 
 ## 1. Миграция + выдача неперебираемых токенов при apply (backend)
 
-- [ ] 1.1 [P] [migration][code] backend/db.py + backend/instructors.py —
+- [x] 1.1 [P] [migration][code] backend/db.py + backend/instructors.py —
       ALTER TABLE instructor_applications: колонки poll_token TEXT и
       exchange_token TEXT (частичные UNIQUE-индексы WHERE … IS NOT NULL);
       idempotent-миграция механики db.py (guard pragma table_info;
