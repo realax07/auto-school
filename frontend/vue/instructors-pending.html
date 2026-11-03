@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#071015">
+    <title>Заявка на рассмотрении — СберАвтошкола</title>
+    <!-- Стили — подключаемый css (перенос 1:1 из legacy
+         instructor-pending.html, без редизайна — FR-86/ОВ-4); Vite
+         бандлит его в /vue/assets с хэш-именем. -->
+    <link rel="stylesheet" href="/src/pages/instructor-pending/styles.css">
+  </head>
+  <body>
+    <!-- Вход пилотной страницы (задача 2.1, design.md «Каталоги и сборка»):
+         статическая разметка экрана (эквивалент legacy) + модуль-скрипт.
+         До гидрации Vue видна эта же разметка (мгновенная отрисовка);
+         App.vue монтируется поверх #app. Разметку держать синхронной
+         с App.vue. -->
+    <div id="app">
+      <header class="wrap"><a class="brand" href="/instructors"><span class="check">✓</span><span><b>Сбер</b>Автошкола</span></a><a class="back" href="/instructors">← Вернуться на лендинг</a></header>
+      <main class="wrap status-screen"><section class="card">
+      <div class="icon">◷</div>
+      <div class="kicker">Заявка инструктора</div>
+      <h1>Заявка на рассмотрении</h1>
+      <p>Анкета отправлена. Команда СберАвтошколы проверит данные и документы — ответ придёт на указанную почту. Обычно рассмотрение занимает несколько дней.</p>
+      <div class="steps">
+      <div class="path-row"><div class="path-icon">✓</div><div><strong>01 · Анкета отправлена</strong><span>Контакты и информация об автомобиле получены</span></div></div>
+      <div class="path-row"><div class="path-icon">◷</div><div><strong>02 · Проверка</strong><span>Квалификация и документы — сейчас</span></div></div>
+      <div class="path-row"><div class="path-icon">⌁</div><div><strong>03 · Подключение</strong><span>Согласование условий сотрудничества</span></div></div>
+      </div>
+      <div class="actions"><a class="btn primary" href="/">На главную</a><a class="btn ghost" href="/instructors">О лендинге для инструкторов</a></div>
+      </section></main>
+      <footer><div class="wrap foot"><span>© СберАвтошкола · Концепция экрана регистрации</span><span>Защита персональных данных должна быть настроена до запуска</span></div></footer>
+    </div>
+    <script type="module" src="/src/pages/instructor-pending/main.js"></script>
+  </body>
+</html>

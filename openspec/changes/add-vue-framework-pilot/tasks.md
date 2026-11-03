@@ -36,7 +36,7 @@ feat/s9-polling-package); предусловие старта 3.1 и услов�
 
 ## 2. Каркас Vite: workspace, сборка в контур, отдача страниц
 
-- [ ] 2.1 [code] frontend/vue/ — workspace Vue 3 + Vite: package.json
+- [x] 2.1 [code] frontend/vue/ — workspace Vue 3 + Vite: package.json
       (pinned vue/vite/@vitejs/plugin-vue; scripts dev/build),
       vite.config.mjs (вход instructors-pending.html; manualChunks:
       runtime vue → чанк 'vue', сторонние пакеты → чанки по пакетам,
