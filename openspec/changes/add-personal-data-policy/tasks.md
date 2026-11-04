@@ -11,7 +11,7 @@ register.py/instructors.py — только точечные расширени�
 
 ## 1. Артефакт политики — шаблон 152-ФЗ v1.0 (документ)
 
-- [ ] 1.1 [P] deploy/policy/policy.md — стандартный шаблон политики
+- [x] 1.1 [P] deploy/policy/policy.md — стандартный шаблон политики
       персональных данных 152-ФЗ под данные, собираемые СУЩЕСТВУЮЩИМИ
       формами сервиса (перечень — design.md/requirements FR-76):
       ФИО, телефон, email, адрес, реквизиты ВУ (номер/категория/дата
@@ -30,7 +30,7 @@ register.py/instructors.py — только точечные расширени�
 
 ## 2. Раздача политики: GET /api/policy + страница /policy (backend + фронт)
 
-- [ ] 2.1 backend/policy.py (НОВЫЙ модуль) + backend/app.py +
+- [x] 2.1 backend/policy.py (НОВЫЙ модуль) + backend/app.py +
       frontend/policy.html — модуль домена PersonalData:
       read_policy() — чтение артефакта по POLICY_FILE (дефолт
       deploy/policy/policy.md) НА КАЖДЫЙ запрос (без кэша), парсинг
@@ -57,7 +57,7 @@ register.py/instructors.py — только точечные расширени�
 
 ## 3. Фиксация согласия инструктора + миграция БД (backend)
 
-- [ ] 3.1 [P] backend/db.py + backend/instructors.py — миграция: 4
+- [x] 3.1 [P] backend/db.py + backend/instructors.py — миграция: 4
       колонки через _COLUMN_MIGRATIONS (idempotent, механика
       users.role; init_db через lifespan — существующий volume):
       users.consent_at, users.consent_policy_version,
@@ -83,7 +83,7 @@ register.py/instructors.py — только точечные расширени�
 
 ## 4. Согласие ученика: /api/register (backend)
 
-- [ ] 4.1 [P] backend/register.py — модель RegisterRequest + поле
+- [x] 4.1 [P] backend/register.py — модель RegisterRequest + поле
       consent (bool = False, механика MAJ-1 — дефолты, валидация в
       хендлере); проверка 1a (после обязательных полей, до проверки
       email): consent is not True → 422 {ok:false, error:"Согласие:
@@ -105,7 +105,7 @@ register.py/instructors.py — только точечные расширени�
 
 ## 5. Фронт: чекбоксы и ссылки в двух контурах
 
-- [ ] 5.1 [P] frontend/instructor-apply.html + frontend/js/apply.js —
+- [x] 5.1 [P] frontend/instructor-apply.html + frontend/js/apply.js —
       контур инструктора (FR-77): текст чекбокса согласия дополняется
       явной ссылкой «политикой персональных данных» → /policy
       (target="_blank"); надпись-заглушка «Перед запуском здесь должна
@@ -136,7 +136,7 @@ register.py/instructors.py — только точечные расширени�
 
 ## 6. Deploy-контур артефакта (infra)
 
-- [ ] 6.1 [P] docker-compose.yml + deploy/RUNBOOK.md — точка
+- [x] 6.1 [P] docker-compose.yml + deploy/RUNBOOK.md — точка
       монтирования артефакта в backend-контур (deploy/policy → :ro,
       по механике deploy/container/nginx.conf) + POLICY_FILE
       (значения — design.md «Deploy-контур»; фактические пути фиксируются
@@ -201,7 +201,7 @@ register.py/instructors.py — только точечные расширени�
 
 ## 9. Приемка
 
-- [ ] 9.1 Полный прогон: `pytest tests/` зеленый (вкл. регресс и новые
+- [x] 9.1 Полный прогон: `pytest tests/` зеленый (вкл. регресс и новые
       матрицы, оба набора — см. «План тестовых прогонов»); NFR-25 на
       приемке: подмена артефакта (другой текст + версия 2.0) → /policy
       показывает новый текст/версию после рестарта в пределах 15 минут
