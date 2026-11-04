@@ -375,7 +375,11 @@ def test_s9_apply_success_fixes_consent_at_and_policy_version(client):
     """
     resp = client.post("/api/instructors/apply", json=_APPLY_BODY)
     assert resp.status_code == 200, resp.text
-    assert resp.json() == {"ok": True}
+    # Спринт 9 (merge с add-application-status-polling): ответ РАСШИРЕН
+    # токенами заявки (обратно-совместимо, NFR-27) — проверяем надмножество.
+    body = resp.json()
+    assert body["ok"] is True
+    assert body["poll_token"] and body["exchange_token"]
 
     conn = sqlite3.connect(db_path())
     row = conn.execute(
