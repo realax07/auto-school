@@ -14,6 +14,13 @@ import { postJSON, setToken } from './api.js';
   document.querySelectorAll('.overlay').forEach(function(o){o.addEventListener('click',function(e){if(e.target===o)closeAll()})});
   document.addEventListener('keydown',function(e){if(e.key==='Escape')closeAll()});
   // Регистрация: fetch POST /api/register (дизайн 2026-10-08)
+  // Спринт 9 (change add-personal-data-policy, задача 5.2, FR-78): кнопка
+  // «Зарегистрироваться» (#reg-submit) недоступна (disabled) до установки
+  // чекбокса согласия #reg-consent (change-listener; required чекбокса —
+  // второй рубеж). Ссылка на /policy — в тексте чекбокса (index.html).
+  var regConsent=document.getElementById('reg-consent'),regSubmit=document.getElementById('reg-submit');
+  function updateRegConsentState(){regSubmit.disabled=!regConsent.checked;}
+  regConsent.addEventListener('change',updateRegConsentState);updateRegConsentState();
   document.getElementById('reg-submit').addEventListener('click',function(){
     var err=document.getElementById('reg-error');
     err.style.display='none';
@@ -24,7 +31,8 @@ import { postJSON, setToken } from './api.js';
       email:document.getElementById('reg-email').value.trim(),
       phone:document.getElementById('reg-phone').value.trim(),
       password:document.getElementById('reg-password').value,
-      password_confirm:document.getElementById('reg-password-confirm').value
+      password_confirm:document.getElementById('reg-password-confirm').value,
+      consent:regConsent.checked
     };
     postJSON('/api/register',payload)
       .then(function(res){

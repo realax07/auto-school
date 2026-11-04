@@ -931,3 +931,49 @@ decided_at; UNIQUE (target_type, target_id, version_no); частичный UNIQ
 3. sdd-трассировка составлена ПМ по данным review-001/002, отчетов волн и
    логов прогонов; верифицирована полными прогонами integration
    (352→358 passed, см. спринт-лог ПМ).
+
+## 32. Спринт 9 — Политика персональных данных (change add-personal-data-policy)
+
+Модель: текст политики — ОТДЕЛЬНЫЙ заменяемый артефакт deploy/policy/policy.md
+(шапка policy-version/policy-date, `---`, plain text; 152-ФЗ шаблон под данные
+сервиса: ФИО, телефон, email, адрес, реквизиты ВУ, фото ВУ, госномер, фото СТС,
+фото авто). backend/policy.py: read_policy() — чтение НА КАЖДЫЙ запрос по
+POLICY_FILE (env, дефолт deploy/policy/policy.md) БЕЗ кэша → подмена артефакта
+видна сразу, рестарт не требуется (NFR-25: подмена ≤15 минут без правки кода
+и пересборки; деплой-контур — compose монтирование :ro + RUNBOOK).
+
+Контракты:
+- GET /api/policy — публичный (механика /api/health): 200
+  {ok:true,version,date,text} / 500 {ok:false,error:"Политика: временно
+  недоступна"} (содержимое артефакта в ошибках/логах не раскрывается — NFR-10).
+- Страница /policy — в _PAGE_ROUTES, оболочка БЕЗ текста: fetch /api/policy
+  при загрузке, абзацы textContent (не innerHTML).
+- Согласие: чекбокс обязателен в обоих контурах (инструктор — анкета
+  instructor-apply.html/apply.js; ученик — модалка регистрации
+  index.html/landing.js), ссылки на /policy; серверная валидация
+  (consent is not True → 422 «Согласие: поле обязательно», порядок проверок
+  после обязательных полей, до email); фиксация: users.consent_at (UTC
+  сервера) + users.consent_policy_version (version артефакта на момент
+  сабмита — клиентской версии не доверять); аналогично в
+  instructor_applications; миграция 4 колонок idempotent (механика
+  users.role), легаси-строки NULL без backfill; артефакт недоступен в момент
+  сабмита → 500, запись НЕ создается.
+
+## 33. Трассировка (Спринт 9, change add-personal-data-policy)
+
+| Requirement/дельта specs/ | Реализация | Тесты |
+|---|---|---|
+| PersonalData: публичная страница /policy из артефакта (FR-76, NFR-25) | deploy/policy/policy.md + backend/policy.py + frontend/policy.html | tests/test_policy.py (TC-PD, трассировка по заголовкам specs/PersonalData) |
+| PersonalData: согласие инструктора (FR-77) | instructors.py + instructor-apply.html/apply.js | test_instructors_apply.py (матрица согласия) + e2e TC-UI-043…045 |
+| PersonalData: согласие ученика (FR-78) | register.py + index.html/landing.js | test_register.py (матрица) + e2e регистрации |
+| PersonalData: фиксация даты/версии согласия (FR-79) | db.py (миграция 4 колонок) + instructors.py/register.py | test_policy.py + test_instructors_apply.py (легаси NULL, смена версии) |
+
+Примечания:
+1. TC-PD-001…017 — tests/test_policy.py + матрицы регистрации (rule 6:
+   TC-ID в docstring, трассировка на заголовки specs/PersonalData/spec.md);
+   e2e TC-UI-043…045 — tests/test_ui_playwright.py.
+2. Согласие в фикстурах регресса (conftest valid_body → consent:true) —
+   обратимо-совместимое добавление поля; старые клиенты без consent → 422
+   (документировано в design.md).
+3. sdd-раздел составлен ПМ; содержание верифицировано прогонами ветки
+   (полный сьют: 389 passed + 1 известный таймерный флак под нагрузкой).

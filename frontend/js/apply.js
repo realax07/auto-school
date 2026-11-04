@@ -31,6 +31,15 @@ licenseInput.addEventListener('change',function(){
  licenseThumb.src=licenseObjectUrl;
  licenseZone.classList.add('has-file');
 });
+// Спринт 9 (change add-personal-data-policy, задача 5.1, FR-77): кнопка
+// «Продолжить →» недоступна (disabled) до установки чекбокса согласия —
+// change-listener; атрибут required чекбокса остается вторым рубежом.
+// Текст чекбокса содержит явную ссылку «политикой персональных данных»
+// → /policy (target="_blank", instructor-apply.html); consent в multipart
+// отправляется как прежде (см. сабмит ниже).
+var consentInput=document.querySelector('.checkline input'),submitBtn=document.querySelector('#registration button.submit');
+function updateConsentState(){submitBtn.disabled=!consentInput.checked;}
+consentInput.addEventListener('change',updateConsentState);updateConsentState();
 // Wiring (BUG-048, задача 1): сабмит -> POST /api/instructors/apply,
 // multipart/form-data (все поля анкеты + license_photo). Токен сессии
 // не используется: сессия по этой заявке не выдается.

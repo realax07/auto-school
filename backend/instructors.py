@@ -22,6 +22,14 @@ IntegrityError от UNIQUE instructor_applications.email — вторая лин
 защиты гонки параллельных сабмитов → та же контрактная 422
 «Email: уже зарегистрирован» (механика register.py:104).
 
+Спринт 9 (add-personal-data-policy, задача 3.1): при успехе INSERT
+фиксирует consent_at (момент сабмита, UTC сервера, формат created_at
+'YYYY-MM-DD HH:MM:SS') и consent_policy_version (policy-version артефакта
+НА МОМЕНТ САБМИТА — хелпер backend.policy.current_policy_version,
+клиентской версии не доверять, FR-79); артефакт недоступен в момент
+сабмита → 500 {ok:false}, заявка НЕ создается (design.md «Обработка
+ошибок»). Проверки и multipart-нормализация consent — без изменений.
+
 Спринт 9 (add-application-status-polling, задача 1.1):
 - при создании заявки генерируются и сохраняются ТОКЕНЫ ЗАЯВКИ
   (design.md «Решение СА»): poll_token — многоразовый неперебираемый
@@ -40,7 +48,7 @@ IntegrityError от UNIQUE instructor_applications.email — вторая лин
   poll_token / uq_instructor_applications_exchange_token) → регенерация
   токена и повторная вставка БЕЗ 422. Смешение веток недопустимо:
   иначе гонка email уходит в цикл регенерации, а коллизия токена —
-  в ложную 422. Токены в логи не пишутся (NFR-3/NFR-10).
+  в ложную 422. Токены в логи не пишутся (NF
 """
 import datetime
 import json
@@ -54,6 +62,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ValidationError
 
 import backend.db as db
+import backend.policy as policy
 import backend.uploads as uploads
 
 router = APIRouter()
@@ -192,6 +201,27 @@ def _contract_422(message: str) -> JSONResponse:
     return JSONResponse(status_code=422, content={"ok": False, "error": message})
 
 
+def _policy_unavailable_500() -> JSONResponse:
+    """Контрактная 500 при недоступном артефакте в момент сабмита
+    (design.md «Обработка ошибок»): без деталей артефакта (NFR-10)."""
+    return JSONResponse(
+        status_code=500,
+        content={
+            "ok": False,
+            "error": "Сервис: политика персональных данных временно недоступна",
+        },
+    )
+
+
+def _utc_now() -> str:
+    """Момент сабмита по часам сервера, UTC; формат created_at
+    ('YYYY-MM-DD HH:MM:SS', SQLite datetime('now')-совместимый —
+    design.md «Модель данных»)."""
+    return datetime.datetime.now(datetime.timezone.utc).strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
+
+
 def _validate_experience_years(value: int | None) -> str | None:
     """Стаж числом ≥ 0 (arch-review итерация 2, MAJ-3); None — поле пусто."""
     if value is None:
@@ -266,6 +296,7 @@ async def instructor_apply(request: Request):
         if file_error is not None:
             error = file_error
 
+    policy_unavailable = False
     if error is None:
         # Спринт 9 (задача 1.1): токены заявки. Значения не None на
         # успешном пути — он проходит через INSERT, где оба токена
@@ -289,76 +320,90 @@ async def instructor_apply(request: Request):
                 if exists:
                     error = "Email: уже зарегистрирован"
                 else:
-                    password_hash = bcrypt.hashpw(
-                        data.password.encode("utf-8"),
-                        bcrypt.gensalt(rounds=_BCRYPT_ROUNDS),
-                    ).decode("utf-8")
-                    if data.surname.strip() and data.name.strip():
-                        surname, name, patronymic = (data.surname.strip(),
-                                                     data.name.strip(),
-                                                     data.patronymic.strip())
+                    # Спринт 9 (задача 3.1): версия артефакта НА МОМЕНТ
+                    # САБМИТА — после всех проверок (порядок sdd §15.1 не
+                    # меняется), ДО INSERT; артефакт недоступен → 500,
+                    # заявка НЕ создается (FR-79, design.md «Обработка
+                    # ошибок»).
+                    try:
+                        policy_version = policy.current_policy_version()
+                    except policy.PolicyError:
+                        policy_unavailable = True
                     else:
-                        surname, name, patronymic = _split_fio(data.fio.strip())
-                    # Спринт 9 (задача 1.1): токены выдаются ОДИН РАЗ —
-                    # при создании заявки; записываются в заявку той же
-                    # транзакцией (design.md «Модель данных»).
-                    poll_token = _new_token()
-                    exchange_token = _new_token()
-                    while True:
-                        try:
-                            cur = conn.execute(
-                                "INSERT INTO instructor_applications"
-                                " (surname, name, patronymic, email, phone,"
-                                " address, work_format, plate, license_number,"
-                                " license_date, license_category, experience,"
-                                " experience_years, password_hash, poll_token,"
-                                " exchange_token, status)"
-                                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,"
-                                " ?, ?, ?, ?, 'waiting')",
-                                (
-                                    surname,
-                                    name,
-                                    patronymic,
-                                    data.email,
-                                    data.phone,
-                                    data.address,
-                                    data.work_format,
-                                    data.plate,
-                                    data.license_number,
-                                    data.license_date,
-                                    data.license_category,
-                                    data.experience,
-                                    data.experience_years,
-                                    password_hash,
-                                    poll_token,
-                                    exchange_token,
-                                ),
+                        password_hash = bcrypt.hashpw(
+                            data.password.encode("utf-8"),
+                            bcrypt.gensalt(rounds=_BCRYPT_ROUNDS),
+                        ).decode("utf-8")
+                        if data.surname.strip() and data.name.strip():
+                            surname, name, patronymic = (data.surname.strip(),
+                                                         data.name.strip(),
+                                                         data.patronymic.strip())
+                        else:
+                            surname, name, patronymic = _split_fio(data.fio.strip())
+                        consent_at = _utc_now()
+                        # Спринт 9 (add-application-status-polling, задача 1.1):
+                        # токены выдаются ОДИН РАЗ — при создании заявки; той же
+                        # транзакцией (design.md «Модель данных»).
+                        poll_token = _new_token()
+                        exchange_token = _new_token()
+                        while True:
+                            try:
+                                cur = conn.execute(
+                                    "INSERT INTO instructor_applications"
+                                    " (surname, name, patronymic, email, phone,"
+                                    " address, work_format, plate, license_number,"
+                                    " license_date, license_category, experience,"
+                                    " experience_years, password_hash, consent_at,"
+                                    " consent_policy_version, poll_token,"
+                                    " exchange_token, status)"
+                                    " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,"
+                                    " ?, ?, ?, ?, ?, ?, 'waiting')",
+                                    (
+                                        surname,
+                                        name,
+                                        patronymic,
+                                        data.email,
+                                        data.phone,
+                                        data.address,
+                                        data.work_format,
+                                        data.plate,
+                                        data.license_number,
+                                        data.license_date,
+                                        data.license_category,
+                                        data.experience,
+                                        data.experience_years,
+                                        password_hash,
+                                        consent_at,
+                                        policy_version,
+                                        poll_token,
+                                        exchange_token,
+                                    ),
+                                )
+                                break
+                            except sqlite3.IntegrityError as exc:
+                                # MIN-2: коллизия частичного UNIQUE токена →
+                                # регенерация и повторная попытка БЕЗ 422
+                                # (вероятность коллизии 256-битного токена
+                                # пренебрежима); гонка дубля email → проброс
+                                # в обработчик ниже → 422 БЕЗ регенерации
+                                # (смешение веток недопустимо).
+                                if _integrity_kind(str(exc)) != "token":
+                                    raise
+                                poll_token = _new_token()
+                                exchange_token = _new_token()
+                        application_id = cur.lastrowid
+                        if license_ext is not None:
+                            # Имя генерирует сервер, каталог вне frontend/
+                            # (NFR-1): data/uploads/license/<uuid>.<ext>
+                            path = uploads.save_image(
+                                "license", license_bytes, license_ext
                             )
-                            break
-                        except sqlite3.IntegrityError as exc:
-                            # MIN-2: коллизия частичного UNIQUE токена →
-                            # регенерация ДО вставки и повторная попытка
-                            # БЕЗ 422 (вероятность коллизии 256-битного
-                            # токена пренебрежима); гонка дубля email →
-                            # проброс в обработчик ниже → 422 БЕЗ
-                            # регенерации (смешение веток недопустимо).
-                            if _integrity_kind(str(exc)) != "token":
-                                raise
-                            poll_token = _new_token()
-                            exchange_token = _new_token()
-                    application_id = cur.lastrowid
-                    if license_ext is not None:
-                        # Имя генерирует сервер, каталог вне frontend/
-                        # (NFR-1): data/uploads/license/<uuid>.<ext>
-                        path = uploads.save_image(
-                            "license", license_bytes, license_ext
-                        )
-                        conn.execute(
-                            "UPDATE instructor_applications SET"
-                            " license_photo_path = ? WHERE id = ?",
-                            (path, application_id),
-                        )
-                    conn.commit()
+                            conn.execute(
+                                "UPDATE instructor_applications SET"
+                                " license_photo_path = ? WHERE id = ?",
+                                (path, application_id),
+                            )
+                        conn.commit()
             # Гонка параллельных сабмитов одного email (MAJ-1): оба проходят
             # SELECT до чужого INSERT, но UNIQUE допускает ровно одну заявку —
             # IntegrityError → та же контрактная 422 (register.py:104).
@@ -367,6 +412,8 @@ async def instructor_apply(request: Request):
         finally:
             conn.close()
 
+    if policy_unavailable:
+        return _policy_unavailable_500()
     if error is not None:
         return _contract_422(error)
     # Спринт 9 (задача 1.1): расширение успешного ответа токенами заявки —

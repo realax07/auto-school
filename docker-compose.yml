@@ -14,9 +14,18 @@ services:
     environment:
       AUTOSCHOOL_DB_PATH: /data/db/app.db
       AUTOSCHOOL_UPLOADS_DIR: /data/uploads
+      # Спринт 9 (add-personal-data-policy, задача 6.1): артефакт политики
+      # НЕ в образе — bind-mount каталога хоста (read-only), значение
+      # POLICY_FILE согласовано с точкой монтирования (design.md
+      # «Deploy-контур»). Подмена = замена файла на хосте + рестарт app
+      # (см. deploy/RUNBOOK.md «Подмена политики»), без пересборки образа.
+      POLICY_FILE: /app/deploy/policy/policy.md
     volumes:
       - db:/data/db
       - uploads:/data/uploads
+      # Каталог хоста можно переопределить (POLICY_DIR в .env); дефолт —
+      # артефакт репозитория deploy/policy (волна 1, задача 1.1).
+      - ${POLICY_DIR:-./deploy/policy}:/app/deploy/policy:ro
     # Порты НЕ публикуются — nginx ходит по внутренней сети frontend
     networks:
       - frontend

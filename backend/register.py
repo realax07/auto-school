@@ -3,17 +3,38 @@
 Хендлерная валидация: поля модели имеют дефолты `str = ""`, обязательность
 и порядок проверок — в обработчике; возвращается первая ошибка в контрактном
 формате `422 {"ok": false, "error": "<поле-ру>: <причина>"}`.
+
+Спринт 9 (add-personal-data-policy, задача 4.1): новое обязательное поле
+consent (bool, дефолт False — механика MAJ-1, валидация в хендлере);
+проверка 1a — после обязательных полей, до проверки email (механика
+instructors.py, MIN-2): consent is not True → 422 «Согласие: поле
+обязательно» (FR-78). При успехе INSERT users фиксирует consent_at
+(момент сабмита, UTC сервера, формат created_at 'YYYY-MM-DD HH:MM:SS') и
+consent_policy_version (policy-version артефакта НА МОМЕНТ САБМИТА —
+хелпер backend.policy.current_policy_version, клиентской версии не
+доверять, FR-79); артефакт недоступен → 500 {ok:false}, пользователь
+НЕ создается. Ответ {ok:true, token} — без изменений.
 """
+import datetime
+
 import bcrypt
 import sqlite3
 from fastapi import APIRouter
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 import backend.db as db
+import backend.policy as policy
 
 router = APIRouter()
 
 _BCRYPT_ROUNDS = 12
+
+# Спринт 9 (задача 4.1): контрактная ошибка при недоступном артефакте
+# в момент сабмита (design.md «Обработка ошибок»), без деталей (NFR-10).
+_POLICY_UNAVAILABLE_MESSAGE = (
+    "Сервис: политика персональных данных временно недоступна"
+)
 
 
 class RegisterRequest(BaseModel):
@@ -25,6 +46,9 @@ class RegisterRequest(BaseModel):
     phone: str = ""
     password: str = ""
     password_confirm: str = ""
+    # Спринт 9 (задача 4.1, FR-78): согласие обязательно; дефолт False —
+    # старые клиенты без consent получают контрактный 422 (1a).
+    consent: bool = False
 
 
 def _validate(data: RegisterRequest) -> str | None:
@@ -41,6 +65,12 @@ def _validate(data: RegisterRequest) -> str | None:
     for attr, label in fields:
         if not getattr(data, attr).strip():
             return f"{label}: поле обязательно"
+
+    # 1a) согласие на обработку персональных данных (Спринт 9, задача 4.1,
+    # FR-78): после обязательных полей, до проверки email — механика
+    # instructors.py (MIN-2, Спринт 3).
+    if data.consent is not True:
+        return "Согласие: поле обязательно"
 
     # формат email: «@» и точка в домене
     local, _, domain = data.email.partition("@")
@@ -66,10 +96,20 @@ def _validate(data: RegisterRequest) -> str | None:
     return None
 
 
+def _utc_now() -> str:
+    """Момент сабмита по часам сервера, UTC; формат created_at
+    ('YYYY-MM-DD HH:MM:SS', SQLite datetime('now')-совместимый —
+    design.md «Модель данных»)."""
+    return datetime.datetime.now(datetime.timezone.utc).strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
+
+
 @router.post("/api/register")
 def register(data: RegisterRequest):
     error = _validate(data)
     user_id = None
+    policy_unavailable = False
     if error is None:
         # уникальность email — последняя проверка (SELECT), вторая линия — UNIQUE в БД
         conn = db.get_conn()
@@ -80,24 +120,37 @@ def register(data: RegisterRequest):
             if exists:
                 error = "Email: уже зарегистрирован"
             else:
-                password_hash = bcrypt.hashpw(
-                    data.password.encode("utf-8"),
-                    bcrypt.gensalt(rounds=_BCRYPT_ROUNDS),
-                ).decode("utf-8")
-                cur = conn.execute(
-                    "INSERT INTO users (surname, name, patronymic, email, phone,"
-                    " password_hash) VALUES (?, ?, ?, ?, ?, ?)",
-                    (
-                        data.surname,
-                        data.name,
-                        data.patronymic,
-                        data.email,
-                        data.phone,
-                        password_hash,
-                    ),
-                )
-                user_id = cur.lastrowid
-                conn.commit()
+                # Спринт 9 (задача 4.1): версия артефакта НА МОМЕНТ САБМИТА —
+                # после проверок, ДО INSERT; артефакт недоступен → 500,
+                # пользователь НЕ создается (FR-79, design.md «Обработка
+                # ошибок»).
+                try:
+                    policy_version = policy.current_policy_version()
+                except policy.PolicyError:
+                    policy_unavailable = True
+                else:
+                    password_hash = bcrypt.hashpw(
+                        data.password.encode("utf-8"),
+                        bcrypt.gensalt(rounds=_BCRYPT_ROUNDS),
+                    ).decode("utf-8")
+                    consent_at = _utc_now()
+                    cur = conn.execute(
+                        "INSERT INTO users (surname, name, patronymic, email,"
+                        " phone, password_hash, consent_at,"
+                        " consent_policy_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                        (
+                            data.surname,
+                            data.name,
+                            data.patronymic,
+                            data.email,
+                            data.phone,
+                            password_hash,
+                            consent_at,
+                            policy_version,
+                        ),
+                    )
+                    user_id = cur.lastrowid
+                    conn.commit()
             # Гонка дубликатов (пре-существующий, rev-002 #3): параллельная
             # регистрация одного email проходит SELECT и падает на UNIQUE →
             # контрактный 422 вместо HTTP 500.
@@ -106,6 +159,11 @@ def register(data: RegisterRequest):
         finally:
             conn.close()
 
+    if policy_unavailable:
+        return JSONResponse(
+            status_code=500,
+            content={"ok": False, "error": _POLICY_UNAVAILABLE_MESSAGE},
+        )
     if error is not None:
         return _contract_422(error)
     if user_id is None:  # защита от логической ошибки валидации
@@ -121,8 +179,6 @@ def register(data: RegisterRequest):
 
 
 def _contract_422(message: str):
-    from fastapi.responses import JSONResponse
-
     return JSONResponse(
         status_code=422, content={"ok": False, "error": message}
     )
