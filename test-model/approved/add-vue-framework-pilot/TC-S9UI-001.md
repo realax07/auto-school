@@ -5,7 +5,7 @@
 - Статус: автоматизирован (rule 6 — TC-ID в docstring теста); кейс партии change add-vue-framework-pilot (Спринт 9)
 - Трассировка:
   - Requirement: Пилотная страница «Ожидание модерации» на Vue (FR-86, ОВ-4) (openspec/changes/add-vue-framework-pilot/specs/Frontend/spec.md)
-  - Scenario: Функциональность блока 2 выполняется на Vue-версии (openspec/changes/add-vue-framework-pilot/specs/Frontend/spec.md)
+  - Scenario: Функциональность блока 2 выполняется на Vue-версии
 
 ## GIVEN / WHEN / THEN
 - GIVEN пилотная страница /instructors/pending обслуживается каркасом Vue; в localStorage сохранены идентификаторы заявки application_poll_token = ui-poll-token-0f1e2d3c4b5a6978 и application_exchange_token (как оставляет apply.js после сабмита анкеты); GET /api/instructors/application-status замокан 200 {"ok":true,"status":"waiting","reason":null} с capture-счетчиком запросов; таймеры страницы — виртуальные (page.clock, CLOCK_BASE)

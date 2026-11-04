@@ -5,7 +5,7 @@
 - Статус: автоматизирован (rule 6 — TC-ID в docstring теста); кейс партии change add-vue-framework-pilot (Спринт 9)
 - Трассировка:
   - Requirement: Пилотная страница «Ожидание модерации» на Vue (FR-86, ОВ-4) (openspec/changes/add-vue-framework-pilot/specs/Frontend/spec.md)
-  - Scenario: Статический режим без идентификатора сохраняется (openspec/changes/add-vue-framework-pilot/specs/Frontend/spec.md)
+  - Scenario: Статический режим без идентификатора сохраняется
 
 ## GIVEN / WHEN / THEN
 - GIVEN экран /instructors/pending открыт прямой ссылкой БЕЗ сохраненных идентификаторов: application_poll_token и application_exchange_token в localStorage отсутствуют (seed-скрипт токенов не применялся); GET /api/instructors/application-status (200 waiting) и POST /api/instructors/application-exchange (200 ok) замоканы с capture-счетчиками; таймеры страницы — виртуальные (page.clock)
