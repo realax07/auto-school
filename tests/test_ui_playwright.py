@@ -3871,6 +3871,294 @@ def test_s8_my_students_missing_backend_honest_error(page, server):
     assert page.locator("#stu-cards .student").count() == 0
 
 
+# --------- Спринт 9: пилот Vue /instructors/pending + polling (задача 5.1,
+# change add-vue-framework-pilot; контракт опроса — change
+# add-application-status-polling, design.md «Машина состояний экрана»).
+# Смоук network-инспекцией: page.route-моки API + capture-счетчики запросов;
+# интервал/остановка таймера — page.clock (виртуальные таймеры: детерминно,
+# без реальных 12-с ожиданий). time.sleep запрещен — паузы через
+# page.wait_for_timeout (qa-pipeline). Схема интервалов — детерминированная:
+# clock.install(time=BASE) + pause_at(BASE+11с) (тиков быть не должно) +
+# run_for(2000) (пересекаем 12-ю секунду — ровно один следующий тик);
+# сразу после тика даем цепочке ответа (r.json → armTimer) завершиться
+# реальным сеттлом, прежде чем двигать виртуальное время (гонка
+# run_for-драйвера с ответом в полете недетерминированна).
+
+import datetime
+
+CLOCK_BASE = datetime.datetime(2024, 1, 1, 10, 0, 0)
+
+POLL_SEED_TOKEN = "ui-poll-token-0f1e2d3c4b5a6978"
+EXCH_SEED_TOKEN = "ui-exch-token-9a8b7c6d5e4f3210"
+
+
+def _seed_application_tokens(page) -> None:
+    """Положить application_poll_token / application_exchange_token в
+    localStorage ДО скриптов страницы (как их оставляет apply.js после
+    сабмита анкеты, frontend/js/apply.js:84-85).
+
+    Сторож в sessionStorage: init-скрипт переисполняется на каждой
+    навигации (редирект кабинета, back-навигация) и НЕ должен
+    восстанавливать токены, удаленные самой страницей (MAJ-1) — иначе
+    проверка «возврат → STATIC, 0 запросов» была бы ложной.
+    """
+    page.add_init_script(
+        "if(!sessionStorage.getItem('ui-app-tokens-seeded')){"
+        f"localStorage.setItem('application_poll_token','{POLL_SEED_TOKEN}');"
+        f"localStorage.setItem('application_exchange_token','{EXCH_SEED_TOKEN}');"
+        "sessionStorage.setItem('ui-app-tokens-seeded','1');}")
+
+
+def _wait_until(page, predicate, timeout_s: float = 6.0) -> bool:
+    """Дождаться условия через события браузера. time.sleep запрещен
+    (qa-pipeline): пауза — page.wait_for_timeout, она же прокачивает
+    event-loop sync-API (доставка route-событий без нее не происходит)."""
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        if predicate():
+            return True
+        page.wait_for_timeout(25)
+    return predicate()
+
+
+def _assert_stable(page, getter, expected, settle_s: float = 1.5) -> None:
+    """Негативная проверка «дальше запросов нет»: в течение settle_s
+    значение не меняется (rogue-тик проявился бы за миллисекунды)."""
+    deadline = time.monotonic() + settle_s
+    while time.monotonic() < deadline:
+        assert getter() == expected, (
+            f"ожидалось стабильно {expected}, фактически {getter()}")
+        page.wait_for_timeout(30)
+    assert getter() == expected
+
+
+def _route_dashboard_ok(page, server) -> None:
+    """Заглушки сессионного контура кабинета после бесшовного обмена:
+    /api/auth/me → {ok:true} (иначе dashboard-instructor.js:21 делает
+    location.href='/' на 401 — редирект ломает проверку состояния), а
+    /api/instructor/** → {ok:true} (рендер кабинета вне объема смоука —
+    достаточно, чтобы не было toLogin). Конкретные моки статуса/обмена
+    регистрируются ПОСЛЕ и перекрывают по правилу «последний важнее»."""
+    page.route(
+        f"{server}/api/auth/me*",
+        lambda route: route.fulfill(
+            status=200, content_type="application/json",
+            body='{"ok": true, "user": {"role": "instructor"}}'))
+    page.route(
+        f"{server}/api/instructor/**",
+        lambda route: route.fulfill(
+            status=200, content_type="application/json", body='{"ok": true}'))
+
+
+def test_s9_pilot_polling_interval_and_stops_on_leave(page, server):
+    """TC-S9UI-001 (change add-vue-framework-pilot, 5.1; контракт polling):
+    с сохраненным идентификатором первый тик статуса — сразу при загрузке,
+    далее раз в ~12 с (ничего между 0 и 12 с), при уходе со страницы
+    запросы прекращаются (unmount — таймер снят)."""
+    status_reqs: list = []
+    _route_json(page, server, "/api/instructors/application-status",
+                lambda req: (200, {"ok": True, "status": "waiting",
+                                   "reason": None}),
+                capture=status_reqs)
+    _seed_application_tokens(page)
+    page.clock.install(time=CLOCK_BASE)
+
+    page.goto(f"{server}/instructors/pending")
+    expect(page.locator("h1")).to_have_text("Заявка на рассмотрении")
+    # первый тик — сразу при загрузке (design.md машина состояний)
+    assert _wait_until(page, lambda: len(status_reqs) == 1), (
+        f"первый тик не пришел: {len(status_reqs)}")
+    page.wait_for_timeout(300)  # ответ обработан, следующий тик запланирован
+    # между 0 и 12 с второго тика нет (даже если ответ пришел позже —
+    # из-за паузы тик №2 не раньше 12-й виртуальной секунды)
+    page.clock.pause_at(CLOCK_BASE + datetime.timedelta(seconds=11))
+    _assert_stable(page, lambda: len(status_reqs), 1)
+    # тик №2 — интервал 12 с: окно 12100 мс накрывает таймер, заармленный
+    # в ЛЮБОЙ момент ≤ 11 с (due ≤ 23 100), и исключает тик №3 (due ≥ 24 000)
+    page.clock.run_for(12100)
+    assert _wait_until(page, lambda: len(status_reqs) == 2), (
+        f"тик №2 на ~12 с не пришел: {len(status_reqs)}")
+    page.wait_for_timeout(300)
+
+    # уход со страницы: onUnmounted снимает таймер — новых запросов нет
+    page.goto(f"{server}/")
+    page.clock.run_for(60000)
+    _assert_stable(page, lambda: len(status_reqs), 2, settle_s=2.0)
+
+
+def test_s9_pilot_approved_exchange_redirects_cabinet_and_cleanup(
+        page, server):
+    """TC-S9UI-002 (change add-vue-framework-pilot, 5.1; FR-81, MAJ-1):
+    waiting → approved: обмен exchange_token на сессию (мок 200 {token,
+    route:'cabinet'}), sessionStorage session_token записан, токены
+    localStorage удалены ДО редиректа /instructor/dashboard; возврат на
+    /instructors/pending после чистки — STATIC, 0 запросов."""
+    status_reqs: list = []
+    exch_reqs: list = []
+    _route_dashboard_ok(page, server)
+    _route_json(page, server, "/api/instructors/application-status",
+                lambda req: (200, {"ok": True, "status": "approved",
+                                   "reason": None}),
+                capture=status_reqs)
+    _route_json(page, server, "/api/instructors/application-exchange",
+                lambda req: (200, {"ok": True,
+                                   "token": "ui-session-token-cabinet",
+                                   "route": "cabinet"}),
+                method="POST", capture=exch_reqs)
+    _seed_application_tokens(page)
+
+    page.goto(f"{server}/instructors/pending")
+    # approved на первом тике → обмен → редирект в кабинет инструктора
+    page.wait_for_url("**/instructor/dashboard")
+    assert _wait_until(page, lambda: len(status_reqs) == 1 and len(exch_reqs) == 1), (
+        f"тика/обмена не было: status={len(status_reqs)}, exch={len(exch_reqs)}")
+    # сессия записана (механика api.js TOKEN_KEY), токены localStorage
+    # удалены ДО редиректа (MAJ-1)
+    stored = page.evaluate(
+        "() => ({session: sessionStorage.getItem('session_token'),"
+        " poll: localStorage.getItem('application_poll_token'),"
+        " exch: localStorage.getItem('application_exchange_token')})")
+    assert stored == {"session": "ui-session-token-cabinet",
+                      "poll": None, "exch": None}, stored
+
+    # возврат на экран ожидания после чистки — токенов нет → STATIC,
+    # запросов нет (первый тик при наличии токенов был бы немедленным)
+    page.goto(f"{server}/instructors/pending")
+    expect(page.locator("h1")).to_have_text("Заявка на рассмотрении")
+    _assert_stable(page, lambda: len(status_reqs), 1, settle_s=3.0)
+
+
+def test_s9_pilot_rejected_redirects_with_reason(page, server):
+    """TC-S9UI-003 (change add-vue-framework-pilot, 5.1; FR-82): waiting →
+    rejected (мок статуса с причиной) — переход на СУЩЕСТВУЮЩИЙ экран
+    /instructors/rejected с причиной через sessionStorage
+    'instructor_rejected_reason' — БЕЗ входа и перелогина; опрос
+    остановлен (один тик)."""
+    status_reqs: list = []
+    _route_json(page, server, "/api/instructors/application-status",
+                lambda req: (200, {"ok": True, "status": "rejected",
+                                   "reason": "Документы не подтверждены"}),
+                capture=status_reqs)
+    _seed_application_tokens(page)
+
+    page.goto(f"{server}/instructors/pending")
+    page.wait_for_url("**/instructors/rejected")
+    assert _wait_until(page, lambda: len(status_reqs) == 1), (
+        f"тиков: {len(status_reqs)}")
+    # тот же экран отказа, что после логина route 'rejected' (Спринт 2):
+    # причина показана без входа
+    expect(page.locator("#reason-text")).to_have_text(
+        "Документы не подтверждены")
+    stored = page.evaluate(
+        "() => sessionStorage.getItem('instructor_rejected_reason')")
+    assert stored == "Документы не подтверждены", stored
+
+
+def test_s9_pilot_exchange_404_terminal_login_hint_no_polling(page, server):
+    """TC-S9UI-004 (change add-vue-framework-pilot, 5.1; arch-review-002
+    MAJ-1): терминальный 404 обмена (токен потреблен/чужой, мок 404) —
+    подсказка «войдите с email и паролем», токены localStorage удалены,
+    опрос остановлен: 0 запросов дальше (виртуальные 60 с — ни тика)."""
+    status_reqs: list = []
+    exch_reqs: list = []
+    _route_json(page, server, "/api/instructors/application-status",
+                lambda req: (200, {"ok": True, "status": "approved",
+                                   "reason": None}),
+                capture=status_reqs)
+    _route_json(page, server, "/api/instructors/application-exchange",
+                lambda req: (404, {"ok": False, "error": "Заявка не найдена"}),
+                method="POST", capture=exch_reqs)
+    _seed_application_tokens(page)
+    page.clock.install(time=CLOCK_BASE)
+
+    page.goto(f"{server}/instructors/pending")
+    hint = page.locator(".login-hint")
+    expect(hint).to_have_text("Войдите с email и паролем.")
+    expect(page.locator("h1")).to_have_text("Заявка на рассмотрении")
+    assert _wait_until(page, lambda: len(status_reqs) == 1 and len(exch_reqs) == 1), (
+        f"status={len(status_reqs)}, exch={len(exch_reqs)}")
+    stored = page.evaluate(
+        "() => ({poll: localStorage.getItem('application_poll_token'),"
+        " exch: localStorage.getItem('application_exchange_token')})")
+    assert stored == {"poll": None, "exch": None}, stored
+    # терминальное: таймер снят — виртуальные 60 с не дают ни одного тика
+    page.clock.run_for(60000)
+    _assert_stable(page, lambda: len(status_reqs), 1, settle_s=2.0)
+    _assert_stable(page, lambda: len(exch_reqs), 1)
+
+
+def test_s9_pilot_exchange_409_stays_waiting_and_retries(page, server):
+    """TC-S9UI-005 (change add-vue-framework-pilot, 5.1; FR-81): ошибка
+    обмена 409 (заявка не одобрена / переходная) — экран остается в
+    waiting (без редиректа), опрос продолжается, повтор обмена — на
+    следующем тике."""
+    status_reqs: list = []
+    exch_reqs: list = []
+    ticks = {"n": 0}
+
+    def _status(req):
+        ticks["n"] += 1
+        if ticks["n"] == 1:
+            return 200, {"ok": True, "status": "waiting", "reason": None}
+        return 200, {"ok": True, "status": "approved", "reason": None}
+
+    _route_json(page, server, "/api/instructors/application-status",
+                _status, capture=status_reqs)
+    _route_json(page, server, "/api/instructors/application-exchange",
+                lambda req: (409, {"ok": False,
+                                   "error": "Обмен недоступен: заявка не одобрена"}),
+                method="POST", capture=exch_reqs)
+    _seed_application_tokens(page)
+    page.clock.install(time=CLOCK_BASE)
+
+    page.goto(f"{server}/instructors/pending")
+    expect(page.locator("h1")).to_have_text("Заявка на рассмотрении")
+    assert _wait_until(page, lambda: len(status_reqs) == 1), (
+        f"тиков: {len(status_reqs)}")
+    page.wait_for_timeout(300)  # ответ обработан, следующий тик запланирован
+    # до 12-й виртуальной секунды второго тика нет
+    page.clock.pause_at(CLOCK_BASE + datetime.timedelta(seconds=11))
+    _assert_stable(page, lambda: len(status_reqs), 1)
+    # тик №2 → approved → обмен → 409 (переходная ветка): окно 12100 мс —
+    # ровно один следующий тик при любом моменте завершения ответа
+    page.clock.run_for(12100)
+    assert _wait_until(page, lambda: len(status_reqs) == 2 and len(exch_reqs) == 1), (
+        f"status={len(status_reqs)}, exch={len(exch_reqs)}")
+    # остался на экране ожидания (редиректа нет)
+    assert "/instructors/pending" in page.url, page.url
+    page.wait_for_timeout(300)  # 409 обработан, повтор запланирован
+    # тик №3 → повтор обмена возможен (FR-81): то же окно от текущей позиции
+    page.clock.run_for(12100)
+    assert _wait_until(page, lambda: len(status_reqs) == 3 and len(exch_reqs) == 2), (
+        f"status={len(status_reqs)}, exch={len(exch_reqs)}")
+    assert "/instructors/pending" in page.url, page.url
+
+
+def test_s9_pilot_without_tokens_static_mode_zero_requests(page, server):
+    """TC-S9UI-006 (change add-vue-framework-pilot, 5.1; FR-80): экран без
+    сохраненного идентификатора (прямая ссылка) — статический режим:
+    разметка на месте, 0 запросов статуса и обмена (виртуальные 60 с)."""
+    status_reqs: list = []
+    exch_reqs: list = []
+    _route_json(page, server, "/api/instructors/application-status",
+                lambda req: (200, {"ok": True, "status": "waiting",
+                                   "reason": None}),
+                capture=status_reqs)
+    _route_json(page, server, "/api/instructors/application-exchange",
+                lambda req: (200, {"ok": True, "token": "x",
+                                   "route": "cabinet"}),
+                method="POST", capture=exch_reqs)
+    page.clock.install(time=CLOCK_BASE)
+
+    page.goto(f"{server}/instructors/pending")
+    expect(page.locator("h1")).to_have_text("Заявка на рассмотрении")
+    expect(page.locator(".kicker")).to_have_text("Заявка инструктора")
+    expect(page.locator(".login-hint")).to_have_count(0)
+    page.clock.run_for(60000)
+    assert len(status_reqs) == 0, f"запросов статуса: {len(status_reqs)}"
+    assert len(exch_reqs) == 0, f"запросов обмена: {len(exch_reqs)}"
+
+
 # ------------------------------------------------------------- design-guard
 @pytest.mark.parametrize("filename", [
     "instructor-dashboard.html", "cabinet.html",
