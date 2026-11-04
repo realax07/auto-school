@@ -11,6 +11,7 @@
 import time
 
 import bcrypt
+import pytest
 
 from conftest import (
     admin_headers,
@@ -160,6 +161,30 @@ def test_tc_reg_005_missing_json_key_gives_contract_422(client):
         assert "error" in data and data["error"]
         assert "detail" not in data
         assert count_users() == 0, field
+
+
+# --- Спринт 9 (add-personal-data-policy, 7.2): обязательное согласие ---------
+
+
+@pytest.mark.parametrize("consent", [None, False])
+def test_s9_register_consent_missing_or_false_422_in_regression(client,
+                                                                 consent):
+    """Спринт 9 (7.2): негативные 422 согласия в регрессе ученика —
+    POST /api/register без consent и с consent:false → 422 «Согласие:
+    поле обязательно», пользователя нет (дубль матрицы TC-PD-011 из
+    tests/test_policy.py — в файле регресса ученического контракта).
+
+    Трассировка: specs/PersonalData/spec.md, Requirement «Обязательное
+    согласие при регистрации ученика» / Scenario «Прямой POST
+    /api/register без согласия отклоняется сервером».
+    """
+    body = valid_body(**({} if consent is None else {"consent": consent}))
+    if consent is None:
+        body.pop("consent")
+    resp = client.post("/api/register", json=body)
+    assert resp.status_code == 422
+    assert resp.json() == {"ok": False, "error": "Согласие: поле обязательно"}
+    assert count_users() == 0
 
 
 # --- TC-REG-006/007: формат email --------------------------------------------

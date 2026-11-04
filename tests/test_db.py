@@ -23,6 +23,11 @@ EXPECTED_COLUMNS = {
     "role": "TEXT",
     # Спринт 3 (add-instructor-student-loop, MAJ-3): стаж числом
     "experience_years": "INTEGER",
+    # Спринт 9 (add-personal-data-policy, 3.1): фиксация согласия
+    # (FR-79, NFR-27; TEXT NULL — легаси-строки без backfill)
+    # [test-adapted]
+    "consent_at": "TEXT",
+    "consent_policy_version": "TEXT",
     "created_at": "TEXT",
 }
 
@@ -185,6 +190,11 @@ APPLICATION_COLUMNS = {
     # сохраненный файл ВУ анкеты (FR-23, NULL = заявка без ВУ)
     "experience_years": "INTEGER",
     "license_photo_path": "TEXT",
+    # Спринт 9 (add-personal-data-policy, 3.1): фиксация согласия
+    # (FR-79, NFR-27; TEXT NULL — легаси-строки без backfill)
+    # [test-adapted]
+    "consent_at": "TEXT",
+    "consent_policy_version": "TEXT",
     # Спринт 9 (add-application-status-polling, задача 1.1): токены заявки —
     # poll_token (опрос статуса, read-only) и exchange_token (одноразовый
     # обмен на сессию); NULL у исторических строк — backfill НЕ делается
