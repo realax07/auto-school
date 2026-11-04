@@ -14,6 +14,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Спринт 9 (add-vue-framework-pilot): маршрут /instructors/pending
+      # отдает Vue dist — сборка каркаса ПЕРЕД pytest (зеркало
+      # Dockerfile frontend-builder и bare-metal FR-57).
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build Vue pilot (frontend/vue)
+        run: |
+          cd frontend/vue && npm ci --no-audit --no-fund && npm run build
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:

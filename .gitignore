@@ -228,3 +228,10 @@ data/
 deploy/tls/*.pem
 deploy/tls/*.key
 deploy/tls/*.crt
+
+# --- Vue workspace (Спринт 9, change add-vue-framework-pilot, ADR-008):
+# артефакты сборки и зависимости — не в git (design.md «Сознательные
+# ограничения»); dist собирается `npm ci && npm run build`
+frontend/vue/dist/
+frontend/vue/node_modules/
+

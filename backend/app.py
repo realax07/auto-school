@@ -31,6 +31,10 @@ from backend.student_requests import router as student_requests_router
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = ROOT_DIR / "frontend"
+# Спринт 9 (change add-vue-framework-pilot): артефакты сборки каркаса
+# Vue/Vite (ADR-008) — в git не коммитятся, собираются `npm ci && npm run
+# build` (Dockerfile frontend-builder, задача 2.2; bare-metal FR-57).
+VUE_DIST_DIR = FRONTEND_DIR / "vue" / "dist"
 
 _PAGE_ROUTES = {
     "/": "index.html",
@@ -41,7 +45,10 @@ _PAGE_ROUTES = {
     # Спринт 2, часть 1 (задача 5.1, sdd.md §15.6): рядом с /cabinet
     "/instructors": "instructors.html",
     "/instructors/apply": "instructor-apply.html",
-    "/instructors/pending": "instructor-pending.html",
+    # Спринт 9 (change add-vue-framework-pilot, задача 2.3): пилотная
+    # страница /instructors/pending обслуживается каркасом Vue — вход из
+    # dist (маршрут ниже, вне словаря); legacy instructor-pending.html
+    # удален (замена монолита целиком, FR-86/ОВ-4)
     "/instructors/rejected": "instructor-rejected.html",
     "/instructor/cabinet-stub": "instructor-cabinet-stub.html",
     # Спринт 2, часть 2 (задача 3.1, change add-instructor-cabinet):
@@ -122,6 +129,38 @@ def create_app() -> FastAPI:
         if not path.is_file():
             raise HTTPException(status_code=404)
         return FileResponse(path, media_type="application/javascript")
+
+    # Спринт 9 (change add-vue-framework-pilot, задача 2.3): пилотная
+    # страница «Ожидание модерации» — вход каркаса Vue из dist (FR-84/FR-86,
+    # ADR-008: base '/vue/'). Маршрут сохранен (NFR-27); отдача тем же
+    # сервисом — ADR-001.
+    @app.get("/instructors/pending")
+    def instructor_pending_page():
+        path = VUE_DIST_DIR / "instructors-pending.html"
+        if not path.is_file():
+            raise HTTPException(status_code=404)
+        return FileResponse(path, media_type="text/html; charset=utf-8")
+
+    # Статика каркаса Vue (ADR-008): /vue/assets/* из dist/assets,
+    # content-type по суффиксу явно — паттерн /js/{filename}, не зависеть
+    # от системных mimetypes; обход каталогов исключен той же проверкой
+    # ("/", "..", скрытые). Неизвестный суффикс — 404 (угадывание не
+    # вводится; следующие шаги миграции расширяют карту явно).
+    @app.get("/vue/assets/{path:path}")
+    def vue_asset(path: str):
+        if "/" in path or ".." in path or path.startswith("."):
+            raise HTTPException(status_code=404)
+        media_types = {
+            ".js": "application/javascript",
+            ".css": "text/css",
+        }
+        media_type = media_types.get(Path(path).suffix.lower())
+        if media_type is None:
+            raise HTTPException(status_code=404)
+        file_path = VUE_DIST_DIR / "assets" / path
+        if not file_path.is_file():
+            raise HTTPException(status_code=404)
+        return FileResponse(file_path, media_type=media_type)
 
     for route, filename in _PAGE_ROUTES.items():
         def _page(filename: str = filename):
