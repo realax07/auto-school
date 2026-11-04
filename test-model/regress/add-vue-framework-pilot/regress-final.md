@@ -1,16 +1,16 @@
 # Regress add-vue-framework-pilot — regress-final.md
 
 - change: add-vue-framework-pilot
-- date: 2026-11-04T12:05:37+00:00
-- commit: a80640bdc37eb7c42f85b6b1c7bf798f237a3e8d
+- date: 2026-11-04T13:04:14+00:00
+- commit: 2d720ea84467c15b868ed8951733e59b98c92aed
 - worktree: /home/hermes-bot/.hermes/cache/scratch/wt-s9-vue
 - verdict: PASS
 - tier: domain (эшелон 1: доменный regress)
-- duration: 634.4s
+- duration: 590.4s
 - diff source: git diff main...HEAD
 - domain map: project map test-model/regress-domains.json задана, правил нет — применен дефолт
-- changed files: 34
-- changed files: 34
+- changed files: 48
+- changed files: 48
   - .dockerignore
   - .github/workflows/flow.yml
   - .gitignore
@@ -43,6 +43,20 @@
   - openspec/changes/add-vue-framework-pilot/research.md
   - openspec/changes/add-vue-framework-pilot/specs/Frontend/spec.md
   - openspec/changes/add-vue-framework-pilot/tasks.md
+  - test-model/approved/add-vue-framework-pilot/TC-S9UI-001.md
+  - test-model/approved/add-vue-framework-pilot/TC-S9UI-002.md
+  - test-model/approved/add-vue-framework-pilot/TC-S9UI-003.md
+  - test-model/approved/add-vue-framework-pilot/TC-S9UI-004.md
+  - test-model/approved/add-vue-framework-pilot/TC-S9UI-005.md
+  - test-model/approved/add-vue-framework-pilot/TC-S9UI-006.md
+  - test-model/new/add-vue-framework-pilot/TC-S9UI-001.md
+  - test-model/new/add-vue-framework-pilot/TC-S9UI-002.md
+  - test-model/new/add-vue-framework-pilot/TC-S9UI-003.md
+  - test-model/new/add-vue-framework-pilot/TC-S9UI-004.md
+  - test-model/new/add-vue-framework-pilot/TC-S9UI-005.md
+  - test-model/new/add-vue-framework-pilot/TC-S9UI-006.md
+  - test-model/regress/add-vue-framework-pilot/regress-final.md
+  - test-model/reviews/add-vue-framework-pilot/review-001-cases.md
   - tests/test_instructor_pages.py
   - tests/test_ui_playwright.py
 - suites: tests
@@ -67,5 +81,5 @@ tests/test_s9_backend.py::test_tc_s9be_007_parallel_exchanges_exactly_one_200
     warnings.warn(
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-409 passed, 2 warnings in 631.61s (0:10:31)
+409 passed, 2 warnings in 588.53s (0:09:48)
 ```
