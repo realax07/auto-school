@@ -64,3 +64,17 @@
 
 Хронометраж: шаги 1–4 — минуты; бюджет NFR-25 (15 минут) выполняется
 с запасом. Откат = вернуть предыдущую версию файла и повторить шаги 3–4.
+
+## Предусловие bare-metal деплоя (FR-57; MIN-1 ревью add-vue-framework-pilot)
+
+На хосте деплоя требуется Node.js 22 (совпадает с pinned node:22-slim
+Dockerfile) и npm — ПЕРЕД деплоем выполнить сборку фронта каркаса Vue:
+
+```
+cd frontend/vue && npm ci && npm run build
+```
+
+Артефакт `frontend/vue/dist/` обязателен: маршрут /instructors/pending
+отдает FileResponse из dist (без сборки — 404 мигрированного маршрута).
+Контейнерный деплой (docker compose build) собирает dist сам
+(node builder-этап Dockerfile) — ручная сборка не нужна.

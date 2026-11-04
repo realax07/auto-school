@@ -16,10 +16,13 @@ ARG PYTHON_IMAGE=python:3.12-slim@sha256:a0f57064cbdcd6285fa45f51237ab0b35ea8eba
 # (артефакт dist идентичен сборке в образе; отдельного entrypoint/механики
 # нет). node_modules и dev-зависимости в прод-образ не попадают.
 FROM ${NODE_IMAGE} AS frontend-builder
-WORKDIR /app
+# workspace кладется ЦЕЛИКОМ в /app/frontend/vue (layout = design.md
+# «Доставка сборки»; dist = /app/frontend/vue/dist — путь источника
+# runtime COPY ниже; ревью-002-2.2 MAJ-1). WORKDIR — внутри workspace.
+WORKDIR /app/frontend/vue
 COPY frontend/vue/package.json frontend/vue/package-lock.json ./
 RUN npm ci --no-audit --no-fund
-COPY frontend/vue/ .
+COPY frontend/vue/ ./
 RUN npm run build
 
 # --- builder: зависимости в изолированный venv ---
