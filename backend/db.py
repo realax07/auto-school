@@ -208,7 +208,25 @@ _COLUMN_MIGRATIONS = (
     ("instructor_applications", "consent_policy_version",
      "ALTER TABLE instructor_applications ADD COLUMN"
      " consent_policy_version TEXT"),
+    ("instructor_applications", "poll_token",
+     "ALTER TABLE instructor_applications ADD COLUMN poll_token TEXT"),
+    ("instructor_applications", "exchange_token",
+     "ALTER TABLE instructor_applications ADD COLUMN exchange_token TEXT"),
 )
+
+# Спринт 9 (add-application-status-polling, задача 1.1): частичные
+# UNIQUE-индексы токенов (design.md «Модель данных») — защита от дублей и
+# точечный параметризованный lookup по токену. Создаются ПОСЛЕ
+# _COLUMN_MIGRATIONS: индексы ссылаются на колонки, добавляемые ALTER
+# TABLE, — на legacy-БД их нет до миграции, а executescript(_SCHEMA)
+# выполняется раньше миграционного цикла.
+_TOKEN_INDEXES = """
+CREATE UNIQUE INDEX IF NOT EXISTS uq_instructor_applications_poll_token
+  ON instructor_applications(poll_token) WHERE poll_token IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_instructor_applications_exchange_token
+  ON instructor_applications(exchange_token)
+  WHERE exchange_token IS NOT NULL;
+"""
 
 
 def _seed_one_document(
@@ -274,7 +292,9 @@ def init_db() -> None:
     student_requests) + idempotent-миграции: существующие базы Спринтов
     0–2 поднимаются без пересоздания, записи остаются учениками
     (role='student', experience_years=0); Спринт 8 — таблица
-    document_versions + seed verified v1 существующих документов."""
+    document_versions + seed verified v1 существующих документов;
+    Спринт 9 — колонки токенов заявки (poll_token / exchange_token,
+    NULL у исторических строк — без backfill) + частичные UNIQUE-индексы."""
     conn = get_conn()
     try:
         conn.executescript(_SCHEMA)
@@ -285,6 +305,7 @@ def init_db() -> None:
             columns = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
             if column not in columns:
                 conn.execute(ddl)
+        conn.executescript(_TOKEN_INDEXES)
         _seed_document_versions(conn)
         conn.commit()
     finally:

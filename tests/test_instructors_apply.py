@@ -84,7 +84,14 @@ def test_apply_success_creates_waiting_application_with_hash(api_client):
     пароля в записи (NFR-3, FR-11.1)."""
     resp = apply_post(api_client)
     assert resp.status_code == 200
-    assert resp.json() == {"ok": True}
+    # [test-adapted] Спринт 9 (add-application-status-polling, задача 1.1,
+    # NFR-27): успешный ответ РАСШИРЕН до {ok, poll_token, exchange_token} —
+    # контракт не сломан: ok сохранен, старые потребители игнорируют новые
+    # поля. Семантика усилена: токены обязательны и непусты.
+    body = resp.json()
+    assert body["ok"] is True
+    assert body["poll_token"]
+    assert body["exchange_token"]
 
     row = fetch_application("instructor@example.com")
     assert row is not None

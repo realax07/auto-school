@@ -195,6 +195,11 @@ APPLICATION_COLUMNS = {
     # [test-adapted]
     "consent_at": "TEXT",
     "consent_policy_version": "TEXT",
+    # Спринт 9 (add-application-status-polling, задача 1.1): токены заявки —
+    # poll_token (опрос статуса, read-only) и exchange_token (одноразовый
+    # обмен на сессию); NULL у исторических строк — backfill НЕ делается
+    "poll_token": "TEXT",
+    "exchange_token": "TEXT",
     "created_at": "TEXT",
 }
 

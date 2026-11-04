@@ -80,7 +80,21 @@ document.getElementById('registration').addEventListener('submit',function(e){
   fetch('/api/instructors/apply',{method:'POST',body:fd})
     .then(function(r){return r.text().then(function(t){var d=null;try{d=t?JSON.parse(t):null}catch(err){}return {status:r.status,data:d};})})
     .then(function(res){
-      if(res.status===200&&res.data&&res.data.ok){location.href='/instructors/pending';}
+      if(res.status===200&&res.data&&res.data.ok){
+        // Спринт 9 (add-application-status-polling, задача 3.1): токены
+        // заявки из ответа apply — в localStorage ДО редиректа на экран
+        // ожидания (design.md: ключи application_poll_token /
+        // application_exchange_token; хранение в localStorage осознанно —
+        // обязано переживать перезагрузки экрана, arch-review-002 MIN-5).
+        // Ошибка записи localStorage не мешает редиректу. При 422/ошибке
+        // токены не сохраняются — эта ветка не выполняется (ветка else
+        // ничего не пишет).
+        try{
+          if(res.data.poll_token){localStorage.setItem('application_poll_token',res.data.poll_token);}
+          if(res.data.exchange_token){localStorage.setItem('application_exchange_token',res.data.exchange_token);}
+        }catch(err){}
+        location.href='/instructors/pending';
+      }
       else{
         var msg=(res.data&&res.data.error)
           ||(res.status===413?'Файл: изображение больше 5 МБ'
