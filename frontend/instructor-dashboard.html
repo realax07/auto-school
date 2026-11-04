@@ -664,7 +664,16 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
         <div><h2 id="view-title">Документ</h2><small id="view-sub"></small></div>
         <button class="close" id="view-close" aria-label="Закрыть">×</button>
       </div>
-      <div class="full" id="view-full"></div>
+      <!-- BUG-054: стрелки ‹ › НАД фотографией (классы .navarrow, обе
+           стороны всегда в разметке): листание ДОСТУПНОГО набора фото —
+           авто (загруженные ракурсы + СТС по наличию) или одиночный
+           документ (одно фото → стрелки скрыты). Циклично; клик по
+           стрелке окно не закрывает; Esc закрывает. -->
+      <div class="full" id="view-full">
+        <img id="view-img" alt="">
+        <button class="navarrow prev" id="view-prev" type="button" aria-label="Предыдущее фото" style="display:none">‹</button>
+        <button class="navarrow next" id="view-next" type="button" aria-label="Следующее фото" style="display:none">›</button>
+      </div>
       <div class="viewer-foot">Выдача — авторизованный эндпоинт GET /api/instructor/documents/{doc_id}/file (Content-Type image/*). Чужой или несуществующий документ вернёт 404 — документы других инструкторов недоступны.</div>
     </div>
   </div>
