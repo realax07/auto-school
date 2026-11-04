@@ -1,5 +1,7 @@
 # Design: add-application-status-polling
 
+Источник требований: requirements-sprint9.md (УТВЕРЖДЕН 2026-11-02) — блок 2 FR-80…FR-83 + NFR-28; решение Заказчика 2026-11-02 (состав Спринта 9, интервал 10–15 с); механизм обмена идентификатора на сессию — решение СА (открытый вопрос п.1 requirements).
+
 Источники решений: docs/ba/requirements-sprint9.md (УТВЕРЖДЕН, блок 2
 FR-80…FR-83 + NFR-28; открытые вопросы п.1 — механизм бесшовного входа,
 решение за СА); decisions/2026-11-02-s9-application-status-polling-go.md
