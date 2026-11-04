@@ -13,6 +13,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 
 import backend.db as db
 from backend.admin import router as admin_router
+from backend.application_status import router as application_status_router
 from backend.auth import router as auth_router
 from backend.booking import router as booking_router
 from backend.dashboard import router as dashboard_router
@@ -84,6 +85,10 @@ def create_app() -> FastAPI:
     # Спринт 2, часть 1 (задача 5.1): заявки и модерация
     app.include_router(instructors_router)
     app.include_router(instructor_admin_router)
+    # Спринт 9 (add-application-status-polling, задачи 2.1/6.1): статус
+    # заявки и обмен токена на сессию (правило префиксов design.md:
+    # /api/instructors/* — до-сессионный контур заявителя)
+    app.include_router(application_status_router)
     # Спринт 2, часть 2 (задача 3.1): данные кабинета инструктора
     app.include_router(dashboard_router)
     # Спринт 3 (change add-instructor-student-loop, задача 7.1): контур

@@ -258,6 +258,17 @@ def _session_issue(user_id: int) -> str:
     return token
 
 
+def issue_session(user_id: int) -> str:
+    """Публичная фабрика сессии для других доменов (Спринт 9,
+    add-application-status-polling, задача 2.1: application_status.py —
+    обмен exchange_token на сессию; design.md «Порядок обмена» п.5 —
+    переиспользование фабрики, механизм НЕ меняется). Обертка над
+    _session_issue без обращения к приватному символу (та же причина,
+    что у session_user_id — review-001-3.1 MIN-1): тот же реестр
+    _sessions, тот же TTL 12 ч."""
+    return _session_issue(user_id)
+
+
 @router.post("/api/auth/logout")
 def logout(x_session_token: str | None = Header(default=None, alias="X-Session-Token")):
     """Аннулирование токена (§10.2). Проверка — как require_session, но
