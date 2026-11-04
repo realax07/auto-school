@@ -8,10 +8,16 @@ import { postJSON, setToken } from './api.js';
   document.getElementById('to-register').addEventListener('click',function(){closeAll();open('m-register')});
   document.querySelectorAll('[data-close]').forEach(function(b){b.addEventListener('click',function(){
     closeAll();
-    // Вход открыт с лендинга инструкторов: Отмена возвращает туда
-    if(sessionStorage.getItem('open_login_from')){location.href=sessionStorage.getItem('open_login_from');}
+    // BUG-056: закрытие (крестик #login-close / «Отмена») оставляет на
+    // ТЕКУЩЕЙ странице; флаги старого редиректа-логина убираем (если
+    // модалка открылась через них — просто остаёмся здесь)
+    sessionStorage.removeItem('open_login');
+    sessionStorage.removeItem('open_login_from');
   })});
-  document.querySelectorAll('.overlay').forEach(function(o){o.addEventListener('click',function(e){if(e.target===o)closeAll()})});
+  // BUG-056: клик по фону (вне карточки) НЕ закрывает модалку входа
+  // (#m-login; закрытие — крестик/«Отмена»/Esc). Остальным модалкам клик
+  // по фону оставлен как был.
+  document.querySelectorAll('.overlay').forEach(function(o){o.addEventListener('click',function(e){if(e.target===o&&o.id!=='m-login')closeAll()})});
   document.addEventListener('keydown',function(e){if(e.key==='Escape')closeAll()});
   // Регистрация: fetch POST /api/register (дизайн 2026-10-08)
   // Спринт 9 (change add-personal-data-policy, задача 5.2, FR-78): кнопка
