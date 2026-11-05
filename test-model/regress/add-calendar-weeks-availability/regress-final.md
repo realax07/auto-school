@@ -1,16 +1,16 @@
 # Regress add-calendar-weeks-availability — regress-final.md
 
 - change: add-calendar-weeks-availability
-- date: 2026-11-05T15:42:23+00:00
-- commit: ac274ffa98bab3ea00a78a1a1cd6776d10917672
+- date: 2026-11-05T17:08:20+00:00
+- commit: 4c573dee5ea0291146e88170351cd368312ae569
 - worktree: /home/hermes-bot/auto-school
 - verdict: PASS
 - tier: domain (эшелон 1: доменный regress)
-- duration: 677.1s
+- duration: 701.3s
 - diff source: git diff main...HEAD
 - domain map: project map test-model/regress-domains.json задана, правил нет — применен дефолт
-- changed files: 35
-- changed files: 35
+- changed files: 76
+- changed files: 76
   - .github/workflows/flow.yml
   - Dockerfile
   - architecture/adr/010-calendar-recurring-availability.md
@@ -40,12 +40,28 @@
   - openspec/changes/add-calendar-weeks-availability/specs/booking/spec.md
   - openspec/changes/add-calendar-weeks-availability/specs/instructor-availability/spec.md
   - openspec/changes/add-calendar-weeks-availability/tasks.md
-  - tests/test_s10_backend.py
-  - tests/test_s3_backend.py
-  - tests/test_s5_backend.py
-  - tests/test_s7_backend.py
-  - tests/test_s8_backend.py
-  - tests/test_ui_playwright.py
+  - test-model/approved/add-calendar-weeks-availability/TC-S10BE-001.md
+  - test-model/approved/add-calendar-weeks-availability/TC-S10BE-002.md
+  - test-model/approved/add-calendar-weeks-availability/TC-S10BE-003.md
+  - test-model/approved/add-calendar-weeks-availability/TC-S10BE-004.md
+  - test-model/approved/add-calendar-weeks-availability/TC-S10BE-005.md
+  - test-model/approved/add-calendar-weeks-availability/TC-S10BE-006.md
+  - test-model/approved/add-calendar-weeks-availability/TC-S10BE-007.md
+  - test-model/approved/add-calendar-weeks-availability/TC-S10BE-008.md
+  - test-model/approved/add-calendar-weeks-availability/TC-S10BE-009.md
+  - test-model/approved/add-calendar-weeks-availability/TC-S10BE-010.md
+  - test-model/approved/add-calendar-weeks-availability/TC-S10BE-011.md
+  - test-model/approved/add-calendar-weeks-availability/TC-S10BE-012.md
+  - test-model/approved/add-calendar-weeks-availability/TC-S10BE-013.md
+  - test-model/approved/add-calendar-weeks-availability/TC-S10BE-014.md
+  - test-model/approved/add-calendar-weeks-availability/TC-S10BE-015.md
+  - test-model/approved/add-calendar-weeks-availability/TC-S10BE-016.md
+  - test-model/approved/add-calendar-weeks-availability/TC-S10BE-017.md
+  - test-model/approved/add-calendar-weeks-availability/TC-S10BE-018.md
+  - test-model/approved/add-calendar-weeks-availability/TC-S10BE-019.md
+  - test-model/new/add-calendar-weeks-availability/TC-S10BE-001.md
+  - test-model/new/add-calendar-weeks-availability/TC-S10BE-002.md
+  - … и еще 26
 - suites: tests
 - pytest exit code: 0
 
@@ -63,6 +79,10 @@
   /home/hermes-bot/auto-school/.venv/lib/python3.14/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
     from starlette.testclient import TestClient as TestClient  # noqa
 
+tests/test_s9_backend.py::test_tc_s9be_007_parallel_exchanges_exactly_one_200
+  /home/hermes-bot/auto-school/.venv/lib/python3.14/site-packages/pydantic/_internal/_generate_schema.py:2346: UnsupportedFieldAttributeWarning: The 'alias' attribute with value 'filename' was provided to the `Field()` function, which has no effect in the context it was used. 'alias' is field-specific metadata, and can only be attached to a model field using `Annotated` metadata or by assignment. This may have happened because an `Annotated` type alias using the `type` statement was used, or if the `Field()` function was attached to a single member of a union type.
+    warnings.warn(
+
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-430 passed, 1 warning in 674.46s (0:11:14)
+430 passed, 2 warnings in 698.30s (0:11:38)
 ```
