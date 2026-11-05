@@ -38,7 +38,7 @@ ADR-010; sdd.md (раздел «Спринт 10») и трассировка д�
 
 ## 1. Модель: миграция recurring/one_off + занятость экземпляра (backend)
 
-- [ ] 1.1 [migration][code][tests] backend/db.py — idempotent-миграция
+- [x] 1.1 [migration][code][tests] backend/db.py — idempotent-миграция
       (guard по отсутствию колонки slot_type; одна транзакция BEGIN
       IMMEDIATE): перестройка availability — колонки slot_type TEXT NOT
       NULL DEFAULT 'recurring' CHECK (recurring|one_off), slot_date TEXT
@@ -63,7 +63,7 @@ ADR-010; sdd.md (раздел «Спринт 10») и трассировка д�
 
 ## 2. Домен booking: экземпляры, будущие брони, недели ученика (backend)
 
-- [ ] 2.1 [code][tests] backend/booking.py — (а) helper
+- [x] 2.1 [code][tests] backend/booking.py — (а) helper
       blocking_bookings → уровень ЭКЗЕМПЛЯРОВ (design «Контракт
       availability»): активная бронь ('new'/'confirmed') → экземпляр
       (weekday, start_time, end_time, date=lesson_date); конфликт, если
@@ -112,7 +112,7 @@ ADR-010; sdd.md (раздел «Спринт 10») и трассировка д�
 
 ## 3. Домен availability: PUT/GET типы и даты + запрет прошлого (backend)
 
-- [ ] 3.1 [code][tests] backend/instructor_availability.py — GET: +
+- [x] 3.1 [code][tests] backend/instructor_availability.py — GET: +
       slot_type/date (date null для recurring; сортировка прежняя);
       PUT: полная замена графиком обоих типов (slot_type default
       'recurring'; one_off — date обязательна, weekday = дню недели даты,

@@ -1325,7 +1325,14 @@ def test_s5_put_availability_blocked_by_active_bookings(api, client):
     still = client.get(
         "/api/instructor/availability", headers=_headers(instr["token"])
     ).json()["intervals"]
-    assert {"weekday": 0, "start_time": "10:00", "end_time": "11:00"} in still
+    # [test-adapted] Спринт 10 (NFR-29): GET аддитивно возвращает
+    # slot_type/date — проверка наличия интервала по легаси-полям
+    # (семантика «график НЕ изменен» сохранена).
+    assert any(
+        i["weekday"] == 0 and i["start_time"] == "10:00"
+        and i["end_time"] == "11:00"
+        for i in still
+    )
 
     # reject брони → сохранение проходит; слот с только 'rejected' не мешает
     client.post(

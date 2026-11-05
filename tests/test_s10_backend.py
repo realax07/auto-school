@@ -875,3 +875,509 @@ def test_s10_slots_date_validation_and_access(client, monkeypatch):
         f"{ghost}?date={next_weekday(0).isoformat()}",
         headers=_headers(student["token"]),
     ).status_code == 404
+
+
+# --- Задача 3.1: availability GET/PUT типы/даты, запрет прошлого, дифф --------
+
+
+def availability_rows():
+    """Строки availability последнего инструктора (полный ключ + id)."""
+    conn = sqlite3.connect(db_path())
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        "SELECT * FROM availability ORDER BY id"
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def test_s10_availability_types_save_and_readback(client, monkeypatch):
+    """TC-S10BE-003 (change add-calendar-weeks-availability, задача 3.1).
+    Спека: «### Requirement: Типы слотов: повторяющиеся и разовые» —
+    сценарии «В одной неделе сочетаются оба типа», «Совпадение разового с
+    экземпляром повторяющегося отображается одним слотом» (серверно: обе
+    строки, FR-90); «### Requirement: Сохранение и восстановление
+    графика» — «График восстанавливается после перезахода» (с типами).
+    PUT со смешанным графиком (recurring + one_off на одну дату)
+    сохраняется и восстанавливается GET-ом: recurring — date null,
+    one_off — date своя; совпадение one_off с экземпляром серии — ОБЕ
+    строки в БД допускаются; замена полным графиком другого типа
+    убирает/добавляет строки."""
+    fake_now(monkeypatch)
+    instructor = create_instructor(client)
+    one_off_date = next_weekday(3).isoformat()
+    put = client.put(
+        "/api/instructor/availability",
+        json={"intervals": [
+            {"weekday": 3, "start_time": "16:00", "end_time": "18:00",
+             "slot_type": "recurring"},
+            {"weekday": 3, "start_time": "16:00", "end_time": "18:00",
+             "slot_type": "one_off", "date": one_off_date},
+            {"weekday": 1, "start_time": "09:00", "end_time": "10:00"},
+        ]},
+        headers=_headers(instructor["token"]),
+    )
+    assert put.status_code == 200, put.text
+    intervals = put.json()["intervals"]
+    assert {"weekday": 3, "start_time": "16:00", "end_time": "18:00",
+            "slot_type": "recurring", "date": None} in intervals
+    assert {"weekday": 3, "start_time": "16:00", "end_time": "18:00",
+            "slot_type": "one_off", "date": one_off_date} in intervals
+    assert {"weekday": 1, "start_time": "09:00", "end_time": "10:00",
+            "slot_type": "recurring", "date": None} in intervals
+
+    # перезаход: тот же график с теми же типами
+    login = client.post(
+        "/api/auth/login",
+        json={"email": "instr10@example.com", "password": INSTR_PASSWORD},
+    )
+    fresh = client.get(
+        "/api/instructor/availability",
+        headers=_headers(login.json()["token"]),
+    ).json()["intervals"]
+    assert len(fresh) == 3
+    assert sum(1 for i in fresh if i["slot_type"] == "one_off") == 1
+
+    # совпадение one_off с экземпляром серии — ОБЕ строки в БД (FR-90)
+    assert len(availability_rows()) == 3
+
+    # полная замена: убрали серию и one_off, добавили другой разовый
+    other_date = next_weekday(5).isoformat()
+    replace = client.put(
+        "/api/instructor/availability",
+        json={"intervals": [
+            {"weekday": 5, "start_time": "12:00", "end_time": "13:00",
+             "slot_type": "one_off", "date": other_date},
+        ]},
+        headers=_headers(instructor["token"]),
+    )
+    assert replace.status_code == 200, replace.text
+    assert replace.json()["intervals"] == [
+        {"weekday": 5, "start_time": "12:00", "end_time": "13:00",
+         "slot_type": "one_off", "date": other_date}
+    ]
+    assert len(availability_rows()) == 1
+
+
+def test_s10_availability_validation_types(client):
+    """TC-S10BE-003 (задача 3.1, FR-90/D5). Спека: «### Requirement:
+    Сохранение и восстановление графика» (валидации нового контракта,
+    design «Обработка ошибок»).
+    one_off без date → 422; one_off с несуществующей датой (2026-02-30)
+    → 422; one_off с чужим weekday → 422; recurring с date → 422;
+    неизвестный slot_type → 422; график при отказе не изменен."""
+    instructor = create_instructor(client)
+    ok_date = next_weekday(2).isoformat()
+    bad_payloads = [
+        {"weekday": 2, "start_time": "10:00", "end_time": "12:00",
+         "slot_type": "one_off"},                                    # без date
+        {"weekday": 2, "start_time": "10:00", "end_time": "12:00",
+         "slot_type": "one_off", "date": "2026-02-30"},              # не существует
+        {"weekday": 4, "start_time": "10:00", "end_time": "12:00",
+         "slot_type": "one_off", "date": ok_date},                   # weekday ≠ дате
+        {"weekday": 2, "start_time": "10:00", "end_time": "12:00",
+         "slot_type": "recurring", "date": ok_date},                 # recurring+date
+        {"weekday": 2, "start_time": "10:00", "end_time": "12:00",
+         "slot_type": "weekly"},                                     # неизвестный тип
+    ]
+    for payload in bad_payloads:
+        resp = client.put(
+            "/api/instructor/availability",
+            json={"intervals": [payload]},
+            headers=_headers(instructor["token"]),
+        )
+        assert resp.status_code == 422, (payload, resp.text)
+        assert resp.json()["ok"] is False
+    assert availability_rows() == []
+
+
+def test_s10_availability_409_instances_with_date(client, monkeypatch):
+    """TC-S10BE-004 (задача 3.1, MAJ-1 на уровне ЭКЗЕМПЛЯРОВ, FR-92).
+    Спека: «### Requirement: Сохранение и восстановление графика» —
+    сценарии «PUT, убирающий экземпляр с активной бронью, отклоняется с
+    409 (MAJ-1, уровень экземпляров)», «Экземпляры с только отклоненными
+    бронями замене не мешают», «Прошедшие экземпляры не блокируют
+    замену и не изменяются».
+    PUT, убирающий one_off с активной бронью → 409 с ДАТОЙ в перечне
+    (conflicts[0]['date']), график не изменен; убирающий серию с бронью
+    на конкретный экземпляр → 409, но при СОХРАНЕНИИ серии → 200
+    (экземпляр покрыт); только rejected-брони замене не мешают;
+    прошедший экземпляр (lesson_date в прошлом) не блокирует."""
+    fake_now(monkeypatch)
+    instructor = create_instructor(client)
+    student = create_student(client)
+    one_off_date = next_weekday(3).isoformat()
+    put = client.put(
+        "/api/instructor/availability",
+        json={"intervals": [
+            {"weekday": 3, "start_time": "16:00", "end_time": "18:00",
+             "slot_type": "one_off", "date": one_off_date},
+        ]},
+        headers=_headers(instructor["token"]),
+    )
+    assert put.status_code == 200, put.text
+    accept_pair(client, instructor, student)
+    one_off_id = availability_rows()[0]["id"]
+    booked = book(client, student, one_off_id, one_off_date)
+    assert booked.status_code == 200, booked.text
+
+    # убираем one_off с активной бронью → 409, дата в перечне
+    # (тело НОВОГО формата — легаси-тело one_off убрать не может, MAJ-2)
+    resp = client.put(
+        "/api/instructor/availability",
+        json={"intervals": [
+            {"weekday": 1, "start_time": "09:00", "end_time": "10:00",
+             "slot_type": "recurring"},
+        ]},
+        headers=_headers(instructor["token"]),
+    )
+    assert resp.status_code == 409, resp.text
+    conflict = resp.json()["conflicts"][0]
+    assert conflict["date"] == one_off_date
+    assert conflict["weekday"] == 3
+    assert conflict["booking_statuses"] == ["new"]
+    assert "16:00" in resp.json()["error"] and "18:00" in resp.json()["error"]
+    # график не изменен
+    assert len(availability_rows()) == 1
+
+    # только rejected-брони → замена проходит («…отклоненными не мешают»)
+    client.post(
+        f"/api/instructor/bookings/{booked.json()['booking_id']}/reject",
+        json={"comment": "не могу"},
+        headers=_headers(instructor["token"]),
+    )
+    resp = client.put(
+        "/api/instructor/availability",
+        json={"intervals": [
+            {"weekday": 1, "start_time": "09:00", "end_time": "10:00",
+             "slot_type": "recurring"},
+        ]},
+        headers=_headers(instructor["token"]),
+    )
+    assert resp.status_code == 200, resp.text
+
+    # серия с активной бронью на конкретный экземпляр: убрали серию →
+    # 409 с датой экземпляра; СОХРАНИЛИ серию → 200 (экземпляр покрыт)
+    instructor2 = create_instructor(client, email="instr10b@example.com")
+    student2 = create_student(client, email="student10d@example.com")
+    put_availability(client, instructor2, [
+        {"weekday": 3, "start_time": "16:00", "end_time": "18:00"},
+    ])
+    accept_pair(client, instructor2, student2)
+    series_id = availability_rows()[-1]["id"]
+    d1 = next_weekday(3).isoformat()
+    assert book(client, student2, series_id, d1).status_code == 200
+    resp = client.put(
+        "/api/instructor/availability",
+        json={"intervals": [
+            {"weekday": 1, "start_time": "09:00", "end_time": "10:00"},
+        ]},
+        headers=_headers(instructor2["token"]),
+    )
+    assert resp.status_code == 409
+    assert resp.json()["conflicts"][0]["date"] == d1
+    keep = client.put(
+        "/api/instructor/availability",
+        json={"intervals": [
+            {"weekday": 3, "start_time": "16:00", "end_time": "18:00"},
+            {"weekday": 1, "start_time": "09:00", "end_time": "10:00"},
+        ]},
+        headers=_headers(instructor2["token"]),
+    )
+    assert keep.status_code == 200, keep.text
+
+    # прошедший экземпляр (lesson_date в прошлом) не блокирует замену,
+    # запись брони остается как история («Прошедшие экземпляры…»)
+    conn = sqlite3.connect(db_path())
+    conn.execute(
+        "UPDATE booking SET lesson_date = '2026-01-08' WHERE id = ("
+        " SELECT MAX(id) FROM booking)"
+    )
+    conn.commit()
+    conn.close()
+    resp = client.put(
+        "/api/instructor/availability",
+        json={"intervals": [
+            {"weekday": 1, "start_time": "09:00", "end_time": "10:00"},
+        ]},
+        headers=_headers(instructor2["token"]),
+    )
+    assert resp.status_code == 200, resp.text
+    conn = sqlite3.connect(db_path())
+    kept = conn.execute(
+        "SELECT lesson_date, status FROM booking ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+    conn.close()
+    assert kept == ("2026-01-08", "new")
+
+
+def test_s10_availability_past_ban_new_format(client, monkeypatch):
+    """TC-S10BE-005 (задача 3.1, FR-93/NFR-31/D6, MIN-1). Спека: «###
+    Requirement: Запрет правки прошлого» — сценарий «Сервер отклоняет
+    сохранение, меняющее прошедший экземпляр, в обход UI»; «###
+    Requirement: Сохранение и восстановление графика» — «Попытка
+    изменения прошедшего слота отклоняется сервером».
+    Прямой PUT нового формата: убирает прошедший one_off → 422;
+    меняет прошедший one_off (другое время) → 422; создает one_off с
+    прошедшей датой → 422; прошедшая one_off, возвращенная БЕЗ
+    изменений, сохраняется (клиент возвращает прошедшие one_off без
+    изменений); прошедшая по времени В МОМЕНТ сохранения (была будущей)
+    и убранная из payload → 422; граница MIN-1: начало ровно NOW —
+    правится (проходит)."""
+    fake_now(monkeypatch)
+    instructor = create_instructor(client)
+    yesterday = (datetime.date.today() - datetime.timedelta(days=1))
+    conn = sqlite3.connect(db_path())
+    cur = conn.execute(
+        "INSERT INTO availability (instructor_id, weekday, start_time,"
+        " end_time, slot_type, slot_date) VALUES (?, ?, '10:00', '12:00',"
+        " 'one_off', ?)",
+        (instructor["id"], yesterday.weekday(), yesterday.isoformat()),
+    )
+    past_one_off_id = cur.lastrowid
+    conn.commit()
+    conn.close()
+    base_key = {"weekday": yesterday.weekday(), "start_time": "10:00",
+                "end_time": "12:00", "slot_type": "one_off",
+                "date": yesterday.isoformat()}
+
+    # (б) убирает прошедший one_off → 422, график не изменен
+    # (тело НОВОГО формата: легаси-тело one_off убрать не может — MAJ-2)
+    resp = client.put(
+        "/api/instructor/availability",
+        json={"intervals": [
+            {"weekday": 1, "start_time": "09:00", "end_time": "10:00",
+             "slot_type": "recurring"},
+        ]},
+        headers=_headers(instructor["token"]),
+    )
+    assert resp.status_code == 422, resp.text
+    assert resp.json()["error"] == "Прошедшие слоты не подлежат изменению"
+    assert len(availability_rows()) == 1
+
+    # меняет прошедший one_off (другое время) → 422
+    resp = client.put(
+        "/api/instructor/availability",
+        json={"intervals": [
+            {**base_key, "start_time": "10:00", "end_time": "13:00"},
+        ]},
+        headers=_headers(instructor["token"]),
+    )
+    assert resp.status_code == 422, resp.text
+
+    # (а) создает one_off с прошедшей датой → 422
+    resp = client.put(
+        "/api/instructor/availability",
+        json={"intervals": [
+            base_key,
+            {"weekday": yesterday.weekday(), "start_time": "14:00",
+             "end_time": "15:00", "slot_type": "one_off",
+             "date": yesterday.isoformat()},
+        ]},
+        headers=_headers(instructor["token"]),
+    )
+    assert resp.status_code == 422, resp.text
+
+    # прошедшая one_off возвращенная БЕЗ изменений → 200 (клиентский
+    # контракт: прошедшие one_off возвращаются в payload без изменений)
+    resp = client.put(
+        "/api/instructor/availability",
+        json={"intervals": [
+            base_key,
+            {"weekday": 1, "start_time": "09:00", "end_time": "10:00"},
+        ]},
+        headers=_headers(instructor["token"]),
+    )
+    assert resp.status_code == 200, resp.text
+    conn = sqlite3.connect(db_path())
+    still = conn.execute(
+        "SELECT COUNT(*) FROM availability WHERE id = ?",
+        (past_one_off_id,),
+    ).fetchone()[0]
+    conn.close()
+    assert still == 1
+
+    # прошла по времени В МОМЕНТ сохранения (была будущей при создании),
+    # убрана из payload → 422 (immutable-история — design D6)
+    tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+    conn = sqlite3.connect(db_path())
+    conn.execute(
+        "INSERT INTO availability (instructor_id, weekday, start_time,"
+        " end_time, slot_type, slot_date) VALUES (?, ?, '08:00', '09:00',"
+        " 'one_off', ?)",
+        (instructor["id"],
+         datetime.date.fromisoformat(tomorrow).weekday(), tomorrow),
+    )
+    conn.commit()
+    conn.close()
+    # NOW переведен на послезавтра 10:00 — «завтрашний» слот стал прошлым
+    future_now = datetime.datetime.combine(
+        datetime.date.today() + datetime.timedelta(days=2),
+        datetime.time(10, 0), tzinfo=booking_domain._MOSCOW_TZ,
+    )
+    monkeypatch.setattr(booking_domain, "now_moscow", lambda: future_now)
+    resp = client.put(
+        "/api/instructor/availability",
+        json={"intervals": [
+            base_key,
+            {"weekday": 1, "start_time": "09:00", "end_time": "10:00"},
+        ]},
+        headers=_headers(instructor["token"]),
+    )
+    assert resp.status_code == 422, resp.text
+
+    # граница MIN-1: начало РОВНО NOW — правится (≥ NOW), проходит;
+    # прошедшие one_off БД возвращены в payload БЕЗ изменений
+    # (клиентский контракт), поэтому правило (б) не нарушено
+    fake_now(monkeypatch, 16, 0)
+    today = datetime.date.today()
+    tomorrow_key = {"weekday": datetime.date.fromisoformat(tomorrow).weekday(),
+                    "start_time": "08:00", "end_time": "09:00",
+                    "slot_type": "one_off", "date": tomorrow}
+    resp = client.put(
+        "/api/instructor/availability",
+        json={"intervals": [
+            base_key,
+            tomorrow_key,
+            {"weekday": 1, "start_time": "09:00", "end_time": "10:00"},
+            {"weekday": today.weekday(), "start_time": "16:00",
+             "end_time": "18:00", "slot_type": "one_off",
+             "date": today.isoformat()},
+        ]},
+        headers=_headers(instructor["token"]),
+    )
+    assert resp.status_code == 200, resp.text
+
+
+def test_s10_availability_legacy_body_maj2(client, monkeypatch):
+    """TC-S10BE-002 (задача 3.1, NFR-29/MAJ-2 арх-ревью). Спека: «###
+    Requirement: Сохранение и восстановление графика» — сценарий «Запрос
+    в старом формате продолжает приниматься (MAJ-2)».
+    PUT легаси-тела {intervals:[{weekday,start_time,end_time}]} при
+    наличии в БД прошедшей И будущей one_off → 200: recurring-интервалы
+    тела заменяют серию, ОБЕ one_off (прошедшая и будущая) сохранены БЕЗ
+    изменений (легаси-клиент не может ни убрать, ни изменить разовый
+    слот — запрет прошлого выполняется конструктивно)."""
+    fake_now(monkeypatch)
+    instructor = create_instructor(client)
+    yesterday = (datetime.date.today() - datetime.timedelta(days=1))
+    future = next_weekday(3)
+    conn = sqlite3.connect(db_path())
+    conn.executemany(
+        "INSERT INTO availability (instructor_id, weekday, start_time,"
+        " end_time, slot_type, slot_date) VALUES (?, ?, '10:00', '12:00',"
+        " 'one_off', ?)",
+        [
+            (instructor["id"], yesterday.weekday(), yesterday.isoformat()),
+            (instructor["id"], future.weekday(), future.isoformat()),
+        ],
+    )
+    conn.commit()
+    conn.close()
+
+    resp = client.put(
+        "/api/instructor/availability",
+        json={"intervals": [
+            {"weekday": 1, "start_time": "09:00", "end_time": "11:00"},
+        ]},
+        headers=_headers(instructor["token"]),
+    )
+    assert resp.status_code == 200, resp.text
+    intervals = resp.json()["intervals"]
+    assert {"weekday": 1, "start_time": "09:00", "end_time": "11:00",
+            "slot_type": "recurring", "date": None} in intervals
+    assert {"weekday": yesterday.weekday(), "start_time": "10:00",
+            "end_time": "12:00", "slot_type": "one_off",
+            "date": yesterday.isoformat()} in intervals
+    assert {"weekday": future.weekday(), "start_time": "10:00",
+            "end_time": "12:00", "slot_type": "one_off",
+            "date": future.isoformat()} in intervals
+
+    # и GET возвращает тот же полный график
+    got = client.get(
+        "/api/instructor/availability",
+        headers=_headers(instructor["token"]),
+    ).json()["intervals"]
+    assert len(got) == 3
+
+
+def test_s10_availability_diff_write_and_rebind(client, monkeypatch):
+    """TC-S10BE-004 (задача 3.1, дифф-запись MAJ-1 — design «Экземпляр и
+    разворот серий»). Спека: «### Requirement: Сохранение и
+    восстановление графика» (дифф-запись: id сохраненных строк не
+    меняются; перепривязка брони при покрытой замене носителя).
+    Сохранение без правок сохраняет id строки (бронь видна в выдаче);
+    удаление разового слота с активной бронью при СОХРАНЯЮЩЕЙСЯ серии
+    того же экземпляра → 200 и бронь ПЕРЕПРИВЯЗАНА на серию (видна,
+    дата/статус прежние)."""
+    fake_now(monkeypatch)
+    instructor = create_instructor(client)
+    student = create_student(client)
+    one_off_date = next_weekday(3).isoformat()
+    client.put(
+        "/api/instructor/availability",
+        json={"intervals": [
+            {"weekday": 3, "start_time": "16:00", "end_time": "18:00",
+             "slot_type": "recurring"},
+            {"weekday": 3, "start_time": "16:00", "end_time": "18:00",
+             "slot_type": "one_off", "date": one_off_date},
+        ]},
+        headers=_headers(instructor["token"]),
+    )
+    accept_pair(client, instructor, student)
+    before = availability_rows()
+    one_off = next(r for r in before if r["slot_type"] == "one_off")
+    series = next(r for r in before if r["slot_type"] == "recurring")
+    booked = book(client, student, one_off["id"], one_off_date)
+    assert booked.status_code == 200, booked.text
+    booking_id = booked.json()["booking_id"]
+
+    # сохранение без правок → id обеих строк сохранены (дифф, не
+    # DELETE+INSERT), бронь продолжает ссылаться на ту же строку
+    resp = client.put(
+        "/api/instructor/availability",
+        json={"intervals": [
+            {"weekday": 3, "start_time": "16:00", "end_time": "18:00",
+             "slot_type": "recurring"},
+            {"weekday": 3, "start_time": "16:00", "end_time": "18:00",
+             "slot_type": "one_off", "date": one_off_date},
+        ]},
+        headers=_headers(instructor["token"]),
+    )
+    assert resp.status_code == 200, resp.text
+    after = availability_rows()
+    assert {r["id"] for r in after} == {r["id"] for r in before}
+    conn = sqlite3.connect(db_path())
+    row = conn.execute(
+        "SELECT availability_id, lesson_date, status FROM booking"
+        " WHERE id = ?", (booking_id,)
+    ).fetchone()
+    conn.close()
+    assert row == (one_off["id"], one_off_date, "new")
+
+    # удаление разового слота с бронью при сохраняющейся серии → 200,
+    # бронь перепривязана на строку-носитель (серию того же экземпляра)
+    resp = client.put(
+        "/api/instructor/availability",
+        json={"intervals": [
+            {"weekday": 3, "start_time": "16:00", "end_time": "18:00",
+             "slot_type": "recurring"},
+        ]},
+        headers=_headers(instructor["token"]),
+    )
+    assert resp.status_code == 200, resp.text
+    remaining = availability_rows()
+    assert [r["id"] for r in remaining] == [series["id"]]
+    conn = sqlite3.connect(db_path())
+    row = conn.execute(
+        "SELECT availability_id, lesson_date, status FROM booking"
+        " WHERE id = ?", (booking_id,)
+    ).fetchone()
+    visible = conn.execute(
+        "SELECT COUNT(*) FROM booking AS b"
+        " JOIN availability AS a ON a.id = b.availability_id"
+        " WHERE b.id = ?", (booking_id,)
+    ).fetchone()[0]
+    conn.close()
+    assert row == (series["id"], one_off_date, "new")
+    assert visible == 1  # JOIN выдач не разорван (бронь-сирота невозможна)
