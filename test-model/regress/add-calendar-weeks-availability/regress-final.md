@@ -1,16 +1,16 @@
 # Regress add-calendar-weeks-availability — regress-final.md
 
 - change: add-calendar-weeks-availability
-- date: 2026-11-05T17:08:20+00:00
-- commit: 4c573dee5ea0291146e88170351cd368312ae569
+- date: 2026-11-05T17:36:13+00:00
+- commit: 5a69934fb8e74eb87aee66d2a5cfebd7d8eecf16
 - worktree: /home/hermes-bot/auto-school
 - verdict: PASS
 - tier: domain (эшелон 1: доменный regress)
-- duration: 701.3s
+- duration: 805.6s
 - diff source: git diff main...HEAD
 - domain map: project map test-model/regress-domains.json задана, правил нет — применен дефолт
-- changed files: 76
-- changed files: 76
+- changed files: 77
+- changed files: 77
   - .github/workflows/flow.yml
   - Dockerfile
   - architecture/adr/010-calendar-recurring-availability.md
@@ -59,9 +59,9 @@
   - test-model/approved/add-calendar-weeks-availability/TC-S10BE-017.md
   - test-model/approved/add-calendar-weeks-availability/TC-S10BE-018.md
   - test-model/approved/add-calendar-weeks-availability/TC-S10BE-019.md
+  - test-model/impact/add-calendar-weeks-availability.md
   - test-model/new/add-calendar-weeks-availability/TC-S10BE-001.md
-  - test-model/new/add-calendar-weeks-availability/TC-S10BE-002.md
-  - … и еще 26
+  - … и еще 27
 - suites: tests
 - pytest exit code: 0
 
@@ -79,10 +79,6 @@
   /home/hermes-bot/auto-school/.venv/lib/python3.14/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
     from starlette.testclient import TestClient as TestClient  # noqa
 
-tests/test_s9_backend.py::test_tc_s9be_007_parallel_exchanges_exactly_one_200
-  /home/hermes-bot/auto-school/.venv/lib/python3.14/site-packages/pydantic/_internal/_generate_schema.py:2346: UnsupportedFieldAttributeWarning: The 'alias' attribute with value 'filename' was provided to the `Field()` function, which has no effect in the context it was used. 'alias' is field-specific metadata, and can only be attached to a model field using `Annotated` metadata or by assignment. This may have happened because an `Annotated` type alias using the `type` statement was used, or if the `Field()` function was attached to a single member of a union type.
-    warnings.warn(
-
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-430 passed, 2 warnings in 698.30s (0:11:38)
+430 passed, 1 warning in 802.96s (0:13:22)
 ```
