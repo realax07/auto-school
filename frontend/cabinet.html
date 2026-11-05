@@ -163,6 +163,18 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
 .bk-st-new{background:#2a2010;color:#ffd479;border:1px solid #6b5426}      /* запрос отправлен */
 .bk-st-ok{background:#143322;color:#91efb1;border:1px solid #2a5c40}      /* подтверждена */
 .bk-st-den{background:#33201a;color:#ffb28e;border:1px solid #5c3030}     /* отклонена */
+/* Спринт 10 (add-calendar-weeks-availability, задача 6.1; FR-94…FR-96):
+   навигация неделями + подпись диапазона (та же механика, что у
+   инструктора), прошедшие экземпляры — просмотр (приглушены, без брони) */
+.bk-nav{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.bk-nav button{border:1px solid rgba(234,255,249,.14);background:rgba(255,255,255,.04);color:#b9c8ce;border-radius:9px;padding:8px 14px;font-size:12px;cursor:pointer}
+.bk-nav button:hover{border-color:#35d87966}
+.bk-nav button:disabled{opacity:.35;cursor:not-allowed}
+#bk-range{margin-left:6px;font-size:12px;color:#e9f4ef;font-weight:600;letter-spacing:-.01em}
+.bk-slot.past{opacity:.4}
+.bk-slot.past.free{cursor:default}
+.bk-slot.past.free:hover{filter:none;border-color:#2c8651}
+.bk-week-empty{grid-column:1/-1;border:1px dashed rgba(234,255,249,.18);border-radius:11px;padding:12px;text-align:center;font-size:11px;color:#8fa0aa}
 .bk-comment{margin:12px 0 0;padding:11px 14px;border:1px solid #ffffff10;background:#ffffff04;border-radius:12px;font-size:12px;color:#c9d6db;line-height:1.55}
 .bk-comment span{display:block;font-size:10px;color:#e8b877;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
 .bk-actions{display:flex;gap:9px;margin-top:14px;flex-wrap:wrap}
@@ -324,7 +336,13 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
       </div>
     </div>
     <div class="bk-cal-head">
-      <div><b>График на неделю</b><div class="sub">Слоты целиком, без нарезки</div></div>
+      <div><b>График на неделю</b><div class="sub">Слоты целиком, без нарезки · прошедшее — только просмотр</div></div>
+      <div class="bk-nav">
+        <button id="bk-prev" type="button" aria-label="Предыдущая неделя">‹</button>
+        <button id="bk-this" type="button">Эта неделя</button>
+        <button id="bk-next" type="button" aria-label="Следующая неделя">›</button>
+        <span id="bk-range"></span>
+      </div>
     </div>
     <div class="bk-legend">
       <span><i class="lg-free"></i>свободно — клик для брони</span>
@@ -332,7 +350,7 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
       <span><i class="lg-mine"></i>ваш запрос на рассмотрении</span>
     </div>
     <div class="bk-grid" id="bk-grid"></div>
-    <div class="bk-hint">Занятые слоты скрыты от раскрытия: видно только состояние «занято», кем — нет. Бронь ставится на слот целиком. Если слот займут раньше вас, вернётся ошибка «Слот уже занят» — выберите другой.</div>
+    <div class="bk-hint">Бронь ставится на конкретную дату экземпляра — слот целиком. Будущие слоты кликабельны; прошедшие и уже начавшиеся — только просмотр. Повторяющиеся слоты инструктора показаны в каждой неделе, разовые — только на своей дате. Занятые слоты скрыты от раскрытия, кем занято. Если слот займут раньше вас, вернётся ошибка «Слот уже занят» — выберите другой.</div>
   </div>
 
   <div class="bk-sect-head"><b>Мои брони</b><span class="n" id="bk-count">0</span></div>

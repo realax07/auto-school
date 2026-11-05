@@ -240,9 +240,62 @@ import { toast, el, fmtDate, nowMoscow, fioOf } from './utils.js';
   var BK_ST = {new: ['Запрос отправлен', 'bk-st-new'],
                confirmed: ['Подтверждена', 'bk-st-ok'],
                rejected: ['Отклонена', 'bk-st-den']};
-  var bkSlots = [];      // ответ slots-эндпоинта: {id,weekday,start_time,end_time,state}
+  var bkInstances = [];  // экземпляры ОТОБРАЖАЕМОЙ недели (GET slots?date=)
   var bkPair = null;     // {instructor_id, instructor_full_name, car, decided_at}
-  var bkPicked = null;   // слот, выбранный для брони
+  var bkPicked = null;   // экземпляр, выбранный для брони
+  var bkMonday = null;   // понедельник отображаемой недели (Date с полями МСК)
+  var bkRows = [];       // уникальные интервалы недели [[start,end]...] — решетка
+  var bkHasSchedule = false; // график инструктора непуст (скрытие пустого календаря)
+  // Спринт 10 (задача 6.1, FR-87/FR-94): реальный календарь ученика —
+  // та же арифметика дат, что у инструктора; «сейчас» — МСК (UTC+3,
+  // nowMoscow), локальная таймзона браузера не используется
+  function bkPad(n) { return (n < 10 ? '0' : '') + n; }
+  function bkIso(d) { return d.getFullYear() + '-' + bkPad(d.getMonth() + 1) + '-' + bkPad(d.getDate()); }
+  function bkAddDays(d, n) { var x = new Date(d); x.setDate(x.getDate() + n); return x; }
+  function bkMondayOf(d) { return bkAddDays(d, -((d.getDay() + 6) % 7)); }
+  function bkStartOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+  // бронирование ТОЛЬКО будущих (FR-96/NFR-31, граница MIN-1 единая с
+  // сервером): начало экземпляра (date + start_time) СТРОГО больше NOW (МСК)
+  function bkIsFuture(dateIso, startTime) {
+    var p = dateIso.split('-'), sp = startTime.split(':');
+    var t = new Date(+p[0], +p[1] - 1, +p[2], +sp[0], +sp[1] || 0, 0);
+    return t.getTime() > nowMoscow().getTime();
+  }
+  // подпись диапазона (D9): обе части месяца/года при пересечении
+  var BK_MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+                   'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+  function bkRangeLabel() {
+    var a = bkMonday, b = bkAddDays(bkMonday, 6);
+    if (a.getFullYear() !== b.getFullYear())
+      return a.getDate() + ' ' + BK_MONTHS[a.getMonth()] + ' ' + a.getFullYear() + ' — ' + b.getDate() + ' ' + BK_MONTHS[b.getMonth()] + ' ' + b.getFullYear();
+    if (a.getMonth() !== b.getMonth())
+      return a.getDate() + ' ' + BK_MONTHS[a.getMonth()] + ' — ' + b.getDate() + ' ' + BK_MONTHS[b.getMonth()] + ' ' + a.getFullYear();
+    return a.getDate() + ' – ' + b.getDate() + ' ' + BK_MONTHS[a.getMonth()] + ' ' + a.getFullYear();
+  }
+  function bkRenderNav() {
+    document.getElementById('bk-range').textContent = bkRangeLabel();
+    var diff = Math.round((bkMonday - bkMondayOf(nowMoscow())) / 864e5);
+    document.getElementById('bk-prev').disabled = diff <= -364; // горизонт ±12 месяцев
+    document.getElementById('bk-next').disabled = diff >= 364;
+  }
+  function bkNavWeek(n) {
+    bkMonday = bkAddDays(bkMonday, n);
+    bkRenderNav();
+    bkInstances = [];
+    // решетка и подпись — локально мгновенно (NFR-32); экземпляры недели —
+    // GET slots?date= асинхронно, без перезагрузки страницы
+    bkRenderGrid();
+    bkLoadInstances();
+  }
+  document.getElementById('bk-prev').addEventListener('click', function () { bkNavWeek(-7); });
+  document.getElementById('bk-next').addEventListener('click', function () { bkNavWeek(7); });
+  document.getElementById('bk-this').addEventListener('click', function () {
+    bkMonday = bkMondayOf(nowMoscow());
+    bkRenderNav();
+    bkInstances = [];
+    bkRenderGrid();
+    bkLoadInstances();
+  });
   function bkCarText(c) {
     if (!c) return '—';
     var tr = c.transmission === 'automatic' ? 'автомат' : c.transmission === 'manual' ? 'механика' : (c.transmission || '');
@@ -335,78 +388,120 @@ import { toast, el, fmtDate, nowMoscow, fioOf } from './utils.js';
       document.getElementById('bk-pair-sub').textContent =
         'ваш инструктор' + (bkPair.decided_at ? ' с ' + fmtDate(bkPair.decided_at) : '');
       document.getElementById('bk-pair-car').textContent = bkCarText(bkPair.car);
+      // при открытии — неделя текущей даты (МСК); колонки и подпись
+      // отрисовываются локально, экземпляры — асинхронно (FR-94/NFR-32)
+      bkMonday = bkMondayOf(nowMoscow());
+      bkRenderNav();
       loadSlotsAndBookings();
     });
   }
   function loadSlotsAndBookings() {
-    api('/api/student/instructors/' + bkPair.instructor_id + '/slots', {}, function (res) {
+    // экземпляры недели — GET slots?date= (D7: разворот серий на сервере);
+    // свои брони/список «Мои брони» — независимо от недели
+    bkLoadInstances();
+    api('/api/student/bookings', {}, function (res2) {
+      if (handleAuthFail(res2)) return;
+      var bks = res2 && res2.data && res2.data.ok ? (res2.data.bookings || []) : [];
+      renderPairCarCard(bks);
+      renderMyBookings(bks);
+    });
+  }
+  function bkLoadInstances() {
+    api('/api/student/instructors/' + bkPair.instructor_id + '/slots?date=' + bkIso(bkMonday), {}, function (res) {
       if (handleAuthFail(res)) return;
       if (!res.data || !res.data.ok) {
         toast((res.data && res.data.error) || 'Не удалось загрузить график');
         return;
       }
-      bkSlots = res.data.slots || [];
-      api('/api/student/bookings', {}, function (res2) {
-        if (handleAuthFail(res2)) return;
-        var bks = res2 && res2.data && res2.data.ok ? (res2.data.bookings || []) : [];
-        renderSchedule(bks);
-        renderMyBookings(bks);
-      });
+      bkInstances = res.data.instances || [];
+      if (bkInstances.length) bkHasSchedule = true;
+      bkCollectRows();
+      var cal = document.getElementById('bk-cal');
+      if (!bkInstances.length && !bkHasSchedule) {
+        // график пуст (первая загрузка без слотов) — прежнее поведение
+        cal.style.display = 'none';
+        return;
+      }
+      cal.style.display = 'block';
+      bkRenderGrid();
     });
   }
-  function renderSchedule(bookings) {
-    var cal = document.getElementById('bk-cal');
+  function bkCollectRows() {
+    var seen = {};
+    bkRows = [];
+    bkInstances.forEach(function (s) {
+      var k = s.start_time + '|' + s.end_time;
+      if (seen[k]) return;
+      seen[k] = 1;
+      bkRows.push([s.start_time, s.end_time]);
+    });
+    bkRows.sort(function (a, b) { return a[0] < b[0] ? -1 : 1; });
+  }
+  // решетка: колонки — 7 РЕАЛЬНЫХ дат от понедельника отображаемой недели
+  // (подпись атомарна с колонками); экземпляры — ровно на своих датах
+  function bkRenderGrid() {
     var grid = document.getElementById('bk-grid');
-    if (!bkSlots.length) { cal.style.display = 'none'; return; }
-    cal.style.display = 'block';
-    // Спринт 7 (задача 6.2): карточка прикрепленного авто со слотами + бейдж
-    renderPairCarCard(bookings);
     grid.innerHTML = '';
     var now = nowMoscow();
-    var todayIdx = (now.getDay() + 6) % 7;
+    var todayIso = bkIso(bkStartOfDay(now));
     grid.appendChild(el('span', 'bk-corner', 'время'));
     for (var d = 0; d < 7; d++) {
-      var dh = el('div', 'bk-dh' + (d === todayIdx ? ' today' : ''));
+      var dt = bkAddDays(bkMonday, d);
+      var dh = el('div', 'bk-dh' + (bkIso(dt) === todayIso ? ' today' : ''));
       dh.appendChild(el('small', null, BK_DAYS[d]));
+      dh.appendChild(el('b', null, String(dt.getDate())));
       grid.appendChild(dh);
     }
-    // строки — уникальные интервалы графика, столбцы — дни недели
-    var rows = {};
-    bkSlots.forEach(function (s) { rows[s.start_time + '-' + s.end_time] = 1; });
-    Object.keys(rows).sort().forEach(function (k) {
-      var parts = k.split('-');
-      var start = parts[0], end = parts[1];
-      grid.appendChild(el('span', 'bk-tlabel', start.slice(0, 5) + '–' + end.slice(0, 5)));
+    if (!bkRows.length) {
+      var note = el('div', 'bk-week-empty', 'На выбранной неделе слотов нет — листайте другие недели.');
+      grid.appendChild(note);
+      return;
+    }
+    bkRows.forEach(function (row) {
+      grid.appendChild(el('span', 'bk-tlabel', row[0].slice(0, 5) + '–' + row[1].slice(0, 5)));
       for (var d2 = 0; d2 < 7; d2++) {
-        // let (не var): замыкание клика должно видеть СВОЙ слот строки
-        let slot = null;
-        bkSlots.forEach(function (s) {
-          if (s.weekday === d2 && s.start_time === start && s.end_time === end) slot = s;
+        var iso = bkIso(bkAddDays(bkMonday, d2));
+        // let (не var): замыкание клика должно видеть СВОЙ экземпляр ячейки
+        let inst = null;
+        bkInstances.forEach(function (s) {
+          if (s.date === iso && s.start_time === row[0] && s.end_time === row[1]) inst = s;
         });
         var btn = document.createElement('button');
         btn.type = 'button';
-        // состояния бэкенда free/busy/pending → классы мокапа free/taken/mine
-        var cls = slot ? (slot.state === 'pending' ? 'mine'
-                        : slot.state === 'busy' ? 'taken' : slot.state) : 'off';
-        btn.className = 'bk-slot ' + cls;
-        btn.title = BK_DAYS[d2] + ', ' + start + '–' + end + ' — ' +
-          (slot ? (slot.state === 'free' ? 'свободно, нажмите для брони'
-                : slot.state === 'pending' ? 'ваш запрос на рассмотрении' : 'занято')
-               : 'не в графике');
-        if (slot && slot.state === 'free') {
-          btn.addEventListener('click', function () { openBookModal(slot); });
+        if (inst) {
+          // состояния бэкенда free/busy/pending → классы мокапа free/taken/mine;
+          // прошедший/начавшийся экземпляр (начало ≤ NOW, МСК) — просмотр
+          // без брони (FR-96), прошлые недели — вся сетка просмотр
+          var past = !bkIsFuture(inst.date, inst.start_time);
+          var cls = inst.state === 'pending' ? 'mine'
+                    : inst.state === 'busy' ? 'taken' : 'free';
+          btn.className = 'bk-slot ' + cls + (past ? ' past' : '');
+          btn.title = BK_DAYS[inst.weekday] + ', ' + inst.date.split('-').reverse().join('.') + ', ' +
+            inst.start_time.slice(0, 5) + '–' + inst.end_time.slice(0, 5) + ' — ' +
+            (past ? 'прошедшее — только просмотр'
+                  : inst.state === 'free' ? 'свободно, нажмите для брони'
+                  : inst.state === 'pending' ? 'ваш запрос на рассмотрении' : 'занято');
+          if (inst.state === 'free' && !past) {
+            btn.addEventListener('click', function () { openBookModal(inst); });
+          } else {
+            btn.disabled = true;
+          }
         } else {
+          btn.className = 'bk-slot off';
           btn.disabled = true;
         }
         grid.appendChild(btn);
       }
     });
   }
-  function openBookModal(slot) {
-    bkPicked = slot;
+  function openBookModal(inst) {
+    bkPicked = inst;
     document.getElementById('bk-instr').textContent = bkPair.instructor_full_name || '—';
-    document.getElementById('bk-day').textContent = BK_DAYS[slot.weekday] || '—';
-    document.getElementById('bk-time').textContent = slot.start_time.slice(0, 5) + '–' + slot.end_time.slice(0, 5);
+    // бронь фиксируется на КОНКРЕТНОЙ дате экземпляра (FR-96)
+    document.getElementById('bk-day').textContent =
+      (BK_DAYS[inst.weekday] ? BK_DAYS[inst.weekday] + ', ' : '') +
+      inst.date.split('-').reverse().join('.');
+    document.getElementById('bk-time').textContent = inst.start_time.slice(0, 5) + '–' + inst.end_time.slice(0, 5);
     document.getElementById('bk-car').textContent = bkCarText(bkPair.car);
     document.getElementById('m-book').classList.add('open');
     document.body.style.overflow = 'hidden';
@@ -424,9 +519,10 @@ import { toast, el, fmtDate, nowMoscow, fioOf } from './utils.js';
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeBookModal(); });
   document.getElementById('bk-send').addEventListener('click', function () {
     if (!bkPicked) return;
-    var btn = this, slot = bkPicked;
+    var btn = this, inst = bkPicked;
     btn.disabled = true;
-    api('/api/student/bookings', {method: 'POST', body: JSON.stringify({availability_id: slot.id})}, function (res) {
+    // бронь на КОНКРЕТНЫЙ экземпляр: availability_id + date (Спринт 10)
+    api('/api/student/bookings', {method: 'POST', body: JSON.stringify({availability_id: inst.availability_id, date: inst.date})}, function (res) {
       btn.disabled = false;
       closeBookModal();
       if (handleAuthFail(res)) return;
@@ -436,6 +532,7 @@ import { toast, el, fmtDate, nowMoscow, fioOf } from './utils.js';
         // NFR-8: слот уже занят (гонки/повтор на свой активный запрос)
         toast((res.data && res.data.error) || 'Слот уже занят — выберите другой');
       } else {
+        // в т.ч. 422 «Слот уже начался или прошел» — сервер проверяет всегда
         toast((res.data && res.data.error) || 'Не удалось отправить запрос');
       }
       loadSlotsAndBookings();
@@ -484,18 +581,26 @@ import { toast, el, fmtDate, nowMoscow, fioOf } from './utils.js';
   }
   function retryBooking(b, btn) {
     if (!bkPair) { toast('Нет принятой пары с инструктором'); return; }
-    // availability_id в ответе броней нет — ищем слот графика по
-    // (weekday, start_time, end_time); нет слота — запросить нечего
-    var slotId = null;
-    bkSlots.forEach(function (s) {
-      if (s.weekday === b.weekday && s.start_time === b.start_time && s.end_time === b.end_time) slotId = s.id;
+    // экземпляр графика по (weekday, время) отклоненной брони; при наличии
+    // lesson_date — ровно её неделя среди загруженных экземпляров
+    var inst = null, fallback = null;
+    bkInstances.forEach(function (s) {
+      if (s.weekday !== b.weekday || s.start_time !== b.start_time || s.end_time !== b.end_time) return;
+      if (b.lesson_date && s.date === b.lesson_date) inst = s;
+      if (!fallback) fallback = s;
     });
-    if (!slotId) {
+    if (!inst) inst = b.lesson_date ? null : fallback;
+    if (!inst) {
       toast('Этого слота больше нет в графике инструктора — выберите другой');
       return;
     }
+    if (!bkIsFuture(inst.date, inst.start_time)) {
+      // бронирование только будущих (FR-96): прошедший/начавшийся — просмотр
+      toast('Слот уже начался или прошел — бронирование недоступно');
+      return;
+    }
     btn.disabled = true;
-    api('/api/student/bookings', {method: 'POST', body: JSON.stringify({availability_id: slotId})}, function (res) {
+    api('/api/student/bookings', {method: 'POST', body: JSON.stringify({availability_id: inst.availability_id, date: inst.date})}, function (res) {
       btn.disabled = false;
       if (handleAuthFail(res)) return;
       if (res.status === 200 && res.data && res.data.ok) {
