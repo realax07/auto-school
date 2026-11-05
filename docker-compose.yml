@@ -12,6 +12,11 @@ services:
     image: autoschool:local
     env_file: .env
     environment:
+      # Спринт 10 (задача 4.1, MIN-2 арх-ревью-002): TZ закреплена и в
+      # compose — единая точка с образом (ENV TZ Dockerfile): локальное
+      # время контейнера = МСК; материализация легаси-пути брони без date
+      # корректна в окне 21:00–24:00 UTC.
+      TZ: Europe/Moscow
       AUTOSCHOOL_DB_PATH: /data/db/app.db
       AUTOSCHOOL_UPLOADS_DIR: /data/uploads
       # Спринт 9 (add-personal-data-policy, задача 6.1): артефакт политики

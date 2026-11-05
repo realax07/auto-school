@@ -533,9 +533,18 @@ def test_availability_save_and_readback(api, client):
         "/api/instructor/availability", headers=_headers(login.json()["token"])
     )
     assert fresh.status_code == 200
-    assert fresh.json()["intervals"] == [
-        {"weekday": 0, "start_time": "10:00", "end_time": "14:00"}
-    ]
+    # [test-adapted] Спринт 10 (add-calendar-weeks-availability, NFR-29):
+    # GET аддитивно возвращает slot_type/date; сравнение ведется по
+    # легаси-полям + проверка новых полей (recurring, date=null).
+    # Семантика кейса («График восстанавливается после перезахода»)
+    # сохранена и усилена проверкой типа слота.
+    assert [
+        {"weekday": i["weekday"], "start_time": i["start_time"],
+         "end_time": i["end_time"]}
+        for i in fresh.json()["intervals"]
+    ] == [{"weekday": 0, "start_time": "10:00", "end_time": "14:00"}]
+    assert fresh.json()["intervals"][0]["slot_type"] == "recurring"
+    assert fresh.json()["intervals"][0]["date"] is None
 
 
 def test_availability_full_replace_and_dedup(api, client):
@@ -569,7 +578,16 @@ def test_availability_full_replace_and_dedup(api, client):
     intervals = client.get(
         "/api/instructor/availability", headers=_headers(instr["token"])
     ).json()["intervals"]
-    assert intervals == [{"weekday": 2, "start_time": "09:00", "end_time": "12:00"}]
+    # [test-adapted] Спринт 10 (NFR-29): сравнение по легаси-полям +
+    # проверка аддитивных slot_type/date (семантика «Изменение графика
+    # перезаписывает сохраненный» и схлопывания дубликатов сохранена).
+    assert [
+        {"weekday": i["weekday"], "start_time": i["start_time"],
+         "end_time": i["end_time"]}
+        for i in intervals
+    ] == [{"weekday": 2, "start_time": "09:00", "end_time": "12:00"}]
+    assert intervals[0]["slot_type"] == "recurring"
+    assert intervals[0]["date"] is None
 
 
 def test_availability_validation_422(api, client):

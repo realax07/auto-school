@@ -24,6 +24,8 @@ import pytest
 
 from conftest import admin_headers, db_path, register
 
+from backend import booking as booking_domain
+
 ROOT = Path(__file__).resolve().parent.parent
 
 ROOT_JPEG = b"\xff\xd8\xff\xe0" + b"\x00" * 64
@@ -935,13 +937,32 @@ def fetch_booking_by_slot(availability_id):
 # --- Бронирование: создание (FR-47, NFR-8, MIN-1) ----------------------------
 
 
-def test_s5_booking_create_and_lesson_date_boundary(api, client):
+def _fake_now_morning(monkeypatch):
+    """[test-adapted] Спринт 10 (add-calendar-weeks-availability, FR-96/
+    NFR-31): бронь «сегодня, но уже начался» теперь отклоняется сервером
+    (документированное сужение поведения по FR-96) — легаси-кейсы с
+    бронированием «сегодняшних» слотов фиксируют границу времени хелпером
+    NOW (МСК, 08:00 сегодняшнего дня), как предписывает design пакета
+    («Решения по НФТ»: тесты границы — с фиктивным NOW, monkeypatch
+    хелпера). Семантика кейсов (материализация lesson_date, виджет
+    «сегодня») сохранена/усилена детерминизмом."""
+    fixed = datetime.datetime.combine(
+        datetime.date.today(), datetime.time(8, 0),
+        tzinfo=booking_domain._MOSCOW_TZ,
+    )
+    monkeypatch.setattr(booking_domain, "now_moscow", lambda: fixed)
+
+
+def test_s5_booking_create_and_lesson_date_boundary(api, client, monkeypatch):
     """TC-S5BE-015 (change add-booking-docs, задача 4.1, FR-47, MIN-1):
     бронь создается status='new' и видна инструктору; ГРАНИЦА ДАТЫ:
     lesson_date = ближайшая будущая дата weekday по ЛОКАЛЬНОЙ дате
     сервера (слот сегодняшнего weekday → сегодня; завтрашнего → завтра);
     слот другого инструктора (нет с ним пары) → 404; несуществующий →
-    404; без пары → 403."""
+    404; без пары → 403.
+    [test-adapted] Спринт 10 (FR-96): граница времени зафиксирована
+    фиктивным NOW (см. _fake_now_morning)."""
+    _fake_now_morning(monkeypatch)
     env = setup_pair(
         client,
         intervals=[
@@ -1304,7 +1325,14 @@ def test_s5_put_availability_blocked_by_active_bookings(api, client):
     still = client.get(
         "/api/instructor/availability", headers=_headers(instr["token"])
     ).json()["intervals"]
-    assert {"weekday": 0, "start_time": "10:00", "end_time": "11:00"} in still
+    # [test-adapted] Спринт 10 (NFR-29): GET аддитивно возвращает
+    # slot_type/date — проверка наличия интервала по легаси-полям
+    # (семантика «график НЕ изменен» сохранена).
+    assert any(
+        i["weekday"] == 0 and i["start_time"] == "10:00"
+        and i["end_time"] == "11:00"
+        for i in still
+    )
 
     # reject брони → сохранение проходит; слот с только 'rejected' не мешает
     client.post(
@@ -1454,12 +1482,15 @@ def test_s5_calendars_survive_car_deletion(api, client):
     assert instructor_view.json()["bookings"][0]["car"] is None
 
 
-def test_s5_summary_today_lessons(api, client):
+def test_s5_summary_today_lessons(api, client, monkeypatch):
     """TC-S5BE-022 (change add-booking-docs, задача 4.2, FR-49, ОВ-6,
     MIN-1/MIN-3): today_lessons — подтвержденные брони на СЕГОДНЯ (по
     локальной дате сервера, то же правило, что lesson_date); брони на
     другую дату не попадают; пусто → []; перекрепление авто видно, после
-    удаления авто — запись остается с пустым авто."""
+    удаления авто — запись остается с пустым авто.
+    [test-adapted] Спринт 10 (FR-96): граница времени зафиксирована
+    фиктивным NOW (см. _fake_now_morning)."""
+    _fake_now_morning(monkeypatch)
     env = setup_pair(
         client,
         intervals=[

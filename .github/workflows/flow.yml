@@ -53,6 +53,31 @@ jobs:
             echo "tests/ ещё нет (продуктовый регресс не создан) — пропуск"
           fi
 
+      # Спринт 10 (задача 4.1, review-004-4.1 major-1/2; MIN-2
+      # арх-ревью-002): локальный docker dev-сессии недоступен (нет прав) —
+      # контейнерная верификация TZ выполняется фактом CI (docker на
+      # ubuntu-latest runner доступен). Собираем образ и проверяем
+      # ФАКТИЧЕСКОЕ время контейнера = МСК: иначе наивная локальная дата
+      # легаси-пути брони смещает «сегодня»/границу NFR-31 на 3 часа в
+      # окне 21:00–24:00 UTC (прецедент MIN-4 review-001). Вывод должен
+      # содержать MSK (+03): аббревиатура зоны + смещение (date +%Z%z →
+      # «MSK+0300»); при отсутствии tzdata/TZ дата откатится в UTC — шаг
+      # красный.
+      - name: "Verify container TZ (BUG: MIN-2 arch-review-002)"
+        continue-on-error: false
+        run: |
+          docker build -t as-check .
+          OUT="$(docker run --rm as-check sh -c 'date; date +%Z%z')"
+          echo "$OUT"
+          echo "$OUT" | grep -q 'MSK' || {
+            echo "::error::контейнерное время не MSK (ожидалось Europe/Moscow)"
+            exit 1
+          }
+          echo "$OUT" | grep -q 'MSK+03' || {
+            echo "::error::смещение контейнерного времени не +03: $OUT"
+            exit 1
+          }
+
       # pm_bounds_check (J9/J10) НЕ в CI: требует реестра сессий
       # (~/.hermes/state/active_sessions.json), которого на раннере нет —
       # консервативная ветка дает ложный FAIL. Гейт локальный (приемка).
