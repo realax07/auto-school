@@ -15,7 +15,7 @@ INDEX = ROOT / "frontend" / "index.html"
 
 # Ключевые строки мокапа модалки «Вход» (design/mocks) — тексты дословно
 LOGIN_MODAL_TEXTS = [
-    '<div class="overlay" id="m-login"><button class="login-close" id="login-close" type="button" aria-label="Закрыть" title="Закрыть">×</button><div class="modal" role="dialog" aria-label="Вход">',
+    '<div class="overlay" id="m-login"><button class="login-close" id="login-close" type="button" data-close aria-label="Закрыть" title="Закрыть">×</button><div class="modal" role="dialog" aria-label="Вход">',
     "<h2>Вход</h2><p class=\"sub\">Войдите в личный кабинет</p>",
     "<label>Логин</label>",
     'placeholder="email или телефон"',
