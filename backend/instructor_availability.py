@@ -214,9 +214,13 @@ def _rebind_bookings(
     """Перепривязка booking.availability_id при удалении строки-носителя:
     активные брони НЕПРОШЕДШИХ экземпляров удаляемой строки переходят на
     строку-носитель того же экземпляра нового графика (приоритет one_off;
-    поля брони НЕ меняются). Достижение этой точки гарантирует покрытие
-    (проверка blocking_bookings → 409 иначе); прошедшие экземпляры не
-    блокируют замену и не перепривязываются (история — брони, D8/MIN-3)."""
+    поля брони НЕ меняются). Вызывается ПОСЛЕ INSERT to_insert
+    (review-003-3.1 major-1): носитель может быть только что вставленной
+    строкой («смена типа» серия→one_off / one_off→серия) — SELECT-поиск
+    в БД находит его только в этом порядке. Достижение этой точки
+    гарантирует покрытие (проверка blocking_bookings → 409 иначе);
+    прошедшие экземпляры не блокируют замену и не перепривязываются
+    (история — брони, D8/MIN-3)."""
     carriers = set(new_rows)
     for row in removed_rows:
         bookings = conn.execute(
@@ -341,17 +345,22 @@ def put_availability(
                 return conflict_error_response(conflicts)
             # Дифф-запись (design «Экземпляр и разворот серий», MAJ-1):
             # совпадающие полным ключом строки НЕ пересоздаются.
+            # ПОРЯДОК (review-003-3.1 major-1): INSERT → перепривязка →
+            # DELETE — rebind ищет носителя SELECT-ом в БД и обязан видеть
+            # уже вставленные строки нового графика: при «смене типа»
+            # (серия удалена + one_off добавлен на дату брони, и
+            # симметрично one_off→серия) носитель существует ТОЛЬКО после
+            # INSERT; прежний порядок (rebind до insert) молча пропускал
+            # перепривязку → DELETE оставлял бронь-сироту (невидима для
+            # INNER JOIN выдач и кросс-строчной проверки create_booking).
+            # Порядок безопасен по UNIQUE-коллизиям: ключи to_insert
+            # отсутствуют в db_rows (не конфликтуют при вставке), ключи
+            # to_delete отсутствуют в effective/to_insert (не удалят
+            # вставленное) — insert/delete разъединены.
             to_insert = [key for key in effective if key not in db_rows]
             to_delete = [row for key, row in db_rows.items()
                          if key not in set(effective)]
             now = booking_domain.now_moscow()
-            _rebind_bookings(
-                conn, instructor_id or 0, to_delete, effective, now
-            )
-            for row in to_delete:
-                conn.execute(
-                    "DELETE FROM availability WHERE id = ?", (row["id"],)
-                )
             conn.executemany(
                 "INSERT INTO availability (instructor_id, weekday,"
                 " start_time, end_time, slot_type, slot_date)"
@@ -361,6 +370,13 @@ def put_availability(
                     for key in to_insert
                 ],
             )
+            _rebind_bookings(
+                conn, instructor_id or 0, to_delete, effective, now
+            )
+            for row in to_delete:
+                conn.execute(
+                    "DELETE FROM availability WHERE id = ?", (row["id"],)
+                )
             conn.execute("COMMIT")
         except Exception:
             conn.execute("ROLLBACK")

@@ -1381,3 +1381,121 @@ def test_s10_availability_diff_write_and_rebind(client, monkeypatch):
     conn.close()
     assert row == (series["id"], one_off_date, "new")
     assert visible == 1  # JOIN выдач не разорван (бронь-сирота невозможна)
+
+
+def _join_visible_booking_id(booking_id):
+    """(availability_id, lesson_date, статус, видимость через JOIN) брони."""
+    conn = sqlite3.connect(db_path())
+    row = conn.execute(
+        "SELECT b.availability_id, b.lesson_date, b.status,"
+        " (SELECT COUNT(*) FROM booking AS bj"
+        "  JOIN availability AS aj ON aj.id = bj.availability_id"
+        "  WHERE bj.id = b.id)"
+        " FROM booking AS b WHERE b.id = ?",
+        (booking_id,),
+    ).fetchone()
+    conn.close()
+    return row
+
+
+def test_s10_availability_rebind_series_to_oneoff_new_carrier(
+    client, monkeypatch
+):
+    """TC-S10BE-004 (задача 3.1, дифф-запись MAJ-1; review-003-3.1 major-1 —
+    носитель ДОБАВЛЯЕТСЯ этим же PUT). Спека: «### Requirement:
+    Сохранение и восстановление графика» — сценарий «Изменение графика
+    перезаписывает сохраненный» (серия снята, разовый на дату брони
+    добавлен); «### Requirement: Типы слотов: повторяющиеся и разовые» —
+    смена типа (FR-91) + design «Экземпляр и разворот серий»
+    (перепривязка на строку-носитель ОБЯЗАТЕЛЬНА при покрытой замене).
+    Смена типа серия→one_off одним PUT: активная бронь на экземпляре
+    серии, новый график = one_off на дату этой брони (серий больше нет) →
+    200; бронь перепривязана на НОВУЮ строку (id ≠ удаленной серии),
+    видна через JOIN booking JOIN availability, lesson_date/статус
+    прежние (бронь-сирота невозможна)."""
+    fake_now(monkeypatch)
+    instructor = create_instructor(client)
+    student = create_student(client)
+    put_availability(client, instructor, [
+        {"weekday": 3, "start_time": "16:00", "end_time": "18:00",
+         "slot_type": "recurring"},
+    ])
+    accept_pair(client, instructor, student)
+    series = availability_rows()[0]
+    instance_date = next_weekday(3).isoformat()
+    booked = book(client, student, series["id"], instance_date)
+    assert booked.status_code == 200, booked.text
+    booking_id = booked.json()["booking_id"]
+
+    # «Смена типа»: серия удалена, one_off на дату брони добавлен —
+    # экземпляр покрыт новой строкой (409 нет), носитель ДОБАВЛЯЕТСЯ
+    resp = client.put(
+        "/api/instructor/availability",
+        json={"intervals": [
+            {"weekday": 3, "start_time": "16:00", "end_time": "18:00",
+             "slot_type": "one_off", "date": instance_date},
+        ]},
+        headers=_headers(instructor["token"]),
+    )
+    assert resp.status_code == 200, resp.text
+
+    rows = availability_rows()
+    # осталась ровно одна строка — НОВАЯ (one_off), серия удалена
+    assert len(rows) == 1
+    carrier = rows[0]
+    assert carrier["id"] != series["id"]
+    assert (carrier["slot_type"], carrier["slot_date"]) == \
+        ("one_off", instance_date)
+    # бронь перепривязана на новую строку; lesson_date/статус прежние;
+    # JOIN booking JOIN availability не разорван (сирота невозможна)
+    assert _join_visible_booking_id(booking_id) == \
+        (carrier["id"], instance_date, "new", 1)
+
+
+def test_s10_availability_rebind_oneoff_to_series_new_carrier(
+    client, monkeypatch
+):
+    """TC-S10BE-004 (задача 3.1, дифф-запись MAJ-1; review-003-3.1 major-1 —
+    симметричный one_off→серия). Спека: «### Requirement: Сохранение и
+    восстановление графика» — сценарий «Изменение графика перезаписывает
+    сохраненный»; «### Requirement: Типы слотов: повторяющиеся и
+    разовые» — смена типа разового в повторяющийся (FR-91) + design
+    «Экземпляр и разворот серий» (перепривязка обязательна).
+    Смена типа one_off→серия одним PUT: активная бронь на разовом слоте,
+    новый график = recurring-серия того же дня/времени (one_off больше
+    нет) → 200; бронь перепривязана на НОВУЮ строку-серию, видна через
+    JOIN, lesson_date/статус прежние."""
+    fake_now(monkeypatch)
+    instructor = create_instructor(client)
+    student = create_student(client)
+    instance_date = next_weekday(3).isoformat()
+    put_availability(client, instructor, [
+        {"weekday": 3, "start_time": "16:00", "end_time": "18:00",
+         "slot_type": "one_off", "date": instance_date},
+    ])
+    accept_pair(client, instructor, student)
+    one_off = availability_rows()[0]
+    booked = book(client, student, one_off["id"], instance_date)
+    assert booked.status_code == 200, booked.text
+    booking_id = booked.json()["booking_id"]
+
+    # «Смена типа»: разовый удален, серия того же экземпляра добавлена
+    resp = client.put(
+        "/api/instructor/availability",
+        json={"intervals": [
+            {"weekday": 3, "start_time": "16:00", "end_time": "18:00",
+             "slot_type": "recurring"},
+        ]},
+        headers=_headers(instructor["token"]),
+    )
+    assert resp.status_code == 200, resp.text
+
+    rows = availability_rows()
+    assert len(rows) == 1
+    carrier = rows[0]
+    assert carrier["id"] != one_off["id"]
+    assert (carrier["slot_type"], carrier["slot_date"]) == ("recurring", "")
+    # бронь перепривязана на новую строку-серию; дата/статус прежние;
+    # JOIN не разорван (бронь-сирота невозможна)
+    assert _join_visible_booking_id(booking_id) == \
+        (carrier["id"], instance_date, "new", 1)
