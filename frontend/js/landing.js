@@ -74,8 +74,6 @@ import { postJSON, setToken } from './api.js';
       })
       .catch(function(){err.textContent='Ошибка сети';err.style.display='block';});
   });
-  // Вход инструктора с лендинга инструкторов: авто-открытие модалки входа
-  if(sessionStorage.getItem('open_login')){sessionStorage.removeItem('open_login');sessionStorage.setItem('open_login_from','/instructors');closeAll();open('m-login');}
   // ассистент и футер-переход — заглушки спринта-0
   var stub=function(msg){return function(){alert(msg)}};
   document.getElementById('ai-open').addEventListener('click',stub('Заглушка: чат ассистента (Hermes) будет подключен позже'));

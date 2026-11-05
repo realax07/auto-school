@@ -4179,6 +4179,49 @@ def test_s9_pilot_without_tokens_static_mode_zero_requests(page, server):
     assert len(exch_reqs) == 0, f"запросов обмена: {len(exch_reqs)}"
 
 
+# ------------------------------------------------------------- BUG-054..057
+def test_bug056_instructor_login_modal_close_semantics(page, server):
+    """TC-UI-052 (BUG-055/BUG-056): «Войти» на лендинге инструкторов
+    открывает логин-модалку НА МЕСТЕ — URL не меняется, страница под
+    замутненным оверлеем; клик по фону НЕ закрывает; Esc и крестик
+    #login-close закрывают, оставаясь на /instructors (BUG-056 п.3)."""
+    page.goto(f"{server}/instructors")
+    page.locator("[data-open-login]").click()
+    expect(page.locator("#m-login.open")).to_be_visible()
+    assert "/instructors" in page.url
+    # клик по фону (угол оверлея, вне карточки) — НЕ закрывает
+    page.mouse.click(8, 8)
+    expect(page.locator("#m-login")).to_be_visible()
+    # Esc — закрывает, остаемся на /instructors
+    page.keyboard.press("Escape")
+    expect(page.locator("#m-login.open")).to_have_count(0)
+    assert "/instructors" in page.url
+    # крестик вне карточки — закрывает
+    page.locator("[data-open-login]").click()
+    expect(page.locator("#m-login")).to_be_visible()
+    page.locator("#login-close").click()
+    expect(page.locator("#m-login.open")).to_have_count(0)
+    assert "/instructors" in page.url
+
+
+def test_bug056_landing_login_modal_close_semantics(page, server):
+    """TC-UI-053 (BUG-055/BUG-056, ученический контур): «Войти» на лендинге
+    открывает #m-login; клик по фону НЕ закрывает (m-login исключен из
+    overlay-close); Esc и крестик #login-close (data-close) закрывают,
+    остаемся на лендинге."""
+    page.goto(f"{server}/")
+    page.locator('[data-open="login"]').click()
+    expect(page.locator("#m-login")).to_be_visible()
+    page.mouse.click(8, 8)
+    expect(page.locator("#m-login")).to_be_visible()
+    page.keyboard.press("Escape")
+    expect(page.locator("#m-login.open")).to_have_count(0)
+    page.locator('[data-open="login"]').click()
+    expect(page.locator("#m-login")).to_be_visible()
+    page.locator("#login-close").click()
+    expect(page.locator("#m-login.open")).to_have_count(0)
+
+
 # ------------------------------------------------------------- design-guard
 @pytest.mark.parametrize("filename", [
     "instructor-dashboard.html", "cabinet.html",
