@@ -53,6 +53,8 @@ import pytest
 
 from conftest import admin_headers, db_path, register
 
+from backend import booking as booking_domain
+
 ROOT_JPEG = b"\xff\xd8\xff\xe0" + b"\x00" * 64
 ROOT_PNG = b"\x89PNG\r\n\x1a\x0a" + b"\x00" * 64
 ROOT_JPEG2 = b"\xff\xd8\xff\xe1" + b"\x11" * 64
@@ -1027,7 +1029,23 @@ def _booking(client, student, instructor, slot_id, lesson_date, confirm=True):
     return booking_id
 
 
-def test_s8_my_students_list_counters_and_access(api, client):
+def _fake_now_morning(monkeypatch):
+    """[test-adapted] Спринт 10 (add-calendar-weeks-availability, FR-96/
+    NFR-31): бронь «сегодня, но уже начался» теперь отклоняется сервером
+    (документированное сужение по FR-96) — кейс «Мои ученики» с
+    бронированием сегодняшних слотов (weekday 3, 09:00–16:00) фиксирует
+    границу времени хелпером NOW (МСК, 08:00 сегодняшнего дня), как
+    предписывает design пакета («Решения по НФТ»: тесты с фиктивным NOW,
+    monkeypatch хелпера). Семантика кейса (счетчики, next_lesson)
+    сохранена/усилена детерминизмом."""
+    fixed = datetime.datetime.combine(
+        datetime.date.today(), datetime.time(8, 0),
+        tzinfo=booking_domain._MOSCOW_TZ,
+    )
+    monkeypatch.setattr(booking_domain, "now_moscow", lambda: fixed)
+
+
+def test_s8_my_students_list_counters_and_access(api, client, monkeypatch):
     """TC-S8BE-009 (change add-s8-cars-docs-booking, задача 9.1, FR-75,
     ОВ-5, NFR-22): GET /api/instructor/students — состав: только принятые
     пары ЭТОГО инструктора; сценарий дельты — 1 бронь на завтра, 2 на
@@ -1036,7 +1054,10 @@ def test_s8_my_students_list_counters_and_access(api, client):
     next_lesson None («нет»), 0/0; запрос (new) и отклоненная бронь в
     «следующее»/счетчики не входят (только confirmed); чужие пары не
     выдаются (второй инструктор видит только свою пару); гость → 401,
-    неверный токен → 401, ученик → 403."""
+    неверный токен → 401, ученик → 403.
+    [test-adapted] Спринт 10 (FR-96): граница времени зафиксирована
+    фиктивным NOW (см. _fake_now_morning)."""
+    _fake_now_morning(monkeypatch)
     instr_a = create_instructor(client)
     instr_b = create_instructor(client, email="instr-b@example.com")
     s1 = create_student(client)
