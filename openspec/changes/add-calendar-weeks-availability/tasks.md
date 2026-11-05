@@ -174,7 +174,7 @@ ADR-010; sdd.md (раздел «Спринт 10») и трассировка д�
 
 ## 5. Фронт инструктора: недели, попап, типы, запрет прошлого (FR-87…FR-93)
 
-- [ ] 5.1 [P][code][tests][design] frontend/instructor-dashboard.html
+- [x] 5.1 [P][code][tests][design] frontend/instructor-dashboard.html
       (#sec-calendar) + frontend/js/dashboard-instructor.js — единый
       рендер-контур календаря: (а) НАВИГАЦИЯ НЕДЕЛЯМИ: «←»/«→» + «эта
       неделя», подпись диапазона (обе части месяца/года: «30 ноября —

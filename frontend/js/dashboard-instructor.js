@@ -197,93 +197,256 @@ fetch('/api/instructor/dashboard',{headers:{'X-Session-Token':token}})
 // JSON-GET/POST с инструкторской сессией — общий клиент js/api.js
 // (cb получает {ok,...} или null / {status,data})
 
-// --- Раздел «Календарь» (FR-29/FR-30): сетка недели × 2-часовые интервалы,
-// клик по СВОБОДНОМУ слоту переключает выбор, «Сохранить график» ->
-// PUT /api/instructor/availability (полная замена), при входе восстановление
-// через GET. Спринт 8 (FR-74): запросы (new) и брони (confirmed) — РОВНО на
-// выбранных слотах; клик по такому слоту — немедленное решение (модалка
-// #m-bk), мимо «Сохранить» (наследование ОВ-6 Спринта 7). Раздел
-// «Бронирования» удален (его единственную сетку с запросами на слотах
-// заменяет календарь); GET /api/instructor/bookings — контракт без изменений.
+// --- Раздел «Календарь» (FR-29/FR-30; Спринт 10, change
+// add-calendar-weeks-availability, задача 5.1, FR-87…FR-93):
+// (а) навигация неделями «‹»/«›»/«эта неделя» + подпись диапазона реальных
+//     дат (D9); сетка — 7 РЕАЛЬНЫХ дат от понедельника (без констант),
+//     «сегодня» на реальной дате МСК (UTC+3, единая точка с сервером);
+//     листание — из уже загруженных GET availability (разворот серий
+//     локально, без сетевого запроса — NFR-32), брони догружаются
+//     асинхронно и ставятся РОВНО на свои экземпляры по lesson_date;
+// (б) попап-редактор НАД ячейкой (D10): «Разово»/«Повторяющееся»,
+//     подтверждение → несохраненная правка (#cal-changed), закрытие без
+//     подтверждения ячейку не меняет;
+// (в) запрет прошлого клиентски (FR-93/NFR-31, граница ЕДИНАЯ с сервером
+//     MIN-1: прошедший = начало < NOW МСК): прошедшие ячейки — просмотр,
+//     прошедшая неделя — вся сетка просмотр, «Сохранить» недоступен;
+// (г) «Сохранить график» = один PUT полного графика (типы+даты; прошедшие
+//     one_off возвращаются без изменений), «Отменить» = перезагрузка GET;
+//     409 — перечень броней с датами при сохраненном графике (FR-92).
+// Спринт 8 (FR-74, наследование): запросы/брони — на слотах, решения
+// немедленно мимо «Сохранить» (модалка #m-bk). ---
 var CAL_HOURS=[8,10,12,14,16,18,20];
 var CAL_DAYS=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
-var calBuilt=false;
-var calSelected={}; // ключ 'weekday-hour'
-var calBookings={}; // ключ 'weekday-hour' -> booking (status new/confirmed)
-function calBuildGrid(){
+var CAL_MONTHS=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+var calSchedule=[];  // ПОЛНЫЙ график: {weekday,start_time,end_time,slot_type,date|null}
+var calAnchor=null;  // понедельник отображаемой недели (Date с полями МСК)
+var calBookings={};  // 'YYYY-MM-DD#h' -> booking (status new/confirmed)
+function calPad(n){return (n<10?'0':'')+n}
+function calIso(d){return d.getFullYear()+'-'+calPad(d.getMonth()+1)+'-'+calPad(d.getDate())}
+function calAddDays(d,n){var x=new Date(d);x.setDate(x.getDate()+n);return x}
+function calMondayOf(d){return calAddDays(d,-((d.getDay()+6)%7))}
+// «Сейчас» по МСК (js/utils.js: toLocaleString Europe/Moscow = UTC+3);
+// локальная таймзона браузера не используется (design «Клиентский
+// контракт: реальный календарь»)
+function calStartOfDay(d){return new Date(d.getFullYear(),d.getMonth(),d.getDate())}
+// ячейка редактируема, если начало (дата + h:00) >= NOW (МСК) — граница
+// MIN-1: прошедший = начало < NOW (инструктор правит ≥ NOW)
+function calCellEditable(dateIso,h){
+  var p=dateIso.split('-');
+  return new Date(+p[0],+p[1]-1,+p[2],h,0,0).getTime()>=nowMoscow().getTime();
+}
+function calWeekPast(){ // прошедшая неделя целиком (воскресенье раньше сегодня)
+  return calStartOfDay(calAddDays(calAnchor,6))<calStartOfDay(nowMoscow());
+}
+function calRangeLabel(){ // D9: «2 – 8 ноября 2026», «30 ноября — 6 декабря 2026», «28 декабря 2026 — 3 января 2027»
+  var a=calAnchor,b=calAddDays(calAnchor,6);
+  if(a.getFullYear()!==b.getFullYear())
+    return a.getDate()+' '+CAL_MONTHS[a.getMonth()]+' '+a.getFullYear()+' — '+b.getDate()+' '+CAL_MONTHS[b.getMonth()]+' '+b.getFullYear();
+  if(a.getMonth()!==b.getMonth())
+    return a.getDate()+' '+CAL_MONTHS[a.getMonth()]+' — '+b.getDate()+' '+CAL_MONTHS[b.getMonth()]+' '+a.getFullYear();
+  return a.getDate()+' – '+b.getDate()+' '+CAL_MONTHS[a.getMonth()]+' '+a.getFullYear();
+}
+function calNormalize(intervals){
+  var out=[];
+  (intervals||[]).forEach(function(iv){
+    var s=parseInt((iv.start_time||'').split(':')[0],10);
+    var e=parseInt((iv.end_time||'').split(':')[0],10);
+    if(isNaN(s)||isNaN(e))return;
+    var type=(iv.slot_type==='one_off')?'one_off':'recurring';
+    out.push({weekday:iv.weekday,start_time:calPad(s)+':00',end_time:calPad(e)+':00',
+      slot_type:type,date:type==='one_off'?(iv.date||null):null});
+  });
+  return out;
+}
+// покрытие ячейки записью графика; совпадение one_off с экземпляром серии
+// отображается ОДНИМ слотом типа one_off (FR-90, более специфичный)
+function calCovering(dateIso,weekday,h){
+  var rec=null;
+  calSchedule.forEach(function(r){
+    var s=parseInt(r.start_time.split(':')[0],10),e=parseInt(r.end_time.split(':')[0],10);
+    if(h>=e||h+2<=s)return;
+    var hit=r.slot_type==='one_off'?(r.date===dateIso):(r.weekday===weekday&&!r.date);
+    if(hit&&(r.slot_type==='one_off'||!rec))rec=r;
+  });
+  return rec;
+}
+function calRenderWeek(){
   var grid=el('cal-grid');
-  var now=nowMoscow();
-  var mon=new Date(now);mon.setDate(mon.getDate()-((mon.getDay()+6)%7));
-  var todayIdx=(now.getDay()+6)%7;
+  var todayIso=calIso(calStartOfDay(nowMoscow()));
   var html='<div class="cal-corner">МСК</div>';
   for(var d=0;d<7;d++){
-    var dt=new Date(mon);dt.setDate(mon.getDate()+d);
-    html+='<div class="cal-dh'+(d===todayIdx?' today':'')+'" data-day="'+d+'"><small>'+CAL_DAYS[d]+'</small><b>'+dt.getDate()+'</b></div>';
+    var dt=calAddDays(calAnchor,d);
+    html+='<div class="cal-dh'+(calIso(dt)===todayIso?' today':'')+'" data-date="'+calIso(dt)+'"><small>'+CAL_DAYS[d]+'</small><b>'+dt.getDate()+'</b></div>';
   }
   CAL_HOURS.forEach(function(h){
-    var p=function(n){return (n<10?'0':'')+n};
-    html+='<div class="cal-tlabel">'+p(h)+':00–'+p(h+2)+':00</div>';
+    html+='<div class="cal-tlabel">'+calPad(h)+':00–'+calPad(h+2)+':00</div>';
     for(var d2=0;d2<7;d2++){
-      html+='<button type="button" class="cal-slot" data-k="'+d2+'-'+h+'" aria-label="Интервал '+CAL_DAYS[d2]+', '+p(h)+':00"></button>';
+      var dDate=calAddDays(calAnchor,d2),iso=calIso(dDate),k=iso+'#'+h;
+      var b=calBookings[k];
+      var past=!calCellEditable(iso,h);
+      var cls='cal-slot'+(past?' past':'');
+      var title='';
+      if(b){cls+=b.status==='confirmed'?' booked':' reqslot';}
+      else{
+        var cov=calCovering(iso,d2,h);
+        if(cov){cls+=' on';title=(cov.slot_type==='one_off'?'Разово · ':'Повторяющееся · ')+CAL_DAYS[d2]+', '+iso.split('-').reverse().join('.')}
+      }
+      html+='<button type="button" class="'+cls+'" data-k="'+k+'"'+(title?' title="'+title+'"':'')+' aria-label="Интервал '+CAL_DAYS[d2]+' '+calPad(h)+':00, '+iso+'"></button>';
     }
   });
   grid.innerHTML=html;
+  // ФИО ученика/метка брони — ТОЛЬКО через textContent (stored XSS
+  // запрещен, code-review review-001 #1), поэтому после innerHTML
+  // содержимое ячеек с бронями/запросами достраивается DOM-узлами
   grid.querySelectorAll('.cal-slot').forEach(function(b){
+    var bk=calBookings[b.dataset.k];
+    if(bk){
+      b.appendChild(node('small',null,bk.student_full_name||''));
+      b.appendChild(document.createTextNode(bk.status==='confirmed'?'бронь':'запрос'));
+    }
     b.addEventListener('click',function(){
-      var k=b.dataset.k;
-      // FR-74: слот с запросом/бронью — решение, а НЕ правка графика
+      var k=b.dataset.k,p=k.split('#'),iso=p[0],h=+p[1];
+      // FR-74: слот с запросом/бронью — немедленное решение, не правка графика
       if(calBookings[k]){bkOpenSlot(calBookings[k]);return}
-      if(calSelected[k])delete calSelected[k];else calSelected[k]=true;
-      b.classList.toggle('on');
-      el('cal-changed').style.display='inline';
+      // запрет прошлого (FR-93): прошедшая ячейка попап не открывает
+      if(!calCellEditable(iso,h)){toast('Прошедшее недоступно');return}
+      var weekday=(new Date(+iso.split('-')[0],+iso.split('-')[1]-1,+iso.split('-')[2]).getDay()+6)%7;
+      calOpenPop(b,{iso:iso,weekday:weekday,h:h,covered:calCovering(iso,weekday,h)});
     });
   });
-  calBuilt=true;
+  // подпись диапазона атомарна с сеткой; (д) прошедшая неделя — «Сохранить»
+  // недоступен; горизонт навигации ±12 месяцев (design, дефолт)
+  el('cal-range').textContent=calRangeLabel();
+  el('cal-save').disabled=calWeekPast();
+  var diff=Math.round((calAnchor-calMondayOf(nowMoscow()))/864e5);
+  el('cal-prev').disabled=diff<=-364;
+  el('cal-next').disabled=diff>=364;
 }
 function openCalendar(){
-  if(!calBuilt)calBuildGrid();
+  calAnchor=calMondayOf(nowMoscow());
   apiGet('/api/instructor/availability',function(res){
-    calSelected={};
-    // полный сброс ячеек: метки запросов/броней (booked/reqslot) тоже
-    // снимаются — перезагрузка рисует актуальное состояние (FR-74)
-    el('cal-grid').querySelectorAll('.cal-slot').forEach(function(b){
-      b.classList.remove('on','booked','reqslot');
-      b.innerHTML='';
-    });
-    if(!res)return;
-    (res.intervals||[]).forEach(function(iv){
-      var s=parseInt((iv.start_time||'').split(':')[0],10);
-      var e=parseInt((iv.end_time||'').split(':')[0],10);
-      if(isNaN(s)||isNaN(e))return;
-      // отмечаем все слоты сетки, покрываемые интервалом (напр. 10:00–14:00
-      // -> слоты 10–12 и 12–14)
-      CAL_HOURS.forEach(function(h){
-        if(h<e&&h+2>s){
-          var k=iv.weekday+'-'+h;
-          calSelected[k]=true;
-          var b=el('cal-grid').querySelector('.cal-slot[data-k="'+k+'"]');
-          if(b)b.classList.add('on');
-        }
-      });
-    });
+    calSchedule=calNormalize(res?(res.intervals||[]):[]);
     el('cal-changed').style.display='none';
-    calLoadBookings(); // метки запросов/броней поверх графика (FR-74)
+    calRenderWeek();
+    calLoadBookings(); // метки запросов/броней по lesson_date — асинхронно (NFR-32)
   });
 }
+function calShiftWeek(n){
+  calAnchor=calAddDays(calAnchor,n);
+  calRenderWeek(); // листание БЕЗ сетевого запроса (NFR-32): серии развернуты локально
+}
+el('cal-prev').addEventListener('click',function(){calShiftWeek(-7)});
+el('cal-next').addEventListener('click',function(){calShiftWeek(7)});
+el('cal-this').addEventListener('click',function(){calAnchor=calMondayOf(nowMoscow());calRenderWeek()});
+// --- Попап-редактор (D10): позиция НАД ячейкой, сдвиг внутрь у границ
+// вьюпорта без обрезки; сетка не сдвигается (position:fixed) ---
+var calPop=null;
+function calOpenPop(cell,ctx){
+  calPop=ctx;
+  var pop=el('cal-pop');
+  pop.hidden=false;
+  var type=ctx.covered?(ctx.covered.slot_type||'recurring'):'recurring';
+  el('cal-t-'+(type==='one_off'?'one':'rec')).checked=true;
+  el('cal-pop-remove').style.display=ctx.covered?'':'none';
+  el('cal-pop-title').textContent='Слот '+CAL_DAYS[ctx.weekday]+', '+ctx.iso.split('-').reverse().join('.')+' · '+calPad(ctx.h)+':00–'+calPad(ctx.h+2)+':00';
+  var r=cell.getBoundingClientRect(),pw=pop.offsetWidth,ph=pop.offsetHeight;
+  var left=Math.min(Math.max(8,r.left),window.innerWidth-pw-8);
+  var top=r.top-ph-8;
+  if(top<8)top=Math.min(r.bottom+8,window.innerHeight-ph-8);
+  pop.style.left=Math.max(8,left)+'px';
+  pop.style.top=Math.max(8,top)+'px';
+}
+function calClosePop(){el('cal-pop').hidden=true;calPop=null}
+el('cal-pop-close').addEventListener('click',calClosePop);
+document.addEventListener('click',function(e){
+  var pop=el('cal-pop');
+  if(pop.hidden)return;
+  if(pop.contains(e.target)||e.target.closest('.cal-slot'))return;
+  calClosePop(); // закрытие без подтверждения — ячейка без изменений
+});
+function calMarkEdited(){el('cal-changed').style.display='inline';calRenderWeek()}
+el('cal-pop-ok').addEventListener('click',function(){
+  if(!calPop)return;
+  var c=calPop,type=document.querySelector('input[name="cal-type"]:checked').value;
+  var st=calPad(c.h)+':00',en=calPad(c.h+2)+':00';
+  if(c.covered){
+    var cur=c.covered.slot_type||'recurring';
+    if(type!==cur){
+      if(type==='one_off'){
+        // FR-91: «сменить тип» на ячейке серии создает разовый слот на
+        // дату; серия сохраняется (совпадение — один слот, FR-90)
+        calSchedule.push({weekday:c.weekday,start_time:st,end_time:en,slot_type:'one_off',date:c.iso});
+      }else{
+        // обратная смена (one_off -> серия): добавляем серию, разовый
+        // слот этой даты+времени убираем (его правка — только своя дата)
+        calSchedule=calSchedule.filter(function(r){
+          return !(r.slot_type==='one_off'&&r.date===c.iso&&r.start_time===st&&r.end_time===en);
+        });
+        calSchedule.push({weekday:c.weekday,start_time:st,end_time:en,slot_type:'recurring',date:null});
+      }
+      calMarkEdited();
+    }
+  }else{
+    calSchedule.push({weekday:c.weekday,start_time:st,end_time:en,slot_type:type,date:type==='one_off'?c.iso:null});
+    calMarkEdited();
+  }
+  calClosePop();
+});
+el('cal-pop-remove').addEventListener('click',function(){
+  if(!calPop||!calPop.covered)return;
+  var c=calPop,r=c.covered;
+  calSchedule=calSchedule.filter(function(x){return x!==r});
+  // запись длиннее ячейки (шаг сетки 2 часа): сохраняем части вне ячейки
+  var rs=parseInt(r.start_time.split(':')[0],10),re=parseInt(r.end_time.split(':')[0],10);
+  if(rs<c.h)calSchedule.push({weekday:r.weekday,start_time:r.start_time,end_time:calPad(c.h)+':00',slot_type:r.slot_type,date:r.date||null});
+  if(re>c.h+2)calSchedule.push({weekday:r.weekday,start_time:calPad(c.h+2)+':00',end_time:r.end_time,slot_type:r.slot_type,date:r.date||null});
+  calClosePop();
+  calMarkEdited();
+});
+// (г) «Сохранить график» — один PUT ПОЛНОГО графика (recurring + one_off с
+// датами; прошедшие one_off возвращаются без изменений — они неизменны в
+// calSchedule, прошедшие ячейки не редактируются)
 el('cal-save').addEventListener('click',function(){
-  var intervals=Object.keys(calSelected).map(function(k){
-    var parts=k.split('-'),d=+parts[0],h=+parts[1],p=function(n){return (n<10?'0':'')+n};
-    return {weekday:d,start_time:p(h)+':00',end_time:p(h+2)+':00'};
+  var seen={},intervals=[];
+  calSchedule.forEach(function(r){
+    var key=r.weekday+'|'+r.start_time+'|'+r.end_time+'|'+r.slot_type+'|'+(r.date||'');
+    if(seen[key])return; // дубликаты схлопываются
+    seen[key]=1;
+    var iv={weekday:r.weekday,start_time:r.start_time,end_time:r.end_time,slot_type:r.slot_type};
+    if(r.slot_type==='one_off')iv.date=r.date;
+    intervals.push(iv);
   });
+  intervals.sort(function(a,b){
+    return a.weekday-b.weekday||a.start_time.localeCompare(b.start_time)||a.slot_type.localeCompare(b.slot_type)||String(a.date||'').localeCompare(String(b.date||''));
+  });
+  var btn=this;btn.disabled=true;
   apiSend('PUT','/api/instructor/availability',{intervals:intervals},function(res){
+    btn.disabled=false;
     if(res.status===200&&res.data&&res.data.ok){
+      calSchedule=calNormalize(res.data.intervals||intervals);
       el('cal-changed').style.display='none';
+      calRenderWeek();
       toast('График сохранён: '+intervals.length+' интервалов. Он виден ученикам в фильтре свободного времени.');
+    }else if(res.status===409){
+      // FR-92: перечень затронутых слотов С ДАТОЙ; график на сервере не
+      // изменен, правки остаются несохраненными — слоты можно поправить
+      var det=((res.data&&res.data.conflicts)||[]).map(function(x){
+        return (x.date?x.date.split('-').reverse().join('.')+' ':'')+String(x.start_time||'').slice(0,5)+'–'+String(x.end_time||'').slice(0,5);
+      }).join(', ');
+      toast(((res.data&&res.data.error)||'Не удалось сохранить график')+(det?' (занято: '+det+')':''));
+    }else if(res.status===422){
+      // гонка «слот стал прошедшим» — ошибка + перезагрузка сохраненного
+      // состояния (design «Совместимость»)
+      toast((res.data&&res.data.error)||'Не удалось сохранить график');
+      openCalendar();
     }else{
       toast((res.data&&res.data.error)||'Не удалось сохранить график');
     }
   });
 });
+// «Отменить» — перезагрузка сохраненного графика с сервера БЕЗ PUT (FR-68)
+el('cal-cancel').addEventListener('click',function(){openCalendar()});
 
 // --- Раздел «Мои ученики» (FR-75/ОВ-5, мокап my-students.html): карточки
 // принятых пар по контракту GET /api/instructor/students (задача 9.1):
@@ -734,7 +897,7 @@ document.querySelectorAll('#sec-cars [data-close]').forEach(function(b){b.addEve
 el('m-del').addEventListener('click',function(e){if(e.target===this)mcCloseModal('m-del')});
 el('m-add').addEventListener('click',function(e){if(e.target===this)mcCloseModal('m-add')});
 el('m-car').addEventListener('click',function(e){if(e.target===this)mcCloseModal('m-car')});
-document.addEventListener('keydown',function(e){if(e.key==='Escape'){mcCloseModal('m-add');mcCloseModal('m-del');mcCloseModal('m-car');mcCloseView();bkCloseSlot();docsCloseReplaceSilent()}});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){mcCloseModal('m-add');mcCloseModal('m-del');mcCloseModal('m-car');mcCloseView();bkCloseSlot();docsCloseReplaceSilent();calClosePop()}});
 // валидация формы (поля * обязательны; бэкенд вернёт 422 по конкретному полю)
 ['f-brand','f-model','f-year','f-plate'].forEach(function(id){
   el(id).addEventListener('input',mcValidate);
@@ -1398,8 +1561,10 @@ function bkCarText(c){return c?[c.brand,c.model].filter(Boolean).join(' ')+(c.ye
 // «Отменить бронь» (POST …/cancel, BUG-049); NFR-23: контракты booking
 // без изменений ---
 // --- Брони/запросы — подраздел «Календаря» (бывший раздел
-// «Бронирования»; FR-48/FR-49): метки на слотах cal-grid,
-// решения — в модалке #m-bk (BUG-052: унаследованный блок снесен) ---
+// «Бронирования»; FR-48/FR-49): метки НА слотах cal-grid РОВНО на своих
+// экземплярах — по lesson_date (Спринт 10); брони без даты (легаси-данные)
+// — в колонке weekday текущей недели. Решения — в модалке #m-bk
+// (BUG-052: унаследованный блок снесен) ---
 function calLoadBookings(){
   apiGet('/api/instructor/bookings',function(res){
     calBookings={};
@@ -1407,23 +1572,16 @@ function calLoadBookings(){
       if(b.status!=='new'&&b.status!=='confirmed')return;
       var h=parseInt((b.start_time||'').split(':')[0],10);
       if(isNaN(h))return;
-      calBookings[b.weekday+'-'+h]=b;
+      var e=parseInt((b.end_time||'').split(':')[0],10);
+      if(isNaN(e))e=h+2;
+      var dates=[];
+      if(b.lesson_date){dates=[b.lesson_date]}
+      else{var mon=calMondayOf(nowMoscow());for(var d=0;d<7;d++)dates.push(calIso(calAddDays(mon,d)))}
+      dates.forEach(function(iso){
+        CAL_HOURS.forEach(function(ch){if(ch<e&&ch+2>h)calBookings[iso+'#'+ch]=b});
+      });
     });
-    calMarkBookings();
-  });
-}
-
-function calMarkBookings(){
-  if(!calBuilt)return;
-  Object.keys(calBookings).forEach(function(k){
-    var b=calBookings[k];
-    var cell=el('cal-grid').querySelector('.cal-slot[data-k="'+k+'"]');
-    if(!cell)return;
-    cell.classList.remove('on'); // слот занят бронью/запросом — не правка графика
-    cell.classList.add(b.status==='confirmed'?'booked':'reqslot');
-    cell.innerHTML='';
-    cell.appendChild(node('small',null,b.student_full_name||''));
-    cell.appendChild(document.createTextNode(b.status==='confirmed'?'бронь':'запрос'));
+    calRenderWeek();
   });
 }
 // ── модалка решения #m-bk (открывается кликом по слоту) ──

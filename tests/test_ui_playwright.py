@@ -16,6 +16,7 @@ teardown завершает процесс и удаляет временные 
 """
 import bcrypt
 import base64
+import datetime
 import json
 import os
 import shutil
@@ -43,6 +44,28 @@ ADMIN_PASSWORD = "ui-admin-pass-2026"
 
 SERVER_STARTUP_TIMEOUT = 60  # секунды на ожидание /api/health
 PORT_START_ATTEMPTS = 2  # retry с новым портом (TOCTOU, F-2 review-001)
+
+# Спринт 10 (change add-calendar-weeks-availability): календари работают
+# по РЕАЛЬНЫМ датам недели (МСК = UTC+3, клиентская точка nowMoscow) —
+# тесты вычисляют понедельник/дни ТЕКУЩЕЙ недели той же арифметикой дат.
+_MSK_TZ = datetime.timezone(datetime.timedelta(hours=3))
+
+
+def _msk_today() -> datetime.date:
+    """Сегодняшняя ДАТА по МСК (та же граница, что у клиента nowMoscow)."""
+    return datetime.datetime.now(_MSK_TZ).date()
+
+
+def _msk_monday(today: datetime.date | None = None) -> datetime.date:
+    """Понедельник текущей недели по МСК (дата колонки «Пн»)."""
+    today = today or _msk_today()
+    return today - datetime.timedelta(days=today.weekday())
+
+
+def _msk_next_monday(today: datetime.date | None = None) -> datetime.date:
+    """Понедельник СЛЕДУЮЩЕЙ недели: все его слоты строго будущие
+    (начало ≥ 00:00 следующей недели > NOW в любой момент теста)."""
+    return _msk_monday(today) + datetime.timedelta(days=7)
 
 
 def _free_port() -> int:
@@ -740,10 +763,17 @@ def test_student_choice_filters_narrow_and_apply_request(page, server):
 
 
 def test_instructor_calendar_slot_toggle_and_put_availability(page, server):
-    """TC-UI-008 (change add-instructor-student-loop): «Календарь» — клик по
-    слоту переключает состояние (вкл/выкл), «Сохранить график» шлёт PUT
-    /api/instructor/availability (полная замена: снятый слот удален).
-    API замокан через page.route."""
+    """TC-UI-008 (change add-instructor-student-loop) — АДАПТИРОВАН
+    [test-adapted] под Спринт 10 (add-calendar-weeks-availability, задача
+    5.1): клик по слоту открывает ПОПАП-редактор типа (FR-89/D10), правка
+    применяется по подтверждению; «Сохранить график» шлёт PUT
+    /api/instructor/availability в НОВОМ формате (slot_type + date у
+    one_off, recurring — без даты) с ПОЛНЫМ графиком; сетка — реальные
+    даты (ключ ячейки YYYY-MM-DD#час). Сценарий сохранен: снятый слот
+    удален из графика, добавленный — появился. Правки выполняются на
+    СЛЕДУЮЩЕЙ неделе (все ее ячейки строго будущие — запрет прошлого
+    FR-93 не зависит от времени запуска теста). API замокан через
+    page.route (мок availability — новый формат GET)."""
     _seed_session(page, "session_token", INSTRUCTOR_TOKEN)
 
     put_bodies: list = []
@@ -756,9 +786,11 @@ def test_instructor_calendar_slot_toggle_and_put_availability(page, server):
         200, {"ok": True, "students": [], "today_lessons": []}))
     _route_json(page, server, "/api/instructor/requests", lambda req: (
         200, {"ok": True, "requests": []}))
+    # Спринт 10: GET availability — новый формат (slot_type, date=null)
     _route_json(page, server, "/api/instructor/availability", lambda req: (
         200, {"ok": True, "intervals": [
-            {"weekday": 0, "start_time": "10:00", "end_time": "14:00"}]}))
+            {"weekday": 0, "start_time": "10:00", "end_time": "14:00",
+             "slot_type": "recurring", "date": None}]}))
     _route_json(page, server, "/api/instructor/availability", lambda req: (
         200, {"ok": True}), method="PUT", capture=put_bodies)
 
@@ -768,33 +800,74 @@ def test_instructor_calendar_slot_toggle_and_put_availability(page, server):
     page.locator('.nav button[data-tab="Календарь"]').click()
     expect(page.locator("#cal-grid")).to_be_visible()
 
-    # восстановление графика GET: Пн 10:00–14:00 -> слоты 0-10 и 0-12 отмечены
-    expect(page.locator(".cal-slot[data-k='0-10']")).to_have_class("cal-slot on")
-    expect(page.locator(".cal-slot[data-k='0-12']")).to_have_class("cal-slot on")
-    # посторонний слот не отмечен
-    assert page.locator(".cal-slot[data-k='3-14']").get_attribute(
-        "class") == "cal-slot"
+    # восстановление графика GET: Пн 10:00–14:00 -> слоты Пн 10 и Пн 12
+    # отмечены в колонке РЕАЛЬНОЙ даты понедельника текущей недели; если
+    # начало экземпляра уже прошло (< NOW МСК) — ячейка дополнительно
+    # приглушена классом past (запрет прошлого, FR-93: просмотр)
+    monday = _msk_monday()
+    now_msk = datetime.datetime.now(_MSK_TZ)
+    for hour in (10, 12):
+        cls = page.locator(
+            f".cal-slot[data-k='{monday.isoformat()}#{hour}']").get_attribute(
+            "class").split()
+        assert "on" in cls, f"Пн {hour}:00 не помечен графиком: {cls}"
+        is_past = datetime.datetime.combine(
+            monday, datetime.time(hour), tzinfo=_MSK_TZ) < now_msk
+        assert ("past" in cls) == is_past, \
+            f"Пн {hour}:00 класс {cls} не согласован с границей NOW"
+    # подпись диапазона недели согласована с колонками (FR-87)
+    assert page.locator("#cal-range").text_content().strip()
 
-    # клик по слоту: снять 0-10 -> отметить 3-14 -> вернуть 0-10
-    page.locator(".cal-slot[data-k='0-10']").click()
-    expect(page.locator(".cal-slot[data-k='0-10']")).to_have_class("cal-slot")
+    # навигация на следующую неделю (все ячейки строго будущие — редактируемы
+    # независимо от времени запуска) — БЕЗ перезагрузки страницы (NFR-32)
+    next_monday = _msk_next_monday().isoformat()
+    page.locator("#cal-next").click()
+    expect(page.locator(f".cal-slot[data-k='{next_monday}#10']")).to_have_class(
+        "cal-slot on")
+    expect(page.locator(f".cal-slot[data-k='{next_monday}#12']")).to_have_class(
+        "cal-slot on")
+    # серия развернута локально: той же сетевой заявки GET не было бы —
+    # проверяем честно: колонка Пн следующей недели помечена той же серией
+
+    # --- клик по отмеченной ячейке: попап с текущим типом и действиями ---
+    page.locator(f".cal-slot[data-k='{next_monday}#10']").click()
+    expect(page.locator("#cal-pop")).to_be_visible()
+    assert page.locator("#cal-t-rec").is_checked(), \
+        "текущий тип повторяющейся ячейки предвыбран"
+    # «убрать слот»: правка серии применяется к текущим и будущим экземплярам
+    page.locator("#cal-pop-remove").click()
+    expect(page.locator("#cal-pop")).to_be_hidden()
+    expect(page.locator(f".cal-slot[data-k='{next_monday}#10']")).to_have_class(
+        "cal-slot")
     expect(page.locator("#cal-changed")).to_be_visible()
-    page.locator(".cal-slot[data-k='3-14']").click()
-    expect(page.locator(".cal-slot[data-k='3-14']")).to_have_class(
-        "cal-slot on")
-    page.locator(".cal-slot[data-k='0-10']").click()
-    expect(page.locator(".cal-slot[data-k='0-10']")).to_have_class(
-        "cal-slot on")
 
-    # сохранение: PUT с полной заменой (снятый 0-12 удален)
+    # --- клик по свободной ячейке: попап с выбором типа, подтверждение ---
+    thursday = (datetime.date.fromisoformat(next_monday)
+                + datetime.timedelta(days=3)).isoformat()
+    page.locator(f".cal-slot[data-k='{thursday}#14']").click()
+    expect(page.locator("#cal-pop")).to_be_visible()
+    page.locator("#cal-pop-ok").click()
+    expect(page.locator("#cal-pop")).to_be_hidden()
+    expect(page.locator(f".cal-slot[data-k='{thursday}#14']")).to_have_class(
+        "cal-slot on")
+    # закрытие без подтверждения ячейку не меняет (FR-89)
+    page.locator(f".cal-slot[data-k='{thursday}#16']").click()
+    expect(page.locator("#cal-pop")).to_be_visible()
+    page.locator("#cal-pop-close").click()
+    expect(page.locator(f".cal-slot[data-k='{thursday}#16']")).to_have_class(
+        "cal-slot")
+
+    # сохранение: PUT с полным графиком в НОВОМ формате (снятый Пн 10–12
+    # удален — осталась часть серии 12–14; добавлен Чт 14:00–16:00)
     page.locator("#cal-save").click()
     expect(page.locator("#cal-changed")).to_be_hidden()
     assert len(put_bodies) == 1
     body = json.loads(put_bodies[0].post_data)
-    got = {(iv["weekday"], iv["start_time"], iv["end_time"])
+    got = {(iv["weekday"], iv["start_time"], iv["end_time"],
+            iv["slot_type"], iv.get("date"))
            for iv in body["intervals"]}
-    assert got == {(0, "10:00", "12:00"), (0, "12:00", "14:00"),
-                   (3, "14:00", "16:00")}, got
+    assert got == {(0, "12:00", "14:00", "recurring", None),
+                   (3, "14:00", "16:00", "recurring", None)}, got
 
 
 def test_instructor_summary_today_lessons_widget_renders_real_shape(
@@ -3627,18 +3700,23 @@ def test_s8_student_my_bookings_car_card_with_photo(browser, server):
 # =========================================================================
 
 def test_s8_bookings_section_removed_redirect_and_slot_reject(page, server):
-    """TC-UI-038 (change add-s8-cars-docs-booking, задача 8.1, FR-74):
-    раздел «Бронирования» удален БЕЗ остатков — пункта меню нет, секции
-    #sec-bookings в DOM нет; старая ссылка #/bookings редиректит в раздел
-    «Календарь» (механика BUG-047: хеш очищен, «Календарь» активен). Запрос
-    ученика виден РОВНО на выбранном им слоте (Ср 14:00–16:00; соседние слоты
+    """TC-UI-038 (change add-s8-cars-docs-booking, задача 8.1, FR-74) —
+    АДАПТИРОВАН [test-adapted] под Спринт 10 (задача 5.1): запрос ученика
+    виден РОВНО на СВОЕМ экземпляре — по lesson_date (текущая неделя, Ср),
+    ключ ячейки YYYY-MM-DD#час; моки — новый формат GET availability
+    (slot_type/date). Раздел «Бронирования» удален БЕЗ остатков — пункта
+    меню нет, секции #sec-bookings в DOM нет; старая ссылка #/bookings
+    редиректит в раздел «Календарь» (механика BUG-047). Запрос ученика
+    виден ровно на выбранном им слоте (Ср 14:00–16:00; соседние слоты
     чистые) с кнопками решений на слоте; отклонение требует комментария
     (кнопка заблокирована без него) и шлет POST …/reject {comment} — слот
     освобождается. API замокан через page.route (бэкенд не задействован)."""
     _mock_instructor_shell(page, server)
+    wednesday = (_msk_monday()
+                 + datetime.timedelta(days=2)).isoformat()
     state = {"bookings": [{
         "id": 91, "status": "new", "weekday": 2,
-        "lesson_date": "2026-11-02", "start_time": "14:00",
+        "lesson_date": wednesday, "start_time": "14:00",
         "end_time": "16:00", "student_full_name": "Крылова Дарья Игоревна",
         "reject_comment": None,
         "car": {"id": 52, "brand": "Škoda", "model": "Rapid", "year": 2020,
@@ -3651,8 +3729,10 @@ def test_s8_bookings_section_removed_redirect_and_slot_reject(page, server):
 
     _route_json(page, server, "/api/instructor/availability", lambda req: (
         200, {"ok": True, "intervals": [
-            {"weekday": 2, "start_time": "14:00", "end_time": "16:00"},
-            {"weekday": 2, "start_time": "16:00", "end_time": "18:00"}]}))
+            {"weekday": 2, "start_time": "14:00", "end_time": "16:00",
+             "slot_type": "recurring", "date": None},
+            {"weekday": 2, "start_time": "16:00", "end_time": "18:00",
+             "slot_type": "recurring", "date": None}]}))
     _route_json(page, server, "/api/instructor/bookings", _bookings)
     _route_json(page, server, "/api/instructor/bookings/91/reject",
                 lambda req: (
@@ -3672,13 +3752,19 @@ def test_s8_bookings_section_removed_redirect_and_slot_reject(page, server):
     assert page.url.endswith("/instructor/dashboard"), \
         f"хеш #/bookings не очищен редиректом: {page.url}"
 
-    # --- запрос РОВНО на слоте Ср 14:00–16:00 (соседний 16:00–18:00 чист) ---
+    # --- запрос РОВНО на экземпляре Ср 14:00–16:00 (соседний 16–18 чист) ---
+    # (среда текущей недели может быть уже прошедшей — ячейка приглушена
+    # классом past, но метка запроса/принадлежность графику не меняются)
     req = page.locator("#cal-grid .cal-slot.reqslot")
     expect(req).to_have_count(1)
-    assert req.get_attribute("data-k") == "2-14", req.get_attribute("data-k")
+    assert req.get_attribute("data-k") == f"{wednesday}#14", \
+        req.get_attribute("data-k")
     expect(req.locator("small")).to_have_text("Крылова Дарья Игоревна")
-    assert page.locator("#cal-grid .cal-slot[data-k='2-16']").get_attribute(
-        "class") == "cal-slot on", "соседний слот помечен чужим запросом"
+    neighbor = page.locator(
+        f"#cal-grid .cal-slot[data-k='{wednesday}#16']").get_attribute(
+        "class").split()
+    assert "on" in neighbor and "reqslot" not in neighbor and "booked" not in neighbor, \
+        "соседний слот помечен чужим запросом"
 
     # --- решение на слоте: отклонение требует комментария (ОВ-2) ---
     req.click()
@@ -3698,8 +3784,11 @@ def test_s8_bookings_section_removed_redirect_and_slot_reject(page, server):
         "comment": "В это время пересдача экзамена в ГИБДД"}
     # календарь перезагружен: метки запроса нет, слот снова в графике
     expect(page.locator("#cal-grid .cal-slot.reqslot")).to_have_count(0)
-    expect(page.locator("#cal-grid .cal-slot[data-k='2-14']")).to_have_class(
-        "cal-slot on")
+    freed = page.locator(
+        f"#cal-grid .cal-slot[data-k='{wednesday}#14']").get_attribute(
+        "class").split()
+    assert "on" in freed and "reqslot" not in freed, \
+        f"слот не вернулся в график: {freed}"
 
 
 # =========================================================================
@@ -3709,17 +3798,22 @@ def test_s8_bookings_section_removed_redirect_and_slot_reject(page, server):
 # =========================================================================
 
 def test_bug052_calendar_single_grid_slot_reject_via_modal(page, server):
-    """TC-UI-041 (BUG-052): в #sec-calendar РОВНО ОДНА сетка (.cal-grid) —
-    унаследованный bk-block (#bk-list/#bk-grid/#bk-filters/.bk-block)
-    отсутствует. Решение по запросу ученика — клик по слоту с запросом:
-    открывается #m-bk, «✕ Отклонить…» → обязательный комментарий →
-    «✕ Отклонить запрос» → тост «Запрос отклонён», POST …/reject {comment},
-    слот освобождается (метка запроса снята, слот снова в графике). Моки
-    как в TC-UI-038 (API замокан через page.route, бэкенд не задействован)."""
+    """TC-UI-041 (BUG-052) — АДАПТИРОВАН [test-adapted] под Спринт 10
+    (задача 5.1): метка запроса — по lesson_date (текущая неделя, Ср),
+    ключ ячейки YYYY-MM-DD#час, моки availability — новый формат. В
+    #sec-calendar РОВНО ОДНА сетка (.cal-grid) — унаследованный bk-block
+    (#bk-list/#bk-grid/#bk-filters/.bk-block) отсутствует. Решение по
+    запросу ученика — клик по слоту с запросом: открывается #m-bk,
+    «✕ Отклонить…» → обязательный комментарий → «✕ Отклонить запрос» →
+    тост «Запрос отклонён», POST …/reject {comment}, слот освобождается
+    (метка запроса снята, слот снова в графике). Моки как в TC-UI-038
+    (API замокан через page.route, бэкенд не задействован)."""
     _mock_instructor_shell(page, server)
+    wednesday = (_msk_monday()
+                 + datetime.timedelta(days=2)).isoformat()
     state = {"bookings": [{
         "id": 91, "status": "new", "weekday": 2,
-        "lesson_date": "2026-11-02", "start_time": "14:00",
+        "lesson_date": wednesday, "start_time": "14:00",
         "end_time": "16:00", "student_full_name": "Крылова Дарья Игоревна",
         "reject_comment": None,
         "car": {"id": 52, "brand": "Škoda", "model": "Rapid", "year": 2020,
@@ -3732,8 +3826,10 @@ def test_bug052_calendar_single_grid_slot_reject_via_modal(page, server):
 
     _route_json(page, server, "/api/instructor/availability", lambda req: (
         200, {"ok": True, "intervals": [
-            {"weekday": 2, "start_time": "14:00", "end_time": "16:00"},
-            {"weekday": 2, "start_time": "16:00", "end_time": "18:00"}]}))
+            {"weekday": 2, "start_time": "14:00", "end_time": "16:00",
+             "slot_type": "recurring", "date": None},
+            {"weekday": 2, "start_time": "16:00", "end_time": "18:00",
+             "slot_type": "recurring", "date": None}]}))
     _route_json(page, server, "/api/instructor/bookings", _bookings)
     _route_json(page, server, "/api/instructor/bookings/91/reject",
                 lambda req: (
@@ -3751,10 +3847,11 @@ def test_bug052_calendar_single_grid_slot_reject_via_modal(page, server):
         assert page.locator(f"#sec-calendar {dead}").count() == 0, \
             f"BUG-052: {dead} не должен остаться в #sec-calendar"
 
-    # --- запрос РОВНО на слоте Ср 14:00–16:00 ---
+    # --- запрос РОВНО на экземпляре Ср 14:00–16:00 ---
     req = page.locator("#cal-grid .cal-slot.reqslot")
     expect(req).to_have_count(1)
-    assert req.get_attribute("data-k") == "2-14", req.get_attribute("data-k")
+    assert req.get_attribute("data-k") == f"{wednesday}#14", \
+        req.get_attribute("data-k")
     expect(req.locator("small")).to_have_text("Крылова Дарья Игоревна")
 
     # --- решение: клик по слоту → #m-bk → отклонение с причиной ---
@@ -3773,8 +3870,11 @@ def test_bug052_calendar_single_grid_slot_reject_via_modal(page, server):
         "comment": "В это время пересдача экзамена в ГИБДД"}
     # слот освобожден: метки запроса нет, слот снова в графике
     expect(page.locator("#cal-grid .cal-slot.reqslot")).to_have_count(0)
-    expect(page.locator("#cal-grid .cal-slot[data-k='2-14']")).to_have_class(
-        "cal-slot on")
+    freed = page.locator(
+        f"#cal-grid .cal-slot[data-k='{wednesday}#14']").get_attribute(
+        "class").split()
+    assert "on" in freed and "reqslot" not in freed, \
+        f"слот не вернулся в график: {freed}"
 
 
 # =========================================================================

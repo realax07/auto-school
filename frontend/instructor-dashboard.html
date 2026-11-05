@@ -45,6 +45,31 @@ main{padding:28px clamp(20px,3vw,44px) 45px;max-width:1600px;width:100%;margin:0
 .cal-save button{border:1px solid #2b9c62;background:#123524;color:#c9ffdd;border-radius:11px;padding:10px 20px;font-size:12px;font-weight:550}
 .cal-save button:hover{filter:brightness(1.12)}
 #cal-changed{font-size:11px;color:#ffd479;display:none}
+.cal-save #cal-cancel{border-color:#ffffff22;background:transparent;color:#aab8c0}
+/* Спринт 10 (add-calendar-weeks-availability, задача 5.1; FR-87…FR-93):
+   навигация неделями + подпись диапазона (D9), попап-редактор над ячейкой
+   (D10 — поверх страницы, не смещает сетку), прошедшие ячейки — просмотр */
+.cal-nav{display:flex;align-items:center;gap:8px;margin:2px 0 12px;flex-wrap:wrap}
+.cal-nav button{border:1px solid #ffffff14;background:#ffffff05;color:#b9c8ce;border-radius:9px;padding:8px 14px;font-size:12px;cursor:pointer}
+.cal-nav button:hover{border-color:#35d87966}
+.cal-nav button:disabled{opacity:.35;cursor:not-allowed}
+#cal-range{margin-left:6px;font-size:12px;color:#c9d6db;font-weight:600;letter-spacing:-.01em}
+.cal-slot.past{opacity:.38;cursor:default}
+.cal-slot.past:hover{border-color:#ffffff10;filter:none}
+/* решение по брони/запросу — мимо «Сохранить» даже на прошедшей ячейке (FR-74) */
+.cal-slot.booked.past,.cal-slot.reqslot.past{cursor:pointer}
+#cal-pop{position:fixed;z-index:60;width:236px;border:1px solid #2c8651;background:#0d1f16;border-radius:13px;box-shadow:0 18px 44px rgba(0,0,0,.5);padding:12px 13px}
+#cal-pop[hidden]{display:none}
+.cal-pop-title{font-size:11px;color:#a3efbd;font-weight:600;margin:0 26px 9px 0;line-height:1.5}
+.cal-pop-close{position:absolute;top:6px;right:8px;border:0;background:transparent;color:#7e909a;font-size:15px;cursor:pointer;padding:2px}
+.cal-pop-opt{display:flex;align-items:baseline;gap:8px;border:1px solid #ffffff12;background:#ffffff05;border-radius:10px;padding:8px 10px;margin-bottom:7px;cursor:pointer;font-size:12px;color:#dcebe9}
+.cal-pop-opt:hover{border-color:#35d87955}
+.cal-pop-opt input{accent-color:#35d879}
+.cal-pop-opt small{margin-left:auto;color:#8fa0aa;font-size:9px;white-space:nowrap}
+.cal-pop-actions{display:flex;gap:8px;margin-top:10px}
+.cal-pop-actions button{flex:1;border-radius:10px;padding:8px 6px;font-size:11px;font-weight:550;cursor:pointer}
+.cal-pop-actions .ok{border:1px solid #2b9c62;background:#123524;color:#c9ffdd}
+.cal-pop-actions .del{border:1px solid #8a3c3c66;background:transparent;color:#ffb28e}
 .cal-grid-wrap{border:1px solid var(--line);border-radius:19px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.78));box-shadow:inset 0 1px #ffffff08;padding:19px;margin-top:15px}
 .cal-grid{display:grid;grid-template-columns:64px repeat(7,minmax(0,1fr));gap:6px}
 .cal-corner{font-size:9px;color:#637681;display:grid;place-items:end center;padding-bottom:6px;text-transform:uppercase;letter-spacing:.08em}
@@ -487,13 +512,31 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
        редирект сюда) -->
   <section class="card panel" id="sec-calendar" style="display:none">
     <div class="cal-head">
-      <div><b>Мой график на неделю</b><div class="sub">Клик по свободному слоту — отметить или снять интервал · шаг 2 часа · клик по запросу/брони — решение</div></div>
-      <div class="cal-save"><span id="cal-changed">Есть несохранённые изменения</span><button id="cal-save" type="button">Сохранить график</button></div>
+      <div><b>Мой график на неделю</b><div class="sub">Клик по слоту — попап: «Разово» (только эта дата) или «Повторяющееся» (еженедельно) · шаг 2 часа · клик по запросу/брони — решение</div></div>
+      <div class="cal-save"><span id="cal-changed">Есть несохранённые изменения</span><button id="cal-cancel" type="button">Отменить</button><button id="cal-save" type="button">Сохранить график</button></div>
+    </div>
+    <div class="cal-nav">
+      <button id="cal-prev" type="button" aria-label="Предыдущая неделя">‹</button>
+      <button id="cal-this" type="button">Эта неделя</button>
+      <button id="cal-next" type="button" aria-label="Следующая неделя">›</button>
+      <span id="cal-range"></span>
     </div>
     <div class="legend"><span><i class="green"></i>Рабочий интервал</span><span><i style="background:#3a4a52"></i>Не работаю</span><span><i class="blue"></i>Подтверждённая бронь</span><span><i class="orange"></i>Новый запрос ученика</span></div>
     <div class="cal-grid-wrap">
       <div class="cal-grid" id="cal-grid"></div>
-      <div class="cal-hint">Сохранение заменяет весь график недели: интервалы, снятые с выбора, будут удалены. Дубликаты объединяются автоматически. Запрос ученика показан ровно на выбранном им слоте — подтверждение или отказ (с обязательным комментарием) применяются сразу, без «Сохранить».</div>
+      <div class="cal-hint">Тип выбирается в попапе для каждой ячейки: «Разово» — слот только на эту дату, «Повторяющееся» — еженедельно. Изменения применяются по «Сохранить график» (одна замена всего графика), «Отменить» возвращает сохранённый график. Прошедшие ячейки и недели — только просмотр. Запрос ученика показан ровно на выбранном им слоте — подтверждение или отказ (с обязательным комментарием) применяются сразу, без «Сохранить».</div>
+    </div>
+    <!-- Спринт 10 (D10): попап-редактор типа слота — над ячейкой, поверх
+         страницы; закрытие без подтверждения ячейку не меняет -->
+    <div id="cal-pop" role="dialog" aria-label="Тип слота" hidden>
+      <button type="button" class="cal-pop-close" id="cal-pop-close" aria-label="Закрыть">×</button>
+      <div class="cal-pop-title" id="cal-pop-title"></div>
+      <label class="cal-pop-opt"><input type="radio" name="cal-type" value="one_off" id="cal-t-one"><span>Разово</span><small>только эта дата</small></label>
+      <label class="cal-pop-opt"><input type="radio" name="cal-type" value="recurring" id="cal-t-rec"><span>Повторяющееся</span><small>еженедельно</small></label>
+      <div class="cal-pop-actions">
+        <button type="button" id="cal-pop-ok" class="ok">Подтвердить</button>
+        <button type="button" id="cal-pop-remove" class="del">Убрать слот</button>
+      </div>
     </div>
   </section>
 
