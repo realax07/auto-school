@@ -650,7 +650,15 @@ function mcRender(){
       next.addEventListener('click',function(e){e.stopPropagation();mcCycleView(c,1)});
       shot.appendChild(prev);shot.appendChild(next);
     }
-    shot.appendChild(node('span','hintview','⤢ Открыть карточку'));
+    // BUG-054: значок «⤢ Смотреть фото» — просмотр ДОСТУПНОГО набора фото
+    // авто (загруженные ракурсы + СТС по наличию) в полном размере (m-view,
+    // со стрелками ‹ › над фото). Клик по самой плитке по-прежнему открывает
+    // карточку-галерею (FR-63); при отсутствии фото значок не показывается.
+    if(loaded.length||c.has_sts){
+      var hint=node('button','hintview','⤢ Смотреть фото');hint.type='button';
+      hint.addEventListener('click',function(e){e.stopPropagation();mcOpenViewCarPhotos(c)});
+      shot.appendChild(hint);
+    }
     art.appendChild(shot);
     // комплектность: полоса 5 ракурсов + СТС-точка + «Не хватает: …»
     var compl=node('div','compl');
@@ -682,6 +690,17 @@ function mcRender(){
     art.addEventListener('click',function(){mcOpenCar(c)});
     box.appendChild(art);
   });
+}
+// BUG-054: полный просмотр фото авто из плитки — ДОСТУПНЫЙ набор
+// (mcGalKeys по наличию: 5 ракурсов + СТС), названия кадров — mcGalLabel;
+// клик по стрелке плитки не открывает карточку (stopPropagation на месте).
+function mcOpenViewCarPhotos(c){
+  var sub=(c.brand||'')+' '+(c.model||'')+(c.plate?(' · '+c.plate):'');
+  var photos=mcGalKeys().filter(function(k){return mcGalLoaded(c,k)}).map(function(k){
+    return {url:mcGalUrl(c,k),title:mcGalLabel(k),sub:sub};
+  });
+  if(!photos.length)return;
+  mcOpenView({title:sub,photos:photos});
 }
 // ── модалка добавления/редактирования ──
 function mcOpenAdd(c){
@@ -1111,16 +1130,41 @@ el('open-add').addEventListener('click',function(){mcOpenAdd(null)});
 
 // просмотр документа в полном размере (мокап my-documents, FR-45):
 // авторизованный файл GET /api/instructor/documents/{doc_id}/file
+// BUG-054: mcOpenView принимает (по месту вызова) НАБОР фото — doc.photos
+// («Мои автомобили»: загруженные ракурсы + СТС по наличию) или одиночный
+// документ («Мои документы», список из 1). Стрелки ‹ › НАД фото (классы
+// .navarrow, обе стороны в разметке ВСЕГДА; при одном фото — скрыты),
+// листание циклическое; заголовок view-title — название ТЕКУЩЕГО фото;
+// клик по стрелке окно не закрывает; Esc закрывает (общий keydown-контур
+// модалок дашборда, mcCloseView).
+var mcViewPhotos=[],mcViewIx=0;
 function mcOpenView(doc){
-  el('view-title').textContent=doc.title;
-  el('view-sub').textContent=(doc.sub||'')+(doc.doc_id?(' · doc_id '+doc.doc_id):'');
-  var full=el('view-full');full.innerHTML='';
-  var img=document.createElement('img');img.alt=doc.title;
-  mcLoadImg(doc.url,img);
-  full.appendChild(img);
+  mcViewPhotos=(doc.photos&&doc.photos.length?doc.photos:[doc]).map(function(p){
+    return {url:p.url,title:p.title,
+      sub:(p.sub!=null?p.sub:(doc.sub||'')),
+      doc_id:(p.doc_id!=null?p.doc_id:(doc.doc_id||''))};
+  });
+  mcViewIx=0;
+  mcShowViewPhoto();
   el('m-view').classList.add('open');document.body.style.overflow='hidden';
 }
+function mcShowViewPhoto(){
+  var p=mcViewPhotos[mcViewIx];
+  el('view-title').textContent=p.title;
+  el('view-sub').textContent=(p.sub||'')+(p.doc_id?(' · doc_id '+p.doc_id):'');
+  var many=mcViewPhotos.length>1;
+  el('view-prev').style.display=many?'':'none';
+  el('view-next').style.display=many?'':'none';
+  var img=el('view-img');img.alt=p.title;
+  mcLoadImg(p.url,img);
+}
+function mcNavView(dir){
+  mcViewIx=(mcViewIx+dir+mcViewPhotos.length)%mcViewPhotos.length;
+  mcShowViewPhoto();
+}
 function mcCloseView(){el('m-view').classList.remove('open');document.body.style.overflow=''}
+el('view-prev').addEventListener('click',function(e){e.stopPropagation();mcNavView(-1)});
+el('view-next').addEventListener('click',function(e){e.stopPropagation();mcNavView(1)});
 el('view-close').addEventListener('click',mcCloseView);
 el('m-view').addEventListener('click',function(e){if(e.target===this)mcCloseView()});
 

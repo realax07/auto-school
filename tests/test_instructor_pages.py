@@ -101,7 +101,12 @@ def test_instructors_cta_wiring_to_apply():
     assert '<a href="/instructors/apply" class="choice" data-type="sber">' in html
     # нижний CTA — редирект, не fetch (редирект — в модуле)
     assert "location.href='/instructors/apply'" in src
-    assert "fetch(" not in src
+    # BUG-055: «Войти» открывает логин-модалку НА МЕСТЕ (без редиректа на /),
+    # сабмит модалки — POST /api/auth/login через fetch (легитимный fetch
+    # контура логина; CTA apply по-прежнему редиректом)
+    assert 'data-open-login' in src
+    assert "postJSON('/api/auth/login'" in src
+    assert "location.href='/';" not in src
     # модальное окно мокапа не используется как форма
     assert 'id="lead-form"' not in html
     assert 'id="modal"' not in html
