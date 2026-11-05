@@ -2695,9 +2695,40 @@ def test_s7_car_status_transitions_admin_validate_student_badge(
     status, data = api("GET",
                        f"/api/student/instructors/{instructor_id}/slots",
                        base=server, token=stu_token)
-    slot_id = data["slots"][0]["id"]
+    assert status == 200 and data["ok"], (status, data)
+    # Спринт 10: бронь ЗАВЕДОМО будущего экземпляра (запрет прошлого:
+    # слот текущей недели может быть уже начавшимся в момент прогона)
+    import datetime as _dt
+    now = _dt.datetime.now()
+    today_iso = now.date().isoformat()
+
+    def _pick_future(payload):
+        cand = [i for i in payload.get("instances", [])
+                if (i["date"] > today_iso)
+                or (i["date"] == today_iso
+                    and i["start_time"] > (now + _dt.timedelta(minutes=30)
+                                           ).strftime("%H:%M"))]
+        return cand
+
+    future = _pick_future(data)
+    week_shift = 0
+    while not future and week_shift < 4:
+        week_shift += 1
+        monday = (_dt.date.today() + _dt.timedelta(days=7 * week_shift
+                                                  - ((now.weekday()) % 7))
+                  ).isoformat()
+        status, data = api("GET",
+                           f"/api/student/instructors/{instructor_id}/slots"
+                           f"?date={monday}",
+                           base=server, token=stu_token)
+        assert status == 200 and data["ok"], (status, data)
+        future = _pick_future(data)
+    assert future, "нет будущих экземпляров слота в 4 неделях"
+    inst = max(future, key=lambda i: (i["date"], i["start_time"]))
     status, data = api("POST", "/api/student/bookings", base=server,
-                       token=stu_token, body={"availability_id": slot_id})
+                       token=stu_token,
+                       body={"availability_id": inst["availability_id"],
+                             "date": inst["date"]})
     assert status == 200 and data["ok"], (status, data)
     booking_id = data["booking_id"]
     status, data = api(
