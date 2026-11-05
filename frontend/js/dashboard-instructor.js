@@ -58,6 +58,10 @@ function navTo(name){
   var isCal=(name==='Календарь'),isStu=(name==='Мои ученики'),isCars=(name==='Мои автомобили');
   var isDocs=(name==='Профиль и документы');
   var real=isCal||isStu||isCars||isDocs;
+  // BUG-058 (прямива Заказчика 2026-11-04): при смене раздела закрыть
+  // ВСЕ открытые модалки — ожидаются секции без модальных окон
+  document.querySelectorAll('.backdrop.open').forEach(function(b){b.classList.remove('open')});
+  document.body.style.overflow='';
   document.querySelectorAll('.day-content').forEach(function(el){el.style.display=real?'none':''});
   document.getElementById('sec-calendar').style.display=isCal?'block':'none';
   document.getElementById('sec-students').style.display=isStu?'block':'none';
@@ -581,7 +585,11 @@ function openCars(){
     if(!d){toast('Не удалось загрузить автомобили');return}
     mcCars=d.cars||[];
     mcRender();
-    if(mcGal.car){ // модалка галереи открыта — обновить её данные тем же авто
+    // BUG-058: обновлять содержимое модалки только пока она ОТКРЫТА.
+    // mcGal.car переживает закрытие — прежний безусловный
+    // mcRenderGalCar(fresh) переоткрывал закрытую модалку при каждом
+    // возврате в раздел (réport Заказчика 2026-11-04).
+    if(mcGal.car&&el('m-car').classList.contains('open')){ // модалка открыта — обновить её данные тем же авто
       var fresh=mcCars.find(function(x){return x.id===mcGal.car.id});
       if(fresh)mcRenderGalCar(fresh);else mcCloseModal('m-car');
     }
