@@ -54,8 +54,18 @@ COPY design/ design/
 COPY .env.example .env.example
 COPY requirements.txt .
 
+# Таймзона контейнера = МСК (Спринт 10, задача 4.1; MIN-2 арх-ревью-002):
+# локальное время контейнера — Europe/Moscow; материализация легаси-пути
+# брони без date (materialize_lesson_date/local_today) и виджет «сегодня»
+# корректны в окне 21:00–24:00 UTC (иначе граница NFR-31 смещается на
+# 3 часа — прецедент MIN-4 review-001). tzdata в базе python:3.12-slim
+# ЕСТЬ (официальный slim-Dockerfile ставит ca-certificates/netbase/tzdata)
+# — отдельный apt-get не нужен. Факт верификации — CI: шаг
+# «Verify container TZ (BUG: MIN-2 arch-review-002)» в flow.yml
+# (docker run --rm as-check date → MSK (+03)).
 ENV PATH="/opt/venv/bin:$PATH" \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    TZ=Europe/Moscow
 
 USER appuser
 

@@ -156,7 +156,7 @@ ADR-010; sdd.md (раздел «Спринт 10») и трассировка д�
 
 ## 4. Сборка backend
 
-- [ ] 4.1 [code][tests] backend/app.py + backend/db.py — финальные
+- [x] 4.1 [code][tests] backend/app.py + backend/db.py — финальные
       миграции в init_db (rebuild availability + индекс брони), проверка
       include (новых роутеров нет — расширения внутри
       instructor_availability.py/booking.py); сверка правила префиксов
