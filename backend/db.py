@@ -58,8 +58,23 @@ CREATE TABLE IF NOT EXISTS availability (
   weekday INTEGER NOT NULL CHECK (weekday BETWEEN 0 AND 6),
   start_time TEXT NOT NULL,
   end_time TEXT NOT NULL,
+  -- Спринт 10 (add-calendar-weeks-availability, задача 1.1, D1/ADR-010):
+  -- тип слота на записи — recurring (еженедельная серия weekday+время)
+  -- или one_off (конкретная дата slot_date, FR-90).
+  slot_type TEXT NOT NULL DEFAULT 'recurring'
+    CHECK (slot_type IN ('recurring','one_off')),
+  -- дата экземпляра one_off 'YYYY-MM-DD'; '' для recurring (CHECK ниже).
+  slot_date TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  UNIQUE (instructor_id, weekday, start_time, end_time)
+  -- recurring ⇒ без даты, one_off ⇒ с датой (design.md «Модель данных»).
+  CHECK (
+    (slot_type = 'recurring' AND slot_date = '')
+    OR (slot_type = 'one_off' AND slot_date <> '')
+  ),
+  -- Новый UNIQUE: recurring-дубли невозможны, как прежде; one_off допускает
+  -- ту же пару «день недели + время» на ДРУГУЮ дату; совпадение one_off с
+  -- экземпляром серии — ДВЕ строки (FR-90/FR-91, занятость едина — MAJ-1).
+  UNIQUE (instructor_id, weekday, start_time, end_time, slot_date)
 );
 CREATE INDEX IF NOT EXISTS idx_availability_instructor
   ON availability(instructor_id);
@@ -120,10 +135,14 @@ CREATE INDEX IF NOT EXISTS idx_booking_instructor
   ON booking(instructor_id, status);
 CREATE INDEX IF NOT EXISTS idx_booking_student
   ON booking(student_id, status);
--- Максимум одна АКТИВНАЯ (new/confirmed) бронь на слот; отклоненные
--- не мешают повторному запросу (ОВ-5).
+-- Максимум одна АКТИВНАЯ (new/confirmed) бронь на ЭКЗЕМПЛЯР слота —
+-- (availability_id, lesson_date); отклоненные не мешают повторному
+-- запросу (ОВ-5). Спринт 10 (задача 1.1, D4): разные ДАТЫ одной
+-- recurring-серии бронируются независимо; занятость ВНУТРИ одной строки
+-- графика держит индекс, совпадение one_off с экземпляром серии (две
+-- строки) — кросс-строчной проверкой create_booking (MAJ-1, booking.py).
 CREATE UNIQUE INDEX IF NOT EXISTS uq_booking_active_slot
-  ON booking(availability_id) WHERE status IN ('new','confirmed');
+  ON booking(availability_id, lesson_date) WHERE status IN ('new','confirmed');
 
 -- Спринт 8 (add-s8-cars-docs-booking, задача 1.1): статусная модель
 -- документов (FR-70, ОВ-2): версии ВУ анкеты (license) и СТС авто
@@ -228,6 +247,84 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_instructor_applications_exchange_token
   WHERE exchange_token IS NOT NULL;
 """
 
+# Спринт 10 (add-calendar-weeks-availability, задача 1.1, NFR-30, D2):
+# DDL перестройки availability — РОВНО новый _SCHEMA-вид таблицы (иначе
+# свежая и мигрированная БД разошлись бы в ограничениях). SQLite не снимает
+# табличный UNIQUE через ALTER — таблица перестраивается. Выполняется
+# ПОШАГОВО conn.execute (не executescript — тот делает неявный COMMIT и
+# разорвал бы транзакцию BEGIN IMMEDIATE).
+_AVAILABILITY_NEW_DDL = """
+CREATE TABLE availability_new (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  instructor_id INTEGER NOT NULL,
+  weekday INTEGER NOT NULL CHECK (weekday BETWEEN 0 AND 6),
+  start_time TEXT NOT NULL,
+  end_time TEXT NOT NULL,
+  slot_type TEXT NOT NULL DEFAULT 'recurring'
+    CHECK (slot_type IN ('recurring','one_off')),
+  slot_date TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  CHECK (
+    (slot_type = 'recurring' AND slot_date = '')
+    OR (slot_type = 'one_off' AND slot_date <> '')
+  ),
+  UNIQUE (instructor_id, weekday, start_time, end_time, slot_date)
+)
+"""
+
+# INSERT … SELECT — id и created_at СОХРАНЯЮТСЯ (ссылки
+# booking.availability_id остаются валидными); slot_type/slot_date новые
+# строки получают через DEFAULT ('recurring', '') — существующие интервалы
+# становятся повторяющимися БЕЗ перезаписи данных (FR-97).
+_AVAILABILITY_COPY = (
+    "INSERT INTO availability_new"
+    " (id, instructor_id, weekday, start_time, end_time, created_at)"
+    " SELECT id, instructor_id, weekday, start_time, end_time, created_at"
+    " FROM availability"
+)
+
+
+def _migrate_availability_slots(conn: sqlite3.Connection) -> None:
+    """Спринт 10 (задача 1.1): idempotent-миграция recurring/one_off —
+    guard по отсутствию колонки slot_type (повторный запуск — no-op,
+    дубли невозможны, NFR-30). ОДНА транзакция BEGIN IMMEDIATE:
+    перестройка availability (новый UNIQUE с slot_date) + замена
+    частичного индекса брони на экземпляры (availability_id, lesson_date)
+    — design.md «Модель данных», D2/D4. Существующие строки → recurring
+    через DEFAULT; данные не теряются (INSERT SELECT всех строк).
+    Откат отката не требуется: колонки аддитивны, старый код читает
+    старые колонки без изменений."""
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(availability)")}
+    if "slot_type" in columns:
+        return
+    conn.isolation_level = None
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        conn.execute(_AVAILABILITY_NEW_DDL)
+        conn.execute(_AVAILABILITY_COPY)
+        conn.execute("DROP TABLE availability")
+        conn.execute("ALTER TABLE availability_new RENAME TO availability")
+        # Индекс инструктора пересоздается после rebuild (design.md).
+        conn.execute("DROP INDEX IF EXISTS idx_availability_instructor")
+        conn.execute(
+            "CREATE INDEX idx_availability_instructor"
+            " ON availability(instructor_id)"
+        )
+        # Занятость ЭКЗЕМПЛЯРА (D4): старый индекс был по availability_id
+        # без даты — заменяется на (availability_id, lesson_date) WHERE
+        # active. Существующие данные совместимы (две активные брони
+        # одного availability_id сегодня невозможны — старый индекс строже).
+        conn.execute("DROP INDEX IF EXISTS uq_booking_active_slot")
+        conn.execute(
+            "CREATE UNIQUE INDEX uq_booking_active_slot"
+            " ON booking(availability_id, lesson_date)"
+            " WHERE status IN ('new','confirmed')"
+        )
+        conn.execute("COMMIT")
+    except Exception:
+        conn.execute("ROLLBACK")
+        raise
+
 
 def _seed_one_document(
     conn: sqlite3.Connection,
@@ -294,7 +391,10 @@ def init_db() -> None:
     (role='student', experience_years=0); Спринт 8 — таблица
     document_versions + seed verified v1 существующих документов;
     Спринт 9 — колонки токенов заявки (poll_token / exchange_token,
-    NULL у исторических строк — без backfill) + частичные UNIQUE-индексы."""
+    NULL у исторических строк — без backfill) + частичные UNIQUE-индексы;
+    Спринт 10 — перестройка availability под recurring/one_off (слоты
+    легаси становятся recurring через DEFAULT, id/created_at сохраняются)
+    + индекс занятости экземпляра брони (availability_id, lesson_date)."""
     conn = get_conn()
     try:
         conn.executescript(_SCHEMA)
@@ -305,6 +405,9 @@ def init_db() -> None:
             columns = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
             if column not in columns:
                 conn.execute(ddl)
+        # Спринт 10 (задача 1.1): перестройка availability под
+        # recurring/one_off + индекс занятости экземпляра (NFR-30, D2/D4).
+        _migrate_availability_slots(conn)
         conn.executescript(_TOKEN_INDEXES)
         _seed_document_versions(conn)
         conn.commit()
