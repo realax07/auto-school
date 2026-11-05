@@ -207,7 +207,7 @@ def test_s10_migration_legacy_becomes_recurring(legacy_db):
 
 
 def test_s10_migration_idempotent_noop(legacy_db):
-    """TC-S10BE-001 (задача 1.1, NFR-30). Спека: сценарий «Повторный
+    """TC-S10BE-002 (задача 1.1, NFR-30). Спека: сценарий «Повторный
     запуск миграции не создает дублей».
     Первый init_db выполняет перестройку; повторный (и третий) запуск —
     no-op: строки availability/booking, схема и sqlite_sequence
@@ -221,7 +221,7 @@ def test_s10_migration_idempotent_noop(legacy_db):
 
 
 def test_s10_slot_type_unique_and_check_domain(client):
-    """TC-S10BE-001 (задача 1.1, FR-90). Спека: «### Requirement: Типы
+    """TC-S10BE-003 (задача 1.1, FR-90). Спека: «### Requirement: Типы
     слотов: повторяющиеся и разовые» — сценарий «Совпадение разового с
     экземпляром повторяющегося отображается одним слотом» (домен
     уникальности design.md «Модель данных»).
@@ -293,7 +293,7 @@ def test_s10_slot_type_unique_and_check_domain(client):
 
 
 def test_s10_instance_index_two_dates_ok_same_date_409_domain(client):
-    """TC-S10BE-001 (задача 1.1, D4, NFR-8). Спека: «### Requirement:
+    """TC-S10BE-004 (задача 1.1, D4, NFR-8). Спека: «### Requirement:
     Занятый слот недоступен другим ученикам» — сценарий «Другие даты
     повторяющейся серии остаются доступными» (уровень хранилища).
     Частичный UNIQUE (availability_id, lesson_date) WHERE active: две
@@ -471,7 +471,7 @@ def next_weekday(weekday, weeks_ahead=1):
 
 
 def test_s10_booking_exact_instance_date(client, monkeypatch):
-    """TC-S10BE-006 (change add-calendar-weeks-availability, задача 2.1).
+    """TC-S10BE-005 (change add-calendar-weeks-availability, задача 2.1).
     Спека: «### Requirement: Запрос брони на слот» — сценарий «Бронь
     фиксируется на конкретной дате экземпляра».
     Повторяющийся слот «Чт 16:00–18:00»: POST с датой экземпляра → бронь
@@ -562,7 +562,7 @@ def test_s10_booking_future_boundary_min1(client, monkeypatch):
 
 
 def test_s10_booking_legacy_without_date(client, monkeypatch):
-    """TC-S10BE-006 (задача 2.1). Спека: «### Requirement: Запрос брони на
+    """TC-S10BE-007 (задача 2.1). Спека: «### Requirement: Запрос брони на
     слот» — сценарий «Запрос в старом формате (без даты) продолжает
     приниматься»: POST {availability_id} без даты → ближайшая будущая
     дата экземпляра серии (materialize, MIN-1); для разового слота
@@ -603,7 +603,7 @@ def test_s10_booking_legacy_without_date(client, monkeypatch):
 
 
 def test_s10_booking_cross_row_same_instance_409(client, monkeypatch):
-    """TC-S10BE-004 (задача 2.1, MAJ-1 арх-ревью Спринта 10 — политика (б)).
+    """TC-S10BE-008 (задача 2.1, MAJ-1 арх-ревью Спринта 10 — политика (б)).
     Спека: «### Requirement: Занятый слот недоступен другим ученикам» —
     сценарий «Бронь через вторую строку того же экземпляра отклоняется
     (MAJ-1)».
@@ -656,7 +656,7 @@ def test_s10_booking_cross_row_same_instance_409(client, monkeypatch):
 
 
 def test_s10_booking_instance_occupancy_and_race(client, monkeypatch):
-    """TC-S10BE-006 (задача 2.1, FR-95, NFR-8). Спека: «### Requirement:
+    """TC-S10BE-009 (задача 2.1, FR-95, NFR-8). Спека: «### Requirement:
     Занятый слот недоступен другим ученикам» — сценарии «Другие даты
     повторяющейся серии остаются доступными», «Параллельные запросы на
     один слот — максимум одна бронь», «Занятый слот не бронируется
@@ -731,7 +731,7 @@ def test_s10_booking_instance_occupancy_and_race(client, monkeypatch):
 
 
 def test_s10_slots_week_instances_and_dedup(client, monkeypatch):
-    """TC-S10BE-007 (задача 2.1, D7; FR-94/FR-95, MAJ-1 (б) — дедупликация).
+    """TC-S10BE-010 (задача 2.1, D7; FR-94/FR-95, MAJ-1 (б) — дедупликация).
     Спека: «### Requirement: Календарь ученика: недели, реальные даты и
     разворот повторений» — сценарии «Повторяющийся слот развернут в
     экземпляры каждой отображаемой недели», «Разовый слот виден только
@@ -826,7 +826,7 @@ def test_s10_slots_week_instances_and_dedup(client, monkeypatch):
 
 
 def test_s10_slots_date_validation_and_access(client, monkeypatch):
-    """TC-S10BE-007/008 (задача 2.1; MIN-4 арх-ревью, NFR-7 наследование).
+    """TC-S10BE-011/008 (задача 2.1; MIN-4 арх-ревью, NFR-7 наследование).
     Спека: «### Requirement: Календарь ученика: недели, реальные даты и
     разворот повторений» (серверная выдача и доступ).
     date не ISO (12.11.2026) / несуществующий день (2026-02-30) → 422
@@ -892,7 +892,7 @@ def availability_rows():
 
 
 def test_s10_availability_types_save_and_readback(client, monkeypatch):
-    """TC-S10BE-003 (change add-calendar-weeks-availability, задача 3.1).
+    """TC-S10BE-012 (change add-calendar-weeks-availability, задача 3.1).
     Спека: «### Requirement: Типы слотов: повторяющиеся и разовые» —
     сценарии «В одной неделе сочетаются оба типа», «Совпадение разового с
     экземпляром повторяющегося отображается одним слотом» (серверно: обе
@@ -960,7 +960,7 @@ def test_s10_availability_types_save_and_readback(client, monkeypatch):
 
 
 def test_s10_availability_validation_types(client):
-    """TC-S10BE-003 (задача 3.1, FR-90/D5). Спека: «### Requirement:
+    """TC-S10BE-013 (задача 3.1, FR-90/D5). Спека: «### Requirement:
     Сохранение и восстановление графика» (валидации нового контракта,
     design «Обработка ошибок»).
     one_off без date → 422; one_off с несуществующей датой (2026-02-30)
@@ -992,7 +992,7 @@ def test_s10_availability_validation_types(client):
 
 
 def test_s10_availability_409_instances_with_date(client, monkeypatch):
-    """TC-S10BE-004 (задача 3.1, MAJ-1 на уровне ЭКЗЕМПЛЯРОВ, FR-92).
+    """TC-S10BE-014 (задача 3.1, MAJ-1 на уровне ЭКЗЕМПЛЯРОВ, FR-92).
     Спека: «### Requirement: Сохранение и восстановление графика» —
     сценарии «PUT, убирающий экземпляр с активной бронью, отклоняется с
     409 (MAJ-1, уровень экземпляров)», «Экземпляры с только отклоненными
@@ -1112,7 +1112,7 @@ def test_s10_availability_409_instances_with_date(client, monkeypatch):
 
 
 def test_s10_availability_past_ban_new_format(client, monkeypatch):
-    """TC-S10BE-005 (задача 3.1, FR-93/NFR-31/D6, MIN-1). Спека: «###
+    """TC-S10BE-015 (задача 3.1, FR-93/NFR-31/D6, MIN-1). Спека: «###
     Requirement: Запрет правки прошлого» — сценарий «Сервер отклоняет
     сохранение, меняющее прошедший экземпляр, в обход UI»; «###
     Requirement: Сохранение и восстановление графика» — «Попытка
@@ -1250,7 +1250,7 @@ def test_s10_availability_past_ban_new_format(client, monkeypatch):
 
 
 def test_s10_availability_legacy_body_maj2(client, monkeypatch):
-    """TC-S10BE-002 (задача 3.1, NFR-29/MAJ-2 арх-ревью). Спека: «###
+    """TC-S10BE-016 (задача 3.1, NFR-29/MAJ-2 арх-ревью). Спека: «###
     Requirement: Сохранение и восстановление графика» — сценарий «Запрос
     в старом формате продолжает приниматься (MAJ-2)».
     PUT легаси-тела {intervals:[{weekday,start_time,end_time}]} при
@@ -1302,7 +1302,7 @@ def test_s10_availability_legacy_body_maj2(client, monkeypatch):
 
 
 def test_s10_availability_diff_write_and_rebind(client, monkeypatch):
-    """TC-S10BE-004 (задача 3.1, дифф-запись MAJ-1 — design «Экземпляр и
+    """TC-S10BE-017 (задача 3.1, дифф-запись MAJ-1 — design «Экземпляр и
     разворот серий»). Спека: «### Requirement: Сохранение и
     восстановление графика» (дифф-запись: id сохраненных строк не
     меняются; перепривязка брони при покрытой замене носителя).
@@ -1401,7 +1401,7 @@ def _join_visible_booking_id(booking_id):
 def test_s10_availability_rebind_series_to_oneoff_new_carrier(
     client, monkeypatch
 ):
-    """TC-S10BE-004 (задача 3.1, дифф-запись MAJ-1; review-003-3.1 major-1 —
+    """TC-S10BE-018 (задача 3.1, дифф-запись MAJ-1; review-003-3.1 major-1 —
     носитель ДОБАВЛЯЕТСЯ этим же PUT). Спека: «### Requirement:
     Сохранение и восстановление графика» — сценарий «Изменение графика
     перезаписывает сохраненный» (серия снята, разовый на дату брони
@@ -1455,7 +1455,7 @@ def test_s10_availability_rebind_series_to_oneoff_new_carrier(
 def test_s10_availability_rebind_oneoff_to_series_new_carrier(
     client, monkeypatch
 ):
-    """TC-S10BE-004 (задача 3.1, дифф-запись MAJ-1; review-003-3.1 major-1 —
+    """TC-S10BE-019 (задача 3.1, дифф-запись MAJ-1; review-003-3.1 major-1 —
     симметричный one_off→серия). Спека: «### Requirement: Сохранение и
     восстановление графика» — сценарий «Изменение графика перезаписывает
     сохраненный»; «### Requirement: Типы слотов: повторяющиеся и
