@@ -21,11 +21,11 @@
 | 11 | Спринт-1 контур (CAD-002) | **Авторизация — отдельный модуль backend/auth.py (роуты /api/auth/*), одна таблица users (email UNIQUE + bcrypt), in-memory сессии {token: (expires, user_id)} TTL 12 ч, вход email-only** — ADR-002 | Тот же single-worker-инвариант (сессии учеников тоже в памяти); нет анти-брутфорса на публичном /api/auth/login — принятый техдолг; «отдельный сервис» = отдельная граница модуля, выделение в процесс — опция Релиза 1 |
 | 12 | Спринт-2 контур, часть 1 (CAD-003) | **Поток инструктора: заявка (instructor_applications, bcrypt-хэш пароля в заявке) → модерация админом (approve переносит хэш в users) → вход через общий /api/auth/login; роли — флаг role в users ('student'/'instructor')** — ADR-003 | bcrypt-хэш хранится и в заявке, и в users (две копии до архивации заявок — решение Заказчика FR-11.1/FR-14); login при отсутствующей записи users делает bcrypt-проверку против хэша заявки (второй bcrypt-вызов в худшем пути); single-worker-инвариант без изменений |
 | 13 | Спринт-2 контур, часть 2 (add-instructor-cabinet, arch-review approved-with-notes) | **Кабинет инструктора — демо-визуал по утвержденному макету; доступ — через новый защищенный эндпоинт GET /api/instructor/me (require_session + серверная проверка role='instructor', 403 при иной роли); содержимое — статика макета, из данных только ФИО/инициалы учетки; схема БД и существующие контракты не меняются** | Реального расписания/доходов/учеников нет — все цифры кабинета фиктивны (макет «Все данные вымышлены»); страница (HTML) по-прежнему доставляется всем — защита на уровне API + клиентский редирект (паттерн статики без сборки, спринт-1) |
-| 14 | Спринт-3 контур, Партия A (add-instructor-student-loop, arch-review needs-rework — MAJ-1…3 в работе СА) | **Контур «инструктор ↔ ученик»: профиль инструктора (авто 1-ко-многим instructor_cars + интервалы availability) → каталог одобренных для ученика (карточки + фильтры) → заявки student_requests (new/accepted/denied) → принять (с car_id) / отказать (обязательный комментарий) → отзывы reviews (UNIQUE пара, рейтинг агрегатом AVG/COUNT на лету); ФИО — только в users (JOIN по id, без дублирования); файлы — data/uploads/ вне статики, выдача авторизованными эндпоинтами (ВУ — X-Admin-Token, фото авто — владельцу)** — ADR-004 | Авто-закрытие заявок при чужом accept → denied + системный комментарий (допущение proposal; объем закрытия — MAJ-1 ревью); стаж для карточки/фильтра — MAJ-3 (материализация в схеме не завершена); правило префиксов /api/instructors|instructor|student|admin — закрытие MIN-3 ревью 2.2 |
-| 15 | Спринт-5 контур (add-booking-docs, arch-review needs-rework — MAJ-1 в работе СА) | **Бронирование ПОВЕРХ сущностей Спринта 3: таблица booking (student_id, instructor_id, availability_id — слот ЦЕЛИКОМ, ОВ-3; lesson_date материализован; статусы new/confirmed/rejected) с частичным UNIQUE-индексом по availability_id WHERE status IN ('new','confirmed') + BEGIN IMMEDIATE — «один слот = одна активная/подтвержденная бронь» гарантией хранилища (NFR-8), проигравший в гонке получает 409; ракурсы фото и СТС — kinds существующего uploads.py (car_photo/car_sts, механика magic bytes/5 МБ/uuid без изменений) + фиксированные колонки instructor_cars; комплектность фотонабора валидирует ЧЕЛОВЕК в админке (ОВ-1: completeness + block, флаг blocked); домены booking и «Мои документы» — отдельные модули booking.py/instructor_documents.py (директива Заказчика: существующие не раздувать); пара = student_requests.status='accepted' без новой сущности** — ADR-005 | Повторение слота по неделям/завершение занятия — точки расширения (слот с подтвержденной бронью закрыт в объеме); lesson_date не следует за заменой графика — взаимодействие PUT availability с активными бронями доопределяет СА (MAJ-1 ревью); блокировка авто необратима в объеме (разблокировка — точка расширения) |
-| 16 | Спринт-6 контур (add-containerization, arch-review needs-rework — MAJ-1 в работе СА) | **Контейнеризация сервисного контура: multi-stage Dockerfile (pinned python:3.12-slim, .venv из builder-этапа, non-root appuser, HEALTHCHECK по /api/health средствами python stdlib); compose-стек app + nginx (reverse proxy, TLS-файлы монтируются) + MinIO (контур под S3-адаптер uploads.py — задача 6.3); две сети (frontend nginx↔app, backend app↔MinIO), наружу только 80/443; named volumes db/uploads/minio-data; секреты — только env_file/монтирования вне образов (.dockerignore: .env*, deploy/tls/, data/); bare-metal systemd-режим сохраняется — переключение окружением без правок кода (env-изоляция config.py/db.py/uploads.py, FR-57); тесты — внутри того же образа (один digest), CI собирает образ и гоняет pytest на каждый PR** — ADR-006 | Механика доставки tests/ в контейнер (mount vs COPY) — MAJ-1 ревью; nginx в сети backend (лишняя достижимость MinIO) и процедура переключения режимов/переноса data/ в тома — MIN-1/MIN-2 ревью; dev-зависимости в прод-образе и root-обслуживание томов на хосте — принятый техдолг (ADR-006) |
+| 14 | Спринт-3 контур, Партия A (add-instructor-student-loop; MAJ-1…3 закрыты в реализации) | **Контур «инструктор ↔ ученик»: профиль инструктора (авто 1-ко-многим instructor_cars + интервалы availability) → каталог одобренных для ученика (карточки + фильтры) → заявки student_requests (new/accepted/denied) → принять (с car_id) / отказать (обязательный комментарий) → отзывы reviews (UNIQUE пара, рейтинг агрегатом AVG/COUNT на лету); ФИО — только в users (JOIN по id, без дублирования); файлы — data/uploads/ вне статики, выдача авторизованными эндпоинтами (ВУ — X-Admin-Token, фото авто — владельцу)** — ADR-004 | Авто-закрытие заявок при чужом accept → denied + системный комментарий (допущение proposal; объем закрытия — MAJ-1 ревью); стаж для карточки/фильтра — MAJ-3 (материализация в схеме не завершена); правило префиксов /api/instructors|instructor|student|admin — закрытие MIN-3 ревью 2.2 |
+| 15 | Спринт-5 контур (add-booking-docs; MAJ-1 закрыт Спринтом 10 — ADR-010) | **Бронирование ПОВЕРХ сущностей Спринта 3: таблица booking (student_id, instructor_id, availability_id — слот ЦЕЛИКОМ, ОВ-3; lesson_date материализован; статусы new/confirmed/rejected) с частичным UNIQUE-индексом по availability_id WHERE status IN ('new','confirmed') + BEGIN IMMEDIATE — «один слот = одна активная/подтвержденная бронь» гарантией хранилища (NFR-8), проигравший в гонке получает 409; ракурсы фото и СТС — kinds существующего uploads.py (car_photo/car_sts, механика magic bytes/5 МБ/uuid без изменений) + фиксированные колонки instructor_cars; комплектность фотонабора валидирует ЧЕЛОВЕК в админке (ОВ-1: completeness + block, флаг blocked); домены booking и «Мои документы» — отдельные модули booking.py/instructor_documents.py (директива Заказчика: существующие не раздувать); пара = student_requests.status='accepted' без новой сущности** — ADR-005 | Повторение слота по неделям/завершение занятия — точки расширения (слот с подтвержденной бронью закрыт в объеме); lesson_date не следует за заменой графика — взаимодействие PUT availability с активными бронями доопределяет СА (MAJ-1 ревью); блокировка авто необратима в объеме (разблокировка — точка расширения) |
+| 16 | Спринт-6 контур (add-containerization; MAJ-1 закрыт — tests/ read-only mount) | **Контейнеризация сервисного контура: multi-stage Dockerfile (pinned python:3.12-slim, .venv из builder-этапа, non-root appuser, HEALTHCHECK по /api/health средствами python stdlib); compose-стек app + nginx (reverse proxy, TLS-файлы монтируются) + MinIO (контур под S3-адаптер uploads.py — задача 6.3); две сети (frontend nginx↔app, backend app↔MinIO), наружу только 80/443; named volumes db/uploads/minio-data; секреты — только env_file/монтирования вне образов (.dockerignore: .env*, deploy/tls/, data/); bare-metal systemd-режим сохраняется — переключение окружением без правок кода (env-изоляция config.py/db.py/uploads.py, FR-57); тесты — внутри того же образа (один digest), CI собирает образ и гоняет pytest на каждый PR** — ADR-006 | Механика доставки tests/ в контейнер (mount vs COPY) — MAJ-1 ревью; nginx в сети backend (лишняя достижимость MinIO) и процедура переключения режимов/переноса data/ в тома — MIN-1/MIN-2 ревью; dev-зависимости в прод-образе и root-обслуживание томов на хосте — принятый техдолг (ADR-006) |
 | 17 | Спринт-8 контур (add-s8-cars-docs-booking, arch-review approve) | **Версии документов ВУ/СТС: таблица document_versions (target_type license/car_sts + target_id, status pending/verified/rejected; частичный UNIQUE по pending — одна ожидающая на документ, ОВ-7; CHECK — rejected только с причиной, ОВ-1); канонические колонки license_photo_path/photo_sts ОСТАЮТСЯ указателями файла действующей версии (все существующие потребители без переделки, NFR-23); seed-миграция verified v1 — idempotent, init_db через lifespan (NFR-24); асимметрия первичной загрузки — СТС у авто без СТС → verified v1 сразу (гейт человека Спринта 7), ВУ у анкеты без ВУ → pending; машины состояний документа и авто НЕЗАВИСИМЫ — замена СТС не сбрасывает validated (ОВ-6), правило MAJ-1 «validated → validating» — только 5 ракурсов; админ-верификация замен — X-Admin-Token, reject с обязательной причиной (ОВ-1), предпросмотр открывается (ОВ-4)** — ADR-007 | Файлы-сироты версий — расширение унаследованного техдолга; асимметрия первичной загрузки — особый случай эксплуатации (первичное СТС не в админской очереди); влияние статусов документов на активность инструктора — точка расширения (ОВ-3 «пока что»); атомарность «замещающая загрузка × verify/reject» — условный UPDATE/BEGIN IMMEDIATE + тесты (MIN-1 ревью); расхождение дословной цитаты п.6 с записью ОВ-6 — подтверждение ПМ/БА (MIN-4 ревью) |
-| 18 | Спринт-9 контур, каркас Vue (add-vue-framework-pilot, arch-review доработка — MAJ-1…2 в работе СА) | **Миграция фронта на Vue 3 + Vite — ПОСТРАНИЧНО: страница = отдельная точка входа Vite и свой чанк (multi-entry MPA), SPA-монолит/vue-router/pinia запрещены (ОВ-3); workspace frontend/vue/, base /vue/, vendor-чанки по пакетам (runtime vue — свой чанк, вендор не инлайнится в страницы) + shared-чанк общего кода страниц; бюджеты NFR-26 — каждый vendor-чанк ≤150 КБ gzip, JS первого захода страницы ≤200 КБ gzip, проверка на артефактах dist на приемке каждого шага; мигрированная страница заменяет HTML-монолит ЦЕЛИКОМ (маршрут _PAGE_ROUTES отдаёт frontend/vue/dist, legacy-файл удаляется), план: С9 /instructors/pending (пилот, ОВ-4) → С10 статусные экраны/простые формы → С11 лендинги/анкета/кабинеты; доставка — node builder-этап в Dockerfile (pinned, наследование ADR-006), runtime забирает dist COPY --from, compose/nginx БЕЗ ИЗМЕНЕНИЙ (статика тем же сервисом — ADR-001), bare-metal FR-57 — npm ci && npm run build перед деплоем; критерий приема шага — полный e2e (49) зелеными без правок сценариев (NFR-27), прогон против собранного dist** — ADR-008 | Сборка перед e2e — новый обязательный шаг контура (забытая сборка = 404 мигрированного маршрута, красный прогон с ясной причиной); второй pinned образ node + удорожание docker build (npm ci); bare-metal требует Node.js на хосте сборки (MIN-1 ревью); app.py остается точкой статики и для собранных страниц (revisit — Релиз 1); дубли шапки/футера legacy×Vue до конца С10–С11 — временное состояние; контроль бюджетов ручной на приемке (CI-автоматизации нет); зависимость пилота от контракта add-application-status-polling — слияние на приемке 9.5 (MAJ-2 ревью) |
+| 18 | Спринт-9 контур, каркас Vue (add-vue-framework-pilot; MAJ-1…2 закрыты в реализации — пилот в проде) | **Миграция фронта на Vue 3 + Vite — ПОСТРАНИЧНО: страница = отдельная точка входа Vite и свой чанк (multi-entry MPA), SPA-монолит/vue-router/pinia запрещены (ОВ-3); workspace frontend/vue/, base /vue/, vendor-чанки по пакетам (runtime vue — свой чанк, вендор не инлайнится в страницы) + shared-чанк общего кода страниц; бюджеты NFR-26 — каждый vendor-чанк ≤150 КБ gzip, JS первого захода страницы ≤200 КБ gzip, проверка на артефактах dist на приемке каждого шага; мигрированная страница заменяет HTML-монолит ЦЕЛИКОМ (маршрут _PAGE_ROUTES отдаёт frontend/vue/dist, legacy-файл удаляется), план: С9 пилот /instructors/pending — ВЫПОЛНЕН (PR#107, 2026-11-04) → С11 статусные экраны/простые формы → далее лендинги/анкета/кабинеты (С10 занял календарь — ADR-010); доставка — node builder-этап в Dockerfile (pinned, наследование ADR-006), runtime забирает dist COPY --from, compose/nginx БЕЗ ИЗМЕНЕНИЙ (статика тем же сервисом — ADR-001), bare-metal FR-57 — npm ci && npm run build перед деплоем; критерий приема шага — полный e2e (49) зелеными без правок сценариев (NFR-27), прогон против собранного dist** — ADR-008 | Сборка перед e2e — новый обязательный шаг контура (забытая сборка = 404 мигрированного маршрута, красный прогон с ясной причиной); второй pinned образ node + удорожание docker build (npm ci); bare-metal требует Node.js на хосте сборки (MIN-1 ревью); app.py остается точкой статики и для собранных страниц (revisit — Релиз 1); дубли шапки/футера legacy×Vue до конца С10–С11 — временное состояние; контроль бюджетов ручной на приемке (CI-автоматизации нет); зависимость пилота от контракта add-application-status-polling — слияние на приемке 9.5 (MAJ-2 ревью) |
 | 19 | Спринт-9 контур (add-personal-data-policy, arch-review approve) | **Домен PersonalData: текст политики — ЕДИНЫЙ заменяемый артефакт `deploy/policy/policy.md` (шапка policy-version/policy-date + plain-text; env POLICY_FILE; bind-mount :ro в backend-контур по механике nginx.conf/TLS — ADR-006; Dockerfile артефакт НЕ копирует) — подмена = замена файла на хосте (+ рестарт-страховка), чтение с диска на каждый запрос: ≤ 15 мин без разработчика/правки кода/пересборки (NFR-25); раздача — НОВЫЙ модуль backend/policy.py (единственный парсер read_policy): GET /api/policy публичный (механика /api/health) + страница /policy (оболочка policy.html в _PAGE_ROUTES, текст — fetch, рендер текстовыми узлами, в HTML/JS текста нет — grep-контроль); фиксация согласия: consent_at (UTC сервера) + consent_policy_version (из артефакта на момент сабмита, клиентской не доверять) в users и instructor_applications — 4 NULL-able колонки idempotent-миграцией _COLUMN_MIGRATIONS, легаси NULL без backfill; consent в /api/register — НОВОЕ обязательное поле (422, механика MIN-2 Спринта 3), в apply — проверка без изменений; битый артефакт → 500 {ok:false} и записи НЕ создаются (fail-closed, FR-79)** — ADR-009 | Битый/отсутствующий артефакт блокирует ОБЕ регистрации и /policy при зеленом /api/health (HEALTHCHECK артефакт не проверяет — техдолг спринта-9); текст версии не архивируется (consent_policy_version — ссылка на строку; после подмены текст прежней версии невосстановим — точка расширения при требовании аудита); повторное согласие/консент-журнал/PDF/футеры — точки расширения; строгость формата policy-date в парсере — MIN-3 ревью |
 | 20 | Спринт-10 контур (add-calendar-weeks-availability, arch-review-002 approve — 2026-11-05) | **Календарь реальных недель (инструктор и ученик): модель слотов recurring/one_off на сущности availability — колонки slot_type/slot_date + CHECK-пара, UNIQUE расширен до (instructor_id, weekday, start_time, end_time, slot_date); легаси-строки → recurring через DEFAULT без перезаписи (FR-97) — guarded rebuild одной транзакцией с сохранением id/created_at (ссылки booking.availability_id валидны, FK нет), миграция idempotent по guard-колонке (NFR-30); экземпляр = (availability_id, дата), серии НЕ материализуются — инструктор разворачивает локально из полного GET (листание без сети, NFR-32), ученику экземпляры недели с состояниями free/busy/pending по (id, date) выдает сервер GET slots?date=; занятость/бронь/MAJ-1 — на уровне экземпляра (совпадение one_off с экземпляром серии = две строки допустимо, FR-90): частичный UNIQUE uq_booking_active_slot → (availability_id, lesson_date) WHERE active ВНУТРИ строки + КРОСС-СТРОЧНАЯ проверка экземпляра в create_booking внутри BEGIN IMMEDIATE (активная бронь любой покрывающей строки → 409; single-writer сериализует с PUT; точное совпадение интервалов), дедупликация instances в GET slots?date= (приоритет one_off, state агрегируется); PUT availability — дифф-запись (id строк сохраняются, booking.availability_id перепривязывается на строку-носитель при покрытой замене), lesson_date = точная дата экземпляра (POST bookings + опциональная date; легаси-вызов — ближайшая дата серии, MIN-1), 409 с перечнем, содержащим дату (закон MAJ-1 Спринта 5, перенос с интервала на экземпляры — FR-92); PUT/GET /api/instructor/availability расширяются обратно-совместимо (slot_type/date аддитивны, легаси-тело = recurring из тела + сохранение существующих one_off без изменений — MAJ-2; NFR-29, тесты s3/s7 без правок), новых роутеров/страниц нет; запрет правки прошлого (FR-93: правка ≥ начала слота) и бронирования прошедших/начавшихся (FR-96: строго >) — серверные проверки каждого PUT/POST (422), граница по началу слота, время — серверное МСК (наследование nowMoscow/MIN-1), клиентская блокировка — только UX; попап-редактор — оверлей НАД ячейкой поверх страницы, тип индивидуален ячейке, применяется по подтверждению в несохраненные правки (контур «Сохранить/Отменить» FR-68); реальный календарь — 7 дат от понедельника, подпись диапазона с обеими частями месяца/года, «сегодня» на реальной дате МСК; горизонт навигации ±12 месяцев — клиентский лимит; история состояний серий не хранится (факты истории — брони с lesson_date)** — ADR-010 | Риски ревью-001 сняты доработкой СА (f4a162b, arch-review-002 approve 2026-11-05): «один экземпляр — одна активная бронь» закреплена кросс-строчно (проверка create_booking в BEGIN IMMEDIATE + дедупликация slots?date=; ADR-010 «Уточнение»); семантика легаси-тела единая (recurring из тела + one_off сохраняются — MAJ-2); TZ=Europe/Moscow + МСК-хелпер закреплены в design/tasks (фактический контроль — задача 4.1); следствие Д8 зафиксировано в «Сознательные ограничения». Остаются: частичное пересечение интервалов разных строк одним экземпляром не считается (точное совпадение дата+start+end) — точка расширения, наследует техдолг спринта-5 «уникальность слота, а не даты»; MIN-5 ревью — свод устаревших формулировок дельты Спринта 8 СА ПРИ АРХИВАЦИИ 7→8→10 (proposal «Отслеживание»); карта данных — задача архитектора при приемке 10.3 |
 
@@ -37,7 +37,7 @@
 контейнеризации реализуется Спринтом 6 (add-containerization, ADR-006) —
 compose-режим встает рядом с действующим bare-metal systemd-деплоем.
 
-## Контейнерный контур (Спринт 6, ADR-006; arch-review needs-rework — MAJ-1 в работе СА)
+## Контейнерный контур (Спринт 6, ADR-006; arch-review закрыт — MAJ-1/MIN устранены в реализации)
 
 ```
 Клиент (браузер)
@@ -55,7 +55,7 @@ app (образ из Dockerfile: pinned python:3.12-slim, multi-stage, non-root 
    │  named volume db     ← AUTOSCHOOL_DB_PATH=/data/db/app.db
    │  named volume uploads← AUTOSCHOOL_UPLOADS_DIR=/data/uploads
    │  bind (хост) deploy/policy → :ro POLICY_FILE=/app/deploy/policy/policy.md
-   │  (Спринт-9, ADR-008: артефакт политики вне образа — подмена файла
+   │  (Спринт-9, ADR-009: артефакт политики вне образа — подмена файла
    │  без пересборки; подмена = замена на хосте + рестарт, NFR-25)
    │  сеть backend (app ↔ MinIO)
    ▼
@@ -70,10 +70,11 @@ Bare-metal режим (без изменений, FR-57): deploy/autoschool.serv
 ```
 
 Тесты — внутри того же образа (один digest, pytest с временной БД /tmp вне
-томов); CI — сборка образа + pytest в контейнере на каждый PR. Детали
-механики прогона — MAJ-1 arch-review add-containerization (в работе СА).
+томов); CI — сборка образа + pytest в контейнере на каждый PR. Механика
+MAJ-1 ЗАКРЫТА: tests/ доставляются read-only монтированием при прогоне
+(scripts/container_test.sh: -v ./tests:/app/tests:ro).
 
-## Компоненты (спринт-0 контур + спринт-1 auth//cabinet + спринт-2 поток инструктора + спринт-2.2 кабинет инструктора + спринт-3A контур инструктор↔ученик + спринт-5 бронирование и документы + спринт-9 политика ПД)
+## Компоненты (спринт-0 контур + спринт-1 auth//cabinet + спринт-2 поток инструктора + спринт-2.2 кабинет инструктора + спринт-3A контур инструктор↔ученик + спринт-5 бронирование и документы + спринт-8 версии документов + спринт-9 политика ПД, статус-опрос, Vue-пилот + спринт-10 календарь недель)
 
 ```
 Клиент (браузер)
@@ -86,12 +87,17 @@ FastAPI-сервис (uvicorn, single-worker)          ← единственн�
    │                 instructor_applications; миграция users.role (idempotent);
    │                 СПРИНТ-8 (ADR-007): таблица document_versions + seed
    │                 verified v1 из существующих license_photo_path/photo_sts
-   │                 (idempotent, NFR-24); СПРИНТ-9 (ADR-008): +4 колонки
+   │                 (idempotent, NFR-24); СПРИНТ-9 (ADR-009): +4 колонки
    │                 consent_at / consent_policy_version (users,
    │                 instructor_applications) — idempotent _COLUMN_MIGRATIONS,
-   │                 легаси-строки NULL без seed/backfill
+   │                 легаси-строки NULL без seed/backfill;
+   │                 СПРИНТ-10 (ADR-010): миграция availability —
+   │                 slot_type/slot_date + CHECK, UNIQUE расширен до
+   │                 (instructor_id, weekday, start_time, end_time, slot_date),
+   │                 легаси-строки → recurring (guarded rebuild одной
+   │                 транзакцией с сохранением id/created_at, idempotent NFR-30)
    ├── register.py — POST /api/register (валидация → bcrypt → INSERT);
-   │                 СПРИНТ-9 (ADR-008): +обязательное поле consent
+   │                 СПРИНТ-9 (ADR-009): +обязательное поле consent
    │                 (bool=False, MAJ-1; позиция 1a → 422) + фиксация
    │                 consent_at/consent_policy_version при успехе
    ├── admin.py    — POST /api/admin/login; GET /api/admin/users[.csv]; require_admin
@@ -105,7 +111,7 @@ FastAPI-сервис (uvicorn, single-worker)          ← единственн�
    │                 и по статусу заявки без выдачи сессии (pending/rejected)
    ├── instructors.py     — СПРИНТ-2 (ADR-003): POST /api/instructors/apply
    │                        (публичная анкета: валидация → bcrypt → INSERT заявки);
-   │                        СПРИНТ-9 (ADR-008): при успехе INSERT +
+   │                        СПРИНТ-9 (ADR-009): при успехе INSERT +
    │                        consent_at/consent_policy_version (проверка
    │                        consent — позиция 1a MIN-2, без изменений)
    ├── instructor_admin.py — СПРИНТ-2 (ADR-003): GET /api/admin/instructor-applications;
@@ -118,6 +124,15 @@ FastAPI-сервис (uvicorn, single-worker)          ← единственн�
    │                        роли) → {id, surname, name, patronymic, email};
    │                        серверная проверка роли кабинета (закрывает
    │                        техдолг 2.1)
+   ├── dashboard.py        — СПРИНТ-2.2: GET /api/instructor/dashboard —
+   │                        единая точка данных кабинета (та же серверная
+   │                        проверка роли; демо-цифры заменяются реальными
+   │                        по мере появления доменов)
+   ├── guards.py           — СПРИНТ-3A: общий ролевой guard новых
+   │                        кабинетных эндпоинтов (15+) — require_session
+   │                        + SELECT users + проверка роли, 401/403;
+   │                        вынесен в helper, auth.py/admin.py
+   │                        не изменяются (задача 7.1)
    ├── uploads.py          — СПРИНТ-3A (add-instructor-student-loop): helper
    │                        файлов — magic bytes JPEG/PNG + ≤5 МБ до записи,
    │                        data/uploads/{license,cars}/<uuid>.<ext>;
@@ -150,7 +165,18 @@ FastAPI-сервис (uvicorn, single-worker)          ← единственн�
    │                        /api/instructor/bookings, POST
    │                        …/{id}/confirm|reject (reject — комментарий
    │                        обязателен, ОВ-2); частичный UNIQUE +
-   │                        BEGIN IMMEDIATE (NFR-8), занятый слот → 409
+   │                        BEGIN IMMEDIATE (NFR-8), занятый слот → 409;
+   │                        СПРИНТ-10 (ADR-010, РАСШИРЕНИЕ): GET
+   │                        slots?date= — экземпляры недели с состояниями
+   │                        free/busy/pending + дедупликация (приоритет
+   │                        one_off, state агрегируется); POST bookings
+   │                        + опциональная date — lesson_date = точная
+   │                        дата экземпляра (легаси-вызов — ближайшая
+   │                        дата серии); UNIQUE → (availability_id,
+   │                        lesson_date) + КРОСС-СТРОЧНАЯ проверка
+   │                        экземпляра в BEGIN IMMEDIATE (409 с датой
+   │                        в перечне — FR-92); бронирование только
+   │                        будущих — строго > NOW МСК (FR-96/NFR-31)
    ├── instructors.py /    — СПРИНТ-3A РАСШИРЕНИЯ: apply принимает multipart
    │   instructor_admin.py   с ВУ; admin-API — карточка заявки +
    │                        GET …/{id}/license-image (только X-Admin-Token)
@@ -175,8 +201,15 @@ FastAPI-сервис (uvicorn, single-worker)          ← единственн�
    │                        остается validated); ветки 5 ракурсов — без
    │                        изменений (MAJ-1: validated → validating)
    ├── instructor_availability.py — СПРИНТ-3A: GET/PUT
-   │                        /api/instructor/availability (полная замена
-   │                        графика в одной транзакции)
+   │                        /api/instructor/availability; СПРИНТ-10
+   │                        (ADR-010, РАСШИРЕНИЕ): слоты recurring/
+   │                        one_off (slot_type/slot_date, аддитивно);
+   │                        PUT — дифф-запись с сохранением id строк
+   │                        и перепривязкой booking.availability_id
+   │                        при покрытой замене носителя; легаси-тело =
+   │                        recurring из тела + сохранение существующих
+   │                        one_off (MAJ-2); запрет правки прошлого —
+   │                        серверно (422, FR-93/NFR-31)
    ├── student_marketplace.py — СПРИНТ-3A: GET /api/student/instructors
    │                        (одобренные + фильтры КПП/рейтинг/стаж/время),
    │                        GET …/{id} (карточка: ФИО из users, авто без
@@ -204,7 +237,19 @@ FastAPI-сервис (uvicorn, single-worker)          ← единственн�
    │                        из реальных подтвержденных броней на текущую
    │                        дату (пусто → прежнее «Сегодня занятий нет»,
    │                        FR-49)
-   ├── policy.py           — СПРИНТ-9 (ADR-008, НОВЫЙ МОДУЛЬ, домен
+   ├── application_status.py — СПРИНТ-9 (add-application-status-polling,
+   │                        НОВЫЙ МОДУЛЬ): до-сессионный контур заявителя
+   │                        под /api/instructors/* (правило префиксов) —
+   │                        GET application-status (X-Poll-Token —
+   │                        многоразовый неперебираемый токен; ТОЛЬКО
+   │                        чтение: одиночный параметризованный SELECT по
+   │                        частичному UNIQUE, ≤5 запросов/мин — NFR-28;
+   │                        внутренний deny → rejected) + POST
+   │                        application-exchange (обмен токена на сессию
+   │                        АТОМАРНО — условный UPDATE + rowcount;
+   │                        потребленный/чужой токен → терминальный 404
+   │                        без различения, MAJ-1 arch-review-002)
+   ├── policy.py           — СПРИНТ-9 (ADR-009, НОВЫЙ МОДУЛЬ, домен
    │                        PersonalData): read_policy() — единственный
    │                        парсер артефакта deploy/policy/policy.md
    │                        (POLICY_FILE, чтение с диска на каждый запрос,
@@ -237,10 +282,22 @@ FastAPI-сервис (uvicorn, single-worker)          ← единственн�
                      /admin/cars → admin-cars.html (комплектность +
                      блокировка) — дашборды не раздуваем, новые разделы
                      на новых страницах (ADR-005)
-                     + спринт-9: /policy → policy.html (политика ПД —
-                     оболочка БЕЗ текста: текст и версия — fetch GET
-                     /api/policy при загрузке, рендер текстовыми узлами,
-                     ADR-008)
+                     + спринт-9 (ADR-009): /policy → policy.html (политика
+                     ПД — оболочка БЕЗ текста: текст и версия — fetch GET
+                     /api/policy при загрузке, рендер текстовыми узлами)
+                     + спринт-9 (ADR-008, ПИЛОТ VUE): /instructors/pending —
+                     страница из frontend/vue/dist (multi-entry MPA,
+                     бюджеты NFR-26; legacy HTML удален — маршрут _PAGE_ROUTES
+                     отдаёт dist); статус-опрос 12с, обмен токена на сессию,
+                     терминальный 404 (NFR-28)
+                     + спринт-10 (ADR-010): календарь реальных недель в
+                     /instructor/bookings и /booking — листание ‹ ›,
+                     попап-редактор слота (разово/повторяющееся), у
+                     инструктора разворот серий локально (без сети),
+                     у ученика экземпляры free/busy/pending; запрет
+                     прошлого на сервере
+                     + спринт-3A: /instructor-choice (каталог одобренных),
+                     /review-form (форма отзыва)
    ▼
 SQLite data/app.db (WAL, в .gitignore) — только хранение (паттерн 5);
 учетные данные — таблица users (email UNIQUE + role), заявки инструкторов —
@@ -341,15 +398,14 @@ instructor_applications (email UNIQUE, password_hash, status), сессии — 
   MIN-1 arch-review add-instructor-cabinet (пометка или явное решение
   Заказчика — до/в задаче 2.1).
 
-## Техдолг спринта-3, Партия A (контур инструктор↔ученик; arch-review needs-rework — устраняется СА до передачи в разработку)
+## Техдолг спринта-3, Партия A (контур инструктор↔ученик; MAJ-1…3 ЗАКРЫТЫ в реализации Спринта 3 — остались принятые миноры и точки расширения)
 
-- Открытые MAJ ревью add-instructor-student-loop: MAJ-1 — авто-закрытие
-  заявок при чужом accept охватывает только 'new', двойное «принят»
-  достижимо (принять может только один — ОВ-1); MAJ-2 — перекрепление авто
-  принятого ученика (ОВ-3) без API-эндпоинта и backend-задачи; MAJ-3 —
-  стаж инструктора (FR-31 карточка, FR-32 фильтр min_experience) не
-  материализован в схеме (в instructor_applications — текст, approve в
-  users не переносит).
+- MAJ ревью add-instructor-student-loop — ЗАКРЫТЫ в реализации: MAJ-1 —
+  авто-закрытие охватывает ВСЕ активные заявки ученика (new и accepted)
+  → denied + системный комментарий (ОВ-1); MAJ-2 — перекрепление авто
+  принятого ученика — PATCH /api/instructor/cars/{id}; MAJ-3 — стаж
+  материализован в профиле, фильтр min_experience и карточка работают.
+  История формулировок:
 - Файлы-сироты в data/uploads/ (DELETE авто / обработка заявок не удаляют
   файлы с диска) — принять как осознанный техдолг (MIN-3 ревью; cleanup
   вне объема).
@@ -362,13 +418,13 @@ instructor_applications (email UNIQUE, password_hash, status), сессии — 
   нет rate-limit на публичных эндпоинтах (публичная анкета теперь multipart
   с файлом — поверхность выросла; анти-брутфорс/лимиты — Релиз 1 за Gateway).
 
-## Техдолг спринта-5 (контур бронирования и документы; arch-review add-booking-docs needs-rework — устраняется СА до передачи в разработку)
+## Техдолг спринта-5 (контур бронирования и документы; MAJ-1 ЗАКРЫТ Спринтом 10 — согласование PUT×booking на уровне экземпляров, ADR-010)
 
-- Открытый MAJ ревью add-booking-docs: MAJ-1 — PUT /api/instructor/availability
-  (полная замена графика) не согласован с booking: удаление/замена слота
-  под активной/подтвержденной бронью оставляет висячую ссылку
-  (календари FR-49 ломаются); стратегия (запрет 409 — рекомендовано — или
-  каскадный reject) за СА в design.md + сценарий + тест 4.1.
+- MAJ-1 ревью add-booking-docs — ЗАКРЫТ Спринтом 10 (ADR-010, доработка
+  f4a162b): PUT availability — дифф-запись с перепривязкой
+  booking.availability_id; 409 с перечнем, содержащим дату, на уровне
+  ЭКЗЕМПЛЯРОВ (кросс-строчная проверка в BEGIN IMMEDIATE). История
+  формулировок (стратегия «запрет 409 vs каскадный reject»):
 - Minor ревью: MIN-1 — часовой пояс/правило даты для lesson_date и
   «Занятия на сегодня» (наследует MIN-4 review-001: UTC vs локальная дата);
   MIN-2 — blocked-автомобиль × отображение в существующих бронях; MIN-3 —
@@ -385,13 +441,12 @@ instructor_applications (email UNIQUE, password_hash, status), сессии — 
   нет rate-limit на публичных эндпоинтах, файлы-сироты в data/uploads/
   (cleanup вне объема).
 
-## Техдолг спринта-6 (контейнеризация; arch-review add-containerization needs-rework — устраняется СА до передачи в разработку)
+## Техдолг спринта-6 (контейнеризация; MAJ-1 ЗАКРЫТ в реализации — tests/ read-only mount, CI гоняет pytest в образе)
 
-- Открытый MAJ ревью add-containerization: MAJ-1 — tests/ исключены из образа
-  (контракт Dockerfile 1.1: «НЕ копируются»), при этом FR-55/tasks 3.1/4.1
-  требуют прогона pytest ВНУТРИ того же образа — механизм доставки тестов
-  (read-only mount при compose run — рекомендовано — либо COPY tests/) не
-  зафиксирован; синхронизировать design/tasks 1.1/3.1/4.1.
+- MAJ-1 ревью add-containerization — ЗАКРЫТ: механизм доставки тестов —
+  read-only mount при прогоне (scripts/container_test.sh:
+  -v ./tests:/app/tests:ro; CI-джоб docker-build «Run backend tests
+  inside the built image»). История формулировок:
 - Minor ревью: MIN-1 — nginx подключен «к обеим» сетям вопреки диаграмме
   контура (лишняя достижимость MinIO из nginx; рекомендовано — только
   frontend); MIN-2 — процедура переключения режимов (конфликт портов 80/443/
@@ -436,7 +491,7 @@ instructor_applications (email UNIQUE, password_hash, status), сессии — 
   нет rate-limit на публичных эндпоинтах, файлы-сироты uploads (cleanup
   вне объема).
 
-## Техдолг спринта-9 (каркас Vue и пилот; arch-review add-vue-framework-pilot — доработка, 2026-11-02; MAJ в работе СА)
+## Техдолг спринта-9 (каркас Vue и пилот; MAJ-1…2 ревью ЗАКРЫТЫ в реализации — пилот в проде, PR#107)
 
 - MAJ-1 ревью: tests/test_instructor_pages.py (test_pending_page_exists_and_text,
   helper page(), строки 24/256–268) читает legacy instructor-pending.html
