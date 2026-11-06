@@ -53,7 +53,7 @@ docker compose run --rm \
   -e SECRET=container-test-secret \
   -v "./${TESTS_DIR}:/app/tests:ro" \
   app python -m pytest /app/tests -q -p no:cacheprovider \
-  --deselect tests/test_qa_sprint1.py::test_nfr003_token_only_in_200_body_not_in_logs_html \
-  --deselect tests/test_static.py::test_tc_nfr_003_env_gitignored_and_example_present
+  --deselect tests/api/test_qa_sprint1.py::test_nfr003_token_only_in_200_body_not_in_logs_html \
+  --deselect tests/web/test_static.py::test_tc_nfr_003_env_gitignored_and_example_present
 
 echo "OK: backend-набор зеленый внутри образа autoschool:local (тот же digest, что поставка)"

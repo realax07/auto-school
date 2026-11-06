@@ -1,4 +1,13 @@
-"""Общие фикстуры и хелперы API-тестов (TestClient, без сети).
+"""Общие фикстуры и хелперы автотестов (загружаются для ВСЕХ доменов).
+
+Домены (канон flowctl: frontend/ → tests/web, backend/ → tests/api):
+- tests/api/  — API-тесты (TestClient над create_app(), без сети);
+- tests/web/  — Web-тесты: Playwright (браузер против живого uvicorn) и
+  wiring-проверки статики (HTML+ES-модули через frontend_source());
+- tests/unit/ — изолированные unit-тесты чистых функций доменов
+  (парсер политики, валидация intervals) — без HTTP и БД;
+- tests/test_container_contract.py — контракт деплоя (Dockerfile/compose),
+  по правилу flowctl «всё остальное → tests/» остается на корне.
 
 Источник правды — approved-кейсы test-model/approved/add-registration-admin/
 (TC-REG-001…018, TC-ADM-001…017, TC-NFR-001…003); контракты — sdd.md §3–§5.

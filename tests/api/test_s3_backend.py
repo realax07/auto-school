@@ -23,7 +23,7 @@ import pytest
 
 from conftest import admin_headers, db_path, frontend_source, register
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 
 JPEG_BYTES = b"\xff\xd8\xff\xe0" + b"\x00" * 64  # валидные magic bytes JPEG
 PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64  # валидные magic bytes PNG

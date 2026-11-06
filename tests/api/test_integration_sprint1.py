@@ -98,7 +98,7 @@ def test_cabinet_page_is_cabinet_html_file(client):
     /admin-dashboard, паттерн Спринта 0)."""
     from pathlib import Path
 
-    root = Path(__file__).resolve().parent.parent
+    root = Path(__file__).resolve().parents[2]
     file_html = (root / "frontend" / "cabinet.html").read_text(encoding="utf-8")
     resp = client.get("/cabinet")
     assert resp.status_code == 200
