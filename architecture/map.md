@@ -491,7 +491,7 @@ instructor_applications (email UNIQUE, password_hash, status), сессии — 
   нет rate-limit на публичных эндпоинтах, файлы-сироты uploads (cleanup
   вне объема).
 
-## Техдолг спринта-9 (каркас Vue и пилот; arch-review add-vue-framework-pilot — доработка, 2026-11-02; MAJ в работе СА)
+## Техдолг спринта-9 (каркас Vue и пилот; MAJ-1…2 ревью ЗАКРЫТЫ в реализации — пилот в проде, PR#107)
 
 - MAJ-1 ревью: tests/test_instructor_pages.py (test_pending_page_exists_and_text,
   helper page(), строки 24/256–268) читает legacy instructor-pending.html
