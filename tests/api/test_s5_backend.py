@@ -26,7 +26,7 @@ from conftest import admin_headers, db_path, register
 
 from backend import booking as booking_domain
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 
 ROOT_JPEG = b"\xff\xd8\xff\xe0" + b"\x00" * 64
 ROOT_PNG = b"\x89PNG\r\n\x1a\x0a" + b"\x00" * 64

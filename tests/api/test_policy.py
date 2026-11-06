@@ -59,7 +59,7 @@ from conftest import (  # noqa: F401
 )
 from conftest import valid_body
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 
 _CONSENT_AT_RE = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$")
 

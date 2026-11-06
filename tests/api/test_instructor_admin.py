@@ -29,7 +29,7 @@ from backend.instructor_admin import router as instructor_admin_router
 from backend.instructors import router as instructors_router
 from tests.conftest import admin_password_hash
 
-from tests.test_instructors_apply import valid_application
+from test_instructors_apply import valid_application
 
 COMMENT = "Не подтверждена квалификация"
 

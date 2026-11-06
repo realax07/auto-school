@@ -37,7 +37,7 @@ import pytest
 pw = pytest.importorskip("playwright.sync_api")
 from playwright.sync_api import expect  # noqa: E402
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 
 ADMIN_LOGIN = "ui-admin"
 ADMIN_PASSWORD = "ui-admin-pass-2026"
@@ -1183,7 +1183,7 @@ def test_back_links_lead_to_role_home(page, server):
     ученика (у отзыва — кнопкой «Назад к заявкам» в форме)."""
     # страницы защищены сессией — проверяем навигацию в разметке (файлы страницы)
     import pathlib
-    base = pathlib.Path(__file__).parent.parent / "frontend"
+    base = pathlib.Path(__file__).parents[1].parent / "frontend"
     for standalone in (
         "my-cars.html", "my-requests.html",
         # Спринт 5: разделы ВНУТРИ кабинетов — новых страниц не заводить
@@ -2927,8 +2927,14 @@ def test_s7_validated_car_photo_replace_returns_to_validating(
                        f"/api/student/instructors/{instructor_id}/slots",
                        base=server, token=stu_token)
     slot_id = data["slots"][0]["id"]
+    # экземпляр СЛЕДУЮЩЕЙ недели (строго будущий в любой момент запуска —
+    # иначе в пятницу после 10:00 МСК легаси-материализация дает прошедший
+    # экземпляр и бронь отклоняется; тот же паттерн, что в TC-S10-кейсах)
+    booking_date = (_msk_next_monday() + datetime.timedelta(days=4)).isoformat()
     status, data = api("POST", "/api/student/bookings", base=server,
-                       token=stu_token, body={"availability_id": slot_id})
+                       token=stu_token,
+                       body={"availability_id": slot_id,
+                             "date": booking_date})
     assert status == 200 and data["ok"], (status, data)
     booking_id = data["booking_id"]
     status, data = api(

@@ -37,7 +37,7 @@ import pytest
 import backend.auth as auth
 from conftest import admin_headers, db_path, register
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 FRONTEND = ROOT / "frontend"
 MOCKS = ROOT / "design" / "mocks"
 
