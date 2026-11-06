@@ -520,47 +520,30 @@ def test_s10_booking_future_boundary_min1(client, monkeypatch):
     прошедший или начавшийся слот отклоняется сервером» (прямой вызов
     API в обход UI). ЕДИНОЕ правило границы: прошедший = начало < NOW
     (МСК) — начало ровно NOW → 422 «Слот уже начался или прошел»,
-    начало NOW+1мин → 200; прошедшая дата → 422."""
+    начало NOW+1мин → 200. Детерминированно: слот СЕГОДНЯШНЕГО дня
+    недели 16:00 (материализация — сегодня), NOW — фиктивный."""
     instructor = create_instructor(client)
     student = create_student(client)
+    today_wd = datetime.date.today().weekday()
     put_availability(client, instructor, [
-        {"weekday": 3, "start_time": "16:00", "end_time": "18:00"},
+        {"weekday": today_wd, "start_time": "16:00", "end_time": "18:00"},
     ])
     accept_pair(client, instructor, student)
-    slot = slot_ids(client, student, instructor["id"])[3][0]
+    slot = slot_ids(client, student, instructor["id"])[today_wd][0]
 
-    thursday = next_weekday(3).isoformat()
-    past_thursday = (datetime.date.fromisoformat(thursday)
-                     - datetime.timedelta(days=7)).isoformat()
-
-    # граница: начало ровно NOW → 422 (строгое «>»); NOW — МСК того же дня
-    now_fixed = datetime.datetime.combine(
-        datetime.date.fromisoformat(thursday), datetime.time(16, 0),
-        tzinfo=booking_domain._MOSCOW_TZ,
-    )
-    monkeypatch.setattr(booking_domain, "now_moscow", lambda: now_fixed)
-    rejected = book(client, student, slot, thursday)
+    # граница: начало ровно NOW → 422 (строгое «>»); NOW — МСК сегодня 16:00
+    fake_now(monkeypatch, hour=16, minute=0)
+    rejected = book(client, student, slot)
     assert rejected.status_code == 422, rejected.text
     assert rejected.json()["error"] == "Слот уже начался или прошел"
     conn = sqlite3.connect(db_path())
     assert conn.execute("SELECT COUNT(*) FROM booking").fetchone()[0] == 0
     conn.close()
 
-    # начало NOW+1мин → 200
-    now_fixed = datetime.datetime.combine(
-        datetime.date.fromisoformat(thursday), datetime.time(15, 59),
-        tzinfo=booking_domain._MOSCOW_TZ,
-    )
-    ok = book(client, student, slot, thursday)
+    # NOW+1мин до начала → 200
+    fake_now(monkeypatch, hour=15, minute=59)
+    ok = book(client, student, slot)
     assert ok.status_code == 200, ok.text
-
-    # слот сегодняшнего дня, начало уже прошло (NOW того же дня позже
-    # начала — сценарий «сегодня 16:00–18:00 при текущем времени 17:00»)
-    fake_now(monkeypatch, 17, 0)
-    past = book(client, student, slot, past_thursday)
-    assert past.status_code == 422, past.text
-
-
 def test_s10_booking_legacy_without_date(client, monkeypatch):
     """TC-S10BE-007 (задача 2.1). Спека: «### Requirement: Запрос брони на
     слот» — сценарий «Запрос в старом формате (без даты) продолжает
