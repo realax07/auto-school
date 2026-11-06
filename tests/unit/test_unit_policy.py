@@ -1,10 +1,13 @@
-"""Unit-тесты домена PersonalData: парсер артефака политики (backend/policy.py).
+"""Unit-тесты домена PersonalData: парсер артефакта политики (backend/policy.py).
 
 Изолированные тесты ЧИСТОЙ функции read_policy() — без HTTP/TestClient и
 без БД: только файл артефакта в tmp_path + env POLICY_FILE (уровень
-«unit», контур Спринта 9 / ADR-009; контракт формата — design.md пакета
-add-personal-data-policy «Формат артефакта»). Интеграционные проверки
-эндпоинтов GET /api/policy и фиксации согласия — tests/api/test_policy.py.
+«unit»; контракт формата — design.md пакета add-personal-data-policy
+«Формат артефакта»). Юнит-уровень API-кейсов TC-PD-001 (валидный
+артефакт: текст и метаданные), TC-PD-003 и TC-PD-010 (битый/отсутствующий
+артефакт — PolicyError, наружу без раскрытия содержимого, NFR-10).
+Интеграционные проверки эндпоинтов GET /api/policy и фиксации согласия —
+tests/api/test_policy.py.
 """
 import pytest
 

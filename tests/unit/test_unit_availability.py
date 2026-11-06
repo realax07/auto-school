@@ -4,8 +4,10 @@
 Покрывают валидацию intervals нового контракта Спринта 10 (ADR-010):
 _hhmm_valid (формат ЧЧ:ММ) и _slot_rows (валидация intervals: легаси-тело,
 типы recurring/one_off, дедупликация, таблица ошибок design.md).
-Интеграционные проверки PUT/GET /api/instructor/availability и
-запрета прошлого — tests/api/test_s10_backend.py (TC-S10BE-002/003/006).
+Юнит-уровень кейсов TC-S10BE-003 (домен slot_type/slot_date) и
+TC-S10BE-007 (невалидный date → 422). Интеграционные проверки
+PUT/GET /api/instructor/availability и границы прошлого —
+tests/api/test_s10_backend.py (TC-S10BE-002/005/006).
 """
 from backend.instructor_availability import (
     AvailabilityPayload,
