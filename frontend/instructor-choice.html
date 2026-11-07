@@ -93,7 +93,7 @@ footer{margin-top:34px;padding-top:18px;border-top:1px solid #ffffff10;display:f
 .toast.show{display:block}
 @media(max-width:1024px){.layout{grid-template-columns:1fr}.filters{position:static}}
 @media(max-width:850px){.frame{padding:20px 16px 36px}.crumb{display:none}.page-head h1{font-size:25px}.cards{grid-template-columns:1fr 1fr}}
-@media(max-width:560px){header{grid-template-columns:1fr auto}.brand{font-size:19px}.uname{display:none}.cards{grid-template-columns:1fr}.cards-top{flex-direction:column;gap:9px}}
+@media(max-width:560px){header{justify-content:flex-end}.uname{display:none}.cards{grid-template-columns:1fr}.cards-top{flex-direction:column;gap:9px}}
 /* Спринт 7 (change add-car-validation-booking, BUG-047-лейаут): единый
    сайдбар ученика вместо отдельной ссылки «← В кабинет» (директива
    Заказчика: кабинеты — единый лейаут сайдбар слева / контент справа).
@@ -125,10 +125,6 @@ footer{margin-top:34px;padding-top:18px;border-top:1px solid #ffffff10;display:f
 </aside>
 <div class="frame">
 <header>
-  <div class="hgroup">
-    <div class="brand"><span class="check">✓</span><span><em>Сбер</em>Автошкола<small>Кабинет ученика</small></span></div>
-    <div class="crumb">Кабинет ученика · Выбор инструктора</div>
-  </div>
   <div class="user"><span class="uname" id="uname">…</span><span class="avatar" id="avatar">—</span><button class="logout" id="logout">Выйти</button></div>
 </header>
 
