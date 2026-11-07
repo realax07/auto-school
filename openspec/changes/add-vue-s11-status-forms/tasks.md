@@ -115,7 +115,7 @@ change-пакетов нет; новых npm-зависимостей нет. К
 
 ## 4. Бюджеты чанков NFR-26 на артефактах сборки
 
-- [ ] 4.1 [tests] прогон сборки + замер gzip: `npm ci && npm run build &&
+- [x] 4.1 [tests] прогон сборки + замер gzip: `npm ci && npm run build &&
       npm run check:budgets` (скрипт 1.1): (а) каждый vendor-чанк
       ≤150 КБ gzip; (б) JS первого захода КАЖДОЙ страницы (page-чанк +
       static-import graph: shared + vue) ≤200 КБ gzip — отдельно для
