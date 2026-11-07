@@ -129,7 +129,7 @@ change-пакетов нет; новых npm-зависимостей нет. К
 
 ## 5. e2e-совместимость и приемка партии
 
-- [ ] 5.1 [tests] полный прогон Playwright-набора БЕЗ правок сценариев:
+- [x] 5.1 [tests] полный прогон Playwright-набора БЕЗ правок сценариев:
       `npm ci && npm run build` → `pytest tests/test_ui_playwright.py`
       (60 сценариев; фикстура server поднимает uvicorn backend.app:app,
       маршруты /instructors/rejected и /review отдают dist). Правки
