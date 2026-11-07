@@ -4647,6 +4647,13 @@ def test_tc_ui_059_student_cabinet_single_logo_no_crumbs(page, server):
     assert page.locator("header .brand").count() == 0
     assert page.get_by_text("Кабинет ученика · Выбор инструктора").count() == 0
     expect(page.locator("header #logout")).to_be_visible()
+    # BUG-061: блок пользователя прижат К ПРАВОМУ краю шапки (как во всех
+    # кабинетах), а не слева (регресс single-child header space-between)
+    box = page.locator("header .user").bounding_box()
+    frame_x = page.locator(".frame").bounding_box()["x"]
+    frame_w = page.locator(".frame").bounding_box()["width"]
+    right_gap = frame_x + frame_w - (box["x"] + box["width"])
+    assert right_gap < 40, f"блок пользователя не у правого края (зазор {right_gap}px)"
 
 
 def test_tc_ui_060_cabinet_tiles_no_v_kabinete_tag(page, server):
