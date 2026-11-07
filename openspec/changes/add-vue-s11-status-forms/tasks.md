@@ -31,7 +31,7 @@ change-пакетов нет; новых npm-зависимостей нет. К
 
 ## 2. Страницы на Vue
 
-- [ ] 2.1 [code] frontend/vue/src/pages/instructor-rejected/ — полный
+- [x] 2.1 [code] frontend/vue/src/pages/instructor-rejected/ — полный
       перенос экрана отказа: разметка/стили 1:1 без редизайна (шапка,
       карточка — kicker «Заявка инструктора», h1 «Заявка отклонена»,
       пояснение, блок причины #reason-block скрытый + #reason-text,
@@ -48,7 +48,7 @@ change-пакетов нет; новых npm-зависимостей нет. К
       визуальной эквивалентности.
       FR: FR-13, FR-17. NFR: NFR-27. Зависит от: 1.1.
 
-- [ ] 2.2 [P][code] frontend/vue/src/pages/review-form/ — полный перенос
+- [x] 2.2 [P][code] frontend/vue/src/pages/review-form/ — полный перенос
       формы отзыва, wiring js/review-form.js 1:1 (детали — design.md
       «Страница /review на Vue»): ?instructor= → числовой id, без id →
       location.href='/my-requests' (301 → /cabinet#/my-requests); нет
@@ -72,7 +72,7 @@ change-пакетов нет; новых npm-зависимостей нет. К
 
 ## 3. Переключение маршрутов и удаление легаси
 
-- [ ] 3.1 [code] удаление легаси + перевод тестов-потребителей: удалить
+- [x] 3.1 [code] удаление легаси + перевод тестов-потребителей: удалить
       frontend/instructor-rejected.html, frontend/js/instructor-rejected.js,
       frontend/review-form.html, frontend/js/review-form.js; исключить
       "/instructors/rejected" и "/review" из легаси-отдачи `_PAGE_ROUTES`.
@@ -97,7 +97,7 @@ change-пакетов нет; новых npm-зависимостей нет. К
       FR: FR-84, FR-85. NFR: NFR-27. Зависит от: 2.1, 2.2 (страницы
       существуют — перевод тестов на их носители).
 
-- [ ] 3.2 [code] backend/app.py — регистрация двух страниц в `_PAGE_ROUTES`:
+- [x] 3.2 [code] backend/app.py — регистрация двух страниц в `_PAGE_ROUTES`:
       значения с маркером каркаса "vue:instructors-rejected.html" и
       "vue:review-form.html"; цикл отдачи при префиксе "vue:" читает
       VUE_DIST_DIR (404 при отсутствии dist — паттерн пилотного хендлера),

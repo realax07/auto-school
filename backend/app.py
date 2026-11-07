@@ -48,8 +48,12 @@ _PAGE_ROUTES = {
     # Спринт 9 (change add-vue-framework-pilot, задача 2.3): пилотная
     # страница /instructors/pending обслуживается каркасом Vue — вход из
     # dist (маршрут ниже, вне словаря); legacy instructor-pending.html
-    # удален (замена монолита целиком, FR-86/ОВ-4)
-    "/instructors/rejected": "instructor-rejected.html",
+    # удален (замена монолита целиком, FR-86/ОВ-4).
+    # Спринт 11 (change add-vue-s11-status-forms, задачи 3.1/3.2): экран
+    # отказа и форма отзыва — каркас Vue (ADR-008): значение с маркером
+    # "vue:<вход dist>" — цикл отдачи ниже читает VUE_DIST_DIR (404 при
+    # отсутствии dist — паттерн пилотного хендлера /instructors/pending).
+    "/instructors/rejected": "vue:instructors-rejected.html",
     "/instructor/cabinet-stub": "instructor-cabinet-stub.html",
     # Спринт 2, часть 2 (задача 3.1, change add-instructor-cabinet):
     # кабинет инструктора рядом с заглушкой
@@ -58,8 +62,10 @@ _PAGE_ROUTES = {
     # выбор инструктора учеником
     "/instructor-choice": "instructor-choice.html",
     # Спринт 4, Партия A (change add-s3-frontend-links): форма отзыва —
-    # целевая страница (открывается из раздела «Мои заявки» кабинета)
-    "/review": "review-form.html",
+    # целевая страница (открывается из раздела «Мои заявки» кабинета);
+    # Спринт 11 (change add-vue-s11-status-forms) — перевод на каркас Vue
+    # (историческое имя входа сохранено — маршрут /review)
+    "/review": "vue:review-form.html",
     # Спринт 9 (change add-personal-data-policy, задача 2.1): публичная
     # страница-оболочка политики персональных данных (текст — из артефакта
     # через GET /api/policy, в HTML его нет — NFR-25)
@@ -164,7 +170,17 @@ def create_app() -> FastAPI:
 
     for route, filename in _PAGE_ROUTES.items():
         def _page(filename: str = filename):
-            path = FRONTEND_DIR / filename
+            # Спринт 11 (change add-vue-s11-status-forms, задача 3.2):
+            # маркер "vue:" — страница обслуживается каркасом Vue, вход
+            # читается из VUE_DIST_DIR (ADR-008); без собранного dist — 404
+            # (паттерн пилотного хендлера). Остальные значения — файлы
+            # frontend/, как прежде; карта — единственный декларативный
+            # реестр маршрутов страниц (следующие партии миграции добавляют
+            # страницу одной строкой).
+            if filename.startswith("vue:"):
+                path = VUE_DIST_DIR / filename[len("vue:"):]
+            else:
+                path = FRONTEND_DIR / filename
             if not path.is_file():
                 raise HTTPException(status_code=404)
             return FileResponse(path, media_type="text/html; charset=utf-8")
