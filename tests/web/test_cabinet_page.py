@@ -31,7 +31,6 @@ def test_cab_page_exists_and_marker_texts():
     for marker in (
         "СберАвтошкола",
         "<em>Сбер</em>Автошкола",
-        "Личный кабинет · Ученик",
         "ЛИЧНЫЙ КАБИНЕТ",
         "Гига ГАИшник",
         "Твой AI-помощник в обучении и на дороге",
@@ -48,6 +47,15 @@ def test_cab_page_exists_and_marker_texts():
         "Выйти",
     ):
         assert marker in html, marker
+    # BUG-059/060 (решение Заказчика 2026-11-06): дубль логотипа в шапке
+    # контента убран (логотип — только в сайдбаре), крошки нет, тегов
+    # «В КАБИНЕТЕ» на плитках нет.
+    for absent in (
+        '<div class="brand">',
+        "Личный кабинет · Ученик",
+        "В КАБИНЕТЕ",
+    ):
+        assert absent not in html, absent
 
 
 def test_cab_page_structure_matches_mockup_verbatim():
@@ -61,7 +69,6 @@ def test_cab_page_structure_matches_mockup_verbatim():
         "<title>СберАвтошкола — Кабинет ученика (мокап)</title>",
         '<div class="hero"><div class="frame">',
         '<header>',
-        '<div class="crumb">Личный кабинет · Ученик</div>',
         '<div class="user"><span class="uname">Иван Иванов</span><button class="logout">Выйти</button></div>',
         '<div class="greet">ЛИЧНЫЙ КАБИНЕТ<b>Добро пожаловать, Иван!</b></div>',
         '<section class="assistant">',

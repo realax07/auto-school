@@ -33,7 +33,6 @@ from conftest import admin_headers, register
 # Маркеры frontend/cabinet.html (тексты мокапа, задача 2.1)
 CABINET_MARKERS = (
     "СберАвтошкола",
-    "Личный кабинет · Ученик",
     "ЛИЧНЫЙ КАБИНЕТ",
     "Гига ГАИшник",
     "Выйти",

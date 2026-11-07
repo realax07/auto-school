@@ -4611,3 +4611,68 @@ def test_instructor_apply_consent_gates_submit_and_links_policy(
     submit.click()
     page.wait_for_url("**/instructors/pending")
     expect(page.locator("h1")).to_have_text("Заявка на рассмотрении")
+
+
+# ------------------------------------------------------------- BUG-059/060
+def test_tc_ui_059_student_cabinet_single_logo_no_crumbs(page, server):
+    """TC-UI-059 (BUG-059, решение Заказчика 2026-11-06): в кабинете ученика
+    логотип ОДИН — в сайдбаре; на главной и на подстранице «Выбор
+    инструктора» дубля .brand в шапке контента нет; крошки «Личный
+    кабинет · Ученик» и «Кабинет ученика · Выбор инструктора» убраны."""
+    stu_email = unique_email("cabstu")
+    status, data = api("POST", "/api/register", base=server, body={
+        "surname": "Петров", "name": "Пётр", "patronymic": "Петрович",
+        "email": stu_email, "phone": "+7 905 777-66-55",
+        "password": "S3cretPass!", "password_confirm": "S3cretPass!",
+        "consent": True,
+    })
+    assert status == 200 and data and data["ok"], (status, data)
+    page.goto(f"{server}/")
+    page.locator('.auth [data-open="login"]').click()
+    page.fill("#login-email", stu_email)
+    page.fill("#login-password", "S3cretPass!")
+    page.locator("#login-submit").click()
+    page.wait_for_url("**/cabinet")
+
+    # главная кабинета: сайдбарный логотип есть, дубля в шапке нет
+    expect(page.locator(".side-brand")).to_be_visible()
+    assert page.locator("header .brand").count() == 0
+    assert page.get_by_text("Личный кабинет · Ученик").count() == 0
+    # «Выйти» на месте (шапка не пустая)
+    expect(page.locator("header .logout")).to_be_visible()
+
+    # подстраница «Выбор инструктора»: те же инварианты + крошка убрана
+    page.goto(f"{server}/instructor-choice")
+    expect(page.locator(".side-brand")).to_be_visible()
+    assert page.locator("header .brand").count() == 0
+    assert page.get_by_text("Кабинет ученика · Выбор инструктора").count() == 0
+    expect(page.locator("header #logout")).to_be_visible()
+
+
+def test_tc_ui_060_cabinet_tiles_no_v_kabinete_tag(page, server):
+    """TC-UI-060 (BUG-060, решение Заказчика 2026-11-06): на главной
+    кабинета ученика плитки «Найти водителя» и «Мои заявки» без тега
+    «В КАБИНЕТЕ»; плитки кликабельны (навигация сохранена)."""
+    stu_email = unique_email("tilestu")
+    status, data = api("POST", "/api/register", base=server, body={
+        "surname": "Сидоров", "name": "Сидор", "patronymic": "Сидорович",
+        "email": stu_email, "phone": "+7 905 555-44-33",
+        "password": "S3cretPass!", "password_confirm": "S3cretPass!",
+        "consent": True,
+    })
+    assert status == 200 and data and data["ok"], (status, data)
+    page.goto(f"{server}/")
+    page.locator('.auth [data-open="login"]').click()
+    page.fill("#login-email", stu_email)
+    page.fill("#login-password", "S3cretPass!")
+    page.locator("#login-submit").click()
+    page.wait_for_url("**/cabinet")
+
+    assert page.get_by_text("В КАБИНЕТЕ").count() == 0
+    tile_instructor = page.locator("#tile-instructor")
+    expect(tile_instructor).to_be_visible()
+    tile_requests = page.locator("#tile-requests")
+    expect(tile_requests).to_be_visible()
+    # навигация плиток жива: «Найти водителя» ведет в выбор инструктора
+    tile_instructor.click()
+    page.wait_for_url("**/instructor-choice")
