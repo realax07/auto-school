@@ -195,6 +195,11 @@
 - Тосты — единый паттерн legacy: элемент #toast, длительность 3200 мс
   (baseToast review-form), один таймер на страницу (перенос в
   src/shared/utils.js).
+- URL вызовов инструктора — строковой конкатенацией как в legacy
+  (`'/api/student/instructors/'+instructorId+'/reviews'`): needle
+  TC-S3BE-041 (`instructors/'+instructorId+'/reviews`) проверяется
+  дословно по носителю «вход + компонент» — template literals НЕ
+  вводить (иначе перенос в 3.1 уронит needle).
 - DOM-якоря e2e сохраняются дословно: #uname, #avatar, #i-name, #i-ava,
   #i-sub, #i-rating, #stars-lab, #review-text, #counter, #send, #view-form,
   #view-done, #done-title, #toast, кнопки .star с data-v="1..5";

@@ -88,10 +88,12 @@ change-пакетов нет; новых npm-зависимостей нет. К
       NIT-4 test_s4_pages_tag_balance: тот же перенос) — утверждения
       дословно, сценарии не тронуты.
       Готовность: grep по репо — ссылок на 4 легаси-файла нет (кроме
-      исторических docstring/архива); `git diff tests/
-      test_ui_playwright.py` — только два переноса пути чтения;
-      tests/test_instructor_pages.py + tests/api/test_s3_backend.py
-      зеленые.
+      исторических носителей: docstring, openspec/changes/archive/,
+      code-reviews/, design/mocks/, sdd.md — sdd.md в пакетах миграции
+      не ведется, прецедент пилота — sdd.md не обновлялся);
+      `git diff tests/test_ui_playwright.py` — только два переноса
+      пути чтения; tests/web/test_instructor_pages.py +
+      tests/api/test_s3_backend.py зеленые.
       FR: FR-84, FR-85. NFR: NFR-27. Зависит от: 2.1, 2.2 (страницы
       существуют — перевод тестов на их носители).
 
