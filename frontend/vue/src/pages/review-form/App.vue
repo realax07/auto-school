@@ -50,7 +50,7 @@
   </div>
 
   <!-- СОСТОЯНИЕ 1: форма отзыва -->
-  <section class="form-card" id="view-form" v-show="!done">
+  <section class="form-card" id="view-form" :style="{display: done ? 'none' : 'block'}">
     <h2>Как прошли занятия?</h2>
     <div class="sub">Оцените инструктора и поделитесь опытом — отзыв публикуется под вашим именем.</div>
     <div class="stars" id="stars">
@@ -71,8 +71,11 @@
     <div class="hint">🔒 Отзыв может оставить только ученик с принятой заявкой у этого инструктора. Повторный отзыв оставить нельзя.</div>
   </section>
 
-  <!-- СОСТОЯНИЕ 2: отзыв уже отправлен / повтор → 409 (UNIQUE пара) -->
-  <section class="done-card" id="view-done" v-show="done">
+  <!-- СОСТОЯНИЕ 2: отзыв уже отправлен / повтор → 409 (UNIQUE пара).
+       Показ/скрытие — inline display, как legacy showDone
+       (style.display='none'/'block'): класс .done-card имеет
+       display:none — v-show (display='') вернул бы скрытие классом. -->
+  <section class="done-card" id="view-done" :style="{display: done ? 'block' : 'none'}">
     <h2><span class="ok">✓</span><span id="done-title">{{ doneTitle }}</span></h2>
     <div class="done-note">Вы уже оценили этого инструктора. Один отзыв на пару «ученик ↔ инструктор» — изменить или дополнить его нельзя.</div>
     <div class="done-date">Отображается в карточке инструктора</div>
