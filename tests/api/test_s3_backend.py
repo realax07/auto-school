@@ -1717,14 +1717,17 @@ def test_s4_pages_wired_to_real_api_shapes():
     ссылаются на РЕАЛЬНЫЕ контракты Спринта 3 (design.md), а не на вымышленные
     пути: дашборд («Мои автомобили») — /api/instructor/cars (+ фото); /review —
     POST /api/student/instructors/{{id}}/reviews; кабинет ученика («Мои
-    заявки») — GET/POST /api/student/requests."""
+    заявки») — GET/POST /api/student/requests. Спринт 11 (change
+    add-vue-s11-status-forms, задача 3.1): носитель /review — вход каркаса
+    Vue frontend/vue/review-form.html + компонент App.vue (legacy удален,
+    прецедент 2.3 пилота); needle POST-URL дословен — в Vue-коде сохранена
+    строковая конкатенация URL, template literals НЕ введены (MIN-2)."""
     checks = {
         # Спринт 5 (change add-booking-docs): параметризованный маршрут
         # ракурсов POST /api/instructor/cars/{id}/photo/{angle} + GET …/sts
         "instructor-dashboard.html": ["api/instructor/cars",
                                       "cars/'+t.carId+'/photo/'+t.angle",
                                       "c.sts_url"],
-        "review-form.html": ["instructors/'+instructorId+'/reviews"],
         "cabinet.html": ["api/student/requests",
                          "instructor_id:r.instructor_id"],
     }
@@ -1734,3 +1737,14 @@ def test_s4_pages_wired_to_real_api_shapes():
         src = frontend_source(filename)
         for needle in needles:
             assert needle in src, (filename, needle)
+    # Спринт 11 (change add-vue-s11-status-forms, задача 3.1): носитель
+    # /review — вход каркаса Vue + компонент (frontend_source следует
+    # только /js/-модулям legacy, источник Vue читается напрямую).
+    review_src = "\n".join([
+        (ROOT / "frontend" / "vue" / "review-form.html").read_text(
+            encoding="utf-8"),
+        (ROOT / "frontend" / "vue" / "src" / "pages" / "review-form"
+         / "App.vue").read_text(encoding="utf-8"),
+    ])
+    assert "instructors/'+instructorId+'/reviews" in review_src, \
+        ("vue/review-form.html", "instructors/'+instructorId+'/reviews")

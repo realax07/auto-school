@@ -1218,7 +1218,7 @@ def test_back_links_lead_to_role_home(page, server):
     assert 'id="sec-bookings"' in cab, "секция «Мои брони» должна быть внутри кабинета"
     choice = (base / "instructor-choice.html").read_text(encoding="utf-8")
     assert 'href="/cabinet"' in choice, "instructor-choice: нет возврата в /cabinet"
-    review = (base / "review-form.html").read_text(encoding="utf-8")
+    review = (base / "vue" / "review-form.html").read_text(encoding="utf-8")
     assert 'href="/my-requests"' in review, \
         "review-form: нет кнопки «Назад к заявкам» (/my-requests → 301 в кабинет)"
 
@@ -4421,7 +4421,7 @@ def test_bug056_landing_login_modal_close_semantics(page, server):
 # ------------------------------------------------------------- design-guard
 @pytest.mark.parametrize("filename", [
     "instructor-dashboard.html", "cabinet.html",
-    "review-form.html", "instructor-choice.html"])
+    "vue/review-form.html", "instructor-choice.html"])
 def test_s4_pages_tag_balance(filename):
     """NIT-4 review-001 (change add-s3-frontend-links); BUG-047: баланс тегов
     правленых страниц (my-cars.html/my-requests.html встроены в кабинеты и

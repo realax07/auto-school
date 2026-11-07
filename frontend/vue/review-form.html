@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="theme-color" content="#071015">
+    <title>СберАвтошкола — Кабинет ученика · Отзыв об инструкторе</title>
+    <!-- Стили — подключаемый css (перенос 1:1 из legacy review-form.html,
+         без редизайна — FR-5/FR-34/FR-35); Vite бандлит его в /vue/assets
+         с хэш-именем. -->
+    <link rel="stylesheet" href="/src/pages/review-form/styles.css">
+  </head>
+  <body>
+    <!-- Вход формы отзыва (Спринт 11, change add-vue-s11-status-forms,
+         задача 1.1; FR-84; историческое имя артефакта сохранено — маршрут
+         /review): статическая разметка экрана (эквивалент legacy 1:1,
+         задокументированные отклонения от мокапа наследуются) +
+         модуль-скрипт. До гидрации Vue видна эта же разметка; App.vue
+         монтируется поверх #app. Разметку держать синхронной с App.vue.
+         Wiring (сессия, ?instructor=, GET карточки/профиля, звёзды,
+         POST /api/student/instructors/{id}/reviews) — задача 2.2;
+         back-ссылка «Назад к заявкам» — в статической разметке (якорь
+         TC-UI-019), тост #toast — вне #app, как в legacy (единый хелпер
+         shared/utils.js). -->
+    <div id="app">
+    <div class="frame">
+    <header>
+      <div class="hgroup">
+        <div class="brand"><span class="check">✓</span><span><em>Сбер</em>Автошкола<small>Кабинет ученика</small></span></div>
+        <div class="crumb">Отзыв об инструкторе</div>
+      </div>
+      <div class="user"><span class="uname" id="uname">…</span><span class="avatar" id="avatar">—</span><button class="logout" id="logout">Выйти</button></div>
+    </header>
+
+    <div class="page-head">
+      <div class="kicker">Отзывы</div>
+      <h1>Оставить отзыв</h1>
+      <p>Рейтинг и текст отзыва видны другим ученикам в карточке инструктора и влияют на фильтр «рейтинг не ниже».</p>
+    </div>
+
+    <!-- контекст: инструктор, о котором отзыв -->
+    <div class="icard">
+      <span class="iava" id="i-ava">—</span>
+      <div><b id="i-name">…</b><small id="i-sub"></small></div>
+      <div class="irating" id="i-rating"><small>отзывы учеников</small></div>
+    </div>
+
+    <!-- СОСТОЯНИЕ 1: форма отзыва -->
+    <section class="form-card" id="view-form">
+      <h2>Как прошли занятия?</h2>
+      <div class="sub">Оцените инструктора и поделитесь опытом — отзыв публикуется под вашим именем.</div>
+      <div class="stars" id="stars">
+        <button class="star" data-v="1" aria-label="1 звезда">★</button>
+        <button class="star" data-v="2" aria-label="2 звезды">★</button>
+        <button class="star" data-v="3" aria-label="3 звезды">★</button>
+        <button class="star" data-v="4" aria-label="4 звезды">★</button>
+        <button class="star" data-v="5" aria-label="5 звёзд">★</button>
+      </div>
+      <div class="stars-lab" id="stars-lab">Выберите оценку от 1 до 5</div>
+      <textarea id="review-text" maxlength="1000" placeholder="Что понравилось? Чему научились? Что стоит знать будущим ученикам…"></textarea>
+      <div class="ta-row">
+        <span>Текст отзыва обязателен (непустой)</span>
+        <span class="counter" id="counter">0 / 1000</span>
+      </div>
+      <button class="send" id="send" disabled>Отправить отзыв</button>
+      <a class="back" href="/my-requests">← Назад к заявкам</a>
+      <div class="hint">🔒 Отзыв может оставить только ученик с принятой заявкой у этого инструктора. Повторный отзыв оставить нельзя.</div>
+    </section>
+
+    <!-- СОСТОЯНИЕ 2: отзыв уже отправлен / повтор → 409 (UNIQUE пара) -->
+    <section class="done-card" id="view-done">
+      <h2><span class="ok">✓</span><span id="done-title">Отзыв отправлен</span></h2>
+      <div class="done-note">Вы уже оценили этого инструктора. Один отзыв на пару «ученик ↔ инструктор» — изменить или дополнить его нельзя.</div>
+      <div class="done-date">Отображается в карточке инструктора</div>
+    </section>
+
+    <footer><span>СберАвтошкола · «Оставить отзыв»</span><span>Кабинет ученика</span></footer>
+    </div>
+    </div>
+    <div class="toast" id="toast"></div>
+    <script type="module" src="/src/pages/review-form/main.js"></script>
+  </body>
+</html>

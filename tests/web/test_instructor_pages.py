@@ -283,13 +283,21 @@ def test_pending_page_exists_and_text():
 def test_rejected_page_exists_and_reason_wiring():
     """FR-13/FR-17: экран «отклонено» с причиной из ответа логина
     (sessionStorage); пусто/нет — без персональной причины (чужую не
-    раскрываем, design); статус при загрузке НЕ проверяется. Спринт 6
-    Партия B: JS — в модуле js/instructor-rejected.js (проверяем
-    HTML + модуль, frontend_source)."""
-    from conftest import frontend_source
-
-    html = page("instructor-rejected.html")
-    src = frontend_source("instructor-rejected.html")
+    раскрываем, design); статус при загрузке НЕ проверяется. Спринт 11
+    (change add-vue-s11-status-forms, задача 3.1): источник чтения
+    переключен с удаленного legacy instructor-rejected.html на вход экрана
+    каркаса Vue frontend/vue/instructors-rejected.html + компонент App.vue
+    (прецедент 2.3 пилота) — тексты/ключ sessionStorage дословны;
+    «style.display = ''» — стековый фрагмент legacy, эквивалент Vue —
+    v-show (design.md «Границы правок тестов»)."""
+    html = (FRONTEND / "vue" / "instructors-rejected.html").read_text(
+        encoding="utf-8"
+    )
+    src = "\n".join([
+        html,
+        (FRONTEND / "vue" / "src" / "pages" / "instructor-rejected"
+         / "App.vue").read_text(encoding="utf-8"),
+    ])
     assert "Заявка отклонена" in html
     assert "Причина отказа" in html
     assert 'href="/">На главную</a>' in html
@@ -300,7 +308,9 @@ def test_rejected_page_exists_and_reason_wiring():
     assert "instructor_rejected_reason" in src
     # пусто/нет ключа -> блок причины скрыт
     assert "reason-block" in src
-    assert "style.display = ''" in src
+    # эквивалент Vue стекового фрагмента legacy «style.display = ''»:
+    # блок показывается только при наличии причины (v-show)
+    assert 'v-show="reason"' in src
 
 
 # --- 4.4: instructor-cabinet-stub -----------------------------------------------
