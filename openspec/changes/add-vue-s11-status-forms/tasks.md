@@ -12,7 +12,7 @@ change-пакетов нет; новых npm-зависимостей нет. К
 
 ## 1. Сборка: точки входа партии
 
-- [ ] 1.1 [code] vite.config.mjs + входы + скрипт бюджетов: input +=
+- [x] 1.1 [code] vite.config.mjs + входы + скрипт бюджетов: input +=
       instructors-rejected (frontend/vue/instructors-rejected.html) и
       review-form (frontend/vue/review-form.html) — статическая разметка
       экранов (эквивалент legacy 1:1) + модуль-скрипт /src/pages/<page>/

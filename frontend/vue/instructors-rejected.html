@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#071015">
+    <title>Заявка отклонена — СберАвтошкола</title>
+    <!-- Стили — подключаемый css (перенос 1:1 из legacy
+         instructor-rejected.html, без редизайна — FR-13/FR-17); Vite
+         бандлит его в /vue/assets с хэш-именем. -->
+    <link rel="stylesheet" href="/src/pages/instructor-rejected/styles.css">
+  </head>
+  <body>
+    <!-- Вход экрана отказа (Спринт 11, change add-vue-s11-status-forms,
+         задача 1.1; FR-84): статическая разметка экрана (эквивалент legacy
+         1:1) + модуль-скрипт. До гидрации Vue видна эта же разметка
+         (мгновенная отрисовка); App.vue монтируется поверх #app. Разметку
+         держать синхронной с App.vue. Поведение (причина из sessionStorage
+         «instructor_rejected_reason» — пишет модалка входа при
+         route=rejected, КОНТРАКТ ЛОГИНА НЕ МЕНЯЕТСЯ) — задача 2.1. -->
+    <div id="app">
+      <header class="wrap"><a class="brand" href="/instructors"><span class="check">✓</span><span><b>Сбер</b>Автошкола</span></a><a class="back" href="/instructors">← Вернуться на лендинг</a></header>
+      <main class="wrap status-screen"><section class="card">
+      <div class="icon">⌁</div>
+      <div class="kicker">Заявка инструктора</div>
+      <h1>Заявка отклонена</h1>
+      <p>К сожалению, заявку не удалось одобрить. Ты можешь подать заявку повторно, когда устранишь причину отказа.</p>
+      <div class="reason" id="reason-block" style="display:none"><b>Причина отказа</b><p id="reason-text"></p></div>
+      <div class="actions"><a class="btn primary" href="/">На главную</a><a class="btn ghost" href="/instructors">О лендинге для инструкторов</a></div>
+      </section></main>
+      <footer><div class="wrap foot"><span>© СберАвтошкола · Концепция экрана регистрации</span><span>Защита персональных данных должна быть настроена до запуска</span></div></footer>
+    </div>
+    <script type="module" src="/src/pages/instructor-rejected/main.js"></script>
+  </body>
+</html>

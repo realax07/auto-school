@@ -17,10 +17,17 @@ export default defineConfig({
     outDir: "dist",
     rollupOptions: {
       input: {
-        // Пилотная страница (ОВ-4). Следующие шаги миграции (С10–С11,
-        // план ADR-008) добавляют по одному html-входу на страницу.
+        // Пилотная страница (ОВ-4) и страницы Спринта 11 (change
+        // add-vue-s11-status-forms, задача 1.1): по одному html-входу на
+        // страницу (multi-entry MPA, НЕ SPA — ОВ-3; план ADR-008 С10–С11).
         "instructors-pending": fileURLToPath(
           new URL("./instructors-pending.html", import.meta.url),
+        ),
+        "instructors-rejected": fileURLToPath(
+          new URL("./instructors-rejected.html", import.meta.url),
+        ),
+        "review-form": fileURLToPath(
+          new URL("./review-form.html", import.meta.url),
         ),
       },
       output: {
