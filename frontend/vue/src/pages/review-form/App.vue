@@ -183,7 +183,7 @@ export default {
     function submit() {
       sending.value = true; // кнопка блокируется сразу, как legacy btn.disabled=true
       // URL — строковой конкатенацией (needle TC-S3BE-041 дословно)
-      api('/api/student/instructors/' + instructorId + '/reviews', {
+      api('/api/student/instructors/'+instructorId+'/reviews', {
         method: 'POST',
         body: JSON.stringify({ rating: rating.value, text: text.value.trim() })
       }, function (res) {
@@ -218,7 +218,7 @@ export default {
       instructorId = +(params.get('instructor') || 0);
       if (!instructorId) { location.href = '/my-requests'; }
       // контекст: GET /api/student/instructors/{id} (ФИО, стаж, авто, агрегат)
-      api('/api/student/instructors/' + instructorId, {}, function (res) {
+      api('/api/student/instructors/'+instructorId, {}, function (res) {
         if (handleAuthFail(res)) return;
         if (!res.data || !res.data.ok) { toast('Инструктор не найден'); return; }
         instructor.value = res.data.instructor || {};
