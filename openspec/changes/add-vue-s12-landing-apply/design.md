@@ -109,14 +109,19 @@ BUG-055/056 (семантика модалки входа); BUG-059/060/061 (п�
     `consent:regConsent.checked` → эквивалент — consent в payload
     сабмита из того же состояния; `fd.append('consent'` — дословно
     (FormData анкеты переносится построчно как в apply.js);
+  - test_login_modal.py (носитель из репо): импорт-фрагмент носителя
+    `from './api.js'` → механический эквивалент — импорт shared/api.js
+    из Vue-модуля (относительный путь к src/shared); сам клиент
+    postJSON/setToken переносится дословно (arch-review-001 MIN-3);
   - test_instructor_pages.py §4.2: `updateFormat` /
     `plate.disabled=!own` / `if(!own)plate.value=''` → эквивалент Vue —
     реактивная связь radio формата с состоянием поля госномера
     (disabled/очистка/приглушение — семантика мокапа сохранена);
     `notice.classList.add('show')` → эквивалент — класс show notice из
     реактивного состояния (`:class`); `fetch('/api/instructors/apply'`,
-    `method:'POST'`, `new FormData()`, все `fd.append('…'` (13 полей +
-    license_photo), `location.href='/instructors/pending'`,
+    `method:'POST'`, `new FormData()`, все `fd.append('…'` (15 строк
+    legacy: 14 полей + consent; тест-кортеж покрывает 13 — MIN-1),
+    `location.href='/instructors/pending'`,
     `5*1024*1024`, `validateLicenseFile`, отсутствие sessionStorage —
     дословно; тексты/разметка входа — дословно, CSS-строки мокапа —
     дословно в styles.css.
@@ -249,7 +254,8 @@ BUG-055/056 (семантика модалки входа); BUG-059/060/061 (п�
   реактивной связью), выбор файла ВУ → миниатюра objectURL / ошибка
   (клиентская валидация JPEG/PNG ≤5 МБ — тексты совпадают с серверными),
   consent-гейт кнопки (FR-77), сабмит — FormData построчно как legacy
-  (13 полей + license_photo, consent 'true'/'false'), fetch
+  (15 fd.append-строк: 14 полей + consent 'true'/'false', + условный
+  license_photo — arch-review-001 MIN-1), fetch
   '/api/instructors/apply' method:'POST'; 200 → localStorage-токены
   опроса (application_poll_token/application_exchange_token) → редирект
   /instructors/pending; 413/415/422-файловые → у поля ВУ + notice;

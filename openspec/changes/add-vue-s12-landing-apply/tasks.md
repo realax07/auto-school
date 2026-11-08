@@ -56,7 +56,11 @@ npm-зависимостей нет; зависимостей от паралл�
       LoginModal.vue и RegisterModal.vue (разметка модалок — дословный
       перенос из index.html, включая комментарии-маркеры
       «Модалка: Вход/Регистрация» — носитель LOGIN_MODAL_TEXTS;
-      api.js/utils.js — без изменений).
+      api.js/utils.js — без изменений). Модуль-скрипты входов
+      /src/pages/<page>/main.js — с МИНИМАЛЬНЫМИ App.vue-заглушками
+      страниц (полную разметку-копию и wiring — 3.1/3.2): без заглушек
+      вход не собирается и готовность 2.1 (build + check:budgets зелен)
+      недостижима (arch-review-001 MIN-2).
       Готовность: `npm ci && npm run build` — dist содержит оба входа
       index.html/instructor-apply.html + ассеты с хэшами;
       `npm run check:budgets` зелен (5 page-чанков); `npm run dev`
@@ -73,8 +77,10 @@ npm-зависимостей нет; зависимостей от паралл�
       приглушение — эквивалент updateFormat, design.md «Границы правок
       тестов»); выбор ВУ → миниатюра objectURL / клиентская ошибка
       (JPEG/PNG ≤5 МБ, тексты = серверным); consent-гейт кнопки
-      (FR-77); сабмит — FormData построчно как legacy (13 полей +
-      license_photo + consent), fetch('/api/instructors/apply',
+      (FR-77); сабмит — FormData построчно как legacy (15
+      fd.append-строк: 14 полей + consent, + условный license_photo —
+      arch-review-001 MIN-1; тест-кортеж §4.2 покрывает 13
+      append-фрагментов), fetch('/api/instructors/apply',
       method:'POST') — СТРОКОВО как в legacy; 200 → localStorage
       application_poll_token/application_exchange_token ДО редиректа
       /instructors/pending; 413/415/422-файловые → #license-error +
