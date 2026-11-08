@@ -61,13 +61,22 @@ def test_tc_auth_018_register_session_logout_invalidates(tmp_path, monkeypatch):
 
 
 def test_tc_auth_019_register_wiring_fragments():
-    """TC-AUTH-019: wiring регистрационной ветки index.html (rev-002 #5):
+    """TC-AUTH-019: wiring регистрационной ветки лендинга (rev-002 #5):
     fetch /api/register, sessionStorage 'session_token', редирект /cabinet.
     Спринт 6 Партия B: wiring в ES-модуле js/landing.js — общий клиент
-    postJSON (js/api.js), токен — setToken (тот же ключ session_token)."""
-    from conftest import frontend_source
+    postJSON (js/api.js), токен — setToken (тот же ключ session_token).
+    Спринт 12 (change add-vue-s12-landing-apply, задача 4.1): носитель —
+    каркас Vue (legacy index.html + js/landing.js удалены, перенос
+    источника чтения): вход vue/index.html + App.vue + shared/api.js;
+    фрагменты контракта сохранены дословно."""
+    from conftest import ROOT
 
-    src = frontend_source("index.html")
+    base = ROOT / "frontend" / "vue"
+    src = "\n".join([
+        (base / "index.html").read_text(encoding="utf-8"),
+        (base / "src" / "pages" / "landing" / "App.vue").read_text(encoding="utf-8"),
+        (base / "src" / "shared" / "api.js").read_text(encoding="utf-8"),
+    ])
     assert "postJSON('/api/register'" in src
     assert "setToken(res.data.token)" in src
     assert "location.href='/cabinet'" in src

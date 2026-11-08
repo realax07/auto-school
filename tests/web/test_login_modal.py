@@ -2,8 +2,12 @@
 # Change: add-auth-cabinet
 # FR: FR-1, FR-2, FR-4, FR-9
 
-Маршрут /api/auth/login в app.py на момент 2.2 еще не подключен (задача 3.1),
-поэтому проверяется статика и wiring-фрагменты frontend/index.html:
+Спринт 12 (change add-vue-s12-landing-apply, задача 4.1): носитель лендинга —
+каркас Vue (legacy frontend/index.html + js/landing.js удалены) — перенос
+источников чтения (прецедент 2.3 пилота и 3.1 С11): тексты модалки — во
+входе frontend/vue/index.html (комментарии-маркеры «Модалка:
+Вход/Регистрация» сохранены), wiring — в App.vue + общий клиент
+shared/api.js + shared-компоненты модалок. Проверяемые контракты не меняются:
 fetch POST /api/auth/login, сохранение токена в sessionStorage['session_token'],
 редирект /cabinet при ok, единое сообщение об ошибке под формой при 401;
 тексты модалки m-login — дословно по мокапу. Браузерный сабмит (реальный
@@ -11,7 +15,24 @@ fetch + редирект) — вне TestClient (как TC-REG-016/017 в test_s
 """
 from conftest import ROOT
 
-INDEX = ROOT / "frontend" / "index.html"
+# Спринт 12 (задача 4.1): вход лендинга каркаса Vue — носитель
+# LOGIN_MODAL_TEXTS (статическая разметка входа 1:1)
+VUE = ROOT / "frontend" / "vue"
+INDEX = VUE / "index.html"
+
+
+def vue_landing_source() -> str:
+    """HTML входа лендинга + wiring-носители из репо (App.vue, общий клиент
+    shared/api.js, shared-компоненты модалок) — эквивалент легаси-хелпера
+    frontend_source("index.html") (HTML + /js/* рекурсивно)."""
+    return "\n".join([
+        INDEX.read_text(encoding="utf-8"),
+        (VUE / "src" / "pages" / "landing" / "App.vue").read_text(encoding="utf-8"),
+        (VUE / "src" / "shared" / "api.js").read_text(encoding="utf-8"),
+        (VUE / "src" / "shared" / "LoginModal.vue").read_text(encoding="utf-8"),
+        (VUE / "src" / "shared" / "RegisterModal.vue").read_text(encoding="utf-8"),
+    ])
+
 
 # Ключевые строки мокапа модалки «Вход» (design/mocks) — тексты дословно
 LOGIN_MODAL_TEXTS = [
@@ -24,25 +45,28 @@ LOGIN_MODAL_TEXTS = [
 ]
 
 # Wiring-обязательства задачи 2.2 (sdd §10.1, §10.4; решение ПМ по 2.1 —
-# ключ sessionStorage именно session_token). Спринт 6 Партия B: wiring —
-# в модуле js/landing.js; POST и хранение токена — через общий клиент
-# js/api.js (postJSON -> method:'POST'; setToken -> sessionStorage.setItem
-# ключа TOKEN_KEY='session_token').
+# ключ sessionStorage именно session_token). Спринт 12: wiring — в App.vue
+# лендинга; POST и хранение токена — через общий клиент shared/api.js
+# (postJSON -> method:'POST'; setToken -> sessionStorage.setItem
+# ключа TOKEN_KEY='session_token'). Фрагмент «err.textContent=» — стековый
+# legacy: эквивалент Vue проверяется отдельно в
+# test_tc_auth_login_wiring_fragments_present (design.md «Границы правок
+# тестов»: сообщение ошибки сервера рендерится в #login-error/#reg-error
+# из реактивного состояния).
 WIRING_FRAGMENTS = [
     "postJSON('/api/auth/login'",                    # POST /api/auth/login
-    "method: 'POST'",                                # ...метод POST (js/api.js)
+    "method: 'POST'",                                # ...метод POST (shared/api.js)
     "setToken(res.data.token)",                      # токен сессии сохранен
     "sessionStorage.setItem(TOKEN_KEY",              # ...в sessionStorage
     "'session_token'",                               # ...под ключом session_token
     "location.href='/cabinet'",                      # редирект на кабинет
-    "err.textContent=",                              # вывод ошибки под формой
 ]
 
 
 def test_tc_auth_login_modal_texts_verbatim():
     """Готовность 2.2 «тексты модалки не изменены»: ключевые строки мокапа
-    m-login присутствуют в index.html дословно (заголовок, подзаголовок,
-    подписи полей, плейсхолдеры, подписи кнопок)."""
+    m-login присутствуют во входе vue/index.html дословно (заголовок,
+    подзаголовок, подписи полей, плейсхолдеры, подписи кнопок)."""
     html = INDEX.read_text(encoding="utf-8")
     start = html.index("<!-- Модалка: Вход (утвержденный мокап) -->")
     end = html.index("<!-- Модалка: Регистрация (утвержденный мокап) -->")
@@ -71,49 +95,48 @@ def test_tc_auth_login_wiring_fragments_present():
     POST /api/auth/login, токен в sessionStorage['session_token'] (консистентно
     с cabinet.html, решение ПМ по 2.1), редирект location.href='/cabinet',
     вывод единого сообщения об ошибке из ответа под формой (без деталей
-    причины в самом коде фронтенда). Спринт 6 Партия B: wiring — в модуле
-    js/landing.js + общий клиент js/api.js (проверяем HTML + модуль
-    с его импортами, frontend_source)."""
-    from conftest import frontend_source
-
-    src = frontend_source("index.html")
+    причины в самом коде фронтенда). Спринт 12: wiring — в App.vue лендинга
+    + общий клиент shared/api.js (носитель из репо — vue_landing_source)."""
+    src = vue_landing_source()
     for fragment in WIRING_FRAGMENTS:
         assert fragment in src, fragment
     # единое сообщение: текст ошибки берется из ответа сервера (res.data.error)
     assert "res.data.error" in src
+    # эквивалент Vue стекового фрагмента «err.textContent=»: сообщение
+    # ошибки сервера рендерится в #login-error/#reg-error из реактивного
+    # состояния (интерполяция {{ }} — design.md «Границы правок тестов»)
+    assert "loginError.value=(res.data&&res.data.error)" in src
+    assert "regError.value=(res.data&&res.data.error)" in src
+    assert "{{ error }}" in src
+    assert 'id="login-error"' in src and 'id="reg-error"' in src
 
 
 def test_tc_auth_landing_page_served_with_wiring(client):
     """Статический срез (по образцу test_static.py): GET / → 200 и отдает
-    страницу с wiring-фрагментами модалки входа. Спринт 6 Партия B: wiring —
-    в ES-модулях, поэтому единица проверки — страница + отдаваемые ею
-    модули: GET /js/landing.js и GET /js/api.js (транзитивный импорт)."""
+    страницу с wiring-фрагментами модалки входа. Спринт 12: страница —
+    вход каркаса Vue из dist (маршрут тот же; dist обязателен — CI/образ
+    собирают, локально `npm ci && npm run build` перед pytest). Модуль
+    /js/landing.js удален — wiring-носитель из репо: вход + App.vue +
+    shared/api.js (vue_landing_source)."""
     resp = client.get("/")
     assert resp.status_code == 200
     assert "СберАвтошкола" in resp.text
+    # вход подключает собранный модуль страницы каркаса (Vite переписывает
+    # /src/pages/landing/main.js в хэш-ассет /vue/assets/index-*.js)
+    assert '/vue/assets/index-' in resp.text
 
-    js_landing = client.get("/js/landing.js")
-    js_api = client.get("/js/api.js")
-    assert js_landing.status_code == 200
-    assert js_api.status_code == 200
-    # страница подключает модуль входа, модуль — общий клиент
-    assert 'src="/js/landing.js"' in resp.text
-    assert "from './api.js'" in js_landing.text
-
-    served = "\n".join((resp.text, js_landing.text, js_api.text))
-    assert "postJSON('/api/auth/login'" in served
-    assert "setToken(res.data.token)" in served
-    assert "location.href='/cabinet'" in served
+    src = vue_landing_source()
+    assert "postJSON('/api/auth/login'" in src
+    assert "setToken(res.data.token)" in src
+    assert "location.href='/cabinet'" in src
 
 
 def test_login_route_mapping_wiring():
     """MAJ-1 rev-002-2.2: route-маппинг вне token-guard — все 4 ветви §15.5
     достижимы; rejected-причина сохраняется для instructor-rejected.html.
-    Спринт 6 Партия B: маппинг — в модуле js/landing.js (проверяем
-    HTML + модуль с его импортами, frontend_source)."""
-    from conftest import frontend_source
-
-    src = frontend_source("index.html")
+    Спринт 12: маппинг — в App.vue лендинга (носитель из репо —
+    vue_landing_source)."""
+    src = vue_landing_source()
     # все 4 ветви маппинга
     assert "route==='cabinet'" in src and "/instructor/dashboard" in src
     assert "route==='pending'" in src and "/instructors/pending" in src

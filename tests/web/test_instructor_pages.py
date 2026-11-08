@@ -118,13 +118,38 @@ def test_instructors_footer_without_driver_login():
     assert "Вход для водителей" not in html
 
 
-# --- 4.2: frontend/instructor-apply.html --------------------------------------
+# --- 4.2: анкета инструктора — вход каркаса Vue (Спринт 12, change
+# add-vue-s12-landing-apply, задача 4.1): источник чтения переключен с
+# удаленного legacy instructor-apply.html + js/apply.js на вход
+# frontend/vue/instructor-apply.html + App.vue + styles.css (прецедент
+# 2.3 пилота и 3.1 С11); тексты/якоря/контракты не меняются, стековые
+# wiring-фрагменты — задокументированные эквиваленты Vue (design.md
+# «Границы правок тестов»).
+
+
+def vue_apply_page() -> str:
+    """Вход анкеты каркаса Vue (статическая разметка 1:1)."""
+    return (FRONTEND / "vue" / "instructor-apply.html").read_text(
+        encoding="utf-8"
+    )
+
+
+def vue_apply_source() -> str:
+    """Вход анкеты + App.vue (wiring) — эквивалент frontend_source
+    легаси (HTML + модуль)."""
+    base = FRONTEND / "vue"
+    return "\n".join([
+        (base / "instructor-apply.html").read_text(encoding="utf-8"),
+        (base / "src" / "pages" / "instructor-apply" / "App.vue").read_text(
+            encoding="utf-8"),
+    ])
 
 
 def test_apply_page_texts_verbatim():
     """FR-11: анкета перенесена из мокапа дословно — тексты (ФИО одним полем,
-    форматы, ВУ, согласие) и все CSS-строки мокапа."""
-    html = page("instructor-apply.html")
+    форматы, ВУ, согласие) и все CSS-строки мокапа (носитель CSS —
+    styles.css страницы каркаса, перенос дословный)."""
+    html = vue_apply_page()
     mockup = (MOCKS / "registration-instructor.html").read_text(encoding="utf-8")
     fragments = [
         "<title>Регистрация инструктора — СберАвтошкола</title>",
@@ -165,7 +190,8 @@ def test_apply_page_texts_verbatim():
     assert "макет без реальной загрузки" not in html
 
     mockup_css = mockup.split("<style>", 1)[1].split("</style>", 1)[0]
-    page_css = html.split("<style>", 1)[1].split("</style>", 1)[0]
+    page_css = (FRONTEND / "vue" / "src" / "pages" / "instructor-apply"
+                / "styles.css").read_text(encoding="utf-8")
     for line in mockup_css.splitlines():
         if not line.strip():
             continue
@@ -175,7 +201,7 @@ def test_apply_page_texts_verbatim():
 def test_apply_password_fields_added():
     """Задача 4.2: пароль + подтверждение — два поля по спецификации задачи
     (макет их не содержит; контракт sdd §15.1: password, password_confirm)."""
-    html = page("instructor-apply.html")
+    html = vue_apply_page()
     assert 'id="password"' in html
     assert 'id="password-confirm"' in html
     assert 'name="password"' in html
@@ -188,7 +214,7 @@ def test_apply_password_fields_added():
 
 def test_apply_links_to_landing():
     """Задача 4.2: логотип/назад ведут на /instructors."""
-    html = page("instructor-apply.html")
+    html = vue_apply_page()
     assert '<a class="brand" href="/instructors">' in html
     assert '<a class="back" href="/instructors">← Вернуться на лендинг</a>' in html
     assert 'href="landing-instructors.html"' not in html
@@ -196,15 +222,19 @@ def test_apply_links_to_landing():
 
 def test_apply_work_format_toggles_plate():
     """FR-11 (поведение мокапа): переключение own/sber управляет полем
-    госномера (disabled при sber, очистка значения). Спринт 6 Партия B:
-    JS — в модуле js/apply.js (проверяем HTML + модуль, frontend_source)."""
-    from conftest import frontend_source
-
-    js = frontend_source("instructor-apply.html")
+    госномера (disabled при sber, очистка значения). Спринт 12 (задача
+    4.1): носитель — вход + App.vue; фрагменты updateFormat/plate.disabled/
+    if(!own)plate.value='' заменены эквивалентами Vue — реактивная связь
+    radio формата с состоянием поля госномера (disabled/очистка/
+    приглушение — design.md «Границы правок тестов»)."""
+    js = vue_apply_source()
     assert 'input[name="format"]' in js
-    assert "updateFormat" in js
-    assert "plate.disabled=!own" in js
-    assert "if(!own)plate.value=''" in js
+    # эквивалент plate.disabled=!own — :disabled от реактивного состояния
+    assert ":disabled=\"plateDisabled\"" in js
+    # эквивалент if(!own)plate.value='' — очистка при sber (watch формата)
+    assert "plate.value = ''" in js
+    # эквивалент приглушения (plateWrap.style.opacity .55 при sber)
+    assert "opacity" in js and "'.55'" in js
 
 
 def test_apply_submit_wiring():
@@ -213,12 +243,12 @@ def test_apply_submit_wiring():
     файлом ВУ (license_photo); 200 -> редирект /instructors/pending;
     413/415/422 -> видимое сообщение у поля загрузки и под формой;
     sessionStorage НЕ используется; клиентская валидация файла
-    (JPEG/PNG/PDF <= 5 МБ) блокирует отправку. Спринт 6 Партия B:
-    JS — в модуле js/apply.js (проверяем HTML + модуль, frontend_source)."""
-    from conftest import frontend_source
-
-    html = page("instructor-apply.html")
-    js = frontend_source("instructor-apply.html")
+    (JPEG/PNG <= 5 МБ) блокирует отправку. Спринт 12 (задача 4.1):
+    носитель — вход + App.vue; фрагмент notice.classList.add('show')
+    заменен эквивалентом Vue — класс show notice из реактивного
+    состояния (design.md «Границы правок тестов»), остальные фрагменты
+    дословны."""
+    js = vue_apply_source()
     assert "fetch('/api/instructors/apply'" in js
     assert "method:'POST'" in js
     # BUG-048: multipart FormData с файлом ВУ (JSON больше не используется)
@@ -238,16 +268,20 @@ def test_apply_submit_wiring():
     assert "location.href='/instructors/pending'" in js
     # 422 -> сообщение из ответа под формой
     assert "res.data.error" in js
-    assert "notice.classList.add('show')" in js
+    # эквивалент Vue «notice.classList.add('show')»: класс show notice
+    # из реактивного состояния
+    assert 'noticeShow.value=true' in js
+    assert ':class="{show: noticeShow}"' in js
     # consent читается из чекбокса согласия
     assert ".checkline input" in js
-    # sessionStorage не нужен (сессия по заявке не выдается) — ни в HTML,
-    # ни в модуле
+    # sessionStorage не нужен (сессия по заявке не выдается) — ни во
+    # входе, ни в App.vue
     assert "sessionStorage" not in js
     # клиентская валидация файла: тип и размер до отправки
     assert "5*1024*1024" in js
     assert "validateLicenseFile" in js
     # id полей совпадают с макетом (кроме добавленных password-полей)
+    html = vue_apply_page()
     for element_id in (
         "surname", "name", "patronymic", "phone", "email", "address", "plate", "license-number",
         "license-date", "license-category", "experience", "notice",
