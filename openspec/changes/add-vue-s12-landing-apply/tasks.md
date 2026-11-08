@@ -186,7 +186,7 @@ npm-зависимостей нет; зависимостей от паралл�
 
 ## 6. e2e-совместимость и приемка партии
 
-- [ ] 6.1 [tests] полный прогон Playwright-набора БЕЗ правок сценариев:
+- [x] 6.1 [tests] полный прогон Playwright-набора БЕЗ правок сценариев:
       `npm ci && npm run build` → `pytest tests/web/test_ui_playwright.py`
       (62 сценария; фикстура server поднимает uvicorn backend.app:app,
       маршруты / и /instructors/apply отдают dist). Правки
