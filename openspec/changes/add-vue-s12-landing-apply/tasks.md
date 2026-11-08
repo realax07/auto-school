@@ -42,7 +42,7 @@ npm-зависимостей нет; зависимостей от паралл�
 
 ## 2. Сборка: точки входа партии
 
-- [ ] 2.1 [code] vite.config.mjs — входы: `index`
+- [x] 2.1 [code] vite.config.mjs — входы: `index`
       (frontend/vue/index.html) и `instructor-apply`
       (frontend/vue/instructor-apply.html) — статическая разметка
       страниц (эквивалент legacy 1:1: лендинг с модалками из
