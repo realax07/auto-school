@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""BUG-050: самопроверка hero-верстки frontend/index.html на пересечения.
+"""BUG-050: самопроверка hero-верстки лендинга на пересечениях.
+
+С12 (add-vue-s12-landing-apply): лендинг мигрирован на Vue — проверяется
+СОБРАННЫЙ dist (frontend/vue/dist, маршрут /vue/index.html); legacy
+frontend/index.html удален. Coverage multi-width дублирует e2e TC-UI-001
+(1440px); для остальных ширин остается ручным инструментом.
 
 На ширинах 1440/1280/1024/768/375 открывает лендинг (headless chromium,
 статика раздается встроенным http.server), снимает скриншот и проверяет
@@ -29,7 +34,7 @@ TOLERANCE = 1.0  # px: допустимое «касание» рамок
 
 
 def _serve(root: Path):
-    """http.server на эфемерном порту, раздача frontend/ (демон-поток)."""
+    """http.server на эфемерном порту, раздача каталога сборки (демон-поток)."""
     handler = functools.partial(
         http.server.SimpleHTTPRequestHandler, directory=str(root))
     httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
@@ -63,7 +68,7 @@ def _overlap(a, b):
 def main() -> int:
     repo = Path(__file__).resolve().parent.parent
     parser = argparse.ArgumentParser()
-    parser.add_argument("--root", type=Path, default=repo / "frontend",
+    parser.add_argument("--root", type=Path, default=repo / "frontend/vue/dist",
                         help="каталог со статикой (по умолчанию frontend/)")
     args = parser.parse_args()
 
