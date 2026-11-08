@@ -69,7 +69,7 @@ npm-зависимостей нет; зависимостей от паралл�
 
 ## 3. Страницы на Vue (параллель после 2.1; лендинг — последняя)
 
-- [ ] 3.1 [P][code] frontend/vue/src/pages/instructor-apply/ — полный
+- [x] 3.1 [P][code] frontend/vue/src/pages/instructor-apply/ — полный
       перенос анкеты, wiring js/apply.js 1:1 (детали — design.md
       «Страница /instructors/apply на Vue»): разметка/стили 1:1 без
       редизайна (тексты/CSS мокапа registration-instructor дословно);
