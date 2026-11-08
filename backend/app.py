@@ -37,14 +37,21 @@ FRONTEND_DIR = ROOT_DIR / "frontend"
 VUE_DIST_DIR = FRONTEND_DIR / "vue" / "dist"
 
 _PAGE_ROUTES = {
-    "/": "index.html",
+    # Спринт 12 (change add-vue-s12-landing-apply, задачи 4.1/4.2): лендинг
+    # «/» — каркас Vue (ADR-008, замена монолита целиком: legacy index.html
+    # + js/landing.js удалены). Маркер "vue:<вход dist>" — цикл отдачи ниже
+    # читает VUE_DIST_DIR (404 при отсутствии dist — паттерн пилота).
+    "/": "vue:index.html",
     "/registered": "registered.html",
     "/admin-login": "admin-login.html",
     "/admin-dashboard": "admin-dashboard.html",
     "/cabinet": "cabinet.html",
     # Спринт 2, часть 1 (задача 5.1, sdd.md §15.6): рядом с /cabinet
     "/instructors": "instructors.html",
-    "/instructors/apply": "instructor-apply.html",
+    # Спринт 12 (change add-vue-s12-landing-apply, задачи 4.1/4.2): анкета
+    # инструктора — каркас Vue (замена монолита целиком: legacy
+    # instructor-apply.html + js/apply.js удалены).
+    "/instructors/apply": "vue:instructor-apply.html",
     # Спринт 9 (change add-vue-framework-pilot, задача 2.3): пилотная
     # страница /instructors/pending обслуживается каркасом Vue — вход из
     # dist (маршрут ниже, вне словаря); legacy instructor-pending.html

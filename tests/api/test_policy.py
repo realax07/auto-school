@@ -54,7 +54,6 @@ from conftest import (  # noqa: F401
     count_users,
     db_path,
     fetch_user,
-    frontend_source,
     register,
 )
 from conftest import valid_body
@@ -291,22 +290,41 @@ def test_s9_policy_link_visible_in_both_consent_blocks():
     согласия анкеты инструктора (checkline) и модалка регистрации ученика
     (reg-check перед кнопками); target="_blank"; из анкеты отправляется
     consent в multipart, из модалки — consent в payload при активном
-    чекбоксе (wiring по объединенному источнику HTML + ES-модулей).
+    чекбоксе.
+
+    Спринт 12 (change add-vue-s12-landing-apply, задача 4.1): носители —
+    входы каркаса Vue + App.vue/shared-компоненты (перенос источников
+    чтения, прецедент 2.3 пилота и 3.1 С11); проверяемые фрагменты не
+    меняются, стековые wiring-фрагменты — задокументированные эквиваленты
+    Vue (design.md «Границы правок тестов»).
 
     Трассировка: Requirement «Публичная страница политики персональных
     данных (/policy)» / Scenario «Ссылка на политику видна из обоих мест
     согласия» (клики и видимость — e2e TC-UI-043/045).
     """
-    instructor = frontend_source("instructor-apply.html")
+    vue = ROOT / "frontend" / "vue"
+    instructor = "\n".join([
+        (vue / "instructor-apply.html").read_text(encoding="utf-8"),
+        (vue / "src" / "pages" / "instructor-apply" / "App.vue").read_text(
+            encoding="utf-8"),
+    ])
     assert 'href="/policy" target="_blank"' in instructor
     assert ".checkline" in instructor  # блок согласия анкеты
-    assert "fd.append('consent'" in instructor  # apply.js
+    assert "fd.append('consent'" in instructor  # multipart-сабмит App.vue
 
-    student = frontend_source("index.html")  # включает js/landing.js
+    student = "\n".join([
+        (vue / "index.html").read_text(encoding="utf-8"),
+        (vue / "src" / "shared" / "RegisterModal.vue").read_text(encoding="utf-8"),
+        (vue / "src" / "pages" / "landing" / "App.vue").read_text(encoding="utf-8"),
+    ])
     assert 'id="reg-consent"' in student
     assert 'href="/policy" target="_blank"' in student
-    assert "regSubmit.disabled=!regConsent.checked" in student
-    assert "consent:regConsent.checked" in student
+    # эквивалент Vue «regSubmit.disabled=!regConsent.checked»: :disabled
+    # кнопки #reg-submit от состояния чекбокса (FR-78)
+    assert ':disabled="!regConsent"' in student
+    # эквивалент Vue «consent:regConsent.checked»: consent в payload
+    # сабмита из того же состояния — checked чекбокса
+    assert "consent:document.getElementById('reg-consent').checked" in student
 
 
 def test_s9_policy_artifact_covers_existing_form_data():

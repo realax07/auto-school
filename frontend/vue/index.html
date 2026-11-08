@@ -1,0 +1,100 @@
+<!doctype html>
+<!-- Лендинг «/» — вход каркаса Vue (Спринт 12, change
+     add-vue-s12-landing-apply, задача 2.1; ADR-008 — multi-entry MPA,
+     НЕ SPA). Статическая разметка страницы — эквивалент legacy
+     frontend/index.html 1:1 (тексты дословно, включая модалки
+     m-login/m-register между комментариями-маркерами «Модалка:
+     Вход/Регистрация» — носитель LOGIN_MODAL_TEXTS). До гидрации Vue
+     видна эта же разметка; App.vue монтируется поверх #app (паттерн
+     пилота/С11). Разметку держать синхронной с App.vue.
+     Wiring (открытие/закрытие модалок BUG-055/056, consent FR-78,
+     сабмиты и route-маппинг §15.5, заглушки ai-open/quick/to-teachers) —
+     задача 3.2; модалки — shared/LoginModal.vue и RegisterModal.vue. -->
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>СберАвтошкола — Права без лишнего пути</title>
+<!-- Стили — подключаемый css (перенос 1:1 из legacy index.html, без редизайна); Vite бандлит его в /vue/assets с хэш-именем. -->
+<link rel="stylesheet" href="/src/pages/landing/styles.css">
+</head><body>
+<!-- Вход лендинга (Спринт 12, задача 2.1; FR-84): статическая разметка
+     экрана (эквивалент legacy 1:1, тексты дословно по референсу —
+     включая бренд «Сбер») + модуль-скрипт. Модалки входа/регистрации —
+     дословный носитель LOGIN_MODAL_TEXTS (тесты test_login_modal.py).
+     Задача 3.2 монтирует App.vue (полная разметка-копия + wiring) поверх
+     #app — разметку держать синхронной. -->
+<div id="app">
+<main class="hero"><div class="road"></div><div class="frame">
+<header>
+  <div class="brand"><span class="check">✓</span><span><em>Сбер</em>Автошкола</span></div>
+  <nav><a>О программе</a><a>Тарифы</a><a>Вопросы</a></nav>
+  <div class="auth"><button class="login" data-open="register">Зарегистрироваться</button><button class="login solid" data-open="login">Войти</button></div>
+</header>
+<div class="hero-grid">
+<section class="intro">
+  <div class="eyebrow">СОВРЕМЕННАЯ АВТОШКОЛА ОТ СБЕРА</div>
+  <h1>Права —<span>без лишнего пути.</span></h1>
+  <p>Весь путь — от первого занятия<br>до экзамена — в одном месте.</p>
+</section>
+<div class="side">
+<section class="steps">
+  <div class="step s4">✓ <b>Права</b><small>04</small></div>
+  <div class="step s3">▧ <b>Экзамен</b><small>03</small></div>
+  <div class="step s2">◉ <b>Практика</b><small>02</small></div>
+  <div class="step s1">◇ <b>Теория</b><small>01</small></div>
+</section>
+</div>
+<section class="assistant">
+  <div class="ai-head"><div class="avatar"></div><div><b>Гига ГАИшник</b><span>Твой AI-помощник в обучении и на дороге</span></div></div>
+  <div class="prompt"><span>Спроси что угодно про обучение, экзамен или ПДД...</span><button class="send" id="ai-open" title="Открыть чат ассистента">↑</button></div>
+  <div class="quick">
+    <button>▢ <span>Хочу выучиться<br>на права</span></button>
+    <button>☷ <span>Выбрать<br>тариф</span></button>
+    <button>₽ <span>Сколько<br>это стоит?</span></button>
+    <button>♧ <span>Готов ли я<br>к экзамену?</span></button>
+    <button>▢ <span>Разобрать<br>нестандартную ситуацию</span></button>
+  </div>
+</section>
+</div>
+<footer>
+  <div class="feature"><div class="feature-icon">⌁</div><div><b>AI-тренер<br>и Гига ГАИшник</b><p>Разбор ситуаций, тренировка<br>к экзамену, персональные советы</p></div></div>
+  <div class="feature"><div class="feature-icon">▣</div><div><b>Проверенные<br>инструкторы</b><p>С рейтингами, отзывами<br>и прозрачным расписанием</p></div></div>
+  <div class="feature"><div class="feature-icon">♢</div><div><b>Вся экосистема Сбера</b><p>Медсправка, страхование,<br>авто и сервисы — в одном месте</p></div></div>
+  <div class="tagline">Больше, чем<br>автошкола.<br><b>Это — Сбер.</b><button class="arrow" style="background:none;border:0;padding:0;color:inherit;text-align:left" id="to-teachers" title="Лендинг для водителей-учителей">→</button></div>
+</footer>
+</div></main>
+
+<!-- Модалка: Вход (утвержденный мокап) -->
+  <!-- BUG-055/056: overlay — замутненная
+     страница (blur 8px + затемнение); крестик #login-close ВНЕ карточки
+     (закрытие: крестик/«Отмена»/Esc; клик по фону НЕ закрывает) -->
+<div class="overlay" id="m-login"><button class="login-close" id="login-close" type="button" data-close aria-label="Закрыть" title="Закрыть">×</button><div class="modal" role="dialog" aria-label="Вход">
+  <h2>Вход</h2><p class="sub">Войдите в личный кабинет</p>
+  <div class="field"><label>Логин</label><input type="text" id="login-email" placeholder="email или телефон"></div>
+  <div class="field"><label>Пароль</label><input type="password" id="login-password" placeholder="••••••••"></div>
+  <p class="err" id="login-error" style="display:none;margin:14px 0 0;font-size:13px;color:#ff9c9c;"></p>
+  <div class="actions"><button class="btn btn-primary" id="login-submit">Войти</button><button class="btn btn-ghost" data-close>Отмена</button></div>
+  <p class="alt">Нет аккаунта? <button id="to-register">Зарегистрироваться</button></p>
+</div></div>
+
+<!-- Модалка: Регистрация (утвержденный мокап) -->
+<div class="overlay" id="m-register"><div class="modal wide" role="dialog" aria-label="Регистрация">
+  <h2>Регистрация</h2><p class="sub">Создайте аккаунт ученика</p>
+  <div class="row">
+    <div class="field"><label>Фамилия</label><input type="text" id="reg-surname" placeholder="Иванов"></div>
+    <div class="field"><label>Имя</label><input type="text" id="reg-name" placeholder="Иван"></div>
+  </div>
+  <div class="field"><label>Отчество</label><input type="text" id="reg-patronymic" placeholder="Иванович"></div>
+  <div class="field"><label>Email</label><input type="email" id="reg-email" placeholder="you@example.com"></div>
+  <div class="field"><label>Телефон</label><input type="tel" id="reg-phone" placeholder="+7 (___) ___-__-__"><div class="hint">Используем для связи по расписанию и экзаменам</div></div>
+  <div class="row">
+    <div class="field"><label>Пароль</label><input type="password" id="reg-password" placeholder="••••••••"></div>
+    <div class="field"><label>Подтверждение</label><input type="password" id="reg-password-confirm" placeholder="••••••••"></div>
+  </div>
+  <!-- Спринт 9 (change add-personal-data-policy, задача 5.2, FR-78):
+       обязательный чекбокс согласия с политикой персональных данных
+       со ссылкой на /policy (target="_blank"); #reg-submit недоступен
+       до установки (landing.js), consent — в payload сабмита. -->
+  <label class="reg-check"><input type="checkbox" id="reg-consent" required><span>Я согласен(на) с <a href="/policy" target="_blank" rel="noopener">политикой персональных данных</a></span></label>
+  <p class="err" id="reg-error" style="display:none;margin:14px 0 0;font-size:13px;color:#ff9c9c;"></p>
+  <div class="actions"><button class="btn btn-primary" id="reg-submit" disabled>Зарегистрироваться</button><button class="btn btn-ghost" data-close>Отмена</button></div>
+</div></div>
+</div>
+<script type="module" src="/src/pages/landing/main.js"></script></body></html>

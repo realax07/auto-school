@@ -5,13 +5,12 @@ import { api, toLogin, clearSession, getToken } from './api.js';
 import { toast, el } from './utils.js';
 // --- сессия ученика (единый паттерн кабинета, sdd §10.2–10.3) ---
 if(!getToken()){toLogin()}
-// ФИО/аватар ученика (FR-5)
+// ФИО ученика (FR-5)
 api('/api/auth/me',{},function(res){
   if(res.status===401||res.status===403||!res.data||!res.data.ok){toLogin();return}
   var u=res.data.user||{};
   var fio=[u.surname,u.name,u.patronymic].filter(Boolean).join(' ');
-  if(fio){document.getElementById('uname').textContent=fio;
-    document.getElementById('avatar').textContent=((u.surname||'')[0]||'')+((u.name||'')[0]||'');}
+  if(fio){document.getElementById('uname').textContent=fio;}
 });
 
 // --- поля карточки (реальный шейп GET /api/student/instructors,

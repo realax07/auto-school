@@ -4421,7 +4421,11 @@ def test_bug056_landing_login_modal_close_semantics(page, server):
 # ------------------------------------------------------------- design-guard
 @pytest.mark.parametrize("filename", [
     "instructor-dashboard.html", "cabinet.html",
-    "vue/review-form.html", "instructor-choice.html"])
+    "vue/review-form.html", "instructor-choice.html",
+    # Спринт 12 (change add-vue-s12-landing-apply, задача 4.1): входы
+    # лендинга «/» и анкеты — перенос носителя design-guard (прецедент
+    # vue/review-form.html С11)
+    "vue/index.html", "vue/instructor-apply.html"])
 def test_s4_pages_tag_balance(filename):
     """NIT-4 review-001 (change add-s3-frontend-links); BUG-047: баланс тегов
     правленых страниц (my-cars.html/my-requests.html встроены в кабинеты и
@@ -4647,6 +4651,9 @@ def test_tc_ui_059_student_cabinet_single_logo_no_crumbs(page, server):
     assert page.locator("header .brand").count() == 0
     assert page.get_by_text("Кабинет ученика · Выбор инструктора").count() == 0
     expect(page.locator("header #logout")).to_be_visible()
+    # BUG-062: плитки-аватара в шапке «Выбора инструктора» больше нет —
+    # шапка = ФИО + «Выйти»
+    assert page.locator("header .avatar").count() == 0
     # BUG-061: блок пользователя прижат К ПРАВОМУ краю шапки (как во всех
     # кабинетах), а не слева (регресс single-child header space-between)
     box = page.locator("header .user").bounding_box()

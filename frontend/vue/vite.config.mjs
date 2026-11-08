@@ -29,6 +29,14 @@ export default defineConfig({
         "review-form": fileURLToPath(
           new URL("./review-form.html", import.meta.url),
         ),
+        // Лендинг «/» и анкета «/instructors/apply» (Спринт 12, change
+        // add-vue-s12-landing-apply, задача 2.1): имя входа «index»
+        // сохраняет имя артефакта маршрута / (dist/index.html);
+        // «instructor-apply» — по сегменту маршрута (паттерн С11).
+        "index": fileURLToPath(new URL("./index.html", import.meta.url)),
+        "instructor-apply": fileURLToPath(
+          new URL("./instructor-apply.html", import.meta.url),
+        ),
       },
       output: {
         // Хэш-имена ассетов — автоматическая cache-инвалидация (design.md).
