@@ -12,7 +12,7 @@ design.md «Инвентарь ссылок» (классы A/B/C/D). Комми
 
 ## 1. Волна 1 — backend: перенос + импорты + прогоны api/unit
 
-- [ ] 1.1 [code] Перенести 20 модулей `git mv` в доменные пакеты
+- [x] 1.1 [code] Перенести 20 модулей `git mv` в доменные пакеты
       (дерево design.md): core/{config,db,guards,uploads}.py,
       auth/{auth,register,admin,instructor_admin,application_status}.py,
       instructor/{instructors,dashboard,instructor_cars,
@@ -27,7 +27,7 @@ design.md «Инвентарь ссылок» (классы A/B/C/D). Комми
       старые пути отсутствуют.
       FR: — (структура). NFR: —. Зависит от: —.
 
-- [ ] 1.2 [code] Переписать импорты внутри backend: 17 строк в app.py
+- [x] 1.2 [code] Переписать импорты внутри backend: 17 строк в app.py
       (16 router-импортов + `import backend.db as db`) и 44 строки в
       переносимых модулях (полный список связей — design.md D1;
       `import backend.config as config` → `backend.core.config` и
@@ -38,7 +38,7 @@ design.md «Инвентарь ссылок» (классы A/B/C/D). Комми
       `uvicorn backend.app:app` стартует, GET /api/health — 200.
       FR: —. NFR: —. Зависит от: 1.1.
 
-- [ ] 1.3 [tests] Механические правки путей в тестах (сценарии не
+- [x] 1.3 [tests] Механические правки путей в тестах (сценарии не
       трогать): (а) 61 импорт-строка в 20 файлах — построчный список
       design.md D2; (б) string-needle: monkeypatch-таргет
       `"backend.instructors.db"` → `"backend.instructor.instructors.db"`
@@ -56,7 +56,7 @@ design.md «Инвентарь ссылок» (классы A/B/C/D). Комми
       пути (файлы читаются).
       FR: —. NFR: NFR-27 (граница). Зависит от: 1.2.
 
-- [ ] 1.4 [tests] Прогон наборов волны 1: `pytest tests/unit -q`,
+- [x] 1.4 [tests] Прогон наборов волны 1: `pytest tests/unit -q`,
       `pytest tests/api -q` (TestClient, без сети), смоук-импорт
       приложения. tests/web и e2e — в волнах 2–3 (пока js-дерево не
       тронуто, web-набор остается зеленым на прежней статике).
