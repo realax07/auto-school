@@ -1,7 +1,7 @@
 /* из cabinet.html (блок 1) */
 // Спринт 6, Партия B: toast/el/fmtDate/nowMoscow/fioOf — общие хелперы
 // js/utils.js; fetch-логика (своя очистка сессии) — локальная.
-import { toast, el, fmtDate, nowMoscow, fioOf } from './utils.js';
+import { toast, el, fmtDate, nowMoscow, fioOf } from '../shared/utils.js';
 (function(){
   // Wiring Спринта 1 (sdd §10.2–10.4): токен сессии — sessionStorage,
   // ключ session_token (единый snake_case-паттерн с admin_token Спринта 0);

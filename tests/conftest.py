@@ -51,27 +51,30 @@ def frontend_source(name: str) -> str:
     транзитивно (без дублей), иначе фрагменты из js/api.js/js/utils.js
     выпадали бы из «единицы wiring» страницы.
     """
+    import posixpath as _posixpath
     import re as _re
 
     html = (ROOT / "frontend" / name).read_text(encoding="utf-8")
     parts = [html]
     seen = set()
-    queue = [html]
+    queue = [("js/" + name, html)]
     while queue:
-        chunk = queue.pop(0)
+        rel, chunk = queue.pop(0)
         refs = [m.group(1) or m.group(2)
                 for m in _re.finditer(
-                    r'src="(/js/[^"]+)"|from\s+\'(\./[^\']+)\'', chunk)]
+                    r'src="(/js/[^"]+)"|from\s+\'(\.{1,2}/[^\']+)\'', chunk)]
         for ref in refs:
-            rel = ref.lstrip("/")
-            if not rel.startswith("js/"):
-                rel = "js/" + rel.lstrip("./")
-            if rel in seen:
+            if ref.startswith("/js/"):
+                target = ref.lstrip("/")
+            else:
+                target = _posixpath.normpath(
+                    _posixpath.dirname(rel) + "/" + ref)
+            if target in seen:
                 continue
-            seen.add(rel)
-            text = (ROOT / "frontend" / rel).read_text(encoding="utf-8")
+            seen.add(target)
+            text = (ROOT / "frontend" / target).read_text(encoding="utf-8")
             parts.append(text)
-            queue.append(text)
+            queue.append((target, text))
     return "\n".join(parts)
 
 

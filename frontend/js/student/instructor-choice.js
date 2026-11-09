@@ -1,8 +1,8 @@
 /* из instructor-choice.html (блок 1) */
 // Спринт 6, Партия B: сессия и api — общий клиент js/api.js,
 // toast/el — общие хелперы js/utils.js
-import { api, toLogin, clearSession, getToken } from './api.js';
-import { toast, el } from './utils.js';
+import { api, toLogin, clearSession, getToken } from '../shared/api.js';
+import { toast, el } from '../shared/utils.js';
 // --- сессия ученика (единый паттерн кабинета, sdd §10.2–10.3) ---
 if(!getToken()){toLogin()}
 // ФИО ученика (FR-5)

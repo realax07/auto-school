@@ -1,5 +1,5 @@
 // из admin-login.html (блок 1)
-import { postJSON } from './api.js';
+import { postJSON } from '../shared/api.js';
 function doLogin(e){
   e.preventDefault();
   var l=document.getElementById('login').value.trim(), p=document.getElementById('pass').value;

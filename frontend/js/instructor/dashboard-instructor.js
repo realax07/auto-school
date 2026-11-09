@@ -1,7 +1,7 @@
 /* из instructor-dashboard.html (блок 1) */
 // Спринт 6, Партия B: общие хелперы — из js/utils.js и js/api.js
-import { toast as baseToast, nowMoscow } from './utils.js';
-import { apiGet, apiSend, clearSession } from './api.js';
+import { toast as baseToast, nowMoscow } from '../shared/utils.js';
+import { apiGet, apiSend, clearSession } from '../shared/api.js';
 // Спринт 3: даты кабинета — актуальные, TimeZone Europe/Moscow (GMT+3),
 // локаль ru. Дефолтные строки HTML сохранены (design-guard сверяет с
 // мокапом) — здесь они заменяются на текущую дату.

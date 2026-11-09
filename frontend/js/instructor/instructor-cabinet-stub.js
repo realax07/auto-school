@@ -1,8 +1,8 @@
 /* из instructor-cabinet-stub.html (блок 1) */
 // Спринт 6, Партия B: api/getToken — общий клиент js/api.js,
 // initials/fioOf — общие хелперы js/utils.js
-import { api, getToken } from './api.js';
-import { initials, fioOf } from './utils.js';
+import { api, getToken } from '../shared/api.js';
+import { initials, fioOf } from '../shared/utils.js';
 (function(){
   // Wiring (задача 4.4, sdd §15.6): защита сессией как /cabinet —
   // GET /api/auth/me (X-Session-Token из sessionStorage['session_token']),

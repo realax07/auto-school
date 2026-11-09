@@ -134,11 +134,12 @@ def create_app() -> FastAPI:
     # Спринт 6, Партия B (PLAN, директива Заказчика 2026-10-16): модульный
     # фронтенд — /js/* из frontend/js/ (native ES modules), content-type
     # application/javascript явно (не зависеть от системных mimetypes).
-    @app.get("/js/{filename}")
-    def js_file(filename: str):
-        if "/" in filename or filename.startswith("."):
+    @app.get("/js/{filepath:path}")
+    def js_file(filepath: str):
+        if filepath.startswith("/") or ".." in filepath.split("/") \
+                or any(part.startswith(".") for part in filepath.split("/")):
             raise HTTPException(status_code=404)
-        path = FRONTEND_DIR / "js" / filename
+        path = FRONTEND_DIR / "js" / filepath
         if not path.is_file():
             raise HTTPException(status_code=404)
         return FileResponse(path, media_type="application/javascript")

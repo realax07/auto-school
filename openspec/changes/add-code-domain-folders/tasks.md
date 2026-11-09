@@ -68,7 +68,7 @@ design.md «Инвентарь ссылок» (классы A/B/C/D). Комми
 
 ## 2. Волна 2 — frontend/js: перенос + HTML src + route + прогоны web
 
-- [ ] 2.1 [code] Перенести 8 модулей `git mv`: shared/{api,utils}.js,
+- [x] 2.1 [code] Перенести 8 модулей `git mv`: shared/{api,utils}.js,
       student/{cabinet,instructor-choice}.js, instructor/
       {dashboard-instructor,instructor-cabinet-stub}.js,
       admin/{admin-dashboard,admin-login}.js; instructors.js и
@@ -79,7 +79,7 @@ design.md «Инвентарь ссылок» (классы A/B/C/D). Комми
       FR: —. NFR: —. Зависит от: — (от волны 1 не зависит технически,
       выполняется после зеленой волны 1).
 
-- [ ] 2.2 [code] Обновить веб-пути: (а) 6 HTML `src="/js/…"` —
+- [x] 2.2 [code] Обновить веб-пути: (а) 6 HTML `src="/js/…"` —
       соответствие design.md D4 (instructors.html, policy.html — без
       правок); (б) 8 ES-импорт-строк в 6 модулях → `../shared/*`
       (из подпапок) и `./shared/api.js` (instructors.js из корня);
@@ -93,7 +93,7 @@ design.md «Инвентарь ссылок» (классы A/B/C/D). Комми
       /js/.hidden, /js/nope.js — 404.
       FR: —. NFR: —. Зависит от: 2.1.
 
-- [ ] 2.3 [tests] Правка хелпера conftest `frontend_source()` (design
+- [x] 2.3 [tests] Правка хелпера conftest `frontend_source()` (design
       «frontend_source при подпапках»): regex группа 2 →
       `(\.{1,2}/[^']+)`, резолв `./…`/`../…` относительно папки
       импортирующего модуля (posixpath.normpath), `/js/…` — от корня
@@ -106,7 +106,7 @@ design.md «Инвентарь ссылок» (классы A/B/C/D). Комми
       cars/'+t.carId+'/photo/'+t.angle и т.д.).
       FR: —. NFR: NFR-27. Зависит от: 2.1, 2.2.
 
-- [ ] 2.4 [tests] Прогон наборов волны 2: `pytest tests/web -q -k
+- [x] 2.4 [tests] Прогон наборов волны 2: `pytest tests/web -q -k
       "not playwright"` (wiring/статика через TestClient), точечно
       test_policy (needle '/js/policy.js' — без правок), тесты
       раздачи статики (test_static). Готовность: web-набор без
