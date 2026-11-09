@@ -54,7 +54,7 @@ def _clean_bruteforce_state():
     """Анти-брутфорс backend.auth ведет module-level учет по IP, который
     переживает тесты (механика test_auth_route.py): очищаем до и после
     каждого теста, чтобы не зависеть от порядка файлов."""
-    from backend import auth
+    from backend.auth import auth
 
     auth._bf.clear()
     yield
@@ -201,7 +201,7 @@ def test_tcapp018_integrityerror_path_honest_d8(client, monkeypatch):
     monkeypatch-оберткой db-слоя, INSERT исполняется на занятом email
     РЕАЛЬНО → sqlite3.IntegrityError от UNIQUE перехвачен хендлером —
     контрактная 422 «Email: уже зарегистрирован», НЕ 500; ровно одна заявка."""
-    import backend.db as db
+    import backend.core.db as db
 
     assert client.post(
         "/api/instructors/apply", json=_apply_body("race@example.com")
@@ -236,7 +236,7 @@ def test_tcapp018_integrityerror_path_honest_d8(client, monkeypatch):
         def get_conn():
             return _SkipSelectConn(real_get_conn())
 
-    monkeypatch.setattr("backend.instructors.db", _RaceDB)
+    monkeypatch.setattr("backend.instructor.instructors.db", _RaceDB)
 
     resp = client.post("/api/instructors/apply", json=_apply_body("race@example.com"))
     assert resp.status_code == 422  # НЕ 500 — IntegrityError перехвачен
@@ -253,7 +253,7 @@ def test_tcauth010_status_login_resets_bf_counter(client, status, route):
     попытки против заявки учитываются единообразно; успешный вход по статусу
     (pending/rejected) СБРАСЫВАЕТ счетчик IP — следующие неудачи копятся с
     нуля и до блокировки не доходят."""
-    import backend.auth as auth
+    import backend.auth.auth as auth
 
     email = f"reset-{status}@example.com"
     assert client.post(
@@ -293,7 +293,7 @@ def test_tcauth011_block_isolated_per_ip_and_never_named(client):
     влияет на IP-B (штатный вход 200 route=cabinet); ответ заблокированного
     IP-A с КОРРЕКТНЫМИ кредами идентичен единому отказу 401 — тело и
     заголовки без каких-либо признаков блокировки (нет Retry-After)."""
-    import backend.auth as auth
+    import backend.auth.auth as auth
 
     assert _approve(client).status_code == 200
 
@@ -409,9 +409,9 @@ def test_tcnfr001_sql_parameterized_static_inspection():
     отсутствуют. Динамические пробы — test_apply_validation_contract_422
     (инъекция в email apply) и test_qa_sprint1.py::test_nfr002 (login)."""
     modules = [
-        "backend/instructors.py",
-        "backend/instructor_admin.py",
-        "backend/auth.py",
+        "backend/instructor/instructors.py",
+        "backend/auth/instructor_admin.py",
+        "backend/auth/auth.py",
     ]
     found = 0
     for rel in modules:
@@ -452,7 +452,7 @@ def test_ttl_instructor_session_expires_token_shift(client, monkeypatch):
     сдвига «сейчас» мимо expires (12 ч, backend.auth._TOKEN_TTL_SECONDS)
     /api/auth/me и /api/auth/logout с токеном инструктора → 401 {ok:false}.
     time.sleep запрещен — прямой сдвиг clock (паттерн test_qa_sprint1)."""
-    import backend.auth as auth
+    import backend.auth.auth as auth
 
     assert _approve(client).status_code == 200
     login = _login(client, "instr@example.com", "Instr1234")

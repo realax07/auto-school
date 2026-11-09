@@ -42,7 +42,7 @@ def _clean_bruteforce_state():
     сбрасывает учет). Тесты этого модуля намеренно копят неудачи и
     блокируют IP «testclient» — очищаем состояние до и после каждого
     теста, чтобы не влиять на соседние файлы и не зависеть от их порядка."""
-    from backend import auth
+    from backend.auth import auth
 
     auth._bf.clear()
     yield
@@ -173,7 +173,7 @@ def test_login_denied_application_rejected_with_reason(client):
 
 def test_login_unknown_credentials_unified_401(client):
     """Ни users, ни заявки → единый 401 (AUTH_FAIL_MESSAGE, без изменений)."""
-    from backend.auth import AUTH_FAIL_MESSAGE
+    from backend.auth.auth import AUTH_FAIL_MESSAGE
 
     login = client.post(
         "/api/auth/login",
@@ -185,7 +185,7 @@ def test_login_unknown_credentials_unified_401(client):
 
 def test_login_wrong_password_against_application_401(client):
     """Неверный пароль против заявки → единый 401 (та же схема, что users)."""
-    from backend.auth import AUTH_FAIL_MESSAGE
+    from backend.auth.auth import AUTH_FAIL_MESSAGE
 
     _apply(client)
     login = client.post(

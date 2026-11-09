@@ -202,7 +202,7 @@ def test_migration_is_idempotent(client):
 
     Повторный init_db не падает и не дублирует колонки/таблицы.
     """
-    import backend.db as db
+    import backend.core.db as db
 
     db.init_db()
     db.init_db()
@@ -228,7 +228,7 @@ def test_migration_of_legacy_db_without_new_columns(client):
     assert conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] >= 1
     conn.close()
 
-    import backend.db as db
+    import backend.core.db as db
 
     db.init_db()
     db.init_db()
@@ -1671,14 +1671,14 @@ def test_new_modules_no_sql_concatenation():
     NFR-3: в новых модулях нет f-строк/конкатенаций/ format() в SQL.
     """
     for name in (
-        "instructor_cars.py",
-        "instructor_availability.py",
-        "student_marketplace.py",
-        "reviews.py",
-        "student_requests.py",
-        "instructor_summary.py",
-        "guards.py",
-        "uploads.py",
+        "instructor/instructor_cars.py",
+        "instructor/instructor_availability.py",
+        "student/student_marketplace.py",
+        "student/reviews.py",
+        "student/student_requests.py",
+        "instructor/instructor_summary.py",
+        "core/guards.py",
+        "core/uploads.py",
     ):
         src = (ROOT / "backend" / name).read_text(encoding="utf-8")
         for bad in ("f\"SELECT", "f'SELECT", "f\"INSERT", "f'INSERT",

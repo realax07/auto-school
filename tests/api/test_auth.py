@@ -77,7 +77,7 @@ def client(monkeypatch, tmp_path):
     from fastapi.testclient import TestClient
 
     from backend.app import create_app
-    from backend.auth import router as auth_router
+    from backend.auth.auth import router as auth_router
 
     app = create_app()
     if not any(getattr(r, "path", None) == "/api/auth/login" for r in app.routes):
@@ -90,7 +90,7 @@ def client(monkeypatch, tmp_path):
 def no_bf(monkeypatch):
     """Порог блокировки выше любого числа попыток в тесте — для сценариев,
     где блокировка не должна вмешиваться."""
-    from backend import auth
+    from backend.auth import auth
 
     monkeypatch.setattr(auth, "_BF_MAX_FAILURES", 10_000)
 
@@ -204,7 +204,7 @@ def test_forged_token_401(client, no_bf):
 def test_expired_token_401(client, no_bf, monkeypatch):
     """Спека «Запрос с истекшим токеном»: TTL истек → 401; time.sleep не
     используется — сдвиг «сейчас» вперед мимо expires."""
-    import backend.auth as auth
+    import backend.auth.auth as auth
 
     _register_one(client, "petrova@example.com")
     token = _login(client).json()["token"]
@@ -265,7 +265,7 @@ def test_password_not_in_logs(client, no_bf, caplog):
 
 
 def _bf_state():
-    from backend import auth
+    from backend.auth import auth
 
     return auth._bf
 
@@ -275,7 +275,7 @@ def test_bruteforce_blocks_ip_without_credential_check(client, monkeypatch):
     попытка не раскрывает блокировку»: после _BF_MAX_FAILURES неудач с одного
     IP попытка с КОРРЕКТНЫми учетными данными отклоняется тем же 401/текстом
     без проверки учетных данных, токен не выдается."""
-    import backend.auth as auth
+    import backend.auth.auth as auth
 
     _register_one(client, "petrova@example.com")
     other = _client_at(client, "10.0.0.1")
@@ -290,7 +290,7 @@ def test_bruteforce_blocks_ip_without_credential_check(client, monkeypatch):
 
 def test_bruteforce_block_is_per_ip(client, monkeypatch):
     """Учет по IP: другой IP не затронут блокировкой и входит успешно."""
-    import backend.auth as auth
+    import backend.auth.auth as auth
 
     _register_one(client, "petrova@example.com")
     blocked = _client_at(client, "10.0.0.2")
@@ -306,7 +306,7 @@ def test_bruteforce_block_is_per_ip(client, monkeypatch):
 def test_bruteforce_block_expires_and_escalates(client, monkeypatch):
     """Спека «Длительность блокировки нарастает»: вторая блокировка длиннее
     первой; истекшая блокировка снимается (сдвиг времени, без sleep)."""
-    import backend.auth as auth
+    import backend.auth.auth as auth
 
     _register_one(client, "petrova@example.com")
     ip = "10.0.0.4"
@@ -344,7 +344,7 @@ def test_bruteforce_reset_after_success(client, monkeypatch):
     """Спека «Счетчик сбрасывается после успешного входа»: несколько неудач
     (меньше порога) → успех → счетчик обнулен, последующие изолированные
     неудачи не блокируют."""
-    import backend.auth as auth
+    import backend.auth.auth as auth
 
     _register_one(client, "petrova@example.com")
     ip = "10.0.0.5"
@@ -369,7 +369,7 @@ def test_bruteforce_reset_after_success(client, monkeypatch):
 def test_bruteforce_window_reset(client, monkeypatch):
     """R-BF3: окно наблюдения (≥15 мин без неудач) сбрасывает счетчик — без
     сна, сдвигом времени."""
-    import backend.auth as auth
+    import backend.auth.auth as auth
 
     _register_one(client, "petrova@example.com")
     ip = "10.0.0.6"

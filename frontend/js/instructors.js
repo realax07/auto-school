@@ -1,5 +1,5 @@
 // из instructors.html (блок 1)
-import { postJSON, setToken } from './api.js';
+import { postJSON, setToken } from './shared/api.js';
 document.getElementById('open-form').addEventListener('click',function(){location.href='/instructors/apply'});
 // BUG-055 (decisions/2026-11-04-ui-followup.md, п.2): «Войти» (data-open-login)
 // открывает модалку входа ЛОКАЛЬНО — на странице, откуда нажали, — БЕЗ

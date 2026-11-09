@@ -34,7 +34,7 @@ from pathlib import Path
 
 import pytest
 
-import backend.auth as auth
+import backend.auth.auth as auth
 from conftest import admin_headers, db_path, register
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -345,7 +345,7 @@ def test_dashboard_page_wiring_fr18_fr20_fr22():
 def test_dashboard_sql_parameterized():
     """NFR-2: единственный новый запрос — SELECT users по id с
     `?`-плейсхолдером; 0 конкатенаций SQL в новом модуле."""
-    src = (ROOT / "backend" / "dashboard.py").read_text(encoding="utf-8")
+    src = (ROOT / "backend" / "instructor" / "dashboard.py").read_text(encoding="utf-8")
     assert 'WHERE id = ?"' in src
     for bad in ('id = \' +', "id = \" +", 'f"SELECT', "format(SELECT"):
         assert bad not in src, bad

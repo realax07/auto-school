@@ -11,23 +11,23 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 
-import backend.db as db
-from backend.admin import router as admin_router
-from backend.application_status import router as application_status_router
-from backend.auth import router as auth_router
-from backend.booking import router as booking_router
-from backend.dashboard import router as dashboard_router
-from backend.instructor_admin import router as instructor_admin_router
-from backend.instructor_availability import router as instructor_availability_router
-from backend.instructor_cars import router as instructor_cars_router
-from backend.instructor_documents import router as instructor_documents_router
-from backend.instructor_summary import router as instructor_summary_router
-from backend.instructors import router as instructors_router
-from backend.policy import router as policy_router
-from backend.register import router as register_router
-from backend.reviews import router as reviews_router
-from backend.student_marketplace import router as student_marketplace_router
-from backend.student_requests import router as student_requests_router
+import backend.core.db as db
+from backend.auth.admin import router as admin_router
+from backend.auth.application_status import router as application_status_router
+from backend.auth.auth import router as auth_router
+from backend.student.booking import router as booking_router
+from backend.instructor.dashboard import router as dashboard_router
+from backend.auth.instructor_admin import router as instructor_admin_router
+from backend.instructor.instructor_availability import router as instructor_availability_router
+from backend.instructor.instructor_cars import router as instructor_cars_router
+from backend.instructor.instructor_documents import router as instructor_documents_router
+from backend.instructor.instructor_summary import router as instructor_summary_router
+from backend.instructor.instructors import router as instructors_router
+from backend.policy.policy import router as policy_router
+from backend.auth.register import router as register_router
+from backend.student.reviews import router as reviews_router
+from backend.student.student_marketplace import router as student_marketplace_router
+from backend.student.student_requests import router as student_requests_router
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = ROOT_DIR / "frontend"
@@ -134,11 +134,12 @@ def create_app() -> FastAPI:
     # Спринт 6, Партия B (PLAN, директива Заказчика 2026-10-16): модульный
     # фронтенд — /js/* из frontend/js/ (native ES modules), content-type
     # application/javascript явно (не зависеть от системных mimetypes).
-    @app.get("/js/{filename}")
-    def js_file(filename: str):
-        if "/" in filename or filename.startswith("."):
+    @app.get("/js/{filepath:path}")
+    def js_file(filepath: str):
+        if filepath.startswith("/") or ".." in filepath.split("/") \
+                or any(part.startswith(".") for part in filepath.split("/")):
             raise HTTPException(status_code=404)
-        path = FRONTEND_DIR / "js" / filename
+        path = FRONTEND_DIR / "js" / filepath
         if not path.is_file():
             raise HTTPException(status_code=404)
         return FileResponse(path, media_type="application/javascript")

@@ -487,9 +487,9 @@ def test_tc_nfr_002_no_sql_concatenation_in_db_layer():
     import re
     from pathlib import Path
 
-    import backend.admin as admin_mod
-    import backend.db as db_mod
-    import backend.register as register_mod
+    import backend.auth.admin as admin_mod
+    import backend.core.db as db_mod
+    import backend.auth.register as register_mod
 
     sql_words = ("SELECT", "INSERT", "UPDATE", "DELETE", "CREATE")
     for module in (db_mod, register_mod, admin_mod):

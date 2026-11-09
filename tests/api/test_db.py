@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-import backend.db as db
+import backend.core.db as db
 
 EXPECTED_COLUMNS = {
     "id": "INTEGER",

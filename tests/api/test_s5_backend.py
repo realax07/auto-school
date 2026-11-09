@@ -24,7 +24,7 @@ import pytest
 
 from conftest import admin_headers, db_path, register
 
-from backend import booking as booking_domain
+from backend.student import booking as booking_domain
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -170,9 +170,16 @@ def setup_pair(
     instr = create_instructor(client, email=instructor_email)
     car_id = add_car_json(client, instr["token"])
     if intervals is None:
+        # BUG-063: one_off на завтра/послезавтра — детерминированно в любой
+        # день и время прогона (NFR-31: легаси-материализация recurring
+        # «ближайшая дата» давала начавшийся сегодня слот → 422)
+        d1 = datetime.date.today() + datetime.timedelta(days=1)
+        d2 = datetime.date.today() + datetime.timedelta(days=2)
         intervals = [
-            {"weekday": 0, "start_time": "10:00", "end_time": "11:00"},
-            {"weekday": 1, "start_time": "12:00", "end_time": "13:00"},
+            {"slot_type": "one_off", "date": d1.isoformat(),
+             "weekday": d1.weekday(), "start_time": "10:00", "end_time": "11:00"},
+            {"slot_type": "one_off", "date": d2.isoformat(),
+             "weekday": d2.weekday(), "start_time": "12:00", "end_time": "13:00"},
         ]
     saved = put_availability(client, instr["token"], intervals)
     assert saved.status_code == 200, saved.text
@@ -199,12 +206,24 @@ def get_slots(client, student_token, instructor_id):
     )
 
 
-def book(client, student_token, availability_id):
+def future_date(weekday: int) -> str:
+    """Ближайшая СТРОГО будущая дата weekday (BUG-063: сегодня-экземпляр
+    мог уже начаться к моменту прогона — NFR-31, детерминизм)."""
+    today = datetime.date.today()
+    delta = (weekday - today.weekday()) % 7
+    return (today + datetime.timedelta(days=delta or 7)).isoformat()
+
+
+def book(client, student_token, availability_id, date=None):
+    payload = {"availability_id": availability_id}
+    if date is not None:
+        payload["date"] = date
     return client.post(
         "/api/student/bookings",
-        json={"availability_id": availability_id},
+        json=payload,
         headers=_headers(student_token),
     )
+
 
 
 def first_slot_id(client, student_token, instructor_id, state="free"):
@@ -303,7 +322,7 @@ def test_s5_migration_idempotent_keeps_rows(client):
     conn.commit()
     conn.close()
 
-    import backend.db as db
+    import backend.core.db as db
 
     db.init_db()
     db.init_db()
@@ -706,7 +725,7 @@ def _set_license_photo(client, application_id, content=ROOT_JPEG):
     пакет)."""
     import os
 
-    import backend.uploads as uploads
+    import backend.core.uploads as uploads
 
     path = uploads.save_image("license", content, "jpg")
     conn = sqlite3.connect(db_path())
@@ -1308,7 +1327,9 @@ def test_s5_put_availability_blocked_by_active_bookings(api, client):
     ).fetchone()[0]
     conn.close()
 
-    booking_id = book(client, student["token"], slot_mon).json()["booking_id"]
+    booking_id = book(
+        client, student["token"], slot_mon, date=future_date(0)
+    ).json()["booking_id"]
 
     # пытаемся заменить график без понедельника → 409
     denied = put_availability(
@@ -1355,7 +1376,9 @@ def test_s5_put_availability_blocked_by_active_bookings(api, client):
         ],
     )
     slot_mon = first_slot_id(client, student["token"], instr["id"])
-    booking2 = book(client, student["token"], slot_mon).json()["booking_id"]
+    booking2 = book(
+        client, student["token"], slot_mon, date=future_date(0)
+    ).json()["booking_id"]
     client.post(
         f"/api/instructor/bookings/{booking2}/confirm",
         headers=_headers(instr["token"]),
@@ -1391,7 +1414,7 @@ def test_s5_put_availability_vs_booking_race_no_orphan(api, client, monkeypatch)
     ).fetchone()[0]
     conn.close()
 
-    import backend.instructor_availability as ia
+    import backend.instructor.instructor_availability as ia
 
     orig = ia.blocking_bookings
     race: dict = {}
@@ -1570,9 +1593,9 @@ def test_s5_summary_today_lessons(api, client, monkeypatch):
 def test_s5_new_modules_no_sql_concatenation():
     """TC-S5BE-023 (change add-booking-docs, NFR-10←NFR-3): в новых
     модулях Спринта 5 нет f-строк/конкатенаций/format() в SQL."""
-    for name in ("booking.py", "instructor_documents.py",
-                 "instructor_cars.py", "instructor_availability.py",
-                 "instructor_summary.py"):
+    for name in ("student/booking.py", "instructor/instructor_documents.py",
+                 "instructor/instructor_cars.py", "instructor/instructor_availability.py",
+                 "instructor/instructor_summary.py"):
         src = (ROOT / "backend" / name).read_text(encoding="utf-8")
         for bad in ("f\"SELECT", "f'SELECT", "f\"INSERT", "f'INSERT",
                     "f\"UPDATE", "f'UPDATE", "f\"DELETE", "f'DELETE",

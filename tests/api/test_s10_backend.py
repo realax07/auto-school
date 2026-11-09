@@ -29,8 +29,8 @@ import pytest
 
 from conftest import admin_headers, db_path, register
 
-from backend import booking as booking_domain
-import backend.db as db
+from backend.student import booking as booking_domain
+import backend.core.db as db
 
 # Точные заголовки Requirement дельт (трассировка rule 6)
 REQ_MIGRATION = "Существующий график становится повторяющимся (миграция)"
