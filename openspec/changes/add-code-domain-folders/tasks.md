@@ -32,7 +32,7 @@ design.md «Инвентарь ссылок» (классы A/B/C/D). Комми
       переносимых модулях (полный список связей — design.md D1;
       `import backend.config as config` → `backend.core.config` и
       т.д.). Импорт-граф не менять (кросс-доменные связи сохраняются).
-      Готовность: `grep -rn "from backend\.\|import backend\." backend/`
+      Готовность: `grep -rn "from backend\.\|import backend\.\|from backend import" backend/`
       показывает только пути нового дерева; `python -c "from
       backend.app import create_app; create_app()"` — без ошибок;
       `uvicorn backend.app:app` стартует, GET /api/health — 200.
@@ -51,7 +51,8 @@ design.md «Инвентарь ссылок» (классы A/B/C/D). Комми
       не трогаются. Список правок зафиксировать в отчете партии.
       Готовность: `grep -rn "backend\.\(db\|auth\|booking\|policy\)"
       tests/ --include="*.py"` не находит старых функциональных
-      ссылок; списки модулей в s3/s5-инспекциях ссылаются на новые
+      ссылок (совпадения в docstring — исторические носители, design
+      D3/D5, не считаются); списки модулей в s3/s5-инспекциях ссылаются на новые
       пути (файлы читаются).
       FR: —. NFR: NFR-27 (граница). Зависит от: 1.2.
 
@@ -87,7 +88,8 @@ design.md «Инвентарь ссылок» (классы A/B/C/D). Комми
       и прежним content-type (код — design.md «Раздача /js/*»).
       Готовность: `grep -rn 'src="/js/' frontend/*.html` — все пути
       существуют на диске; curl /js/student/cabinet.js — 200
-      application/javascript; /js/policy.js — 200; /js/../.env,
+      application/javascript; /js/policy.js — 200; /js/../.env
+      (--path-as-is — без флага curl сам нормализует путь),
       /js/.hidden, /js/nope.js — 404.
       FR: —. NFR: —. Зависит от: 2.1.
 
@@ -96,7 +98,7 @@ design.md «Инвентарь ссылок» (классы A/B/C/D). Комми
       `(\.{1,2}/[^']+)`, резолв `./…`/`../…` относительно папки
       импортирующего модуля (posixpath.normpath), `/js/…` — от корня
       frontend; дедупликация и состав «единицы wiring» без изменений.
-      Тесты-вызовы frontend_source (7 файлов) не правятся.
+      Тесты-вызовы frontend_source (4 файла, 11 вызовов) не правятся.
       Готовность: wiring-тесты зеленые (test_cabinet_page,
       test_instructor_pages, test_instructor_dashboard:305/323,
       test_s3:1737, test_policy — объединенный источник каждой

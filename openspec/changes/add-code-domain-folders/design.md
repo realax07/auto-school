@@ -140,7 +140,10 @@ HTML + подключенные ES-модули. Текущий regex
   `posixpath.normpath(dirname(модуля) + ref)` относительно папки
   импортирующего модуля. Двойные кавычки в импортах не вводятся
   (как и сейчас). Дедупликация `seen` и объединение источников — без
-  изменений; все существующие вызовы frontend_source (7 файлов) и
+  изменений; все существующие вызовы frontend_source (4 тест-файла,
+  11 вызовов: test_s3_backend:1737, test_instructor_dashboard:305/323,
+  test_cabinet_page ×5, test_instructor_pages:94/377; test_login_modal —
+  docstring-упоминание без вызова, test_policy — rglob без хелпера) и
   состав «единицы wiring» страницы — эквивалентны прежним.
 
 ## Раздача /js/* при подпапках (решение)
@@ -179,10 +182,10 @@ string-needle (текстовые ссылки, резолвятся в рант
 | Файл → новый путь | Потребители-импорты (правятся) |
 |---|---|
 | config.py → core/config.py | admin.py (import backend.config) |
-| db.py → core/db.py | app.py + 15 модулей; тесты: 17 строк |
+| db.py → core/db.py | app.py + 16 модулей; тесты: 17 строк |
 | guards.py → core/guards.py | booking, instructor_availability, instructor_cars, instructor_documents, instructor_summary, reviews, student_marketplace, student_requests; тесты: чтение исходника (класс B, s3) |
 | uploads.py → core/uploads.py | instructor_admin, instructor_cars, instructor_documents, instructors; тесты: 5 строк |
-| auth.py → auth/auth.py | app.py (router), application_status, dashboard, guards, instructor_cars; тесты: 16 строк (вкл. `from backend import auth` ×6); чтение исходника ×1 (qa_instructor_flow) |
+| auth.py → auth/auth.py | app.py (router), application_status, dashboard, guards, instructor_cars, register (deferred-импорт `_session_issue` внутри функции, register.py:175); тесты: 21 строка (вкл. `from backend import auth` ×5); чтение исходника ×1 (qa_instructor_flow) |
 | register.py → auth/register.py | app.py (router); тесты: 1 строка (register_mod; чтение исходника через inspect.getfile — путь-агностик) |
 | admin.py → auth/admin.py | app.py (router), instructor_admin, instructor_cars, instructor_documents; тесты: 3 строки |
 | instructor_admin.py → auth/instructor_admin.py | app.py (router); тесты: 1 строка + чтение исходника ×1 |
@@ -193,7 +196,7 @@ string-needle (текстовые ссылки, резолвятся в рант
 | instructor_documents.py → instructor/instructor_documents.py | app.py (router), instructor_cars; чтение исходника ×1 (s5) |
 | instructor_availability.py → instructor/instructor_availability.py | app.py (router); тесты: 2 строки (`from backend.instructor_availability import …` unit + `import backend.instructor_availability as ia` s5); чтения исходников ×2 |
 | instructor_summary.py → instructor/instructor_summary.py | app.py (router); чтения исходников ×2 (s3, s5) |
-| booking.py → student/booking.py | app.py (router); тесты: 3 строки `from backend import booking as booking_domain` (s5/s8/s10); чтение исходника ×1 (s5) |
+| booking.py → student/booking.py | app.py (router), instructor_availability/instructor_summary/student_requests (хелперы booking); тесты: 3 строки `from backend import booking as booking_domain` (s5/s8/s10); чтение исходника ×1 (s5) |
 | student_marketplace.py → student/student_marketplace.py | app.py (router); чтение исходника ×1 (s3) |
 | student_requests.py → student/student_requests.py | app.py (router); тесты: 1 строка (from backend.booking import local_today — учтено в booking); чтение исходника ×1 (s3) |
 | reviews.py → student/reviews.py | app.py (router); чтение исходника ×1 (s3) |
@@ -246,7 +249,7 @@ app.py: 17 импорт-строк (16 router-импортов + `import backend
 test_db.py:357, test_qa_sprint1.py:104 — читают исходник через
 `Path(module.__file__)`; test_policy.py:276–282 — rglob по frontend/.
 
-### D4. Веб-пути (класс C: 16 правок)
+### D4. Веб-пути (класс C: 17 правок)
 
 HTML `src="/js/…"` (6 правок, 2 страницы без правок):
 
@@ -261,7 +264,7 @@ HTML `src="/js/…"` (6 правок, 2 страницы без правок):
 | instructors.html:32 | /js/instructors.js | без правки (модуль в корне) |
 | policy.html:35 | /js/policy.js | без правки (модуль в корне) |
 
-ES-импорты внутри модулей (8 строк в 6 файлах): admin-login.js:1 и
+ES-импорты внутри модулей (9 строк в 6 файлах): admin-login.js:2 и
 instructors.js:2 `./api.js` → `../shared/api.js` / `./shared/api.js`;
 cabinet.js:4 `./utils.js` → `../shared/utils.js`;
 dashboard-instructor.js:3–4, instructor-cabinet-stub.js:4–5,
@@ -295,6 +298,10 @@ Needle теста `'/js/policy.js' in page.text` (test_policy.py:181) —
 - scripts/check_auth_timing.py (ищет auth-модуль в backend/app/<name>)
   — legacy-утилита под сервисное дерево, вне CI, уже несовместима с
   плоским деревом — вне объема.
+- scripts/codegraph.py:23–27 (PY_DIR «backend/app», JS_DIRS
+  «frontend/static/js») — оба пути не существуют и до, и после пакета
+  (py/js-графы молчат в обоих состояниях, PROJECT_CONFIG-гвард) —
+  не трогается.
 - tests/conftest.py:30 `sys.path.insert(0, ROOT/"backend")` — не
   трогается (bare-импортов модулей нет).
 - CI .github/workflows/flow.yml: греп `^(backend|frontend|…)/` — класс
