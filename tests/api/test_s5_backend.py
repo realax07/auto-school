@@ -170,9 +170,16 @@ def setup_pair(
     instr = create_instructor(client, email=instructor_email)
     car_id = add_car_json(client, instr["token"])
     if intervals is None:
+        # BUG-063: one_off на завтра/послезавтра — детерминированно в любой
+        # день и время прогона (NFR-31: легаси-материализация recurring
+        # «ближайшая дата» давала начавшийся сегодня слот → 422)
+        d1 = datetime.date.today() + datetime.timedelta(days=1)
+        d2 = datetime.date.today() + datetime.timedelta(days=2)
         intervals = [
-            {"weekday": 0, "start_time": "10:00", "end_time": "11:00"},
-            {"weekday": 1, "start_time": "12:00", "end_time": "13:00"},
+            {"slot_type": "one_off", "date": d1.isoformat(),
+             "weekday": d1.weekday(), "start_time": "10:00", "end_time": "11:00"},
+            {"slot_type": "one_off", "date": d2.isoformat(),
+             "weekday": d2.weekday(), "start_time": "12:00", "end_time": "13:00"},
         ]
     saved = put_availability(client, instr["token"], intervals)
     assert saved.status_code == 200, saved.text
@@ -199,12 +206,24 @@ def get_slots(client, student_token, instructor_id):
     )
 
 
-def book(client, student_token, availability_id):
+def future_date(weekday: int) -> str:
+    """Ближайшая СТРОГО будущая дата weekday (BUG-063: сегодня-экземпляр
+    мог уже начаться к моменту прогона — NFR-31, детерминизм)."""
+    today = datetime.date.today()
+    delta = (weekday - today.weekday()) % 7
+    return (today + datetime.timedelta(days=delta or 7)).isoformat()
+
+
+def book(client, student_token, availability_id, date=None):
+    payload = {"availability_id": availability_id}
+    if date is not None:
+        payload["date"] = date
     return client.post(
         "/api/student/bookings",
-        json={"availability_id": availability_id},
+        json=payload,
         headers=_headers(student_token),
     )
+
 
 
 def first_slot_id(client, student_token, instructor_id, state="free"):
@@ -1308,7 +1327,9 @@ def test_s5_put_availability_blocked_by_active_bookings(api, client):
     ).fetchone()[0]
     conn.close()
 
-    booking_id = book(client, student["token"], slot_mon).json()["booking_id"]
+    booking_id = book(
+        client, student["token"], slot_mon, date=future_date(0)
+    ).json()["booking_id"]
 
     # пытаемся заменить график без понедельника → 409
     denied = put_availability(
@@ -1355,7 +1376,9 @@ def test_s5_put_availability_blocked_by_active_bookings(api, client):
         ],
     )
     slot_mon = first_slot_id(client, student["token"], instr["id"])
-    booking2 = book(client, student["token"], slot_mon).json()["booking_id"]
+    booking2 = book(
+        client, student["token"], slot_mon, date=future_date(0)
+    ).json()["booking_id"]
     client.post(
         f"/api/instructor/bookings/{booking2}/confirm",
         headers=_headers(instr["token"]),

@@ -115,14 +115,14 @@ design.md «Инвентарь ссылок» (классы A/B/C/D). Комми
 
 ## 3. Волна 3 — regress/e2e/образ + приемка
 
-- [ ] 3.1 [tests] Полный regress: `env -u GITHUB_EVENT_PATH pytest
+- [x] 3.1 [tests] Полный regress: `env -u GITHUB_EVENT_PATH pytest
       tests/ -q` (зеркало CI, включает test_container_contract).
       Готовность: 0 failed; diff тестов относительно HEAD-before
       ограничен design.md D2/D3/D4 (проверка `git diff --stat —
       tests/`).
       FR: —. NFR: NFR-27. Зависит от: 1.4, 2.4.
 
-- [ ] 3.2 [tests] Playwright e2e (полный browser-набор test_ui_
+- [x] 3.2 [tests] Playwright e2e (полный browser-набор test_ui_
       playwright: uvicorn backend.app:app на эфемерном порту):
       сценарии кабинетов/лендинга/модалок — зеленые без правок
       (NFR-27); дополнительно smoke сети: браузер грузит
@@ -130,7 +130,7 @@ design.md «Инвентарь ссылок» (классы A/B/C/D). Комми
       Готовность: e2e PASS.
       FR: —. NFR: NFR-27. Зависит от: 3.1.
 
-- [ ] 3.3 [infra] Сборка образа + контейнерная верификация:
+- [x] 3.3 [infra] Сборка образа + контейнерная верификация:
       `docker compose build app` (backend/ копируется целиком — новые
       подпапки в контексте), `bash scripts/container_test.sh` (прогон
       backend-набора внутри образа, тот же digest), HEALTHCHECK
@@ -141,7 +141,7 @@ design.md «Инвентарь ссылок» (классы A/B/C/D). Комми
       FR: —. NFR: NFR-16 (minio в backend-сети — не задет). Зависит
       от: 3.1.
 
-- [ ] 3.4 [tests] regress-final: зафиксировать PASS на финальном
+- [x] 3.4 [tests] regress-final: зафиксировать PASS на финальном
       дереве (прецедент s12: последний коммит партии), сверить чек-
       лист приемки решения Заказчика: «новое дерево доменов; все
       наборы зеленые без смысловых правок; сборка образа + полный
