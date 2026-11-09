@@ -43,8 +43,8 @@ from fastapi import APIRouter, Header
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-import backend.auth as auth
-import backend.db as db
+import backend.auth.auth as auth
+import backend.core.db as db
 
 router = APIRouter()
 

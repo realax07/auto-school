@@ -18,9 +18,9 @@ SQL — параметризованный (NFR-3); ФИО учеников не
 """
 from fastapi import APIRouter, Header
 
-import backend.db as db
-from backend.booking import _car_brief, _pair_car, local_today
-from backend.guards import full_name, require_role
+import backend.core.db as db
+from backend.student.booking import _car_brief, _pair_car, local_today
+from backend.core.guards import full_name, require_role
 
 router = APIRouter()
 

@@ -133,7 +133,7 @@ def _columns(conn, table):
 
 
 def _artifact_version():
-    from backend.policy import read_policy
+    from backend.policy.policy import read_policy
 
     return read_policy()["version"]
 
@@ -160,7 +160,7 @@ def test_s9_policy_api_and_page_guest(client):
     показывает текст и версию» (API-часть + исходник страницы; полный
     рендер — e2e TC-UI-044, задача 7.2).
     """
-    from backend.policy import read_policy
+    from backend.policy.policy import read_policy
 
     artifact = read_policy()  # дефолтный deploy/policy/policy.md
 
@@ -265,7 +265,7 @@ def test_s9_policy_text_absent_from_frontend_sources():
     данных (/policy)» / Scenario «Текст политики отсутствует в исходниках
     страниц».
     """
-    from backend.policy import read_policy
+    from backend.policy.policy import read_policy
 
     text = read_policy()["text"]
     needles = ["152-ФЗ", "privacy@sberavtoshkola.example"]
@@ -338,7 +338,7 @@ def test_s9_policy_artifact_covers_existing_form_data():
     данных (/policy)» / Scenario «Политика охватывает данные существующих
     форм».
     """
-    from backend.policy import read_policy
+    from backend.policy.policy import read_policy
 
     text = read_policy()["text"].lower()
     for needle in (
@@ -631,7 +631,7 @@ def test_s9_migration_adds_consent_columns_legacy_null(tmp_path, monkeypatch):
     assert "consent_at" not in _columns(conn, "users")
     conn.close()
 
-    import backend.db as db
+    import backend.core.db as db
 
     db.init_db()
     conn = sqlite3.connect(tmp_path / "app.db")
@@ -670,7 +670,7 @@ def test_s9_migration_repeated_init_db_is_idempotent(tmp_path, monkeypatch):
     conn.commit()
     conn.close()
 
-    import backend.db as db
+    import backend.core.db as db
 
     db.init_db()
     conn = sqlite3.connect(tmp_path / "app.db")

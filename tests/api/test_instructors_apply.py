@@ -21,8 +21,8 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-import backend.db as db
-from backend.instructors import router as instructors_router
+import backend.core.db as db
+from backend.instructor.instructors import router as instructors_router
 
 PASSWORD = "Qwerty123"
 

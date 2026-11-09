@@ -187,7 +187,7 @@ def test_tc_adm_016_expired_token_rejected(client):
     resp = client.get("/api/admin/users", headers={"X-Admin-Token": token})
     assert resp.status_code == 200
 
-    import backend.admin as admin
+    import backend.auth.admin as admin
 
     admin._tokens[token] = time.time() - 1
     resp = client.get("/api/admin/users", headers={"X-Admin-Token": token})

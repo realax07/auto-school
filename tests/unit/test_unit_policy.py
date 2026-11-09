@@ -11,7 +11,7 @@ tests/api/test_policy.py.
 """
 import pytest
 
-from backend.policy import PolicyError, read_policy
+from backend.policy.policy import PolicyError, read_policy
 
 VALID = (
     "policy-version: 1.0\n"

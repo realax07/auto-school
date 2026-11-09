@@ -23,10 +23,10 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-import backend.db as db
-from backend.admin import router as admin_router
-from backend.instructor_admin import router as instructor_admin_router
-from backend.instructors import router as instructors_router
+import backend.core.db as db
+from backend.auth.admin import router as admin_router
+from backend.auth.instructor_admin import router as instructor_admin_router
+from backend.instructor.instructors import router as instructors_router
 from tests.conftest import admin_password_hash
 
 from test_instructors_apply import valid_application

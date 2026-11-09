@@ -291,7 +291,7 @@ def test_s7_migration_existing_cars_become_validated(tmp_path, monkeypatch):
     conn.commit()
     conn.close()
 
-    import backend.db as db
+    import backend.core.db as db
 
     db.init_db()
     db.init_db()  # идемпотентность: повторный прогон без ошибки/дублей
@@ -770,7 +770,7 @@ def test_s7_sts_owner_only_in_all_statuses(api, client):
     env = setup_pair(client)
     instr, student = env["instr"], env["student"]
     car_id = env["car_id"]
-    import backend.uploads as uploads
+    import backend.core.uploads as uploads
 
     path = uploads.save_image("car_sts", ROOT_JPEG, "jpg")
     set_car_sts(car_id, path)
@@ -948,7 +948,7 @@ def test_s7_sts_upload_and_replace_via_angle(api, client):
     не изменено); первичная дозагрузка → verified v1, замена → pending
     без перезаписи photo_sts (FR-70) и без смены статуса авто; файл в
     data/uploads/car_photo/."""
-    import backend.uploads as uploads
+    import backend.core.uploads as uploads
 
     instr = create_instructor(client)
     car_id = add_car_json(client, instr["token"])
@@ -1073,7 +1073,7 @@ def test_s7_documents_sts_all_statuses_and_dosylka(api, client):
     set_car_status(car1, "draft")
     set_car_status(car2, "validating")
     set_car_status(car3, "validated")
-    import backend.uploads as uploads
+    import backend.core.uploads as uploads
 
     set_car_sts(car2, uploads.save_image("car_sts", ROOT_JPEG, "jpg"))
     set_car_sts(car3, uploads.save_image("car_sts", ROOT_PNG, "png"))

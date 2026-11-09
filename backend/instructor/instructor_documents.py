@@ -60,10 +60,10 @@ from fastapi import APIRouter, Header, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
-import backend.db as db
-import backend.uploads as uploads
-from backend.admin import require_admin
-from backend.guards import _error, _unauthorized, full_name, require_role
+import backend.core.db as db
+import backend.core.uploads as uploads
+from backend.auth.admin import require_admin
+from backend.core.guards import _error, _unauthorized, full_name, require_role
 
 router = APIRouter()
 

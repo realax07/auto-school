@@ -75,12 +75,12 @@ from fastapi import APIRouter, Header, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ValidationError
 
-import backend.auth as auth
-import backend.db as db
-import backend.instructor_documents as instructor_documents
-import backend.uploads as uploads
-from backend.admin import require_admin
-from backend.guards import _error, _forbidden, _unauthorized, full_name, require_role
+import backend.auth.auth as auth
+import backend.core.db as db
+import backend.instructor.instructor_documents as instructor_documents
+import backend.core.uploads as uploads
+from backend.auth.admin import require_admin
+from backend.core.guards import _error, _forbidden, _unauthorized, full_name, require_role
 
 router = APIRouter()
 

@@ -12,8 +12,8 @@ import sqlite3
 from fastapi import Header
 from fastapi.responses import JSONResponse
 
-import backend.auth as auth
-import backend.db as db
+import backend.auth.auth as auth
+import backend.core.db as db
 
 
 def _unauthorized() -> JSONResponse:

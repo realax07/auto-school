@@ -23,8 +23,8 @@ correlation_id 467fcb39a3234f33b54b95567f4ce656).
 from fastapi import APIRouter, Header
 from fastapi.responses import JSONResponse
 
-import backend.auth as auth
-import backend.db as db
+import backend.auth.auth as auth
+import backend.core.db as db
 
 router = APIRouter()
 

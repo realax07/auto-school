@@ -5,9 +5,9 @@ TC-AUTH-017…019 (добавлены к семейству AUTH по rev-002).
 """
 from fastapi.testclient import TestClient
 
-import backend.db as db
+import backend.core.db as db
 from backend.app import create_app
-from backend.db import init_db
+from backend.core.db import init_db
 
 
 def _client(tmp_path, monkeypatch):

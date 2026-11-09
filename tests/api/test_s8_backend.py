@@ -53,7 +53,7 @@ import pytest
 
 from conftest import admin_headers, db_path, register
 
-from backend import booking as booking_domain
+from backend.student import booking as booking_domain
 
 ROOT_JPEG = b"\xff\xd8\xff\xe0" + b"\x00" * 64
 ROOT_PNG = b"\x89PNG\r\n\x1a\x0a" + b"\x00" * 64
@@ -268,7 +268,7 @@ def test_s8_migration_legacy_seed_and_schema_guards(monkeypatch, tmp_path):
     документа не засеиваются; повторный запуск ничего не меняет
     (idempotent); частичный UNIQUE — вторая pending на документ
     невозможна (ОВ-7); CHECK отклоняет rejected без причины (ОВ-1)."""
-    import backend.db as db
+    import backend.core.db as db
 
     db_file = tmp_path / "legacy.db"
     conn = sqlite3.connect(db_file)
@@ -405,7 +405,7 @@ def test_s8_license_version_lifecycle_and_reject_reason(api, client):
     pending v2; verify → verified + license_photo_path переключен, файл
     эндпоинта выдает новую версию, старая verified — архив; повторный
     verify/reject не-pending → 409."""
-    import backend.uploads as uploads
+    import backend.core.uploads as uploads
 
     instr = create_instructor(client)
     admin = admin_headers(client)
@@ -720,7 +720,7 @@ def test_s8_empty_sts_rule_seed_branch_agree(api, client):
     has_sts=False, sts_url=None, counters.sts=False; загрузка СТС по
     такому авто идет по первичной дозагрузке → photo_sts + verified v1
     (а не «замена» с pending-версией, как было при правиле is None)."""
-    import backend.db as db
+    import backend.core.db as db
 
     instr = create_instructor(client)
     car_id = add_car_json(client, instr["token"])

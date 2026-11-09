@@ -24,7 +24,7 @@ import pytest
 
 from conftest import admin_headers, db_path, register
 
-from backend import booking as booking_domain
+from backend.student import booking as booking_domain
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -303,7 +303,7 @@ def test_s5_migration_idempotent_keeps_rows(client):
     conn.commit()
     conn.close()
 
-    import backend.db as db
+    import backend.core.db as db
 
     db.init_db()
     db.init_db()
@@ -706,7 +706,7 @@ def _set_license_photo(client, application_id, content=ROOT_JPEG):
     пакет)."""
     import os
 
-    import backend.uploads as uploads
+    import backend.core.uploads as uploads
 
     path = uploads.save_image("license", content, "jpg")
     conn = sqlite3.connect(db_path())
@@ -1391,7 +1391,7 @@ def test_s5_put_availability_vs_booking_race_no_orphan(api, client, monkeypatch)
     ).fetchone()[0]
     conn.close()
 
-    import backend.instructor_availability as ia
+    import backend.instructor.instructor_availability as ia
 
     orig = ia.blocking_bookings
     race: dict = {}
@@ -1570,9 +1570,9 @@ def test_s5_summary_today_lessons(api, client, monkeypatch):
 def test_s5_new_modules_no_sql_concatenation():
     """TC-S5BE-023 (change add-booking-docs, NFR-10←NFR-3): в новых
     модулях Спринта 5 нет f-строк/конкатенаций/format() в SQL."""
-    for name in ("booking.py", "instructor_documents.py",
-                 "instructor_cars.py", "instructor_availability.py",
-                 "instructor_summary.py"):
+    for name in ("student/booking.py", "instructor/instructor_documents.py",
+                 "instructor/instructor_cars.py", "instructor/instructor_availability.py",
+                 "instructor/instructor_summary.py"):
         src = (ROOT / "backend" / name).read_text(encoding="utf-8")
         for bad in ("f\"SELECT", "f'SELECT", "f\"INSERT", "f'INSERT",
                     "f\"UPDATE", "f'UPDATE", "f\"DELETE", "f'DELETE",

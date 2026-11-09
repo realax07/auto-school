@@ -9,7 +9,7 @@ TC-S10BE-007 (невалидный date → 422). Интеграционные �
 PUT/GET /api/instructor/availability и границы прошлого —
 tests/api/test_s10_backend.py (TC-S10BE-002/005/006).
 """
-from backend.instructor_availability import (
+from backend.instructor.instructor_availability import (
     AvailabilityPayload,
     Interval,
     _hhmm_valid,

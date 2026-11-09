@@ -57,7 +57,7 @@ def _client_at(client, host):
 @pytest.fixture()
 def no_bf(monkeypatch):
     """Порог блокировки выше любого числа попыток в тесте."""
-    from backend import auth
+    from backend.auth import auth
 
     monkeypatch.setattr(auth, "_BF_MAX_FAILURES", 10_000)
 
@@ -98,7 +98,7 @@ def test_nfr002_sql_is_parameterized_no_injection(client, no_bf):
     проба: email `' OR 1=1 --` трактуется как литерал → единый 401,
     число записей users не изменилось, токен не выдан; (3) контроль —
     обычный вход работает."""
-    import backend.auth as auth
+    import backend.auth.auth as auth
 
     # (1) статическая инспекция исходника auth.py
     src = Path(auth.__file__).read_text(encoding="utf-8")
@@ -193,7 +193,7 @@ def test_auth014_ttl_shift_logout_expired_token_401(client, no_bf, monkeypatch):
     «сейчас» мимо expires (sdd §10, _TOKEN_TTL_SECONDS) /logout с тем же
     токеном → 401 {ok:false} — аннулировать нечего; /me тоже 401.
     time.sleep запрещен — прямой сдвиг clock."""
-    import backend.auth as auth
+    import backend.auth.auth as auth
 
     _register_one(client)
     token = _login(client).json()["token"]
@@ -223,7 +223,7 @@ def test_bf_counters_isolated_between_ips(client, monkeypatch):
     учитываются для IP B — B входит успешно, а «хвост» из одной неудачи
     для A не достигает порога; отдельные клиенты TestClient с разными
     client=(host, port)."""
-    import backend.auth as auth
+    import backend.auth.auth as auth
 
     _register_one(client)
     ip_a, ip_b = "10.0.1.10", "10.0.1.20"

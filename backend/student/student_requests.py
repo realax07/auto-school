@@ -39,9 +39,9 @@ import sqlite3
 from fastapi import APIRouter, Header
 from pydantic import BaseModel
 
-import backend.db as db
-from backend.booking import local_today
-from backend.guards import _error, full_name, require_role
+import backend.core.db as db
+from backend.student.booking import local_today
+from backend.core.guards import _error, full_name, require_role
 
 router = APIRouter()
 

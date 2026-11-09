@@ -45,7 +45,7 @@ import pytest
 
 from conftest import admin_headers, db_path, fetch_user
 
-import backend.instructors as instructors
+import backend.instructor.instructors as instructors
 
 # Точный заголовок Requirement дельты (трассировка rule 6)
 REQ_TITLE = "Автоопределение статуса заявки на экране ожидания"
@@ -503,7 +503,7 @@ def test_tc_s9be_006_migration_idempotent_no_backfill(monkeypatch, tmp_path):
     (историческая заявка: токенов нет — NULL, опрос невозможен по
     построению; миграция idempotent).
     """
-    import backend.db as db
+    import backend.core.db as db
 
     legacy = tmp_path / "legacy.db"
     monkeypatch.setenv("AUTOSCHOOL_DB_PATH", str(legacy))

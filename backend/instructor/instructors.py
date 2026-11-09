@@ -61,9 +61,9 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ValidationError
 
-import backend.db as db
-import backend.policy as policy
-import backend.uploads as uploads
+import backend.core.db as db
+import backend.policy.policy as policy
+import backend.core.uploads as uploads
 
 router = APIRouter()
 

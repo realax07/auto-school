@@ -16,8 +16,8 @@ from fastapi import APIRouter, Header, HTTPException
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
-import backend.config as config
-import backend.db as db
+import backend.core.config as config
+import backend.core.db as db
 
 router = APIRouter()
 

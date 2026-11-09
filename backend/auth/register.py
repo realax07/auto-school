@@ -23,8 +23,8 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-import backend.db as db
-import backend.policy as policy
+import backend.core.db as db
+import backend.policy.policy as policy
 
 router = APIRouter()
 
@@ -172,7 +172,7 @@ def register(data: RegisterRequest):
     # Успешная регистрация → сразу авторизованная сессия (решение Заказчика
     # 2026-10-10: редирект в кабинет, минуя отдельный вход). Тот же механизм
     # сессий, что в auth.login (TTL 12ч).
-    from backend.auth import _session_issue
+    from backend.auth.auth import _session_issue
 
     token = _session_issue(user_id)
     return {"ok": True, "token": token}
