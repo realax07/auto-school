@@ -77,6 +77,7 @@
 // shared-компонентов, интерполяция {{ }}).
 import { onMounted, ref } from 'vue';
 import { postJSON, setToken } from '../../shared/api.js';
+import { useLoginWiring } from '../../shared/loginWiring.js';
 import LoginModal from '../../shared/LoginModal.vue';
 import RegisterModal from '../../shared/RegisterModal.vue';
 
@@ -84,7 +85,15 @@ export default {
   name: 'LandingApp',
   components: { LoginModal: LoginModal, RegisterModal: RegisterModal },
   setup: function () {
-    var loginError = ref('');
+    // Спринт 14 (change add-vue-s14-instructor-loop, задача 3.1):
+    // консолидация wiring входа — doLogin вынесен в композабл
+    // shared/loginWiring.js ДОСЛОВНО (postJSON('/api/auth/login',
+    // setToken, route-маппинг §15.5, instructor_rejected_reason ДО
+    // редиректа — комментарии переехали с ним); второй живой потребитель —
+    // лендинг инструкторов /instructors. Регистрация (doRegister) —
+    // остается на лендинге (register-wiring не консолидируется).
+    var loginWiring = useLoginWiring();
+    var loginError = loginWiring.loginError;
     var regError = ref('');
 
     // --- Регистрация: POST /api/register (дизайн 2026-10-08). Кнопка
@@ -116,31 +125,12 @@ export default {
         .catch(function(){regError.value='Ошибка сети';});
     }
 
-    // --- Вход: POST /api/auth/login → route (§15.5): cabinet →
-    // /instructor/dashboard, student-cabinet → /cabinet, pending →
-    // /instructors/pending, rejected → sessionStorage
-    // «instructor_rejected_reason» ДО редиректа /instructors/rejected
-    // (контракт polling/rejected — экран С11 читает причину из него). ---
-    function doLogin(){
-      loginError.value='';
-      var payload={
-        email:document.getElementById('login-email').value.trim(),
-        password:document.getElementById('login-password').value
-      };
-      postJSON('/api/auth/login',payload)
-        .then(function(res){
-          if(res.status===200&&res.data.ok){
-            if(res.data.token){try{setToken(res.data.token);}catch(e){}}
-            var route=res.data.route||'student-cabinet';
-            if(route==='cabinet'){location.href='/instructor/dashboard';}
-            else if(route==='pending'){location.href='/instructors/pending';}
-            else if(route==='rejected'){try{sessionStorage.setItem('instructor_rejected_reason',res.data.reason||'');}catch(e){}location.href='/instructors/rejected';}
-            else{location.href='/cabinet';}
-          }
-          else{loginError.value=(res.data&&res.data.error)||'Неверный email или пароль';}
-        })
-        .catch(function(){loginError.value='Ошибка сети';});
-    }
+    // --- Вход (§15.5): сабмит — консолидированный композабл
+    // shared/loginWiring.js (route-маппинг §15.5 дословно: cabinet →
+    // /instructor/dashboard, pending → /instructors/pending, rejected →
+    // sessionStorage «instructor_rejected_reason» ДО редиректа
+    // /instructors/rejected — контракт polling/rejected — экран С11 читает
+    // причину из него, прочее → /cabinet). ---
 
     onMounted(function(){
       // --- открытие/закрытие модалок (как legacy js/landing.js) ---
@@ -164,7 +154,7 @@ export default {
       document.addEventListener('keydown',function(e){if(e.key==='Escape')closeAll()});
       // --- сабмиты модалок ---
       document.getElementById('reg-submit').addEventListener('click',doRegister);
-      document.getElementById('login-submit').addEventListener('click',doLogin);
+      document.getElementById('login-submit').addEventListener('click',loginWiring.doLogin);
       // --- ассистент и футер-переход — заглушки спринта-0 (тексты дословно) ---
       var stub=function(msg){return function(){alert(msg)}};
       document.getElementById('ai-open').addEventListener('click',stub('Заглушка: чат ассистента (Hermes) будет подключен позже'));

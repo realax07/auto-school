@@ -23,12 +23,19 @@ INDEX = VUE / "index.html"
 
 def vue_landing_source() -> str:
     """HTML входа лендинга + wiring-носители из репо (App.vue, общий клиент
-    shared/api.js, shared-компоненты модалок) — эквивалент легаси-хелпера
-    frontend_source("index.html") (HTML + /js/* рекурсивно)."""
+    shared/api.js, консолидированный wiring входа shared/loginWiring.js,
+    shared-компоненты модалок) — эквивалент легаси-хелпера
+    frontend_source("index.html") (HTML + /js/* рекурсивно).
+    Спринт 14 (change add-vue-s14-instructor-loop, задача 3.1): doLogin
+    вынесен из App.vue в композабл loginWiring.js (консолидация wiring
+    входа на живом втором потребителе /instructors) — фрагменты контракта
+    дословны в композабле; REGISTER-wiring и LOGIN_MODAL_TEXTS — на
+    текущих носителях."""
     return "\n".join([
         INDEX.read_text(encoding="utf-8"),
         (VUE / "src" / "pages" / "landing" / "App.vue").read_text(encoding="utf-8"),
         (VUE / "src" / "shared" / "api.js").read_text(encoding="utf-8"),
+        (VUE / "src" / "shared" / "loginWiring.js").read_text(encoding="utf-8"),
         (VUE / "src" / "shared" / "LoginModal.vue").read_text(encoding="utf-8"),
         (VUE / "src" / "shared" / "RegisterModal.vue").read_text(encoding="utf-8"),
     ])
