@@ -38,7 +38,7 @@ add-vue-s12-landing-apply. Новых npm-зависимостей нет; за�
 
 ## 2. Сборка: точки входа партии
 
-- [ ] 2.1 [code] vite.config.mjs — входы: `instructors`
+- [x] 2.1 [code] vite.config.mjs — входы: `instructors`
       (frontend/vue/instructors.html), `instructor-dashboard`
       (frontend/vue/instructor-dashboard.html), `documents`
       (frontend/vue/documents.html) — статическая разметка страниц

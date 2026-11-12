@@ -9,7 +9,8 @@
 //   (б) суммарный JS первого захода КАЖДОЙ страницы (page-чанк +
 //       static-import graph: shared + vue и все загружаемые ими чанки)
 //       ≤ 200 КБ gzip — отдельно для instructors-pending,
-//       instructors-rejected, review-form, index, instructor-apply;
+//       instructors-rejected, review-form, index, instructor-apply,
+//       instructors, instructor-dashboard, documents;
 //   (в) в бандле КАЖДОЙ страницы нет чужих page-чанков (multi-entry):
 //       замыкание импортов входа состоит только из ее page-чанка,
 //       'shared' и vendor-чанков.
@@ -29,9 +30,12 @@ const DIST = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'dist
 const VENDOR_MAX = 150 * 1024; // (а) КБ → байты
 const FIRST_LOAD_MAX = 200 * 1024; // (б)
 const KB = 1024;
-// page-чанки — по именам входов vite.config.mjs (задача 2.1 С12:
-// +index — лендинг «/», +instructor-apply — анкета; всего 5 страниц)
-const PAGES = ['instructors-pending', 'instructors-rejected', 'review-form', 'index', 'instructor-apply'];
+// page-чанки — по именам входов vite.config.mjs (задача 2.1 С14:
+// +instructors — лендинг инструкторов, +instructor-dashboard — кабинет,
+// +documents — «Мои документы»; всего 8 страниц — design.md «Сверка
+// контрактов решения»: в решении указано «7», фактически 8 = 5
+// существующих входов + 3 страницы партии)
+const PAGES = ['instructors-pending', 'instructors-rejected', 'review-form', 'index', 'instructor-apply', 'instructors', 'instructor-dashboard', 'documents'];
 
 function chunkRole(file) {
   // instructors-pending-<hash>.js / shared-<hash>.js / vue-<hash>.js
