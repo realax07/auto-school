@@ -250,7 +250,6 @@ def test_new_static_routes_served(client):
         "/instructors/apply",
         "/instructors/pending",
         "/instructors/rejected",
-        "/instructor/cabinet-stub",
     ):
         resp = client.get(path)
         assert resp.status_code == 200, path

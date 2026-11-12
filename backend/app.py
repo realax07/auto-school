@@ -61,7 +61,6 @@ _PAGE_ROUTES = {
     # "vue:<вход dist>" — цикл отдачи ниже читает VUE_DIST_DIR (404 при
     # отсутствии dist — паттерн пилотного хендлера /instructors/pending).
     "/instructors/rejected": "vue:instructors-rejected.html",
-    "/instructor/cabinet-stub": "instructor-cabinet-stub.html",
     # Спринт 2, часть 2 (задача 3.1, change add-instructor-cabinet):
     # кабинет инструктора рядом с заглушкой
     "/instructor/dashboard": "instructor-dashboard.html",

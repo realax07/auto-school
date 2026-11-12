@@ -347,38 +347,8 @@ def test_rejected_page_exists_and_reason_wiring():
     assert 'v-show="reason"' in src
 
 
-# --- 4.4: instructor-cabinet-stub -----------------------------------------------
-
-
-def test_cabinet_stub_exists_and_text():
-    """FR-13: заглушка «кабинет скоро» в стиле кабинета (референс
-    dashboard-instructor.html: сайдбар/шапка), БЕЗ функциональных блоков."""
-    html = page("instructor-cabinet-stub.html")
-    assert "Кабинет скоро" in html
-    assert "Кабинет инструктора" in html
-    assert "СберАвтошкола" in html
-    # функциональных блоков dashboard-макета нет (вне объема)
-    for forbidden in (
-        "Расписание занятий", "Ближайшее занятие", "Мой автомобиль",
-        "Последние операции", "Быстрые действия", "Заработано за месяц",
-    ):
-        assert forbidden not in html, forbidden
-    assert 'href="/">На главную</a>' in html
-
-
-def test_cabinet_stub_session_guard_wiring():
-    """FR-13: JS читает токен из sessionStorage, GET /api/auth/me
-    (X-Session-Token) -> 401 -> редирект на вход; 200 -> показ заглушки
-    (по паттерну cabinet.html Спринта 1). Спринт 6 Партия B: JS — в модуле
-    js/instructor-cabinet-stub.js (проверяем HTML + модуль с его импортами,
-    frontend_source)."""
-    from conftest import frontend_source
-
-    js = frontend_source("instructor-cabinet-stub.html")
-    assert "sessionStorage" in js
-    assert "session_token" in js
-    # GET /api/auth/me — через общий клиент js/api.js (api() с токеном)
-    assert "api('/api/auth/me'" in js
-    assert "fetch(path" in js
-    assert "'X-Session-Token'" in js
-    assert "location.href = '/'" in js
+# --- 4.4 (заглушка кабинета инструктора): тесты страницы удалены вместе со
+# страницей (Спринт 14, change add-vue-s14-instructor-loop, задача 1.1 —
+# прецедент «судьба legacy-тестов удаленной страницы», arch-review-002
+# MAJ-1 пилота: заглушка недостижима с Спринта 2.2, удалена решением
+# Заказчика; маршрут снят из _PAGE_ROUTES backend/app.py).

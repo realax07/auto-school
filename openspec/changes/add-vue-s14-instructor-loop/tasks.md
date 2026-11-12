@@ -15,7 +15,7 @@ add-vue-s12-landing-apply. Новых npm-зависимостей нет; за�
 
 ## 1. Stub-чистка (мертвая страница /instructor/cabinet-stub)
 
-- [ ] 1.1 [P][code] удалить frontend/instructor-cabinet-stub.html и
+- [x] 1.1 [P][code] удалить frontend/instructor-cabinet-stub.html и
       frontend/js/instructor/instructor-cabinet-stub.js; backend/app.py —
       исключить "/instructor/cabinet-stub" из `_PAGE_ROUTES` (строка
       удаляется; остальные маршруты не трогаются). Подтверждение
