@@ -1,16 +1,16 @@
 # Regress add-vue-s14-instructor-loop — regress-final.md
 
 - change: add-vue-s14-instructor-loop
-- date: 2026-11-12T14:41:35+00:00
-- commit: 9029fd829eb249077d16e7d7572e66d98ea3b963
+- date: 2026-11-12T15:10:08+00:00
+- commit: b46b22d49afad89be4018f58ce1ecde9cd4b8fc4
 - worktree: /home/hermes-bot/.hermes/cache/scratch/wt-s14-vue
 - verdict: PASS
 - tier: domain (эшелон 1: доменный regress)
-- duration: 545.1s
+- duration: 570.2s
 - diff source: git diff main...HEAD
 - domain map: project map test-model/regress-domains.json задана, правил нет — применен дефолт
-- changed files: 47
-- changed files: 47
+- changed files: 49
+- changed files: 49
   - backend/app.py
   - code-reviews/add-vue-s14-instructor-loop/review-001-1.1-2.1-3.1-3.2-3.3-4.1-4.2-5.1-6.1.md
   - code-reviews/add-vue-s14-instructor-loop/review-mapping.json
@@ -50,6 +50,8 @@
   - test-model/approved/add-vue-s14-instructor-loop/TC-S14-006.md
   - test-model/approved/add-vue-s14-instructor-loop/TC-S14-007.md
   - test-model/approved/add-vue-s14-instructor-loop/coverage.md
+  - test-model/impact/add-vue-s14-instructor-loop.md
+  - test-model/regress/add-vue-s14-instructor-loop/regress-final.md
   - test-model/reviews/add-vue-s14-instructor-loop/review-001-architecture.md
   - test-model/reviews/add-vue-s14-instructor-loop/review-001-cases.md
   - tests/api/test_auth_route.py
@@ -77,9 +79,9 @@
     from starlette.testclient import TestClient as TestClient  # noqa
 
 tests/api/test_s9_backend.py::test_tc_s9be_007_parallel_exchanges_exactly_one_200
-  /home/hermes-bot/auto-school/.venv/lib/python3.14/site-packages/pydantic/_internal/_generate_schema.py:2346: UnsupportedFieldAttributeWarning: The 'alias' attribute with value 'X-Session-Token' was provided to the `Field()` function, which has no effect in the context it was used. 'alias' is field-specific metadata, and can only be attached to a model field using `Annotated` metadata or by assignment. This may have happened because an `Annotated` type alias using the `type` statement was used, or if the `Field()` function was attached to a single member of a union type.
+  /home/hermes-bot/auto-school/.venv/lib/python3.14/site-packages/pydantic/_internal/_generate_schema.py:2346: UnsupportedFieldAttributeWarning: The 'alias' attribute with value 'x-admin-token' was provided to the `Field()` function, which has no effect in the context it was used. 'alias' is field-specific metadata, and can only be attached to a model field using `Annotated` metadata or by assignment. This may have happened because an `Annotated` type alias using the `type` statement was used, or if the `Field()` function was attached to a single member of a union type.
     warnings.warn(
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-456 passed, 2 warnings in 543.51s (0:09:03)
+456 passed, 2 warnings in 568.42s (0:09:28)
 ```
