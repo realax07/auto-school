@@ -123,7 +123,7 @@ add-vue-s12-landing-apply. Новых npm-зависимостей нет; за�
       dashboard-instructor); гварды/редиректы — без изменений.
       FR: FR-18…22, FR-39…41. NFR: NFR-27. Зависит от: 2.1.
 
-- [ ] 3.3 [P][code] frontend/vue/src/pages/documents/ — НОВАЯ страница
+- [x] 3.3 [P][code] frontend/vue/src/pages/documents/ — НОВАЯ страница
       «Мои документы» (детали — design.md «Страница /instructor/
       documents на Vue»): оболочка в стиле кабинета (бренд →
       /instructor/dashboard, «← В кабинет», «Выйти» — механика
