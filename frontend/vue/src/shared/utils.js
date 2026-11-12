@@ -19,6 +19,15 @@ export function toast(msg, ms) {
   window._toastTimer = setTimeout(function () { t.classList.remove('show'); }, ms);
 }
 
+// «Сейчас» по деловым датам — Europe/Moscow (GMT+3), локаль ru
+// (Спринт 3: даты кабинета — актуальные, TimeZone Europe/Moscow).
+// Спринт 14 (change add-vue-s14-instructor-loop, задача 3.2): дословный
+// перенос из frontend/js/shared/utils.js — потребитель кабинет на Vue
+// (календарь С10: «сегодня» на реальной дате МСК, единая точка с сервером).
+export function nowMoscow() {
+  return new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Moscow' }));
+}
+
 // Стаж словами: 1 год / 2 года / 5 лет (карточка инструктора, отзыв).
 export function expWord(n) {
   n = +n || 0;

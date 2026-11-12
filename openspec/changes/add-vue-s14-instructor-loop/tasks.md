@@ -96,7 +96,7 @@ add-vue-s12-landing-apply. Новых npm-зависимостей нет; за�
       test_login_modal зелен.
       FR: FR-10, FR-13. NFR: NFR-27. Зависит от: 2.1.
 
-- [ ] 3.2 [code] frontend/vue/src/pages/instructor-dashboard/ — полный
+- [x] 3.2 [code] frontend/vue/src/pages/instructor-dashboard/ — полный
       перенос кабинета (крупнейший монолит партии; детали — design.md
       «Страница /instructor/dashboard на Vue»): разметка/стили 1:1 без
       редизайна (каркас .app = aside+main grid 2 колонки, topbar,
