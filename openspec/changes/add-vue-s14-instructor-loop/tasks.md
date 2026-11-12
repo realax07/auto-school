@@ -152,7 +152,7 @@ add-vue-s12-landing-apply. Новых npm-зависимостей нет; за�
 
 ## 4. Переключение маршрутов и удаление легаси (одна сессия)
 
-- [ ] 4.1 [code] удаление легаси + переводы тестов-потребителей:
+- [x] 4.1 [code] удаление легаси + переводы тестов-потребителей:
       удалить frontend/instructors.html, frontend/js/instructors.js,
       frontend/instructor-dashboard.html,
       frontend/js/instructor/dashboard-instructor.js. Переносы
@@ -187,7 +187,7 @@ add-vue-s12-landing-apply. Новых npm-зависимостей нет; за�
       FR: FR-84, FR-85. NFR: NFR-27. Зависит от: 3.1, 3.2 (носители
       существуют).
 
-- [ ] 4.2 [code] backend/app.py — регистрация страниц в
+- [x] 4.2 [code] backend/app.py — регистрация страниц в
       `_PAGE_ROUTES`: "/instructors" → "vue:instructors.html",
       "/instructor/dashboard" → "vue:instructor-dashboard.html",
       НОВАЯ строка "/instructor/documents" → "vue:documents.html"
@@ -209,7 +209,7 @@ add-vue-s12-landing-apply. Новых npm-зависимостей нет; за�
 
 ## 5. Бюджеты чанков NFR-26 на артефактах сборки
 
-- [ ] 5.1 [tests] прогон сборки + замер gzip: `npm ci && npm run
+- [x] 5.1 [tests] прогон сборки + замер gzip: `npm ci && npm run
       build && npm run check:budgets` (скрипт 2.1): (а) каждый
       vendor-чанк ≤150 КБ gzip; (б) JS первого захода КАЖДОЙ страницы
       (page-чанк + static-import graph: shared + vue) ≤200 КБ gzip —
@@ -228,7 +228,7 @@ add-vue-s12-landing-apply. Новых npm-зависимостей нет; за�
 
 ## 6. e2e-совместимость и приемка партии
 
-- [ ] 6.1 [tests] полный прогон Playwright-набора БЕЗ правок сценариев:
+- [x] 6.1 [tests] полный прогон Playwright-набора БЕЗ правок сценариев:
       `npm ci && npm run build` → `pytest tests/web/test_ui_playwright.py`
       (фикстура server поднимает uvicorn backend.app:app; маршруты
       /instructors, /instructor/dashboard, /instructor/documents

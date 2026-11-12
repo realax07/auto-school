@@ -1192,7 +1192,14 @@ def test_back_links_lead_to_role_home(page, server):
     ):
         assert not (base / standalone).exists(), \
             f"BUG-047-прецедент: {standalone} запрещен — раздел внутри кабинета"
-    dash = (base / "instructor-dashboard.html").read_text(encoding="utf-8")
+    # Спринт 14 (change add-vue-s14-instructor-loop, задача 4.1): носитель
+    # дашборда — вход каркаса Vue + App.vue (легаси instructor-dashboard.html
+    # удален; перенос носителя design-guard — негативный список standalone
+    # выше БЕЗ ПРАВОК: vue/documents.html его не нарушает, frontend/ корень)
+    dash = "\n".join([
+        (base / "vue" / "instructor-dashboard.html").read_text(encoding="utf-8"),
+        (base / "vue" / "src" / "pages" / "instructor-dashboard" / "App.vue").read_text(encoding="utf-8"),
+    ])
     cab = (base / "cabinet.html").read_text(encoding="utf-8")
     assert 'data-tab="Мои автомобили"' in dash, "нет раздела «Мои автомобили» в дашборде"
     # BUG-051: «Мои документы» переименована в «Профиль и документы»
@@ -4420,12 +4427,18 @@ def test_bug056_landing_login_modal_close_semantics(page, server):
 
 # ------------------------------------------------------------- design-guard
 @pytest.mark.parametrize("filename", [
-    "instructor-dashboard.html", "cabinet.html",
+    "cabinet.html",
     "vue/review-form.html", "instructor-choice.html",
     # Спринт 12 (change add-vue-s12-landing-apply, задача 4.1): входы
     # лендинга «/» и анкеты — перенос носителя design-guard (прецедент
     # vue/review-form.html С11)
-    "vue/index.html", "vue/instructor-apply.html"])
+    "vue/index.html", "vue/instructor-apply.html",
+    # Спринт 14 (change add-vue-s14-instructor-loop, задача 4.1): входы
+    # партии (лендинг инструкторов, кабинет, «Мои документы») — перенос
+    # носителя design-guard (прецедент vue/index.html С12); легаси
+    # instructor-dashboard.html удален (замена монолита целиком, ADR-008 п.4)
+    "vue/instructor-dashboard.html", "vue/instructors.html",
+    "vue/documents.html"])
 def test_s4_pages_tag_balance(filename):
     """NIT-4 review-001 (change add-s3-frontend-links); BUG-047: баланс тегов
     правленых страниц (my-cars.html/my-requests.html встроены в кабинеты и

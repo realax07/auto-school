@@ -46,8 +46,12 @@ _PAGE_ROUTES = {
     "/admin-login": "admin-login.html",
     "/admin-dashboard": "admin-dashboard.html",
     "/cabinet": "cabinet.html",
-    # Спринт 2, часть 1 (задача 5.1, sdd.md §15.6): рядом с /cabinet
-    "/instructors": "instructors.html",
+    # Спринт 2, часть 1 (задача 5.1, sdd.md §15.6): рядом с /cabinet.
+    # Спринт 14 (change add-vue-s14-instructor-loop, задачи 4.1/4.2):
+    # лендинг инструкторов — каркас Vue (ADR-008, замена монолита целиком:
+    # legacy instructors.html + js/instructors.js удалены; последний дубль
+    # модалки входа умер — консолидация wiring в shared/loginWiring.js).
+    "/instructors": "vue:instructors.html",
     # Спринт 12 (change add-vue-s12-landing-apply, задачи 4.1/4.2): анкета
     # инструктора — каркас Vue (замена монолита целиком: legacy
     # instructor-apply.html + js/apply.js удалены).
@@ -62,8 +66,14 @@ _PAGE_ROUTES = {
     # отсутствии dist — паттерн пилотного хендлера /instructors/pending).
     "/instructors/rejected": "vue:instructors-rejected.html",
     # Спринт 2, часть 2 (задача 3.1, change add-instructor-cabinet):
-    # кабинет инструктора рядом с заглушкой
-    "/instructor/dashboard": "instructor-dashboard.html",
+    # кабинет инструктора рядом с заглушкой.
+    # Спринт 14 (change add-vue-s14-instructor-loop, задачи 4.1/4.2):
+    # кабинет инструктора — каркас Vue (замена монолита целиком: legacy
+    # instructor-dashboard.html + js/instructor/dashboard-instructor.js
+    # удалены); НОВАЯ страница «Мои документы» /instructor/documents —
+    # сразу вход каркаса (legacy-монолит НЕ создается — BUG-047).
+    "/instructor/dashboard": "vue:instructor-dashboard.html",
+    "/instructor/documents": "vue:documents.html",
     # Спринт 3 (change add-instructor-student-loop):
     # выбор инструктора учеником
     "/instructor-choice": "instructor-choice.html",

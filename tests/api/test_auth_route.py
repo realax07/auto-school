@@ -250,6 +250,9 @@ def test_new_static_routes_served(client):
         "/instructors/apply",
         "/instructors/pending",
         "/instructors/rejected",
+        # Спринт 14 (change add-vue-s14-instructor-loop, задача 4.2):
+        # НОВАЯ страница «Мои документы» — вход каркаса Vue
+        "/instructor/documents",
     ):
         resp = client.get(path)
         assert resp.status_code == 200, path
