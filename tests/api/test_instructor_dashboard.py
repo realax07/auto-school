@@ -42,7 +42,26 @@ FRONTEND = ROOT / "frontend"
 MOCKS = ROOT / "design" / "mocks"
 
 DASH = "/api/instructor/dashboard"
-PAGE = FRONTEND / "instructor-dashboard.html"
+# Спринт 14 (change add-vue-s14-instructor-loop, задача 4.1): носитель —
+# вход каркаса Vue frontend/vue/instructor-dashboard.html (legacy
+# instructor-dashboard.html удален — замена монолита целиком, ADR-008 п.4;
+# перенос носителя — прецедент 2.3 пилота, 3.1 С11, 4.1 С12).
+PAGE = FRONTEND / "vue" / "instructor-dashboard.html"
+
+
+def vue_dashboard_source() -> str:
+    """Вход кабинета каркаса Vue + App.vue (wiring dashboard-instructor.js
+    1:1) + shared-импорты (api.js, utils.js — design.md «Потребители
+    легаси-файлов»: вход + App.vue + shared при импортах) — эквивалент
+    frontend_source("instructor-dashboard.html") (HTML + /js/* модули)."""
+    base = FRONTEND / "vue"
+    return "\n".join([
+        (base / "instructor-dashboard.html").read_text(encoding="utf-8"),
+        (base / "src" / "pages" / "instructor-dashboard" / "App.vue").read_text(
+            encoding="utf-8"),
+        (base / "src" / "shared" / "api.js").read_text(encoding="utf-8"),
+        (base / "src" / "shared" / "utils.js").read_text(encoding="utf-8"),
+    ])
 
 
 @pytest.fixture()
@@ -268,9 +287,11 @@ def test_dashboard_page_mockup_texts_verbatim():
         assert fragment in html, fragment
         assert fragment in mockup, f"фрагмент не из мокапа: {fragment}"
 
-    # все CSS-правила мокапа — дословно (блочные строки <style>)
+    # все CSS-правила мокапа — дословно (носитель — styles.css страницы
+    # каркаса, перенос дословный; блочные строки <style> мокапа)
     mockup_css = mockup.split("<style>", 1)[1].split("</style>", 1)[0]
-    page_css = html.split("<style>", 1)[1].split("</style>", 1)[0]
+    page_css = (FRONTEND / "vue" / "src" / "pages" / "instructor-dashboard"
+                / "styles.css").read_text(encoding="utf-8")
     for line in mockup_css.splitlines():
         if not line.strip():
             continue
@@ -281,9 +302,8 @@ def test_dashboard_page_nav_sections_fr19():
     """FR-19/FR-21: сайдбар достроен nav-кнопками разделов (полный перечень
     FR-19), у разделов кроме «Мой день» — пометка «демо»; на готовых
     .nav-стилях и механике navTo мокапа. Спринт 6 Партия B: JS — в модуле
-    js/dashboard-instructor.js."""
-    from conftest import frontend_source
-
+    js/dashboard-instructor.js. Спринт 14 (задача 4.1): носитель — вход +
+    App.vue (vue_dashboard_source), фрагменты wiring дословны."""
     html = PAGE.read_text(encoding="utf-8")
     # BUG-051 (Постановка Заказчика 2026-10-23): из перечня FR-19 удалены
     # «Запросы учеников» (подраздел «Моих учеников»), «Бронирования» (слит
@@ -302,7 +322,7 @@ def test_dashboard_page_nav_sections_fr19():
     for removed in ("Запросы учеников", "Бронирования", "Мой автомобиль"):
         assert f'data-tab="{removed}"' not in html, \
             f"BUG-051: сайдбар-кнопка «{removed}» удалена"
-    js = frontend_source("instructor-dashboard.html")
+    js = vue_dashboard_source()
     assert "navTo" in js
     assert "document.querySelectorAll('.nav button')" in js
     # пометка «демо» у разделов (кроме «Мой день»)
@@ -317,10 +337,10 @@ def test_dashboard_page_wiring_fr18_fr20_fr22():
     ответа (инициалы — первые буквы фамилии и имени); демо-ФИО заменяется;
     выход → POST /api/auth/logout → sessionStorage.clear() → `/`.
     Спринт 6 Партия B: JS — в модулях js/dashboard-instructor.js + общие
-    js/api.js (clearSession) — проверяем объединенный источник."""
-    from conftest import frontend_source
-
-    js = frontend_source("instructor-dashboard.html")
+    js/api.js (clearSession) — проверяем объединенный источник.
+    Спринт 14 (задача 4.1): носитель — вход + App.vue + shared/api.js
+    (vue_dashboard_source), фрагменты контракта дословны."""
+    js = vue_dashboard_source()
     assert "fetch('/api/instructor/dashboard'" in js
     assert "'X-Session-Token'" in js
     assert "sessionStorage" in js

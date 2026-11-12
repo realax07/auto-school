@@ -11,7 +11,9 @@ VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link",
 
 DEFAULT = [
     "frontend/instructor-choice.html",
-    "frontend/instructor-dashboard.html",
+    # Спринт 14 (change add-vue-s14-instructor-loop, задача 4.1): носитель
+    # кабинета — вход каркаса Vue (легаси instructor-dashboard.html удален)
+    "frontend/vue/instructor-dashboard.html",
     "frontend/admin-dashboard.html",
     "frontend/cabinet.html",
 ]

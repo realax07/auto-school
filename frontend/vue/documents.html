@@ -1,0 +1,107 @@
+<!doctype html>
+<!-- «Мои документы» /instructor/documents — вход каркаса Vue (Спринт 14,
+     change add-vue-s14-instructor-loop, задачи 2.1/3.3; ADR-008 — multi-entry
+     MPA, НЕ SPA). НОВАЯ страница: вынос раздела «Мои документы» кабинета
+     (Спринт 8) на отдельный маршрут — legacy-монолит НЕ создается
+     (design-guard BUG-047 «standalone-страницы запрещены» сохраняется:
+     инвариант проверяет frontend/ корень — vue-входы его не нарушают).
+     Оболочка страницы — минимальная, в стиле кабинета (design.md «Страница
+     /instructor/documents на Vue»): шапка (бренд → /instructor/dashboard,
+     заголовок «Мои документы», «← В кабинет», «Выйти» — механика
+     dashboard-logout → /instructors); контент — карточная модель раздела
+     С8 1:1 (id-якоря раздела: #lic-docs/#sts-docs/#lic-n/#sts-count/
+     #no-license*/#upload-license, модалки #m-view/#m-replace, input
+     #doc-file — будущие e2e страницы пишутся на тех же соглашениях).
+     До гидрации Vue видна эта же разметка; App.vue монтируется поверх
+     #app (паттерн пилота/С11/С12). Разметку держать синхронной с App.vue. -->
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#071015">
+<title>СберАвтошкола — мои документы</title>
+<!-- Стили — подключаемый css (перенос дословный из кабинета: блоки
+     .app/.sidebar/.topbar/.sect/.docs/.doc/модалок; Vite бандлит его в
+     /vue/assets с хэш-именем; CSS вне JS-бюджета NFR-26). -->
+<link rel="stylesheet" href="/src/pages/documents/styles.css">
+</head>
+<body>
+<div id="app">
+<div class="app">
+<aside class="sidebar">
+  <a class="brand" href="/instructor/dashboard"><div class="check">✓</div><div>СберАвтошкола<small>Кабинет инструктора</small></div></a>
+  <div class="nav-label">Рабочее пространство</div>
+  <nav class="nav">
+    <button class="active" type="button"><span class="ico">▤</span>Мои документы</button>
+  </nav>
+  <div class="side-bottom"><strong>Раздел кабинета</strong><p>Та же функциональность, что и в разделе «Профиль и документы» кабинета, — на отдельном маршруте (прямой URL).</p></div>
+</aside>
+
+<main>
+  <div class="topbar"><div><div class="crumb">Рабочее пространство</div><h1 id="page-title">Мои документы</h1></div><div class="top-actions"><a class="back-btn" href="/instructor/dashboard">← В кабинет</a><div class="user"><div class="avatar" id="avatar">—</div><div><b id="user-fio">…</b><small>Инструктор</small></div></div><button class="icon-btn" title="Выйти">⎋</button></div></div>
+
+  <!-- Карточная модель раздела «Профиль и документы» кабинета (С8) — 1:1:
+       ВУ из анкеты + СТС по КАЖДОМУ авто (авто без СТС — карточка «нет СТС»
+       с дозагрузкой, FR-69); версии/статусы — бейджи .ds-* (Действует /
+       «Ожидает проверки замены» / «Отклонено» с причиной — ОВ-1/ОВ-7),
+       docVersionLine «версия N · загружено …». Виджетов в разделе нет
+       (FR-73); контракты GET /api/instructor/documents, POST
+       /api/instructor/documents/license ('file'), POST
+       /api/instructor/cars/{id}/photo/sts ('photo'), GET
+       …/{doc_id}/file — БЕЗ ИЗМЕНЕНИЙ. -->
+  <section class="card panel">
+    <section class="sect">
+      <div class="sect-head"><b>Водительское удостоверение</b><span class="n" id="lic-n">0</span><span class="hint">личный документ · из анкеты инструктора</span></div>
+      <div class="docs" id="lic-docs"></div>
+      <div class="no-license" id="no-license"><b>ВУ не загружено</b><span id="no-license-hint">В вашей анкете не было фото водительского удостоверения.</span><div class="doc-actions" style="justify-content:center;margin-top:14px"><button class="btn-u" id="upload-license" type="button" style="flex:0 0 auto;padding:10px 22px">Загрузить ВУ</button></div></div>
+    </section>
+    <section class="sect">
+      <div class="sect-head"><b>СТС автомобилей</b><span class="n" id="sts-count">0</span><span class="hint">по одному на каждый автомобиль · замена — после проверки администратором</span></div>
+      <div class="docs" id="sts-docs"></div>
+    </section>
+  </section>
+
+  <!-- просмотр документа в полном размере: авторизованный файл
+       GET /api/instructor/documents/{doc_id}/file. BUG-054: стрелки ‹ ›
+       НАД фотографией (обе стороны всегда в разметке; одиночный документ —
+       скрыты); Esc закрывает; клик по фону закрывает. -->
+  <div class="backdrop" id="m-view" role="dialog" aria-modal="true" aria-labelledby="view-title">
+    <div class="viewer">
+      <div class="viewer-head">
+        <div><h2 id="view-title">Документ</h2><small id="view-sub"></small></div>
+        <button class="close" id="view-close" aria-label="Закрыть">×</button>
+      </div>
+      <div class="full" id="view-full">
+        <img id="view-img" alt="">
+        <button class="navarrow prev" id="view-prev" type="button" aria-label="Предыдущее фото" style="display:none">‹</button>
+        <button class="navarrow next" id="view-next" type="button" aria-label="Следующее фото" style="display:none">›</button>
+      </div>
+      <div class="viewer-foot">Выдача — авторизованный эндпоинт GET /api/instructor/documents/{doc_id}/file (Content-Type image/*). Чужой или несуществующий документ вернёт 404 — документы других инструкторов недоступны.</div>
+    </div>
+  </div>
+
+  <!-- Предупреждение замены (FR-71): явная кнопка «Заменить»; без клика по
+       ней файл НЕ отправляется, отмена ничего не меняет. Первая загрузка —
+       без предупреждения. -->
+  <div class="backdrop" id="m-replace" role="dialog" aria-modal="true" aria-labelledby="rep-title">
+    <div class="viewer" style="width:min(520px,100%)">
+      <div class="viewer-head">
+        <div><h2 id="rep-title">Заменить документ?</h2><small id="rep-sub">—</small></div>
+        <button class="close" id="rep-close" aria-label="Закрыть">×</button>
+      </div>
+      <div class="warnbox"><b>Замена не вступает в силу сразу.</b> Замена вступит в силу только после проверки администратором: до подтверждения действует предыдущая версия — документ «не мигает». Повторная загрузка до решения заменит ожидающую версию.</div>
+      <p class="m-rep-txt">Если администратор отклонит замену, вы увидите причину отказа, а действующей останется текущая версия — документ не будет утерян.</p>
+      <div class="form-actions">
+        <button class="btn primary" id="rep-go" type="button">Заменить</button>
+        <button class="btn ghost" id="rep-cancel" type="button">Отмена</button>
+      </div>
+    </div>
+  </div>
+  <!-- единый скрытый input загрузки документов (ВУ/СТС): открывается
+       после явного «Заменить» (или сразу — для первой загрузки) -->
+  <input type="file" id="doc-file" accept="image/jpeg,image/png" style="display:none">
+
+  <footer><span>СберАвтошкола · Мои документы</span><span>Документы проверяет администратор — статусы обновляются здесь</span></footer>
+</main>
+</div>
+<div class="toast" id="toast"></div>
+</div>
+<script type="module" src="/src/pages/documents/main.js"></script></body></html>

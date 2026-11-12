@@ -25,13 +25,47 @@ def page(name: str) -> str:
     return (FRONTEND / name).read_text(encoding="utf-8")
 
 
-# --- 4.1: frontend/instructors.html -------------------------------------------
+# --- 4.1: лендинг инструкторов — вход каркаса Vue (Спринт 14, change
+# add-vue-s14-instructor-loop, задача 4.1): источник чтения переключен с
+# удаленного legacy instructors.html + js/instructors.js на вход
+# frontend/vue/instructors.html + App.vue + styles.css (прецедент 2.3
+# пилота, 3.1 С11 и 4.1 С12); тексты/якоря/контракты не меняются,
+# стековые wiring-фрагменты — задокументированные эквиваленты Vue
+# (design.md «Границы правок тестов»); фрагменты контракта входа —
+# дословно в App.vue/loginWiring.js.
+
+
+def vue_instructors_page() -> str:
+    """Вход лендинга каркаса Vue (статическая разметка 1:1) + styles.css
+    (носитель CSS — подключаемый файл, перенос дословный) — эквивалент
+    легаси page("instructors.html") (HTML с инлайн-<style>)."""
+    base = FRONTEND / "vue"
+    return "\n".join([
+        (base / "instructors.html").read_text(encoding="utf-8"),
+        (base / "src" / "pages" / "instructors" / "styles.css").read_text(
+            encoding="utf-8"),
+    ])
+
+
+def vue_instructors_source() -> str:
+    """Вход + App.vue (wiring js/instructors.js 1:1) + композабл входа
+    shared/loginWiring.js (консолидация wiring — задача 3.1) — эквивалент
+    frontend_source("instructors.html") (HTML + модуль)."""
+    base = FRONTEND / "vue"
+    return "\n".join([
+        (base / "instructors.html").read_text(encoding="utf-8"),
+        (base / "src" / "pages" / "instructors" / "App.vue").read_text(
+            encoding="utf-8"),
+        (base / "src" / "shared" / "loginWiring.js").read_text(
+            encoding="utf-8"),
+    ])
 
 
 def test_instructors_page_exists():
-    """Готовность 4.1: файл существует; различия с мокапом — только wiring
-    (CTA -> /instructors/apply, модалка контактов удалена, sdd §15.6)."""
-    html = page("instructors.html")
+    """Готовность 4.1: вход каркаса Vue существует (с styles.css);
+    различия с мокапом — только wiring (CTA -> /instructors/apply,
+    модалка контактов удалена, sdd §15.6)."""
+    html = vue_instructors_page()
     mockup = (MOCKS / "landing-instructors.html").read_text(encoding="utf-8")
     # грубая оценка: страница длиннее мокапа минус модалка — дословность
     # проверяется фрагментами в следующем тесте
@@ -44,8 +78,9 @@ def test_instructors_page_exists():
 
 def test_instructors_landing_texts_verbatim():
     """FR-10: тексты/структура мокапа перенесены дословно (заголовок, hero,
-    форматы, возможности, нижний CTA, футер) и CSS мокапа сохранен."""
-    html = page("instructors.html")
+    форматы, возможности, нижний CTA, футер) и CSS мокапа сохранен
+    (носитель CSS — styles.css страницы каркаса, перенос дословный)."""
+    html = (FRONTEND / "vue" / "instructors.html").read_text(encoding="utf-8")
     mockup = (MOCKS / "landing-instructors.html").read_text(encoding="utf-8")
     fragments = [
         "<title>СберАвтошкола — для инструкторов</title>",
@@ -73,9 +108,11 @@ def test_instructors_landing_texts_verbatim():
         assert fragment in html, fragment
         assert fragment in mockup, f"фрагмент не из мокапа: {fragment}"
 
-    # все CSS-правила мокапа — дословно (блочные строки <style>)
+    # все CSS-правила мокапа — дословно (носитель — styles.css страницы
+    # каркаса; блочные строки <style> мокапа)
     mockup_css = mockup.split("<style>", 1)[1].split("</style>", 1)[0]
-    page_css = html.split("<style>", 1)[1].split("</style>", 1)[0]
+    page_css = (FRONTEND / "vue" / "src" / "pages" / "instructors"
+                / "styles.css").read_text(encoding="utf-8")
     for line in mockup_css.splitlines():
         if not line.strip():
             continue
@@ -87,11 +124,11 @@ def test_instructors_cta_wiring_to_apply():
     нижний CTA) ведут на /instructors/apply (href, не fetch). Модальное окно
     сбора контактов не используется (форма заявки — отдельная страница).
     Спринт 6 Партия B: клик-редирект нижнего CTA — в модуле js/instructors.js
-    (проверяем HTML + модуль, см. frontend_source)."""
-    from conftest import frontend_source
-
-    html = page("instructors.html")
-    src = frontend_source("instructors.html")
+    (проверяем HTML + модуль, см. frontend_source). Спринт 14 (задача 4.1):
+    носитель — вход + App.vue + loginWiring.js (vue_instructors_source);
+    фрагменты контракта дословны."""
+    html = (FRONTEND / "vue" / "instructors.html").read_text(encoding="utf-8")
+    src = vue_instructors_source()
     # шапка
     assert '<a class="header-cta" href="/instructors/apply">Стать инструктором ↗</a>' in html
     # hero
@@ -114,7 +151,7 @@ def test_instructors_cta_wiring_to_apply():
 
 def test_instructors_footer_without_driver_login():
     """Proposal: футер без входа водителей (out of scope)."""
-    html = page("instructors.html")
+    html = (FRONTEND / "vue" / "instructors.html").read_text(encoding="utf-8")
     assert "Вход для водителей" not in html
 
 
@@ -347,38 +384,8 @@ def test_rejected_page_exists_and_reason_wiring():
     assert 'v-show="reason"' in src
 
 
-# --- 4.4: instructor-cabinet-stub -----------------------------------------------
-
-
-def test_cabinet_stub_exists_and_text():
-    """FR-13: заглушка «кабинет скоро» в стиле кабинета (референс
-    dashboard-instructor.html: сайдбар/шапка), БЕЗ функциональных блоков."""
-    html = page("instructor-cabinet-stub.html")
-    assert "Кабинет скоро" in html
-    assert "Кабинет инструктора" in html
-    assert "СберАвтошкола" in html
-    # функциональных блоков dashboard-макета нет (вне объема)
-    for forbidden in (
-        "Расписание занятий", "Ближайшее занятие", "Мой автомобиль",
-        "Последние операции", "Быстрые действия", "Заработано за месяц",
-    ):
-        assert forbidden not in html, forbidden
-    assert 'href="/">На главную</a>' in html
-
-
-def test_cabinet_stub_session_guard_wiring():
-    """FR-13: JS читает токен из sessionStorage, GET /api/auth/me
-    (X-Session-Token) -> 401 -> редирект на вход; 200 -> показ заглушки
-    (по паттерну cabinet.html Спринта 1). Спринт 6 Партия B: JS — в модуле
-    js/instructor-cabinet-stub.js (проверяем HTML + модуль с его импортами,
-    frontend_source)."""
-    from conftest import frontend_source
-
-    js = frontend_source("instructor-cabinet-stub.html")
-    assert "sessionStorage" in js
-    assert "session_token" in js
-    # GET /api/auth/me — через общий клиент js/api.js (api() с токеном)
-    assert "api('/api/auth/me'" in js
-    assert "fetch(path" in js
-    assert "'X-Session-Token'" in js
-    assert "location.href = '/'" in js
+# --- 4.4 (заглушка кабинета инструктора): тесты страницы удалены вместе со
+# страницей (Спринт 14, change add-vue-s14-instructor-loop, задача 1.1 —
+# прецедент «судьба legacy-тестов удаленной страницы», arch-review-002
+# MAJ-1 пилота: заглушка недостижима с Спринта 2.2, удалена решением
+# Заказчика; маршрут снят из _PAGE_ROUTES backend/app.py).

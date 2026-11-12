@@ -37,6 +37,20 @@ export default defineConfig({
         "instructor-apply": fileURLToPath(
           new URL("./instructor-apply.html", import.meta.url),
         ),
+        // Спринт 14 (change add-vue-s14-instructor-loop, задача 2.1):
+        // лендинг инструкторов «/instructors», кабинет инструктора
+        // «/instructor/dashboard» и НОВАЯ страница «Мои документы»
+        // «/instructor/documents» — имена по сегментам маршрутов (паттерн
+        // С11/С12: dist/<entry>.html = имя артефакта маршрута).
+        "instructors": fileURLToPath(
+          new URL("./instructors.html", import.meta.url),
+        ),
+        "instructor-dashboard": fileURLToPath(
+          new URL("./instructor-dashboard.html", import.meta.url),
+        ),
+        "documents": fileURLToPath(
+          new URL("./documents.html", import.meta.url),
+        ),
       },
       output: {
         // Хэш-имена ассетов — автоматическая cache-инвалидация (design.md).

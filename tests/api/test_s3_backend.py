@@ -1721,13 +1721,29 @@ def test_s4_pages_wired_to_real_api_shapes():
     add-vue-s11-status-forms, задача 3.1): носитель /review — вход каркаса
     Vue frontend/vue/review-form.html + компонент App.vue (legacy удален,
     прецедент 2.3 пилота); needle POST-URL дословен — в Vue-коде сохранена
-    строковая конкатенация URL, template literals НЕ введены (MIN-2)."""
+    строковая конкатенация URL, template literals НЕ введены (MIN-2).
+    Спринт 14 (change add-vue-s14-instructor-loop, задача 4.1): носитель
+    дашборда — вход каркаса Vue frontend/vue/instructor-dashboard.html +
+    компонент App.vue (legacy instructor-dashboard.html +
+    js/instructor/dashboard-instructor.js удалены — замена монолита целиком);
+    needles дословны — строковая конкатенация URL в Vue-коде сохранена
+    (прецедент MIN-2 С11)."""
+    # Спринт 14 (задача 4.1): носитель дашборда — вход каркаса Vue +
+    # компонент (frontend_source следует только /js/-модулям legacy,
+    # источник Vue читается напрямую — прецедент /review ниже).
+    dash_src = "\n".join([
+        (ROOT / "frontend" / "vue" / "instructor-dashboard.html").read_text(
+            encoding="utf-8"),
+        (ROOT / "frontend" / "vue" / "src" / "pages" / "instructor-dashboard"
+         / "App.vue").read_text(encoding="utf-8"),
+    ])
+    # Спринт 5 (change add-booking-docs): параметризованный маршрут
+    # ракурсов POST /api/instructor/cars/{id}/photo/{angle} + GET …/sts
+    for needle in ["api/instructor/cars",
+                   "cars/'+t.carId+'/photo/'+t.angle",
+                   "c.sts_url"]:
+        assert needle in dash_src, ("vue/instructor-dashboard.html", needle)
     checks = {
-        # Спринт 5 (change add-booking-docs): параметризованный маршрут
-        # ракурсов POST /api/instructor/cars/{id}/photo/{angle} + GET …/sts
-        "instructor-dashboard.html": ["api/instructor/cars",
-                                      "cars/'+t.carId+'/photo/'+t.angle",
-                                      "c.sts_url"],
         "cabinet.html": ["api/student/requests",
                          "instructor_id:r.instructor_id"],
     }

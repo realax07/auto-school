@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#071015">
+<title>СберАвтошкола — кабинет инструктора</title>
+<link rel="stylesheet" href="/src/pages/instructor-dashboard/styles.css">
+</head>
+<body>
+<div id="app">
+<div class="app">
+<aside class="sidebar">
+  <div class="brand"><div class="check">✓</div><div>СберАвтошкола<small>Кабинет инструктора</small></div></div>
+  <div class="nav-label">Рабочее пространство</div>
+  <nav class="nav">
+    <button class="active" data-tab="Мой день"><span class="ico">⌂</span>Мой день</button>
+    <button data-tab="Расписание"><span class="ico">▦</span>Расписание<small class="demo-tag">демо</small></button>
+    <button data-tab="Календарь"><span class="ico">▦</span>Календарь</button>
+    <button data-tab="Мои ученики"><span class="ico">♧</span>Мои ученики</button>
+    <button data-tab="Мои автомобили"><span class="ico">▰</span>Мои автомобили</button>
+    <button data-tab="Доходы и выплаты"><span class="ico">₽</span>Доходы и выплаты<small class="demo-tag">демо</small></button>
+    <button data-tab="Материалы и обучение"><span class="ico">◈</span>Материалы и обучение<small class="demo-tag">демо</small></button>
+    <button data-tab="Профиль и документы"><span class="ico">▤</span>Профиль и документы</button>
+    <button data-tab="__logout__"><span class="ico">⎋</span>Выход</button>
+  </nav>
+  <div class="side-bottom"><strong>Нужна помощь?</strong><p>Поддержка инструкторов поможет разобраться с расписанием, выплатами и подключением.</p><button onclick="toast('Раздел поддержки — демонстрационный макет')">Связаться с поддержкой ↗</button></div>
+</aside>
+
+<main>
+  <div class="topbar"><div><div class="crumb">Рабочее пространство / <span id="crumb">Мой день</span></div><h1 id="page-title">Мой день</h1></div><div class="top-actions"><div class="date-chip">◷ &nbsp; Пн, 12 октября 2026</div><button class="icon-btn" onclick="toast('Новых уведомлений нет')">♧</button><div class="user"><div class="avatar" id="avatar">—</div><div><b id="user-fio">…</b><small>Инструктор</small></div></div><button class="icon-btn" onclick="logout()" title="Выйти">⎋</button></div></div>
+  <div class="hello"><div><div class="kicker">Понедельник · 12 октября</div><h2 id="hello-name">Добрый день, Михаил</h2><p>Вот что у тебя сегодня. Всё под контролем.</p></div><div class="online"><i></i> Профиль активен</div></div>
+  <!-- Виджеты главной (мокап calendar-availability-a, change add-instructor-student-loop):
+       данные GET /api/instructor/summary + GET /api/instructor/requests; до ответа —
+       честные пустые состояния (демо-данных виджеты больше не показывают).
+       Спринт 8 (FR-73, change add-s8-cars-docs-booking): класс day-content —
+       виджеты принадлежат ТОЛЬКО главной «Мой день»; разделы «Мои автомобили»
+       и «Мои документы» (и остальные) открываются БЕЗ виджетов (явные
+       исключения Заказчика; place виджетов — главная и «Мои ученики»). -->
+  <section class="widgets day-content">
+    <div class="w" id="w-students">
+      <div class="w-head"><b>Привязанные ученики</b><span class="w-n" id="w-students-n">0</span></div>
+      <div id="w-students-list"><div class="w-empty" id="w-students-empty"><b>Пока нет привязанных учеников</b>Принятые заявки появятся в этом списке.</div></div>
+    </div>
+    <div class="w" id="w-requests">
+      <div class="w-head"><b>Запросы учеников</b><span class="w-n" id="w-requests-n">0 новых</span></div>
+      <div id="w-requests-list"><div class="w-empty" id="w-requests-empty"><b>Новых запросов нет</b>Заявки учеников появятся здесь.</div></div>
+    </div>
+    <div class="w" id="w-today">
+      <div class="w-head"><b>Занятия на сегодня</b></div>
+      <div class="w-empty" id="w-today-empty"><b>Сегодня занятий нет</b>Расписание занятий появится в следующих версиях школы.</div>
+      <div id="w-today-list" style="display:none"></div>
+    </div>
+  </section>
+  <section class="stats day-content">
+    <article class="card stat"><div class="stat-head">Заработано за месяц <span class="stat-icon">₽</span></div><div class="value">84 600 <small>₽</small></div><div class="stat-foot"><span class="trend">↗ +12%</span> <span>к прошлому месяцу</span></div></article>
+    <article class="card stat"><div class="stat-head">Отработано часов <span class="stat-icon">◷</span></div><div class="value">62 <small>ч</small></div><div class="stat-foot"><span class="trend neutral">из 80 ч</span><span>план на месяц</span></div></article>
+    <article class="card stat"><div class="stat-head">Мои ученики <span class="stat-icon">♧</span></div><div class="value">12</div><div class="stat-foot"><span class="trend">+3</span><span>новых за неделю</span></div></article>
+    <article class="card stat"><div class="stat-head">Занятия сегодня <span class="stat-icon">▦</span></div><div class="value">4</div><div class="stat-foot"><span class="trend neutral">Первое в 10:00</span></div></article>
+  </section>
+  <div class="content-grid day-content">
+    <section class="card panel">
+      <div class="panel-head"><div><div class="panel-title">Расписание занятий</div><div class="panel-sub">Загруженность и свободные окна на неделе</div></div><div class="calendar-tools"><button onclick="changeWeek(-1)">‹</button><button onclick="toast('Показана текущая неделя')">Эта неделя</button><button onclick="changeWeek(1)">›</button></div></div>
+      <div class="week" id="week">
+        <div class="day"><div class="dname">ПН</div><div class="dnum">12</div><div class="dots"><i></i><i></i><i class="blue"></i></div></div>
+        <div class="day"><div class="dname">ВТ</div><div class="dnum">13</div><div class="dots"><i></i><i></i></div></div>
+        <div class="day"><div class="dname">СР</div><div class="dnum">14</div><div class="dots"><i></i><i></i><i></i></div></div>
+        <div class="day"><div class="dname">ЧТ</div><div class="dnum">15</div><div class="dots"><i class="blue"></i><i></i></div></div>
+        <div class="day"><div class="dname">ПТ</div><div class="dnum">16</div><div class="dots"><i></i><i></i><i class="orange"></i></div></div>
+        <div class="day"><div class="dname">СБ</div><div class="dnum">17</div><div class="dots"><i></i></div></div>
+        <div class="day"><div class="dname">ВС</div><div class="dnum">18</div><div class="dots"></div></div>
+      </div>
+      <div class="legend"><span><i class="green"></i>Занятие подтверждено</span><span><i class="blue"></i>Ожидает подтверждения</span><span><i class="orange"></i>Свободное окно</span></div>
+      <div class="panel-head"><div class="panel-title" id="today-count">Сегодня · 4 занятия</div><button class="text-btn" onclick="navTo('Расписание')">Весь календарь ↗</button></div>
+      <div class="appointments">
+        <div class="appointment"><div><div class="time">10:00</div><div class="duration">60 минут</div></div><div class="bar"></div><div><div class="appt-name">Александр Иванов</div><div class="appt-meta">Практика · Городской маршрут</div></div><span class="status">Подтверждено</span></div>
+        <div class="appointment"><div><div class="time">12:00</div><div class="duration">90 минут</div></div><div class="bar bluebar"></div><div><div class="appt-name">Екатерина Смирнова</div><div class="appt-meta">Практика · Манёвры и парковка</div></div><span class="status blue-status">Ожидает</span></div>
+        <div class="appointment"><div><div class="time">14:30</div><div class="duration">60 минут</div></div><div class="bar"></div><div><div class="appt-name">Дмитрий Волков</div><div class="appt-meta">Практика · Город</div></div><span class="status">Подтверждено</span></div>
+        <div class="appointment"><div><div class="time">16:00</div><div class="duration">60 минут</div></div><div class="bar orangebar"></div><div><div class="appt-name">Свободное окно</div><div class="appt-meta">Можно открыть запись для ученика</div></div><span class="status gray">Свободно</span></div>
+      </div>
+      <div class="today-empty" id="today-empty">Сегодня занятий нет</div>
+    </section>
+    <div class="right-col">
+      <section class="card panel next"><div class="panel-head"><div><div class="panel-title">Ближайшее занятие</div><div class="panel-sub">Сегодня, через 30 минут</div></div><span class="status">Скоро</span></div>
+        <div class="next-time"><div class="timebox"><b>10:00</b><small>60 минут</small></div><div class="next-person"><b>Александр Иванов</b><small>Практика · Город</small></div></div>
+        <div class="next-details"><div class="detail"><span>Автомобиль</span><b>Škoda Rapid · А123АА</b></div><div class="detail"><span>Точка встречи</span><b>Согласованная локация</b></div><div class="detail"><span>Цель занятия</span><b>Движение в потоке</b></div></div>
+        <button class="full-btn" onclick="toast('Открыта карточка занятия — демонстрация')">Открыть занятие ↗</button>
+      </section>
+      <section class="card panel"><div class="panel-head"><div><div class="panel-title">Мой автомобиль</div><div class="panel-sub">Данные подключённого авто</div></div><button class="text-btn" onclick="navTo('Автомобиль')">Подробнее</button></div>
+        <div class="vehicle-top"><div class="vehicle-icon">▰</div><div><b>Škoda Rapid</b><small>2020 · Автомат</small></div><span class="vehicle-status">● Активен</span></div>
+        <div class="vehicle-line"></div><div class="vehicle-data"><div><span>Госномер</span><b>А123АА 777</b></div><div><span>Тип владения</span><b>Свой автомобиль</b></div></div>
+        <div class="progress-label"><span>Проверка документов</span><b style="color:#7beaa3">Завершена</b></div><div class="progress"><span></span></div>
+      </section>
+    </div>
+  </div>
+  <div class="bottom-grid day-content">
+    <section class="card panel"><div class="panel-head"><div><div class="panel-title">Последние операции</div><div class="panel-sub">Начисления и выплаты</div></div><button class="text-btn" onclick="navTo('Доходы')">Все операции ↗</button></div>
+      <div class="activity">
+        <div class="activity-row"><div class="activity-icon">↗</div><div class="activity-copy"><b>Занятие · Александр Иванов</b><small>Сегодня, 09:00 · Начисление</small></div><div class="amount plus">+2 000 ₽</div></div>
+        <div class="activity-row"><div class="activity-icon">↗</div><div class="activity-copy"><b>Занятие · Мария Петрова</b><small>Вчера, 16:00 · Начисление</small></div><div class="amount plus">+2 000 ₽</div></div>
+        <div class="activity-row"><div class="activity-icon" style="background:#34251f;color:#ffb18c">↙</div><div class="activity-copy"><b>Расходы на автомобиль</b><small>10 октября · Учёт расходов</small></div><div class="amount minus">−1 450 ₽</div></div>
+      </div>
+    </section>
+    <section class="card panel"><div class="panel-head"><div><div class="panel-title">Быстрые действия</div><div class="panel-sub">Самое нужное — в один клик</div></div></div>
+      <div class="quick-actions"><button class="quick" onclick="navTo('Расписание')"><span>＋</span>Открыть время<br>для записи</button><button class="quick" onclick="navTo('Ученики')"><span>♧</span>Посмотреть<br>учеников</button><button class="quick" onclick="navTo('Доходы')"><span>₽</span>Мои доходы<br>и выплаты</button></div>
+    </section>
+  </div>
+
+  <!-- Раздел «Календарь» (мокап calendar-availability-a, вариант A: сетка недели;
+       FR-29/FR-30: GET /api/instructor/availability при входе, PUT — полная замена.
+       Спринт 8, FR-74: запросы (new) и брони (confirmed) — РОВНО на выбранных
+       слотах; решения — на слоте, немедленно, мимо «Сохранить» (наследование
+       ОВ-6 Спринта 7); раздел «Бронирования» удален, старые ссылки #/bookings —
+       редирект сюда) -->
+  <section class="card panel" id="sec-calendar" style="display:none">
+    <div class="cal-head">
+      <div><b>Мой график на неделю</b><div class="sub">Клик по слоту — попап: «Разово» (только эта дата) или «Повторяющееся» (еженедельно) · шаг 2 часа · клик по запросу/брони — решение</div></div>
+      <div class="cal-save"><span id="cal-changed">Есть несохранённые изменения</span><button id="cal-cancel" type="button">Отменить</button><button id="cal-save" type="button">Сохранить график</button></div>
+    </div>
+    <div class="cal-nav">
+      <button id="cal-prev" type="button" aria-label="Предыдущая неделя">‹</button>
+      <button id="cal-this" type="button">Эта неделя</button>
+      <button id="cal-next" type="button" aria-label="Следующая неделя">›</button>
+      <span id="cal-range"></span>
+    </div>
+    <div class="legend"><span><i class="green"></i>Рабочий интервал</span><span><i style="background:#3a4a52"></i>Не работаю</span><span><i class="blue"></i>Подтверждённая бронь</span><span><i class="orange"></i>Новый запрос ученика</span></div>
+    <div class="cal-grid-wrap">
+      <div class="cal-grid" id="cal-grid"></div>
+      <div class="cal-hint">Тип выбирается в попапе для каждой ячейки: «Разово» — слот только на эту дату, «Повторяющееся» — еженедельно. Изменения применяются по «Сохранить график» (одна замена всего графика), «Отменить» возвращает сохранённый график. Прошедшие ячейки и недели — только просмотр. Запрос ученика показан ровно на выбранном им слоте — подтверждение или отказ (с обязательным комментарием) применяются сразу, без «Сохранить».</div>
+    </div>
+    <!-- Спринт 10 (D10): попап-редактор типа слота — над ячейкой, поверх
+         страницы; закрытие без подтверждения ячейку не меняет -->
+    <div id="cal-pop" role="dialog" aria-label="Тип слота" hidden>
+      <button type="button" class="cal-pop-close" id="cal-pop-close" aria-label="Закрыть">×</button>
+      <div class="cal-pop-title" id="cal-pop-title"></div>
+      <label class="cal-pop-opt"><input type="radio" name="cal-type" value="one_off" id="cal-t-one"><span>Разово</span><small>только эта дата</small></label>
+      <label class="cal-pop-opt"><input type="radio" name="cal-type" value="recurring" id="cal-t-rec"><span>Повторяющееся</span><small>еженедельно</small></label>
+      <div class="cal-pop-actions">
+        <button type="button" id="cal-pop-ok" class="ok">Подтвердить</button>
+        <button type="button" id="cal-pop-remove" class="del">Убрать слот</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Раздел «Мои ученики» (мокап my-students.html, Спринт 8 change
+       add-s8-cars-docs-booking; FR-75/ОВ-5): карточки принятых учеников
+       (пары = student_requests.status='accepted') — ФИО, СЛЕДУЮЩЕЕ ПЛАНОВОЕ
+       ЗАНЯТИЕ (ближайшая ПОДТВЕРЖДЕННАЯ бронь; при отсутствии — «нет»),
+       счётчики «плановых дальше / проведено» — ТОЛЬКО confirmed (ОВ-5);
+       данные — GET /api/instructor/students (задача 9.1, XSS-гигиена:
+       createElement + textContent). «Запросы учеников» — ПОДРАЗДЕЛ-ВКЛАДКА
+       внутри раздела (отдельного пункта сайдбара больше нет): принятие
+       (с выбором авто) / отказ (комментарий обязателен) — контур
+       Спринта 3 без изменений. -->
+  <section class="card panel" id="sec-students" style="display:none">
+    <div class="subtabs" id="stu-tabs">
+      <button class="on" data-stu="students" type="button">Ученики <span class="n" id="stu-n">·0</span></button>
+      <button data-stu="requests" type="button">Запросы учеников <span class="n" id="stu-req-n">·0</span></button>
+    </div>
+    <div id="stu-tab-students">
+      <div class="stu-error" id="stu-error"></div>
+      <div class="stu-cards" id="stu-cards"></div>
+      <div class="stu-empty" id="stu-empty" style="display:none"><b>Учеников пока нет</b>Принятые запросы появятся здесь: ученик, следующее плановое занятие и счётчики по подтверждённым броням.</div>
+    </div>
+    <div id="stu-tab-requests" style="display:none">
+      <div class="panel-head"><div><div class="panel-title">Входящие заявки</div><div class="panel-sub">Принять можно только заявку в статусе «новая» — с выбором вашего автомобиля. Отказ требует обязательного комментария.</div></div></div>
+      <div class="rq-filters" id="rq-filters">
+        <button class="on" data-f="all">Все</button>
+        <button data-f="new">Новые <span id="rq-new-n" style="color:#ffd479">·0</span></button>
+        <button data-f="accepted">Принятые</button>
+        <button data-f="denied">Отказанные</button>
+      </div>
+      <div class="rq-list" id="rq-list"></div>
+    </div>
+  </section>
+
+  <!-- Раздел «Мои автомобили» (BUG-047: верстка перенесена из
+       frontend/my-cars.html внутрь дашборда как таб; wiring прежний:
+       CRUD /api/instructor/cars + фото; модалки живут внутри секции и
+       прячутся вместе с ней при уходе на другой таб) -->
+  <section class="card panel" id="sec-cars" style="display:none">
+    <div class="toolbar">
+      <span class="count" id="count"></span>
+      <button class="addbtn" id="open-add" type="button">＋ Добавить автомобиль</button>
+      <!-- Спринт 7: единый скрытый input модалки-галереи — клик по большому
+           окну галереи открывает выбор файла (ракурс или СТС) -->
+      <input type="file" id="gal-file" accept="image/jpeg,image/png" style="display:none">
+    </div>
+    <div class="cars" id="cars"></div>
+    <div class="empty" id="empty"><b>Автомобилей пока нет</b>Добавьте автомобиль — без него нельзя принять заявку ученика (нужен выбор авто). При создании обязательно фото СТС. Новый автомобиль получает статус «Черновик» — после загрузки фото отправьте его на валидацию.</div>
+
+    <!-- модалка: добавить / редактировать автомобиль (мокап my-cars.html:
+         СТС — обязательный файл при создании, multipart sts_photo) -->
+    <div class="backdrop" id="m-add" role="dialog" aria-modal="true" aria-labelledby="add-title">
+      <div class="modal">
+        <div class="modal-head">
+          <div><h2 id="add-title">Новый автомобиль</h2><div class="sub" id="add-sub">Появится в списке и в выборе авто при принятии заявки. Без фото СТС создать нельзя.</div></div>
+          <button class="close" data-close="m-add" aria-label="Закрыть">×</button>
+        </div>
+        <div class="fgrid">
+          <label class="field"><span>Марка *</span><input id="f-brand" placeholder="Škoda"></label>
+          <label class="field"><span>Модель *</span><input id="f-model" placeholder="Rapid"></label>
+          <label class="field"><span>Год выпуска *</span><input id="f-year" type="number" min="1950" max="2027" placeholder="2020"></label>
+          <label class="field"><span>Госномер *</span><input id="f-plate" placeholder="А 123 АА 777"></label>
+          <div class="field wide"><span>Коробка передач *</span>
+            <div class="seg" id="f-trans">
+              <button class="on" data-v="manual" type="button">Механика</button>
+              <button data-v="automatic" type="button">Автомат</button>
+            </div>
+          </div>
+          <div class="field wide" id="sts-field"><span>Фото СТС * (обязательно)</span>
+            <label class="up-zone" id="up-zone"><span class="up-txt">🪪 <b>Выберите фото СТС</b> или перетащите сюда<br>JPEG/PNG · до 5 МБ</span>
+              <img id="up-thumb" alt="Миниатюра фото СТС">
+              <input type="file" id="f-sts" accept="image/jpeg,image/png">
+            </label>
+            <div class="up-photo-err" id="up-photo-err" role="alert"></div>
+            <div class="prog" id="up-prog"><i></i></div>
+            <div class="prog-lab" id="up-lab">Загрузка… 0%</div>
+          </div>
+        </div>
+        <div class="form-note">Без файла СТС автомобиль не создаётся — вернётся ошибка «загрузите фото СТС». Тип и размер файла проверяются по содержимому (magic bytes), лимит 5 МБ. Ракурсы (спереди/сзади/слева/справа/салон) загрузите в карточке после создания. Файлы хранятся вне раздачи статики и выдаются только вам и вашим ученикам по сессии.</div>
+        <div class="form-actions">
+          <button class="btn primary" id="save-car" disabled type="button">Сохранить автомобиль</button>
+          <button class="btn ghost" data-close="m-add" type="button">Отмена</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- модалка: подтверждение удаления -->
+    <div class="backdrop" id="m-del" role="dialog" aria-modal="true" aria-labelledby="del-title">
+      <div class="modal confirm-box">
+        <div class="warn-ic">⚠</div>
+        <h2 id="del-title" style="font-size:19px;margin:0 0 10px;letter-spacing:-.03em">Удалить автомобиль?</h2>
+        <p id="del-what">Škoda Rapid · А 123 АА 777</p>
+        <div class="note">У привязанных учеников автомобиль будет снят, но связь «ученик ↔ инструктор» <b>сохранится</b> — перекрепите авто в разделе «Ученики». Само удаление отменить нельзя.</div>
+        <div class="form-actions">
+          <button class="btn ghost" id="del-cancel" type="button">Отмена</button>
+          <button class="btn primary" id="del-confirm" style="background:#33201a;border-color:#8a3c3c;color:#ffb28e" type="button">Да, удалить</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Спринт 7 (мокап my-cars-s7.html, FR-63/64/65): модалка-галерея авто —
+         большое окно с фото (клик — загрузить/заменить ракурс или СТС,
+         стрелки ‹ › с полупрозрачным фоном) + миниатюры ПОД ним +
+         комплектность + статусные действия («Отправить на валидацию» /
+         «Вернуть в черновик», ОВ-3). BUG-053 (прямива Заказчика,
+         decisions/2026-11-02-photo-modal-layout.md): компоновка
+         ОДНОКОЛОНОЧНАЯ — галерея вверху (большое окно, миниатюры внизу
+         под ним, крупнее), «Информация» и «Комплектность» — внизу
+         модалки; длинный инструктивный текст удален (короткий title
+         на mc-big) -->
+    <div class="backdrop" id="m-car" role="dialog" aria-modal="true" aria-labelledby="mc-title">
+      <div class="modal">
+        <div class="modal-head">
+          <div><h2 id="mc-title">—</h2><div class="sub" id="mc-sub">—</div></div>
+          <span class="status st-draft" id="mc-status" style="margin-top:4px">—</span>
+          <button class="close" data-close="m-car" aria-label="Закрыть">×</button>
+        </div>
+        <div class="gal-grid">
+          <div class="gal-h">Галерея · 5 ракурсов + СТС</div>
+          <div class="gal-big" id="mc-big" title="Клик — загрузить или заменить фото этого ракурса">
+            <span class="ph">🚗</span>
+            <span class="up-hint" id="mc-big-hint">—</span>
+            <div class="prog" id="mc-prog"><i></i></div>
+          </div>
+          <div class="gal-thumbs" id="mc-thumbs"></div>
+          <div class="gal-panel">
+            <h3>Информация</h3>
+            <div class="gal-rows" id="mc-info"></div>
+          </div>
+          <div class="gal-panel">
+            <h3>Комплектность</h3>
+            <div class="gal-compl-lab"><span id="mc-compl-lab">—</span><span class="status st-draft" id="mc-compl-badge">—</span></div>
+            <div class="compl-bar" id="mc-bar"></div>
+            <div class="missing" id="mc-missing" style="margin-top:9px"></div>
+          </div>
+        </div>
+        <div class="form-actions" id="mc-acts"></div>
+        <div class="form-note gal-note" id="mc-note"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Раздел «Мои документы» (мокап my-documents-s8.html, Спринт 8
+       change add-s8-cars-docs-booking): ВУ из анкеты + СТС по каждому авто;
+       статусная модель версий (Действует / Ожидает проверки замены /
+       Отклонено с причиной); загрузка/замена — FR-72 (без виджетов, FR-73);
+       просмотр полного размера — GET /api/instructor/documents/{doc_id}/file
+       (только владелец). BUG-051: раздел переименован в «Профиль и документы»
+       (кнопка сайдбара data-tab + заголовок шапки); старая ДЕМО-секция
+       «Профиль и документы» (заглушка) удалена — её место занял этот раздел.
+       Виджетов «привязанные ученики/запросы/занятия» в разделе НЕТ (FR-73). -->
+  <section class="card panel" id="sec-docs" style="display:none">
+    <section class="sect">
+      <div class="sect-head"><b>Водительское удостоверение</b><span class="n" id="lic-n">0</span><span class="hint">личный документ · из анкеты инструктора</span></div>
+      <div class="docs" id="lic-docs"></div>
+      <div class="no-license" id="no-license"><b>ВУ не загружено</b><span id="no-license-hint">В вашей анкете не было фото водительского удостоверения.</span><div class="doc-actions" style="justify-content:center;margin-top:14px"><button class="btn-u" id="upload-license" type="button" style="flex:0 0 auto;padding:10px 22px">Загрузить ВУ</button></div></div>
+    </section>
+    <section class="sect">
+      <div class="sect-head"><b>СТС автомобилей</b><span class="n" id="sts-count">0</span><span class="hint">по одному на каждый автомобиль · замена — после проверки администратором</span></div>
+      <div class="docs" id="sts-docs"></div>
+    </section>
+  </section>
+
+  <!-- Раздел «Бронирования» УДАЛЕН (Спринт 8, FR-74: без остатков — пункт
+       меню, секция, JS-контур, CSS). Запросы и брони отображаются РОВНО на
+       выбранных слотах в разделе «Календарь» (#sec-calendar); решения — на
+       слоте, немедленно (модалка #m-bk). Старая ссылка #/bookings —
+       редирект в календарь (механика BUG-047). -->
+
+  <!-- просмотр документа в полном размере (общий для «Мои автомобили» — СТС —
+       и «Мои документы»; вне секций, чтобы открываться из любого раздела) -->
+  <div class="backdrop" id="m-view" role="dialog" aria-modal="true" aria-labelledby="view-title">
+    <div class="viewer">
+      <div class="viewer-head">
+        <div><h2 id="view-title">Документ</h2><small id="view-sub"></small></div>
+        <button class="close" id="view-close" aria-label="Закрыть">×</button>
+      </div>
+      <!-- BUG-054: стрелки ‹ › НАД фотографией (классы .navarrow, обе
+           стороны всегда в разметке): листание ДОСТУПНОГО набора фото —
+           авто (загруженные ракурсы + СТС по наличию) или одиночный
+           документ (одно фото → стрелки скрыты). Циклично; клик по
+           стрелке окно не закрывает; Esc закрывает. -->
+      <div class="full" id="view-full">
+        <img id="view-img" alt="">
+        <button class="navarrow prev" id="view-prev" type="button" aria-label="Предыдущее фото" style="display:none">‹</button>
+        <button class="navarrow next" id="view-next" type="button" aria-label="Следующее фото" style="display:none">›</button>
+      </div>
+      <div class="viewer-foot">Выдача — авторизованный эндпоинт GET /api/instructor/documents/{doc_id}/file (Content-Type image/*). Чужой или несуществующий документ вернёт 404 — документы других инструкторов недоступны.</div>
+    </div>
+  </div>
+
+  <!-- Спринт 8 (FR-74): решение по запросу/брони — НА слоте календаря,
+       немедленно, мимо «Сохранить» (наследование ОВ-6 Спринта 7).
+       Принять — одним кликом; Отклонить — комментарий обязателен
+       (без него кнопка заблокирована; пустой на сервере — 422);
+       у подтвержденной брони — «Отменить бронь» (наследование BUG-049). -->
+  <div class="backdrop" id="m-bk" role="dialog" aria-modal="true" aria-labelledby="bk-slot-title">
+    <div class="viewer" style="width:min(520px,100%)">
+      <div class="viewer-head">
+        <div><h2 id="bk-slot-title">Запрос ученика</h2><small id="bk-slot-sub">—</small></div>
+        <button class="close" id="bk-slot-close" aria-label="Закрыть">×</button>
+      </div>
+      <p class="m-rep-txt" style="margin-top:4px"><b id="bk-slot-who">—</b><span id="bk-slot-what"></span></p>
+      <div id="bk-slot-reject" style="display:none">
+        <label class="rej-label" for="bk-slot-reason">Комментарий при отказе — обязателен (без него действие заблокировано)</label>
+        <textarea id="bk-slot-reason" placeholder="Например: в это время пересдача экзамена, выберите другой слот"></textarea>
+      </div>
+      <div class="form-actions">
+        <button class="btn primary" id="bk-slot-confirm" type="button">✓ Принять</button>
+        <button class="btn ghost" id="bk-slot-reject-btn" type="button">✕ Отклонить…</button>
+        <button class="btn ghost danger" id="bk-slot-reject-go" type="button" style="display:none">✕ Отклонить запрос</button>
+        <button class="btn ghost danger" id="bk-slot-cancel" type="button" style="display:none">✕ Отменить бронь</button>
+        <button class="btn ghost" id="bk-slot-close2" type="button">Закрыть</button>
+      </div>
+    </div>
+  </div>
+  <!-- Спринт 8 (FR-71): предупреждение замены — явная кнопка «Заменить»;
+       без клика по ней файл НЕ отправляется, отмена ничего не меняет.
+       Диалог общий для замены ВУ/СТС из «Моих документов» и СТС из
+       модалки авто («Мои автомобили»). -->
+  <div class="backdrop" id="m-replace" role="dialog" aria-modal="true" aria-labelledby="rep-title">
+    <div class="viewer" style="width:min(520px,100%)">
+      <div class="viewer-head">
+        <div><h2 id="rep-title">Заменить документ?</h2><small id="rep-sub">—</small></div>
+        <button class="close" id="rep-close" aria-label="Закрыть">×</button>
+      </div>
+      <div class="warnbox"><b>Замена не вступает в силу сразу.</b> Замена вступит в силу только после проверки администратором: до подтверждения действует предыдущая версия — документ «не мигает». Повторная загрузка до решения заменит ожидающую версию.</div>
+      <p class="m-rep-txt">Если администратор отклонит замену, вы увидите причину отказа, а действующей останется текущая версия — документ не будет утерян.</p>
+      <div class="form-actions">
+        <button class="btn primary" id="rep-go" type="button">Заменить</button>
+        <button class="btn ghost" id="rep-cancel" type="button">Отмена</button>
+      </div>
+    </div>
+  </div>
+  <!-- единый скрытый input загрузки документов (ВУ/СТС): открывается
+       после явного «Заменить» (или сразу — для первой загрузки) -->
+  <input type="file" id="doc-file" accept="image/jpeg,image/png" style="display:none">
+
+  <footer><span>СберАвтошкола · Кабинет инструктора</span><span>Демонстрационный интерфейс · Все данные вымышлены</span></footer>
+</main>
+</div>
+<div class="toast" id="toast"></div>
+</div>
+<script type="module" src="/src/pages/instructor-dashboard/main.js"></script></body></html>
