@@ -1,20 +1,30 @@
 <!doctype html>
-<!-- Страница после регистрации /registered — вход каркаса Vue (Спринт 15,
-     change add-vue-s15-final-migration, задача 1.1; ADR-008 — multi-entry
-     MPA, НЕ SPA). Перенос страницы — задача 3.1 (полная разметка из
-     frontend/registered.html — заглушка С0 дословно — замена монолита
-     целиком; легаси обслуживается до задачи 5.1 — design.md «Роуты и
-     статика»). До гидрации Vue видна эта же разметка; App.vue монтируется
-     поверх #app (паттерн пилота/С11/С12/С14). Разметку держать синхронной
-     с App.vue. -->
-<html lang="ru">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>СберАвтошкола — Регистрация завершена</title>
-<!-- Стили страницы — дословный перенос <style> легаси (задача 3.1);
-     Vite бандлит их в /vue/assets с хэш-именем; CSS вне JS-бюджета NFR-26. -->
+<!-- Страница после регистрации (заглушка): инфо об успешной регистрации, данные никуда не ушли
+     Вход каркаса Vue (Спринт 15, change add-vue-s15-final-migration,
+     задачи 1.1/3.1; ADR-008 — multi-entry MPA, НЕ SPA): разметка — дословный
+     перенос frontend/registered.html, заглушка С0 КАК ЕСТЬ (alert + href=
+     "landing-students.html" под onclick-перехватом — замена монолита
+     целиком); легаси обслуживается до задачи 5.1 (design.md «Роуты и
+     статика»). Стили — подключаемый css (дословный перенос <style> легаси);
+     Vite бандлит его в /vue/assets с хэш-именем (CSS вне JS-бюджета
+     NFR-26). До гидрации Vue видна эта же разметка (onclick работает
+     нативно); App.vue монтируется поверх #app (паттерн пилота/С11/С12/С14).
+     Разметку держать синхронной с App.vue. -->
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>СберАвтошкола — Регистрация завершена</title>
+<!-- Стили — дословный перенос <style> легаси (задача 3.1). -->
 <link rel="stylesheet" href="/src/pages/registered/styles.css">
-</head>
-<body>
-<div id="app"></div>
+</head><body>
+<div id="app">
+<div class="hero"><div class="card">
+  <div class="check">✓</div>
+  <h1>Регистрация завершена</h1>
+  <p>Вы зарегистрированы как ученик. Мы свяжемся с вами по указанным контакту — расскажем расписание и подберем инструктора.</p>
+  <div class="note">Это демонстрационная страница спринта-0: данные формы никуда не отправлялись, база учеников появится вместе с бэкендом.</div>
+  <div class="actions">
+    <a class="btn btn-primary" href="/">На главную</a>
+    <a class="btn btn-ghost" href="landing-students.html" onclick="alert('Заглушка: личный кабинет появится в следующем спринте');return false;">Личный кабинет</a>
+  </div>
+  <div class="brand">СберАвтошкола</div>
+</div></div>
+</div>
 <script type="module" src="/src/pages/registered/main.js"></script></body></html>

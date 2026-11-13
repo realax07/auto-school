@@ -91,7 +91,7 @@ design.md, не против кода друг друга). Типы работ:
 
 ## 3. Мелкие страницы (после 1.1; [P] к волне 2)
 
-- [ ] 3.1 [P][code] src/pages/registered/ + вход registered.html;
+- [x] 3.1 [P][code] src/pages/registered/ + вход registered.html;
       src/pages/policy/ + вход policy.html — полные переносы 1:1:
       registered — заглушка С0 дословно, ВКЛЮЧАЯ note «демонстрационная
       страница спринта-0» и кнопку «Личный кабинет» (href=

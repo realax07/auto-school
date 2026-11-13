@@ -1,20 +1,32 @@
 <!doctype html>
-<!-- «Политика персональных данных» /policy — вход каркаса Vue (Спринт 15,
-     change add-vue-s15-final-migration, задача 1.1; ADR-008 — multi-entry
-     MPA, НЕ SPA). Перенос страницы — задача 3.1 (оболочка БЕЗ текста
-     политики — NFR-25, и логика js/policy.js в App.vue — замена монолита
-     целиком; легаси обслуживается до задачи 5.1 — design.md «Роуты и
-     статика»). До гидрации Vue видна эта же разметка; App.vue монтируется
-     поверх #app (паттерн пилота/С11/С12/С14). Разметку держать синхронной
-     с App.vue. -->
-<html lang="ru">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#071015">
-<title>Политика персональных данных — СберАвтошкола</title>
-<!-- Стили страницы — дословный перенос <style> легаси (задача 3.1);
-     Vite бандлит их в /vue/assets с хэш-именем; CSS вне JS-бюджета NFR-26. -->
+<!-- «Политика персональных данных» — публичная страница /policy.
+     Спринт 9 (change add-personal-data-policy, задача 2.1, FR-76).
+     Оболочка БЕЗ текста политики: исходник страницы текста не содержит
+     (NFR-25, grep-контроль) — при загрузке fetch GET /api/policy
+     (backend/policy.py, артефакт deploy/policy/policy.md). Версия и дата
+     — в шапке страницы; абзацы (разбиение текста по пустой строке) —
+     ТЕКСТОВЫМИ УЗЛАМИ (textContent, НЕ innerHTML — XSS-гигиена).
+     Ошибка API/сети → честное сообщение в контейнере текста (не пустая
+     страница и не имитация текста). Вход не требуется: страница открыта
+     гостям (механика / и /api/health).
+     Вход каркаса Vue (Спринт 15, change add-vue-s15-final-migration,
+     задачи 1.1/3.1; ADR-008 — multi-entry MPA, НЕ SPA): разметка —
+     дословный перенос frontend/policy.html (замена монолита целиком);
+     легаси обслуживается до задачи 5.1 (design.md «Роуты и статика»).
+     Стили — подключаемый css (дословный перенос <style> легаси); Vite
+     бандлит его в /vue/assets с хэш-именем (CSS вне JS-бюджета NFR-26).
+     До гидрации Vue видна эта же разметка; App.vue монтируется поверх #app
+     (паттерн пилота/С11/С12/С14). Разметку держать синхронной с App.vue. -->
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#071015"><title>Политика персональных данных — СберАвтошкола</title>
+<!-- Стили — дословный перенос <style> легаси (задача 3.1). -->
 <link rel="stylesheet" href="/src/pages/policy/styles.css">
-</head>
-<body>
-<div id="app"></div>
+</head><body>
+<div id="app">
+<div class="frame">
+<header class="top"><a class="brand" href="/"><span class="check">✓</span><span><b>Сбер</b>Автошкола</span></a><a class="back" href="/">← Назад</a></header>
+<h1>Политика персональных данных</h1>
+<p class="meta" id="policy-meta"></p>
+<div class="policy-text" id="policy-text"></div>
+</div>
+</div>
 <script type="module" src="/src/pages/policy/main.js"></script></body></html>
