@@ -112,7 +112,7 @@ design.md, не против кода друг друга). Типы работ:
 
 ## 4. Student-контур (после 1.1; порядок: choice → cabinet)
 
-- [ ] 4.1 [P][code] src/pages/instructor-choice/ + вход
+- [x] 4.1 [P][code] src/pages/instructor-choice/ + вход
       instructor-choice.html — полный перенос instructor-choice.html +
       js/student/instructor-choice.js 1:1 (design.md «Страницы
       партии»): гвард (getToken → toLogin), ФИО (#uname из
