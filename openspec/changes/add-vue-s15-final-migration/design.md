@@ -27,9 +27,10 @@ Vue), BUG-059/060/062 (кабинет/choice: один логотип, без к
   /src/shared/ → 'shared'), base '/vue/', dist не в git, pinned-версии,
   dev-proxy /api/* → 127.0.0.1:8390, npm run check:budgets (8
   page-чанков).
-- backend/app.py: `_PAGE_ROUTES` — 13 маршрутов (8 «vue:», 5 легаси:
-  /registered, /admin-login, /admin-dashboard, /cabinet,
-  /instructor-choice, /policy — 6); цикл отдачи `vue:` читает
+- backend/app.py: `_PAGE_ROUTES` — 13 маршрутов (7 «vue:» в карте;
+  восьмая vue-страница /instructors/pending — пилотный хендлер ВНЕ
+  карты; 6 легаси: /registered, /admin-login, /admin-dashboard,
+  /cabinet, /instructor-choice, /policy); цикл отдачи `vue:` читает
   VUE_DIST_DIR (404 без dist); хендлер GET /js/{filepath:path} —
   отдача frontend/js/ (application/javascript); статика
   GET /vue/assets/{path} (.js/.css); `_PAGE_REDIRECTS` (/my-cars →
@@ -106,10 +107,11 @@ Vue), BUG-059/060/062 (кабинет/choice: один логотип, без к
     (НЕ innerHTML); 500/не-JSON/сеть → showError(): #policy-meta
     пустой, #policy-text → p.policy-error «Политика временно
     недоступна. Попробуйте позже».
-  - js/shared/api.js — ДОСЛОВНО равен vue/src/shared/api.js (С9-перенос:
-    TOKEN_KEY, getToken/setToken/clearSession/toLogin, api,
+  - js/shared/api.js — тела функций ДОСЛОВНО равны vue/src/shared/api.js
+    (С9-перенос: TOKEN_KEY, getToken/setToken/clearSession/toLogin, api,
     handleAuthFail, apiGet, apiSend, postJSON — функции совпадают
-    1:1, сверено diff'ом семантики); js/shared/utils.js — надмножество
+    1:1; байт-равенства файлов НЕТ — различаются только шапки-комментарии
+    4 vs 7 строк, сверено diff'ом); js/shared/utils.js — надмножество
     vue/src/shared/utils.js: в Vue-версии есть toast/nowMoscow/expWord,
     НЕТ el/fioOf/initials/fmtDate.
 - Контур входа ученика: модалки shared/LoginModal.vue + RegisterModal.vue
