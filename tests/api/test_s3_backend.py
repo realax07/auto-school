@@ -1743,14 +1743,23 @@ def test_s4_pages_wired_to_real_api_shapes():
                    "cars/'+t.carId+'/photo/'+t.angle",
                    "c.sts_url"]:
         assert needle in dash_src, ("vue/instructor-dashboard.html", needle)
+    # Спринт 15 (change add-vue-s15-final-migration, задача 5.1): носитель
+    # кабинета — вход каркаса Vue + компонент (frontend_source следует
+    # только /js/-модулям legacy — легаси cabinet.html + js/student/
+    # cabinet.js удалены, замена монолита целиком; прецедент дашборда и
+    # /review выше). needles ДОСЛОВНЫ (строковая конкатенация и сокращенная
+    # запись свойства объекта сохранены в плоском JS App.vue — MIN-2 С11).
+    cabinet_src = "\n".join([
+        (ROOT / "frontend" / "vue" / "cabinet.html").read_text(encoding="utf-8"),
+        (ROOT / "frontend" / "vue" / "src" / "pages" / "cabinet"
+         / "App.vue").read_text(encoding="utf-8"),
+    ])
     checks = {
-        "cabinet.html": ["api/student/requests",
-                         "instructor_id:r.instructor_id"],
+        "vue/cabinet.html": ["api/student/requests",
+                             "instructor_id:r.instructor_id"],
     }
     for filename, needles in checks.items():
-        # Спринт 6 Партия B: wiring — в ES-модулях (frontend/js/), единица
-        # проверки — страница + подключенные модули (frontend_source).
-        src = frontend_source(filename)
+        src = cabinet_src
         for needle in needles:
             assert needle in src, (filename, needle)
     # Спринт 11 (change add-vue-s11-status-forms, задача 3.1): носитель

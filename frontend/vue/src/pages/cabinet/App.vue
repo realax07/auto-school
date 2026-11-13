@@ -242,20 +242,56 @@
 <footer><span>СберАвтошкола · кабинет ученика</span><span>Спринт 1 · визуал</span></footer>
 </div></div>
 </div>
-<div class="toast" id="toast"></div>
 </template>
 
 <script>
-// Wiring — перенос js/student/cabinet.js 1:1 (задача 4.2). Токен —
-// sessionStorage 'session_token' (свой clearSession/toLogin — как legacy);
-// toast/fmtDate/nowMoscow/fioOf — из vue/src/shared/utils.js (дословные
-// переносы С14/С15); fetch-логика — локальная (как legacy).
+// Wiring — перенос js/student/cabinet.js 1:1 (задача 4.2; фикс с15:
+// hoist функций и плоского состояния в область setup). Раньше
+// openBookModal/retryBooking и их зависимости (localApi, loadRequests,
+// bk-*) объявлялись внутри onMounted-замыкания, а return setup ссылался
+// на эти имена — ReferenceError при setup каскадом вало монтирование:
+// пустой setupState в рендере (TypeError length в шаблоне) и
+// императивные биндинги по null (.logout и др.). Теперь все функции,
+// вызываемые шаблоном, и их зависимости — в setup-области; onMounted
+// оставлен только для bootstrap-привязок к СУЩЕСТВУЮЩИМ элементам
+// (токен, слушатели, стартовые загрузки) — реактивный порт вместо
+// императивных биндингов на отсутствующий DOM.
+// Токен — sessionStorage 'session_token' (свой clearSession/toLogin —
+// как legacy); toast/fmtDate/nowMoscow/fioOf — из vue/src/shared/utils.js
+// (дословные переносы С14/С15); fetch-логика — локальная (как legacy).
 import { onMounted, ref, computed } from 'vue';
 import { toast, fmtDate, nowMoscow, fioOf } from '../../shared/utils.js';
 
 export default {
   name: 'CabinetApp',
   setup: function () {
+    // --- сессия (sdd §10.2–10.4): токен сессии — sessionStorage, ключ
+    // session_token (единый snake_case-паттерн с admin_token Спринта 0);
+    // модалка входа (задача 2.2) пишет его в тот же ключ ---
+    var TOKEN_KEY = 'session_token';
+    var token = null;
+    function clearSession() {
+      try { sessionStorage.removeItem(TOKEN_KEY); } catch (e) {}
+    }
+    // 401 (нет токена / невалидный / истек / аннулирован) -> редирект на
+    // главную, к модалке входа (FR-7)
+    function toLogin() {
+      clearSession();
+      location.href = '/';
+    }
+    function localApi(path,opts,cb){
+      opts=opts||{};
+      opts.headers=Object.assign({'X-Session-Token':token||''},opts.headers||{});
+      if(opts.body)opts.headers['Content-Type']='application/json';
+      fetch(path,opts).then(function(r){
+        return r.json().then(function(d){cb({status:r.status,data:d})},function(){cb({status:r.status,data:null})});
+      },function(){cb({status:0,data:null})});
+    }
+    function handleAuthFail(res){
+      if(res.status===401||res.status===403){toLogin();return true}
+      return false;
+    }
+
     // --- раздел «Мои заявки» — реактивные данные (el()-отрисовка → v-for) ---
     var reqs = ref([]);
     var cur = ref('all');
@@ -273,6 +309,20 @@ export default {
       return reqs.value.filter(function(r){return cur.value==='all'||r.status===cur.value});
     });
     function goReview(r){location.href='/review?instructor='+(r.instructor_id||'')}
+    // данные: GET /api/student/requests (реальный шейп backend/student_requests.py)
+    function loadRequests(){
+      localApi('/api/student/requests',{},function(res){
+        if(handleAuthFail(res))return;
+        if(!res.data||!res.data.ok){toast((res.data&&res.data.error)||'Не удалось загрузить заявки');return}
+        reqs.value=res.data.requests||[];
+        renderFilters();
+      });
+    }
+    function renderFilters(){
+      document.getElementById('n-new').textContent=reqs.value.filter(function(r){return r.status==='new'}).length?'·'+reqs.value.filter(function(r){return r.status==='new'}).length:'';
+      document.getElementById('n-accepted').textContent=reqs.value.filter(function(r){return r.status==='accepted'}).length?'·'+reqs.value.filter(function(r){return r.status==='accepted'}).length:'';
+      document.getElementById('n-denied').textContent=reqs.value.filter(function(r){return r.status==='denied'}).length?'·'+reqs.value.filter(function(r){return r.status==='denied'}).length:'';
+    }
     // «Повторить заявку» (ОВ-2): POST /api/student/requests {instructor_id}
     function retry(r,btn){
       btn.disabled=true;
@@ -318,25 +368,293 @@ export default {
     var bkRows = [];       // уникальные интервалы недели [[start,end]...] — решетка
     var bkHasSchedule = false; // график инструктора непуст (скрытие пустого календаря)
 
-    onMounted(function(){
-      // Wiring Спринта 1 (sdd §10.2–10.4): токен сессии — sessionStorage,
-      // ключ session_token (единый snake_case-паттерн с admin_token
-      // Спринта 0); модалка входа (задача 2.2) пишет его в тот же ключ.
-      var TOKEN_KEY = 'session_token';
-      var token = null;
-      try { token = sessionStorage.getItem(TOKEN_KEY); } catch (e) {}
+    function bkPad(n) { return (n < 10 ? '0' : '') + n; }
+    function bkIso(d) { return d.getFullYear() + '-' + bkPad(d.getMonth() + 1) + '-' + bkPad(d.getDate()); }
+    function bkAddDays(d, n) { var x = new Date(d); x.setDate(x.getDate() + n); return x; }
+    function bkMondayOf(d) { return bkAddDays(d, -((d.getDay() + 6) % 7)); }
+    function bkStartOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+    // бронирование ТОЛЬКО будущих (FR-96/NFR-31, граница MIN-1 единая с
+    // сервером): начало экземпляра (date + start_time) СТРОГО больше NOW (МСК)
+    function bkIsFuture(dateIso, startTime) {
+      var p = dateIso.split('-'), sp = startTime.split(':');
+      var t = new Date(+p[0], +p[1] - 1, +p[2], +sp[0], +sp[1] || 0, 0);
+      return t.getTime() > nowMoscow().getTime();
+    }
+    // подпись диапазона (D9): обе части месяца/года при пересечении
+    var BK_MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+                     'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+    function bkRangeLabel() {
+      var a = bkMonday, b = bkAddDays(bkMonday, 6);
+      if (a.getFullYear() !== b.getFullYear())
+        return a.getDate() + ' ' + BK_MONTHS[a.getMonth()] + ' ' + a.getFullYear() + ' — ' + b.getDate() + ' ' + BK_MONTHS[b.getMonth()] + ' ' + b.getFullYear();
+      if (a.getMonth() !== b.getMonth())
+        return a.getDate() + ' ' + BK_MONTHS[a.getMonth()] + ' — ' + b.getDate() + ' ' + BK_MONTHS[b.getMonth()] + ' ' + a.getFullYear();
+      return a.getDate() + ' – ' + b.getDate() + ' ' + BK_MONTHS[a.getMonth()] + ' ' + a.getFullYear();
+    }
+    function bkRenderNav() {
+      document.getElementById('bk-range').textContent = bkRangeLabel();
+      var diff = Math.round((bkMonday - bkMondayOf(nowMoscow())) / 864e5);
+      document.getElementById('bk-prev').disabled = diff <= -364; // горизонт ±12 месяцев
+      document.getElementById('bk-next').disabled = diff >= 364;
+    }
+    function bkNavWeek(n) {
+      bkMonday = bkAddDays(bkMonday, n);
+      bkRenderNav();
+      bkInstances = [];
+      // решетка и подпись — локально мгновенно (NFR-32); экземпляры недели —
+      // GET slots?date= асинхронно, без перезагрузки страницы
+      bkRenderGrid();
+      bkLoadInstances();
+    }
+    // Спринт 7 (задачи 2.1/6.2, ОВ-2): авторизованная загрузка фото авто
+    // (обычный <img src> получит 401 — токен уходит заголовком, ответ -> blob)
+    function loadImgAuth(url, img) {
+      if (!url) return;
+      fetch(url, { headers: { 'X-Session-Token': token || '' } })
+        .then(function (r) { return r.ok ? r.blob() : null; })
+        .then(function (blob) {
+          if (!blob) return;
+          // NIT-1 (review-001): revoke прежнего blob-URL перед заменой —
+          // перерисовки раздела не копят объектные URL
+          if (img._blobUrl) URL.revokeObjectURL(img._blobUrl);
+          img._blobUrl = URL.createObjectURL(blob);
+          img.src = img._blobUrl;
+        })
+        .catch(function () { /* 404/сеть: остается плейсхолдер, не битая картинка */ });
+    }
+    // бейдж статуса авто (ОВ-2): validating — желтый «Не проверено»,
+    // validated — зеленый «Проверено» + галочка (:before в CSS);
+    // draft/удален/нет статуса — скрыт (бейдж не показывается).
+    // Плоский аналог carBadgeNode — setBadgeEl для бейджей пары/авто
+    // (реактивный эквивалент carBadgeNode — v-if/v-else-if в шаблоне
+    // карточек «Моих броней» с теми же классами/текстами).
+    function setBadgeEl(elm, status) {
+      var cls, text;
+      if (status === 'validating') { cls = 'car-badge val'; text = 'Не проверено'; }
+      else if (status === 'validated') { cls = 'car-badge ok'; text = 'Проверено'; }
+      else { cls = null; text = null; }
+      if (cls) {
+        elm.className = cls;
+        elm.textContent = text;
+        elm.style.display = '';
+      } else {
+        elm.style.display = 'none';
+        elm.textContent = '';
+      }
+    }
+    // карточка прикрепленного авто рядом со слотами (задача 6.2): фото +
+    // название + бейдж; данные — car из броней (photo_url приоритет front;
+    // draft -> у ученика без photo_url — плейсхолдер, ОВ-2)
+    function renderPairCarCard(bookings) {
+      var card = document.getElementById('bk-car-card');
+      var car = null;
+      bookings.forEach(function (b) { if (!car && b.car && b.car.id) car = b.car; });
+      if (!car && bkPair && bkPair.car && bkPair.car.id) car = bkPair.car;
+      if (!car) { card.style.display = 'none'; setBadgeEl(document.getElementById('bk-pair-badge'), null); return; }
+      card.style.display = 'flex';
+      var photo = document.getElementById('bk-car-photo');
+      photo.innerHTML = '';
+      if (car.photo_url) {
+        var img = document.createElement('img');
+        img.alt = 'Фото автомобиля инструктора';
+        photo.appendChild(img);
+        loadImgAuth(car.photo_url, img);
+      } else {
+        var ph = document.createElement('span'); ph.className = 'ph'; ph.textContent = '🚗';
+        photo.appendChild(ph);
+      }
+      document.getElementById('bk-car-name').textContent = bkCarText(car);
+      setBadgeEl(document.getElementById('bk-car-badge'), car.car_status);
+      // бейдж статуса авто у пары (задача 2.1/6.2, ОВ-2)
+      setBadgeEl(document.getElementById('bk-pair-badge'), car.car_status);
+    }
+    function loadBookingsSection() {
+      localApi('/api/student/requests', {}, function (res) {
+        if (handleAuthFail(res)) return;
+        if (!res.data || !res.data.ok) { toast((res.data && res.data.error) || 'Не удалось загрузить заявку пары'); return; }
+        bkPair = null;
+        (res.data.requests || []).forEach(function (r) {
+          if (r.status === 'accepted') bkPair = r;
+        });
+        var pairBox = document.getElementById('bk-pair');
+        var nopair = document.getElementById('bk-nopair');
+        var cal = document.getElementById('bk-cal');
+        if (!bkPair) {
+          pairBox.style.display = 'none';
+          nopair.style.display = 'block';
+          cal.style.display = 'none';
+          renderMyBookings([]);
+          return;
+        }
+        nopair.style.display = 'none';
+        pairBox.style.display = 'flex';
+        var fio = bkPair.instructor_full_name || 'Инструктор';
+        document.getElementById('bk-pair-sic').textContent =
+          fio.split(' ').slice(0, 2).map(function (w) { return (w[0] || '').toUpperCase(); }).join('');
+        document.getElementById('bk-pair-name').textContent = fio;
+        document.getElementById('bk-pair-sub').textContent =
+          'ваш инструктор' + (bkPair.decided_at ? ' с ' + fmtDate(bkPair.decided_at) : '');
+        document.getElementById('bk-pair-car').textContent = bkCarText(bkPair.car);
+        // при открытии — неделя текущей даты (МСК); колонки и подпись
+        // отрисовываются локально, экземпляры — асинхронно (FR-94/NFR-32)
+        bkMonday = bkMondayOf(nowMoscow());
+        bkRenderNav();
+        loadSlotsAndBookings();
+      });
+    }
+    function loadSlotsAndBookings() {
+      // экземпляры недели — GET slots?date= (D7: разворот серий на сервере);
+      // свои брони/список «Мои брони» — независимо от недели
+      bkLoadInstances();
+      localApi('/api/student/bookings', {}, function (res2) {
+        if (handleAuthFail(res2)) return;
+        var bks = res2 && res2.data && res2.data.ok ? (res2.data.bookings || []) : [];
+        renderPairCarCard(bks);
+        renderMyBookings(bks);
+      });
+    }
+    function bkLoadInstances() {
+      localApi('/api/student/instructors/' + bkPair.instructor_id + '/slots?date=' + bkIso(bkMonday), {}, function (res) {
+        if (handleAuthFail(res)) return;
+        if (!res.data || !res.data.ok) {
+          toast((res.data && res.data.error) || 'Не удалось загрузить график');
+          return;
+        }
+        bkInstances = res.data.instances || [];
+        if (bkInstances.length) bkHasSchedule = true;
+        bkCollectRows();
+        var cal = document.getElementById('bk-cal');
+        if (!bkInstances.length && !bkHasSchedule) {
+          // график пуст (первая загрузка без слотов) — прежнее поведение
+          cal.style.display = 'none';
+          return;
+        }
+        cal.style.display = 'block';
+        bkRenderGrid();
+      });
+    }
+    function bkCollectRows() {
+      var seen = {};
+      bkRows = [];
+      bkInstances.forEach(function (s) {
+        var k = s.start_time + '|' + s.end_time;
+        if (seen[k]) return;
+        seen[k] = 1;
+        bkRows.push([s.start_time, s.end_time]);
+      });
+      bkRows.sort(function (a, b) { return a[0] < b[0] ? -1 : 1; });
+    }
+    // решетка: колонки — 7 РЕАЛЬНЫХ дат от понедельника отображаемой недели
+    // (подпись атомарна с колонками); экземпляры — ровно на своих датах.
+    // Реактивный эквивалент legacy-отрисовки через el(): строим структуру
+    // {gridHead, gridRows} — шаблон рендерит те же классы/тексты/титулы.
+    function bkRenderGrid() {
+      var now = nowMoscow();
+      var todayIso = bkIso(bkStartOfDay(now));
+      var head = [];
+      for (var d = 0; d < 7; d++) {
+        var dt = bkAddDays(bkMonday, d);
+        head.push({ iso: bkIso(dt), day: BK_DAYS[d], date: String(dt.getDate()), today: bkIso(dt) === todayIso });
+      }
+      var rowsOut = [];
+      if (bkRows.length) {
+        bkRows.forEach(function (row) {
+          var label = row[0].slice(0, 5) + '–' + row[1].slice(0, 5);
+          var cells = [];
+          for (var d2 = 0; d2 < 7; d2++) {
+            var iso = bkIso(bkAddDays(bkMonday, d2));
+            // каждый экземпляр ячейки — свой объект (клик по ячейке видит
+            // СВОЙ экземпляр — эквивалент legacy let-цикла)
+            var inst = null;
+            bkInstances.forEach(function (s) {
+              if (s.date === iso && s.start_time === row[0] && s.end_time === row[1]) inst = s;
+            });
+            var cell = { cls: 'bk-slot off', title: '', disabled: true, inst: null };
+            if (inst) {
+              // состояния бэкенда free/busy/pending → классы мокапа free/taken/mine;
+              // прошедший/начавшийся экземпляр (начало ≤ NOW, МСК) — просмотр
+              // без брони (FR-96), прошлые недели — вся сетка просмотр
+              var past = !bkIsFuture(inst.date, inst.start_time);
+              var cls = inst.state === 'pending' ? 'mine'
+                        : inst.state === 'busy' ? 'taken' : 'free';
+              var title = BK_DAYS[inst.weekday] + ', ' + inst.date.split('-').reverse().join('.') + ', ' +
+                inst.start_time.slice(0, 5) + '–' + inst.end_time.slice(0, 5) + ' — ' +
+                (past ? 'прошедшее — только просмотр'
+                      : inst.state === 'free' ? 'свободно, нажмите для брони'
+                      : inst.state === 'pending' ? 'ваш запрос на рассмотрении' : 'занято');
+              var clickable = (inst.state === 'free' && !past);
+              cell = { cls: 'bk-slot ' + cls + (past ? ' past' : ''), title: title, disabled: !clickable, inst: clickable ? inst : null };
+            }
+            cells.push(cell);
+          }
+          rowsOut.push({ key: row[0], label: label, cells: cells });
+        });
+      }
+      gridHead.value = head;
+      gridRows.value = rowsOut;
+    }
+    function openBookModal(inst) {
+      bkPicked = inst;
+      document.getElementById('bk-instr').textContent = bkPair.instructor_full_name || '—';
+      // бронь фиксируется на КОНКРЕТНОЙ дате экземпляра (FR-96)
+      document.getElementById('bk-day').textContent =
+        (BK_DAYS[inst.weekday] ? BK_DAYS[inst.weekday] + ', ' : '') +
+        inst.date.split('-').reverse().join('.');
+      document.getElementById('bk-time').textContent = inst.start_time.slice(0, 5) + '–' + inst.end_time.slice(0, 5);
+      document.getElementById('bk-car').textContent = bkCarText(bkPair.car);
+      document.getElementById('m-book').classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+    function closeBookModal() {
+      document.getElementById('m-book').classList.remove('open');
+      document.body.style.overflow = '';
+    }
+    function renderMyBookings(bookings) {
+      document.getElementById('bk-count').textContent = bookings.length;
+      bookingsList.value = bookings;
+    }
+    function retryBooking(b, btn) {
+      if (!bkPair) { toast('Нет принятой пары с инструктором'); return; }
+      // экземпляр графика по (weekday, время) отклоненной брони; при наличии
+      // lesson_date — ровно её неделя среди загруженных экземпляров
+      var inst = null, fallback = null;
+      bkInstances.forEach(function (s) {
+        if (s.weekday !== b.weekday || s.start_time !== b.start_time || s.end_time !== b.end_time) return;
+        if (b.lesson_date && s.date === b.lesson_date) inst = s;
+        if (!fallback) fallback = s;
+      });
+      if (!inst) inst = b.lesson_date ? null : fallback;
+      if (!inst) {
+        toast('Этого слота больше нет в графике инструктора — выберите другой');
+        return;
+      }
+      if (!bkIsFuture(inst.date, inst.start_time)) {
+        // бронирование только будущих (FR-96): прошедший/начавшийся — просмотр
+        toast('Слот уже начался или прошел — бронирование недоступно');
+        return;
+      }
+      btn.disabled = true;
+      localApi('/api/student/bookings', {method: 'POST', body: JSON.stringify({availability_id: inst.availability_id, date: inst.date})}, function (res) {
+        btn.disabled = false;
+        if (handleAuthFail(res)) return;
+        if (res.status === 200 && res.data && res.data.ok) {
+          toast('Запрос отправлен повторно (статус «на рассмотрении»).');
+        } else if (res.status === 409) {
+          toast((res.data && res.data.error) || 'Слот уже занят — выберите другой');
+        } else {
+          toast((res.data && res.data.error) || 'Не удалось отправить запрос');
+        }
+        loadSlotsAndBookings();
+      });
+    }
 
-      function clearSession() {
-        try { sessionStorage.removeItem(TOKEN_KEY); } catch (e) {}
-      }
-      // 401 (нет токена / невалидный / истек / аннулирован) -> редирект на
-      // главную, к модалке входа (FR-7)
-      function toLogin() {
-        clearSession();
-        location.href = '/';
-      }
+    onMounted(function(){
+      // Bootstrap-привязки к СУЩЕСТВУЮЩИМ элементам (после монтирования):
+      // токен, ФИО, слушатели, стартовые загрузки. Все функции объявлены в
+      // setup-области выше — шаблон вызывает их напрямую (реактивный порт).
 
       // GET /api/auth/me (X-Session-Token): 200 -> подстановка ФИО (FR-5)
+      try { token = sessionStorage.getItem(TOKEN_KEY); } catch (e) { token = null; }
       if (!token) {
         toLogin();
       } else {
@@ -413,35 +731,8 @@ export default {
       if (location.hash === '#/my-requests') navTo('Мои заявки');
       if (location.hash === '#/my-bookings') navTo('Мои брони');
 
-      // --- Раздел «Мои заявки» (перенесен из my-requests.html) --------------
-      // сессия ученика — токен/clearSession/toLogin выше (единый паттерн)
-      function localApi(path,opts,cb){
-        opts=opts||{};
-        opts.headers=Object.assign({'X-Session-Token':token||''},opts.headers||{});
-        if(opts.body)opts.headers['Content-Type']='application/json';
-        fetch(path,opts).then(function(r){
-          return r.json().then(function(d){cb({status:r.status,data:d})},function(){cb({status:r.status,data:null})});
-        },function(){cb({status:0,data:null})});
-      }
-      function handleAuthFail(res){
-        if(res.status===401||res.status===403){toLogin();return true}
-        return false;
-      }
-
-      // данные: GET /api/student/requests (реальный шейп backend/student_requests.py)
-      function loadRequests(){
-        localApi('/api/student/requests',{},function(res){
-          if(handleAuthFail(res))return;
-          if(!res.data||!res.data.ok){toast((res.data&&res.data.error)||'Не удалось загрузить заявки');return}
-          reqs.value=res.data.requests||[];
-          renderFilters();
-        });
-      }
-      function renderFilters(){
-        document.getElementById('n-new').textContent=reqs.value.filter(function(r){return r.status==='new'}).length?'·'+reqs.value.filter(function(r){return r.status==='new'}).length:'';
-        document.getElementById('n-accepted').textContent=reqs.value.filter(function(r){return r.status==='accepted'}).length?'·'+reqs.value.filter(function(r){return r.status==='accepted'}).length:'';
-        document.getElementById('n-denied').textContent=reqs.value.filter(function(r){return r.status==='denied'}).length?'·'+reqs.value.filter(function(r){return r.status==='denied'}).length:'';
-      }
+      // --- Раздел «Мои заявки»: bootstrap-привязки (данные/функции —
+      //     setup-область выше: loadRequests/renderFilters/retry) ---
       document.getElementById('go-catalog').onclick=function(){location.href='/instructor-choice'};
       document.querySelectorAll('.filters button').forEach(function(b){b.addEventListener('click',function(){
         document.querySelectorAll('.filters button').forEach(function(x){x.classList.remove('on')});
@@ -463,48 +754,8 @@ export default {
       // (СЕРВЕРНАЯ проверка пары, иначе 403); бронь — POST /api/student/bookings
       // {availability_id} (гонки: занято → 409); календарь — GET
       // /api/student/bookings; «Повторить» после отклонения (ОВ-5) — повторный
-      // POST по слоту, найденному в текущем графике.
-      // Спринт 10 (задача 6.1, FR-87/FR-94): реальный календарь ученика —
-      // та же арифметика дат, что у инструктора; «сейчас» — МСК (UTC+3,
-      // nowMoscow), локальная таймзона браузера не используется
-      function bkPad(n) { return (n < 10 ? '0' : '') + n; }
-      function bkIso(d) { return d.getFullYear() + '-' + bkPad(d.getMonth() + 1) + '-' + bkPad(d.getDate()); }
-      function bkAddDays(d, n) { var x = new Date(d); x.setDate(x.getDate() + n); return x; }
-      function bkMondayOf(d) { return bkAddDays(d, -((d.getDay() + 6) % 7)); }
-      function bkStartOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
-      // бронирование ТОЛЬКО будущих (FR-96/NFR-31, граница MIN-1 единая с
-      // сервером): начало экземпляра (date + start_time) СТРОГО больше NOW (МСК)
-      function bkIsFuture(dateIso, startTime) {
-        var p = dateIso.split('-'), sp = startTime.split(':');
-        var t = new Date(+p[0], +p[1] - 1, +p[2], +sp[0], +sp[1] || 0, 0);
-        return t.getTime() > nowMoscow().getTime();
-      }
-      // подпись диапазона (D9): обе части месяца/года при пересечении
-      var BK_MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
-                       'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
-      function bkRangeLabel() {
-        var a = bkMonday, b = bkAddDays(bkMonday, 6);
-        if (a.getFullYear() !== b.getFullYear())
-          return a.getDate() + ' ' + BK_MONTHS[a.getMonth()] + ' ' + a.getFullYear() + ' — ' + b.getDate() + ' ' + BK_MONTHS[b.getMonth()] + ' ' + b.getFullYear();
-        if (a.getMonth() !== b.getMonth())
-          return a.getDate() + ' ' + BK_MONTHS[a.getMonth()] + ' — ' + b.getDate() + ' ' + BK_MONTHS[b.getMonth()] + ' ' + a.getFullYear();
-        return a.getDate() + ' – ' + b.getDate() + ' ' + BK_MONTHS[a.getMonth()] + ' ' + a.getFullYear();
-      }
-      function bkRenderNav() {
-        document.getElementById('bk-range').textContent = bkRangeLabel();
-        var diff = Math.round((bkMonday - bkMondayOf(nowMoscow())) / 864e5);
-        document.getElementById('bk-prev').disabled = diff <= -364; // горизонт ±12 месяцев
-        document.getElementById('bk-next').disabled = diff >= 364;
-      }
-      function bkNavWeek(n) {
-        bkMonday = bkAddDays(bkMonday, n);
-        bkRenderNav();
-        bkInstances = [];
-        // решетка и подпись — локально мгновенно (NFR-32); экземпляры недели —
-        // GET slots?date= асинхронно, без перезагрузки страницы
-        bkRenderGrid();
-        bkLoadInstances();
-      }
+      // POST по слоту, найденному в текущем графике. Bootstrap-привязки ниже;
+      // данные/отрисовка — функции setup-области (выше).
       document.getElementById('bk-prev').addEventListener('click', function () { bkNavWeek(-7); });
       document.getElementById('bk-next').addEventListener('click', function () { bkNavWeek(7); });
       document.getElementById('bk-this').addEventListener('click', function () {
@@ -514,209 +765,6 @@ export default {
         bkRenderGrid();
         bkLoadInstances();
       });
-      // Спринт 7 (задачи 2.1/6.2, ОВ-2): авторизованная загрузка фото авто
-      // (обычный <img src> получит 401 — токен уходит заголовком, ответ -> blob)
-      function loadImgAuth(url, img) {
-        if (!url) return;
-        fetch(url, { headers: { 'X-Session-Token': token || '' } })
-          .then(function (r) { return r.ok ? r.blob() : null; })
-          .then(function (blob) {
-            if (!blob) return;
-            // NIT-1 (review-001): revoke прежнего blob-URL перед заменой —
-            // перерисовки раздела не копят объектные URL
-            if (img._blobUrl) URL.revokeObjectURL(img._blobUrl);
-            img._blobUrl = URL.createObjectURL(blob);
-            img.src = img._blobUrl;
-          })
-          .catch(function () { /* 404/сеть: остается плейсхолдер, не битая картинка */ });
-      }
-      // бейдж статуса авто (ОВ-2): validating — желтый «Не проверено»,
-      // validated — зеленый «Проверено» + галочка (:before в CSS);
-      // draft/удален/нет статуса — скрыт (бейдж не показывается).
-      // Плоский аналог carBadgeNode — setBadgeEl для бейджей пары/авто
-      // (реактивный эквивалент carBadgeNode — v-if/v-else-if в шаблоне
-      // карточек «Моих броней» с теми же классами/текстами).
-      function setBadgeEl(elm, status) {
-        var cls, text;
-        if (status === 'validating') { cls = 'car-badge val'; text = 'Не проверено'; }
-        else if (status === 'validated') { cls = 'car-badge ok'; text = 'Проверено'; }
-        else { cls = null; text = null; }
-        if (cls) {
-          elm.className = cls;
-          elm.textContent = text;
-          elm.style.display = '';
-        } else {
-          elm.style.display = 'none';
-          elm.textContent = '';
-        }
-      }
-      // карточка прикрепленного авто рядом со слотами (задача 6.2): фото +
-      // название + бейдж; данные — car из броней (photo_url приоритет front;
-      // draft -> у ученика без photo_url — плейсхолдер, ОВ-2)
-      function renderPairCarCard(bookings) {
-        var card = document.getElementById('bk-car-card');
-        var car = null;
-        bookings.forEach(function (b) { if (!car && b.car && b.car.id) car = b.car; });
-        if (!car && bkPair && bkPair.car && bkPair.car.id) car = bkPair.car;
-        if (!car) { card.style.display = 'none'; setBadgeEl(document.getElementById('bk-pair-badge'), null); return; }
-        card.style.display = 'flex';
-        var photo = document.getElementById('bk-car-photo');
-        photo.innerHTML = '';
-        if (car.photo_url) {
-          var img = document.createElement('img');
-          img.alt = 'Фото автомобиля инструктора';
-          photo.appendChild(img);
-          loadImgAuth(car.photo_url, img);
-        } else {
-          var ph = document.createElement('span'); ph.className = 'ph'; ph.textContent = '🚗';
-          photo.appendChild(ph);
-        }
-        document.getElementById('bk-car-name').textContent = bkCarText(car);
-        setBadgeEl(document.getElementById('bk-car-badge'), car.car_status);
-        // бейдж статуса авто у пары (задача 2.1/6.2, ОВ-2)
-        setBadgeEl(document.getElementById('bk-pair-badge'), car.car_status);
-      }
-      function loadBookingsSection() {
-        localApi('/api/student/requests', {}, function (res) {
-          if (handleAuthFail(res)) return;
-          if (!res.data || !res.data.ok) { toast((res.data && res.data.error) || 'Не удалось загрузить заявку пары'); return; }
-          bkPair = null;
-          (res.data.requests || []).forEach(function (r) {
-            if (r.status === 'accepted') bkPair = r;
-          });
-          var pairBox = document.getElementById('bk-pair');
-          var nopair = document.getElementById('bk-nopair');
-          var cal = document.getElementById('bk-cal');
-          if (!bkPair) {
-            pairBox.style.display = 'none';
-            nopair.style.display = 'block';
-            cal.style.display = 'none';
-            renderMyBookings([]);
-            return;
-          }
-          nopair.style.display = 'none';
-          pairBox.style.display = 'flex';
-          var fio = bkPair.instructor_full_name || 'Инструктор';
-          document.getElementById('bk-pair-sic').textContent =
-            fio.split(' ').slice(0, 2).map(function (w) { return (w[0] || '').toUpperCase(); }).join('');
-          document.getElementById('bk-pair-name').textContent = fio;
-          document.getElementById('bk-pair-sub').textContent =
-            'ваш инструктор' + (bkPair.decided_at ? ' с ' + fmtDate(bkPair.decided_at) : '');
-          document.getElementById('bk-pair-car').textContent = bkCarText(bkPair.car);
-          // при открытии — неделя текущей даты (МСК); колонки и подпись
-          // отрисовываются локально, экземпляры — асинхронно (FR-94/NFR-32)
-          bkMonday = bkMondayOf(nowMoscow());
-          bkRenderNav();
-          loadSlotsAndBookings();
-        });
-      }
-      function loadSlotsAndBookings() {
-        // экземпляры недели — GET slots?date= (D7: разворот серий на сервере);
-        // свои брони/список «Мои брони» — независимо от недели
-        bkLoadInstances();
-        localApi('/api/student/bookings', {}, function (res2) {
-          if (handleAuthFail(res2)) return;
-          var bks = res2 && res2.data && res2.data.ok ? (res2.data.bookings || []) : [];
-          renderPairCarCard(bks);
-          renderMyBookings(bks);
-        });
-      }
-      function bkLoadInstances() {
-        localApi('/api/student/instructors/' + bkPair.instructor_id + '/slots?date=' + bkIso(bkMonday), {}, function (res) {
-          if (handleAuthFail(res)) return;
-          if (!res.data || !res.data.ok) {
-            toast((res.data && res.data.error) || 'Не удалось загрузить график');
-            return;
-          }
-          bkInstances = res.data.instances || [];
-          if (bkInstances.length) bkHasSchedule = true;
-          bkCollectRows();
-          var cal = document.getElementById('bk-cal');
-          if (!bkInstances.length && !bkHasSchedule) {
-            // график пуст (первая загрузка без слотов) — прежнее поведение
-            cal.style.display = 'none';
-            return;
-          }
-          cal.style.display = 'block';
-          bkRenderGrid();
-        });
-      }
-      function bkCollectRows() {
-        var seen = {};
-        bkRows = [];
-        bkInstances.forEach(function (s) {
-          var k = s.start_time + '|' + s.end_time;
-          if (seen[k]) return;
-          seen[k] = 1;
-          bkRows.push([s.start_time, s.end_time]);
-        });
-        bkRows.sort(function (a, b) { return a[0] < b[0] ? -1 : 1; });
-      }
-      // решетка: колонки — 7 РЕАЛЬНЫХ дат от понедельника отображаемой недели
-      // (подпись атомарна с колонками); экземпляры — ровно на своих датах.
-      // Реактивный эквивалент legacy-отрисовки через el(): строим структуру
-      // {gridHead, gridRows} — шаблон рендерит те же классы/тексты/титулы.
-      function bkRenderGrid() {
-        var now = nowMoscow();
-        var todayIso = bkIso(bkStartOfDay(now));
-        var head = [];
-        for (var d = 0; d < 7; d++) {
-          var dt = bkAddDays(bkMonday, d);
-          head.push({ iso: bkIso(dt), day: BK_DAYS[d], date: String(dt.getDate()), today: bkIso(dt) === todayIso });
-        }
-        var rowsOut = [];
-        if (bkRows.length) {
-          bkRows.forEach(function (row) {
-            var label = row[0].slice(0, 5) + '–' + row[1].slice(0, 5);
-            var cells = [];
-            for (var d2 = 0; d2 < 7; d2++) {
-              var iso = bkIso(bkAddDays(bkMonday, d2));
-              // каждый экземпляр ячейки — свой объект (клик по ячейке видит
-              // СВОЙ экземпляр — эквивалент legacy let-цикла)
-              var inst = null;
-              bkInstances.forEach(function (s) {
-                if (s.date === iso && s.start_time === row[0] && s.end_time === row[1]) inst = s;
-              });
-              var cell = { cls: 'bk-slot off', title: '', disabled: true, inst: null };
-              if (inst) {
-                // состояния бэкенда free/busy/pending → классы мокапа free/taken/mine;
-                // прошедший/начавшийся экземпляр (начало ≤ NOW, МСК) — просмотр
-                // без брони (FR-96), прошлые недели — вся сетка просмотр
-                var past = !bkIsFuture(inst.date, inst.start_time);
-                var cls = inst.state === 'pending' ? 'mine'
-                          : inst.state === 'busy' ? 'taken' : 'free';
-                var title = BK_DAYS[inst.weekday] + ', ' + inst.date.split('-').reverse().join('.') + ', ' +
-                  inst.start_time.slice(0, 5) + '–' + inst.end_time.slice(0, 5) + ' — ' +
-                  (past ? 'прошедшее — только просмотр'
-                        : inst.state === 'free' ? 'свободно, нажмите для брони'
-                        : inst.state === 'pending' ? 'ваш запрос на рассмотрении' : 'занято');
-                var clickable = (inst.state === 'free' && !past);
-                cell = { cls: 'bk-slot ' + cls + (past ? ' past' : ''), title: title, disabled: !clickable, inst: clickable ? inst : null };
-              }
-              cells.push(cell);
-            }
-            rowsOut.push({ key: row[0], label: label, cells: cells });
-          });
-        }
-        gridHead.value = head;
-        gridRows.value = rowsOut;
-      }
-      function openBookModal(inst) {
-        bkPicked = inst;
-        document.getElementById('bk-instr').textContent = bkPair.instructor_full_name || '—';
-        // бронь фиксируется на КОНКРЕТНОЙ дате экземпляра (FR-96)
-        document.getElementById('bk-day').textContent =
-          (BK_DAYS[inst.weekday] ? BK_DAYS[inst.weekday] + ', ' : '') +
-          inst.date.split('-').reverse().join('.');
-        document.getElementById('bk-time').textContent = inst.start_time.slice(0, 5) + '–' + inst.end_time.slice(0, 5);
-        document.getElementById('bk-car').textContent = bkCarText(bkPair.car);
-        document.getElementById('m-book').classList.add('open');
-        document.body.style.overflow = 'hidden';
-      }
-      function closeBookModal() {
-        document.getElementById('m-book').classList.remove('open');
-        document.body.style.overflow = '';
-      }
       document.querySelectorAll('[data-close-book]').forEach(function (b) {
         b.addEventListener('click', closeBookModal);
       });
@@ -745,44 +793,6 @@ export default {
           loadSlotsAndBookings();
         });
       });
-      function renderMyBookings(bookings) {
-        document.getElementById('bk-count').textContent = bookings.length;
-        bookingsList.value = bookings;
-      }
-      function retryBooking(b, btn) {
-        if (!bkPair) { toast('Нет принятой пары с инструктором'); return; }
-        // экземпляр графика по (weekday, время) отклоненной брони; при наличии
-        // lesson_date — ровно её неделя среди загруженных экземпляров
-        var inst = null, fallback = null;
-        bkInstances.forEach(function (s) {
-          if (s.weekday !== b.weekday || s.start_time !== b.start_time || s.end_time !== b.end_time) return;
-          if (b.lesson_date && s.date === b.lesson_date) inst = s;
-          if (!fallback) fallback = s;
-        });
-        if (!inst) inst = b.lesson_date ? null : fallback;
-        if (!inst) {
-          toast('Этого слота больше нет в графике инструктора — выберите другой');
-          return;
-        }
-        if (!bkIsFuture(inst.date, inst.start_time)) {
-          // бронирование только будущих (FR-96): прошедший/начавшийся — просмотр
-          toast('Слот уже начался или прошел — бронирование недоступно');
-          return;
-        }
-        btn.disabled = true;
-        localApi('/api/student/bookings', {method: 'POST', body: JSON.stringify({availability_id: inst.availability_id, date: inst.date})}, function (res) {
-          btn.disabled = false;
-          if (handleAuthFail(res)) return;
-          if (res.status === 200 && res.data && res.data.ok) {
-            toast('Запрос отправлен повторно (статус «на рассмотрении»).');
-          } else if (res.status === 409) {
-            toast((res.data && res.data.error) || 'Слот уже занят — выберите другой');
-          } else {
-            toast((res.data && res.data.error) || 'Не удалось отправить запрос');
-          }
-          loadSlotsAndBookings();
-        });
-      }
       document.getElementById('bk-go-choice').addEventListener('click', function () {
         location.href = '/instructor-choice';
       });

@@ -574,11 +574,20 @@ def test_admin_deny_modal_locked_until_comment_and_waiting_badge_yellow(
 
 def test_admin_dashboard_bug046_mock_sync_fragments():
     """TC-UI-014 (change add-instructor-student-loop, BUG-046): design-guard —
-    фрагменты verbatim frontend/admin-dashboard.html ↔ design/mocks/
+    фрагменты verbatim admin-dashboard ↔ design/mocks/
     admin-dashboard.html: таблица заявок без колонки «Действия», желтый
-    wait-бейдж, клик-подсказка, панель отказа в модалке."""
-    page_html = (ROOT / "frontend" / "admin-dashboard.html").read_text(
-        encoding="utf-8")
+    wait-бейдж, клик-подсказка, панель отказа в модалке.
+    Спринт 15 (change add-vue-s15-final-migration, задача 5.1): перенос
+    носителя — легаси frontend/admin-dashboard.html удален (замена
+    монолита целиком); page_html = вход каркаса Vue + App.vue (разметка
+    дословна в обоих; MOCKUP — БЕЗ ПРАВОК; негативный инвариант
+    «<th>Действия</th>» сохранен)."""
+    page_html = "\n".join([
+        (ROOT / "frontend" / "vue" / "admin-dashboard.html").read_text(
+            encoding="utf-8"),
+        (ROOT / "frontend" / "vue" / "src" / "pages" / "admin-dashboard"
+         / "App.vue").read_text(encoding="utf-8"),
+    ])
     mock_html = (ROOT / "design" / "mocks" / "admin-dashboard.html").read_text(
         encoding="utf-8")
     fragments = [
@@ -602,9 +611,9 @@ def test_admin_dashboard_bug046_mock_sync_fragments():
 
 # =========================================================================
 # Спринт 3, Партия A (change add-instructor-student-loop): FRONTEND e2e.
-# Бэкенд-задачи параллельны — все новые API мокаются через page.route:
-# тесты не зависят от backend/ и от маршрутов статики для новых страниц
-# (страница отдается route.fulfill из frontend/).
+# Бэкенд-задачи параллельны — все новые API мокаются через page.route.
+# Спринт 15 (задача 5.1): страницы читаются живыми маршрутами (легаси-
+# перехват route.fulfill снят с последним потребителем — TC-UI-007).
 # =========================================================================
 
 PNG_1PX = base64.b64decode(
@@ -614,14 +623,6 @@ PNG_1PX = base64.b64decode(
 SESSION_TOKEN = "ui-s3-student-token"
 INSTRUCTOR_TOKEN = "ui-s3-instructor-token"
 ADMIN_TOKEN = "ui-s3-admin-token"
-
-
-def _serve_frontend(page, server, path: str, filename: str) -> None:
-    """Отдать frontend/<filename> по <server><path>: новая страница не зависит
-    от бэкенда (маршрут статики /instructor-choice добавит задача 7.1)."""
-    body = (ROOT / "frontend" / filename).read_text(encoding="utf-8")
-    page.route(f"{server}{path}", lambda route: route.fulfill(
-        status=200, content_type="text/html; charset=utf-8", body=body))
 
 
 def _route_json(page, server, path: str, respond, *,
@@ -710,8 +711,15 @@ def test_student_choice_filters_narrow_and_apply_request(page, server):
     """TC-UI-007 (change add-instructor-student-loop): «Выбор инструктора» —
     фильтры сужают список (запрос с query-параметрами, серверная фильтрация),
     «Подать заявку» шлёт POST /api/student/requests {instructor_id}.
-    Моки — с шейпами РЕАЛЬНОГО бэкенда (review-001 #5)."""
-    _serve_frontend(page, server, "/instructor-choice", "instructor-choice.html")
+    Моки — с шейпами РЕАЛЬНОГО бэкенда (review-001 #5).
+    Спринт 15 (change add-vue-s15-final-migration, задача 5.1): перехват
+    route.fulfill легаси-файла СНЯТ (_serve_frontend удален — последний
+    потребитель) — страница читается ЖИВЫМ маршрутом /instructor-choice
+    (существует с С3-7.1; вход из dist, ассеты /vue/assets — тем же
+    сервером; живая цепочка «страница+ассеты» проверяется end-to-end).
+    Альтернатива «fulfill собранного dist-html» отклонена (arch-review-001
+    Obs-1: рассинхрон html-артефакта с хэш-ассетами). Селекторы/ожидания
+    и API-моки _route_json/_seed_session — БЕЗ ПРАВОК."""
     _seed_session(page, "session_token", SESSION_TOKEN)
 
     list_queries: list[dict] = []
@@ -1200,7 +1208,14 @@ def test_back_links_lead_to_role_home(page, server):
         (base / "vue" / "instructor-dashboard.html").read_text(encoding="utf-8"),
         (base / "vue" / "src" / "pages" / "instructor-dashboard" / "App.vue").read_text(encoding="utf-8"),
     ])
-    cab = (base / "cabinet.html").read_text(encoding="utf-8")
+    # Спринт 15 (change add-vue-s15-final-migration, задача 5.1): носители
+    # cab/choice — входы каркаса Vue + App.vue (легаси cabinet.html и
+    # instructor-choice.html удалены — замена монолита целиком; фрагменты
+    # data-tab/sec-bookings/href — дословно в разметке обоих носителей)
+    cab = "\n".join([
+        (base / "vue" / "cabinet.html").read_text(encoding="utf-8"),
+        (base / "vue" / "src" / "pages" / "cabinet" / "App.vue").read_text(encoding="utf-8"),
+    ])
     assert 'data-tab="Мои автомобили"' in dash, "нет раздела «Мои автомобили» в дашборде"
     # BUG-051: «Мои документы» переименована в «Профиль и документы»
     assert 'data-tab="Профиль и документы"' in dash, \
@@ -1223,7 +1238,13 @@ def test_back_links_lead_to_role_home(page, server):
     assert 'data-tab="Мои заявки"' in cab, "нет раздела «Мои заявки» в кабинете"
     assert 'data-tab="Мои брони"' in cab, "нет раздела «Мои брони» в кабинете"
     assert 'id="sec-bookings"' in cab, "секция «Мои брони» должна быть внутри кабинета"
-    choice = (base / "instructor-choice.html").read_text(encoding="utf-8")
+    # Спринт 15 (change add-vue-s15-final-migration, задача 5.1): носитель
+    # choice — вход каркаса Vue + App.vue (легаси instructor-choice.html
+    # удален; href="/cabinet" в сайдбаре ученика — дословно, якорь TC-UI-019)
+    choice = "\n".join([
+        (base / "vue" / "instructor-choice.html").read_text(encoding="utf-8"),
+        (base / "vue" / "src" / "pages" / "instructor-choice" / "App.vue").read_text(encoding="utf-8"),
+    ])
     assert 'href="/cabinet"' in choice, "instructor-choice: нет возврата в /cabinet"
     review = (base / "vue" / "review-form.html").read_text(encoding="utf-8")
     assert 'href="/my-requests"' in review, \
@@ -4427,8 +4448,12 @@ def test_bug056_landing_login_modal_close_semantics(page, server):
 
 # ------------------------------------------------------------- design-guard
 @pytest.mark.parametrize("filename", [
-    "cabinet.html",
-    "vue/review-form.html", "instructor-choice.html",
+    # Спринт 15 (change add-vue-s15-final-migration, задача 5.1): входы
+    # партии — перенос носителя design-guard (прецедент С12/С14): легаси
+    # cabinet.html и instructor-choice.html удалены (замена монолита
+    # целиком) — их носители теперь входы каркаса
+    "vue/cabinet.html",
+    "vue/review-form.html", "vue/instructor-choice.html",
     # Спринт 12 (change add-vue-s12-landing-apply, задача 4.1): входы
     # лендинга «/» и анкеты — перенос носителя design-guard (прецедент
     # vue/review-form.html С11)
@@ -4438,7 +4463,10 @@ def test_bug056_landing_login_modal_close_semantics(page, server):
     # носителя design-guard (прецедент vue/index.html С12); легаси
     # instructor-dashboard.html удален (замена монолита целиком, ADR-008 п.4)
     "vue/instructor-dashboard.html", "vue/instructors.html",
-    "vue/documents.html"])
+    "vue/documents.html",
+    # Спринт 15 (задача 5.1): входы admin-контура и мелких страниц
+    "vue/admin-login.html", "vue/admin-dashboard.html",
+    "vue/registered.html", "vue/policy.html"])
 def test_s4_pages_tag_balance(filename):
     """NIT-4 review-001 (change add-s3-frontend-links); BUG-047: баланс тегов
     правленых страниц (my-cars.html/my-requests.html встроены в кабинеты и

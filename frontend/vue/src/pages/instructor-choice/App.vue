@@ -132,7 +132,6 @@
 <footer><span>СберАвтошкола · «Выбор инструктора», вариант A</span><span>Кабинет ученика</span></footer>
 </div>
 </div>
-<div class="toast" id="toast"></div>
 </template>
 
 <script>

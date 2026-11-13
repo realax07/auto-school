@@ -178,7 +178,11 @@ def test_s9_policy_api_and_page_guest(client):
     assert "text/html" in page.headers["content-type"]
     assert 'id="policy-meta"' in page.text
     assert 'id="policy-text"' in page.text
-    assert '/js/policy.js' in page.text
+    # Спринт 15 (change add-vue-s15-final-migration, задача 5.1): перенос
+    # носителя — легаси /js/policy.js удален с каталогом js/; страница —
+    # вход каркаса Vue, ее модуль приходит с /vue/assets/ (признак точен:
+    # «страница отдаёт свой скрипт» — сверка review-001-architecture п.4)
+    assert '/vue/assets/' in page.text
     # в исходнике страницы текста политики нет (он приходит из API)
     assert artifact["version"] not in page.text
     assert artifact["text"][:60] not in page.text

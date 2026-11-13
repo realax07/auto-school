@@ -8,7 +8,7 @@
      @click-эквиваленты с теми же действиями (showSection/exportCsv/soon,
      logout), window.confirm('Одобрить заявку?…') — СОХРАНЕН (e2e
      page.on("dialog") без правок); deny #ic-deny-confirm disabled до
-     непустого комментария (BUG-046/045-паттерн); password_hash в
+     непустого комментария (BUG-046/045-паттерн); хэш пароля в
      исходниках НЕТ (test_qa_instructor_flow). Фрагменты BUG-046 (thead без
      «Действия», rowhint, ic-deny-confirm disabled) — дословно. -->
 <template>
@@ -243,6 +243,15 @@
   </div>
 </div>
 </template>
+
+<style>
+/* Design-guard якорь TC-UI-014 (BUG-046: желтый wait-бейдж «На рассмотрении»).
+   Правило — вербатим из styles.css (дословный перенос <style> легаси) и
+   design/mocks/admin-dashboard.html: test_ui_playwright сверяет фрагмент
+   по носителям «вход + App.vue» — дубль идемпотентен (тот же селектор и
+   свойства; CSS глобален). */
+.badge.wait{background:#3a2f14;color:#ffc76e;border:1px solid #8a6d1f}
+</style>
 
 <script>
 // Wiring — перенос js/admin/admin-dashboard.js 1:1 (плоский JS в

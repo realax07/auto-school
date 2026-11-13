@@ -1,24 +1,53 @@
-"""TC-AUTH/CAB (Спринт 1, задача 2.1) — frontend/cabinet.html: статика и wiring
+"""TC-AUTH/CAB (Спринт 1, задача 2.1) — кабинет ученика /cabinet: статика и wiring
 # Change: add-auth-cabinet
 (задача 2.1, sdd.md §10.2–§10.4, §13; design.md, поток 2).
 
-Маршрут /cabinet появится в задаче 3.1 — здесь TestClient не участвует:
-файл frontend/cabinet.html читается напрямую и сверяется посимвольно с
-утвержденным мокапом design/mocks/cabinet-student.html (кроме wiring и
-подстановки ФИО — design.md «Тексты и стили — дословно из мокапа;
-отличия ТОЛЬКО: wiring»). Покрытие браузерных сценариев 401-редиректа,
-подстановки ФИО и logout-редиректа — контролями wiring-фрагментов
-(по паттерну test_static.py: тест TC-REG-018, шаг 3, контроль wiring).
+Спринт 15 (change add-vue-s15-final-migration, задача 5.1): перенос
+носителей — легаси frontend/cabinet.html удален (замена монолита целиком,
+ADR-008), кабинет обслуживается входом каркаса Vue. Носители — прецедент
+2.3 пилота / 3.1 С11 / 4.1 С12/С14 (право правки — перенос носителя, БЕЗ
+ослаблений: фрагменты/маркеры/CSS-строки дословно):
+- CABINET = frontend/vue/cabinet.html (вход каркаса; дословная разметка
+  легаси + вербатим-комментарий wiring);
+- APP = src/pages/cabinet/App.vue (wiring — плоский JS в onMounted,
+  реактивные списки — design.md «Границы правок тестов»);
+- UTILS = src/shared/utils.js (fioOf/fmtDate — дословный перенос
+  js/shared/utils.js, задача 4.2; аналогично frontend_source, который
+  следовал импортам легаси-модуля транзитивно: единица wiring включала
+  js/shared/utils.js);
+- CSS-сверка → src/pages/cabinet/styles.css (дословный перенос <style>
+  легаси, построчно — прецедент С14 test_instructor_dashboard);
+- MOCKUP = design/mocks/cabinet-student.html — БЕЗ ПРАВОК (мокапы не
+  синхронизируются: разметка страницы не меняется — design.md «Стратегия
+  вербатим-мокапов»).
+
+Покрытие браузерных сценариев 401-редиректа, подстановки ФИО и
+logout-редиректа — контролями wiring-фрагментов (по паттерну
+test_static.py: тест TC-REG-018, шаг 3, контроль wiring).
 """
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-CABINET = ROOT / "frontend" / "cabinet.html"
+CABINET = ROOT / "frontend" / "vue" / "cabinet.html"
+APP = ROOT / "frontend" / "vue" / "src" / "pages" / "cabinet" / "App.vue"
+UTILS = ROOT / "frontend" / "vue" / "src" / "shared" / "utils.js"
+STYLES = ROOT / "frontend" / "vue" / "src" / "pages" / "cabinet" / "styles.css"
 MOCKUP = ROOT / "design" / "mocks" / "cabinet-student.html"
 
 
 def cabinet_html() -> str:
     return CABINET.read_text(encoding="utf-8")
+
+
+def cabinet_source() -> str:
+    """Единица wiring страницы: вход + компонент + общие хелперы
+    (аналог frontend_source("cabinet.html"), который включал подключенные
+    ES-модули легаси транзитивно — js/shared/utils.js был в единице)."""
+    return "\n".join([
+        cabinet_html(),
+        APP.read_text(encoding="utf-8"),
+        UTILS.read_text(encoding="utf-8"),
+    ])
 
 
 # --- FR-9: перенос мокапа дословно -------------------------------------------
@@ -27,7 +56,7 @@ def cabinet_html() -> str:
 def test_cab_page_exists_and_marker_texts():
     """Готовность 2.1: файл существует; дословные тексты мокапа присутствуют
     (бренд, крошка, приветствие-пример, чат-бар, плитки, футер)."""
-    html = cabinet_html()
+    html = cabinet_source()
     for marker in (
         "СберАвтошкола",
         "<em>Сбер</em>Автошкола",
@@ -60,8 +89,10 @@ def test_cab_page_exists_and_marker_texts():
 
 def test_cab_page_structure_matches_mockup_verbatim():
     """FR-9: структурные фрагменты мокапа перенесены дословно — заголовок,
-    все строки стилей, разметка hero/frame, крошка, футер (посимвольно)."""
-    html = cabinet_html()
+    разметка hero/frame, крошка, футер (посимвольно); все строки стилей
+    мокапа — дословно (носитель — styles.css страницы каркаса, прецедент
+    С14 §TC-FR19D-007); плитки — дословно (три <button class="tile">)."""
+    html = cabinet_source()
     mockup = MOCKUP.read_text(encoding="utf-8")
     fragments = [
         "<!doctype html>",
@@ -80,9 +111,10 @@ def test_cab_page_structure_matches_mockup_verbatim():
         assert fragment in html, fragment
         assert fragment in mockup, f"фрагмент не из мокапа: {fragment}"
 
-    # все CSS-правила мокапа — дословно (блочные строки <style>)
+    # все CSS-правила мокапа — дословно (блочные строки <style>;
+    # носитель — styles.css страницы каркаса, перенос 1:1 из легаси)
     mockup_css = mockup.split("<style>", 1)[1].split("</style>", 1)[0]
-    page_css = html.split("<style>", 1)[1].split("</style>", 1)[0]
+    page_css = STYLES.read_text(encoding="utf-8")
     for line in mockup_css.splitlines():
         if not line.strip():
             continue
@@ -96,13 +128,10 @@ def test_cab_page_structure_matches_mockup_verbatim():
 def test_cab_page_keeps_mockup_stub_alert():
     """FR-6: плитки/чат — заглушки без сервисных действий; alert из мокапа
     сохранен (поведение клика — как в мокапе, design.md поток 2).
-    Спринт 6 Партия B: JS — в модуле js/cabinet.js (см. frontend_source)."""
-    from conftest import frontend_source
-
-    html = cabinet_html()
+    Спринт 15: JS — плоский wiring в App.vue (см. cabinet_source)."""
+    html = cabinet_source()
     assert ".tile" in html and ".quick button" in html and ".send" in html
-    assert "Заглушка: сервис появится в следующем спринте" in frontend_source(
-        "cabinet.html")
+    assert "Заглушка: сервис появится в следующем спринте" in cabinet_source()
 
 
 # --- Wiring (единственные отличия от мокапа) ---------------------------------
@@ -110,11 +139,9 @@ def test_cab_page_keeps_mockup_stub_alert():
 
 def test_cab_wiring_auth_me_with_session_token_header():
     """FR-5/FR-7: wiring /api/auth/me с заголовком X-Session-Token из
-    sessionStorage (sdd §10.3). Спринт 6 Партия B: wiring — в модуле
-    js/cabinet.js (проверяем HTML + модули, см. frontend_source)."""
-    from conftest import frontend_source
-
-    src = frontend_source("cabinet.html")
+    sessionStorage (sdd §10.3). Спринт 15: wiring — в App.vue (проверяем
+    вход + компонент + хелперы, см. cabinet_source)."""
+    src = cabinet_source()
     assert "/api/auth/me" in src
     assert "X-Session-Token" in src
     assert "sessionStorage" in src
@@ -123,21 +150,17 @@ def test_cab_wiring_auth_me_with_session_token_header():
 
 def test_cab_wiring_401_redirect_to_landing():
     """FR-7: 401 / нет токена → редирект на главную (к модалке входа m-login).
-    Спринт 6 Партия B: wiring — в модуле js/cabinet.js."""
-    from conftest import frontend_source
-
-    src = frontend_source("cabinet.html")
+    Спринт 15: wiring — в App.vue."""
+    src = cabinet_source()
     assert "toLogin" in src
     assert "location.href = '/'" in src
 
 
 def test_cab_wiring_fio_substitution():
     """FR-5: 200 → подстановка ФИО: uname = «{surname} {name} {patronymic}»,
-    greet = «Добро пожаловать, {name}!» (sdd §10.3). Спринт 6 Партия B:
-    wiring — в модуле js/cabinet.js (fioOf — из js/utils.js)."""
-    from conftest import frontend_source
-
-    src = frontend_source("cabinet.html")
+    greet = «Добро пожаловать, {name}!» (sdd §10.3). Спринт 15: wiring — в
+    App.vue (fioOf — из vue/src/shared/utils.js, дословный перенос)."""
+    src = cabinet_source()
     assert "surname" in src and "name" in src and "patronymic" in src
     assert "Добро пожаловать, " in src
     assert "querySelector('.uname')" in src
@@ -147,10 +170,8 @@ def test_cab_wiring_fio_substitution():
 def test_cab_wiring_logout_flow():
     """FR-8: «Выйти» → POST /api/auth/logout → очистка sessionStorage →
     редирект на главную (sdd §10.2, design поток 3: после любого ответа).
-    Спринт 6 Партия B: wiring — в модуле js/cabinet.js."""
-    from conftest import frontend_source
-
-    src = frontend_source("cabinet.html")
+    Спринт 15: wiring — в App.vue."""
+    src = cabinet_source()
     assert "/api/auth/logout" in src
     assert "method: 'POST'" in src
     assert "removeItem" in src
