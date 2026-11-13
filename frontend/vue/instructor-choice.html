@@ -1,0 +1,115 @@
+<!doctype html>
+<!-- «Выбор инструктора» — кабинет ученика. Вариант A (согласованный мокап
+     design/mocks/choice-instructor-a.html): фильтры колонкой слева.
+     Задачи 3.3/4.2/6.3 (change add-instructor-student-loop).
+     Единственные отличия от мокапа — wiring:
+     - GET /api/student/instructors (сессия X-Session-Token, sessionStorage
+       'session_token'; 401/403 -> редирект на главную, к модалке входа);
+     - фильтры -> query-параметры (transmission, min_rating, min_experience,
+       free_weekday+free_from+free_to), фильтрация на сервере (FR-31, FR-32);
+     - «Подать заявку» -> POST /api/student/requests {instructor_id} (FR-36);
+       409 (активная заявка) -> сообщение, дубля нет;
+     - пустой результат фильтров — валидное состояние (не ошибка).
+     Вход каркаса Vue (Спринт 15, change add-vue-s15-final-migration,
+     задачи 1.1/4.1; ADR-008 — multi-entry MPA, НЕ SPA): разметка — дословный
+     перенос frontend/instructor-choice.html (замена монолита целиком);
+     легаси обслуживается до задачи 5.1 (design.md «Роуты и статика»).
+     Стили — подключаемый css (дословный перенос <style> легаси); Vite
+     бандлит его в /vue/assets с хэш-именем (CSS вне JS-бюджета NFR-26).
+     До гидрации Vue видна эта же разметка; App.vue монтируется поверх #app
+     (паттерн пилота/С11/С12/С14). Разметку держать синхронной с App.vue. -->
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#071015"><title>СберАвтошкола — Выбор инструктора (кабинет ученика)</title>
+<!-- Стили — дословный перенос <style> легаси (задача 4.1). -->
+<link rel="stylesheet" href="/src/pages/instructor-choice/styles.css">
+</head>
+<body>
+<div id="app">
+<div class="app">
+<!-- BUG-047: единый сайдбар ученика; «Выбрать инструктора» — активный раздел,
+     остальные пункты ведут в кабинет (отдельной кнопки «← В кабинет» больше нет) -->
+<aside class="side">
+  <div class="side-brand"><span class="check">✓</span><div><em>Сбер</em>Автошкола<small>Кабинет ученика</small></div></div>
+  <nav class="snav">
+    <a href="/cabinet"><span class="ico">⌂</span>Главная</a>
+    <a href="/cabinet#/my-requests"><span class="ico">✉</span>Мои заявки</a>
+    <a class="on" href="/instructor-choice"><span class="ico">▤</span>Выбрать инструктора</a>
+    <a href="/cabinet#/my-bookings"><span class="ico">◷</span>Мои брони</a>
+  </nav>
+</aside>
+<div class="frame">
+<header>
+  <div class="user"><span class="uname" id="uname">…</span><button class="logout" id="logout">Выйти</button></div>
+</header>
+
+<div class="page-head">
+  <div class="kicker">Выбор инструктора</div>
+  <h1>Найдите своего инструктора</h1>
+  <p>Одобренные инструкторы школы: рейтинг, стаж, автомобили и свободные часы. Подайте заявку — инструктор увидит её в своём кабинете.</p>
+</div>
+
+<div class="layout">
+  <!-- ВАРИАНТ A: фильтры колонкой слева -->
+  <aside class="filters">
+    <h2>Фильтры</h2>
+    <p class="sub">Сузьте подбор под ваш график</p>
+    <div class="fgroup">
+      <span>Автомобиль (КПП)</span>
+      <div class="seg" id="f-trans">
+        <button class="on" data-v="">Любая</button>
+        <button data-v="manual">Механика</button>
+        <button data-v="automatic">Автомат</button>
+      </div>
+    </div>
+    <div class="fgroup">
+      <span>Рейтинг не ниже</span>
+      <div class="range-lab"><b id="rating-val">0</b><span>из 5</span></div>
+      <input type="range" id="f-rating" min="0" max="5" step="0.5" value="0">
+    </div>
+    <div class="fgroup">
+      <span>Стаж от</span>
+      <div class="chips" id="f-exp">
+        <button class="chip on" data-v="0">Любой</button>
+        <button class="chip" data-v="3">3 года</button>
+        <button class="chip" data-v="5">5 лет</button>
+        <button class="chip" data-v="10">10 лет</button>
+      </div>
+    </div>
+    <div class="fgroup">
+      <span>Свободное время</span>
+      <div class="chips" id="f-day">
+        <button class="chip on" data-v="">Любой день</button>
+        <button class="chip" data-v="0">Пн</button>
+        <button class="chip" data-v="2">Ср</button>
+        <button class="chip" data-v="5">Сб</button>
+        <button class="chip" data-v="6">Вс</button>
+      </div>
+      <div class="frow">
+        <select id="f-from" aria-label="Время от">
+          <option value="">с …</option><option>08:00</option><option>10:00</option><option>12:00</option><option>14:00</option><option>16:00</option><option>18:00</option>
+        </select>
+        <select id="f-to" aria-label="Время до">
+          <option value="">до …</option><option>12:00</option><option>14:00</option><option>16:00</option><option>18:00</option><option>20:00</option><option>22:00</option>
+        </select>
+      </div>
+    </div>
+    <button class="reset" id="reset">Сбросить фильтры</button>
+  </aside>
+
+  <section>
+    <div class="cards-top">
+      <b id="found">Найдено: …</b>
+      <label class="sort">Сортировка
+        <select id="sort"><option value="rating">по рейтингу</option><option value="exp">по стажу</option><option value="name">по фамилии</option></select>
+      </label>
+    </div>
+    <div class="cards" id="cards"></div>
+    <div class="empty" id="empty"><b>Под фильтры никто не подошёл</b>Попробуйте ослабить условия: снизить рейтинг или расширить время.<br><button id="empty-reset">Сбросить фильтры</button></div>
+  </section>
+</div>
+
+<footer><span>СберАвтошкола · «Выбор инструктора», вариант A</span><span>Кабинет ученика</span></footer>
+</div>
+</div>
+</div>
+<div class="toast" id="toast"></div>
+<script type="module" src="/src/pages/instructor-choice/main.js"></script></body></html>

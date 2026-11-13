@@ -24,7 +24,13 @@ mount из backend/app.py, а не самоподключение роутера
 - /cabinet и статика — файлов-кейсов TC для маршрута страницы в
   test-model нет (задача 2.1 сверяла cabinet.html посимвольно без
   TestClient); контроль прямым сравнением ответа с файлом
-  (test_cabinet_page_is_cabinet_html_file).
+  (test_cabinet_page_is_cabinet_html_file). Спринт 15 (change
+  add-vue-s15-final-migration, задача 5.1): легаси frontend/cabinet.html
+  удален (замена монолита целиком, ADR-008) — byte-equality физически
+  невозможна и заменена признаком входа каркаса (200 + "/vue/assets/" в
+  resp.text; прецедент «судьба legacy-тестов удаленной страницы» —
+  arch-review-002 MAJ-1 пилота; специфичность контента держит соседний
+  маркерный тест).
 """
 from fastapi.testclient import TestClient
 
@@ -93,15 +99,16 @@ def test_cabinet_page_served(client):
 
 
 def test_cabinet_page_is_cabinet_html_file(client):
-    """/cabinet отдает именно frontend/cabinet.html (маршрут рядом с
-    /admin-dashboard, паттерн Спринта 0)."""
-    from pathlib import Path
-
-    root = Path(__file__).resolve().parents[2]
-    file_html = (root / "frontend" / "cabinet.html").read_text(encoding="utf-8")
+    """Спринт 15 (change add-vue-s15-final-migration, задача 5.1):
+    /cabinet отдает вход каркаса Vue (легаси frontend/cabinet.html удален —
+    замена монолита целиком, ADR-008): 200 и "/vue/assets/" в ответе —
+    ассеты страницы отдаются тем же сервисом (прецедент «обслуживается
+    каркасом Vue», arch-review-002 MAJ-1 пилота). Специфичность контента —
+    в соседнем тесте test_cabinet_page_served (маркеры разметки + wiring)."""
     resp = client.get("/cabinet")
     assert resp.status_code == 200
-    assert resp.text == file_html
+    assert "text/html" in resp.headers["content-type"]
+    assert "/vue/assets/" in resp.text
 
 
 # --- Регресс Спринта 0 ----------------------------------------------------------

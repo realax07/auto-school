@@ -10,12 +10,19 @@ VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link",
         "meta", "param", "source", "track", "wbr"}
 
 DEFAULT = [
-    "frontend/instructor-choice.html",
+    # Спринт 15 (change add-vue-s15-final-migration, задача 5.1): легаси
+    # instructor-choice.html/admin-dashboard.html/cabinet.html удалены
+    # (замена монолита целиком, ADR-008) — носителиdesign-guard'ов теперь
+    # входы каркаса Vue (перенос: −3 легаси, +6 входов партии)
+    "frontend/vue/cabinet.html",
+    "frontend/vue/instructor-choice.html",
+    "frontend/vue/admin-dashboard.html",
+    "frontend/vue/admin-login.html",
+    "frontend/vue/registered.html",
+    "frontend/vue/policy.html",
     # Спринт 14 (change add-vue-s14-instructor-loop, задача 4.1): носитель
     # кабинета — вход каркаса Vue (легаси instructor-dashboard.html удален)
     "frontend/vue/instructor-dashboard.html",
-    "frontend/admin-dashboard.html",
-    "frontend/cabinet.html",
 ]
 
 

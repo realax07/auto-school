@@ -394,7 +394,15 @@ def test_tcmod002_get_not_logged_no_hash_in_logs_or_ui(client, caplog):
     assert "password_hash" not in caplog.text
     assert listing.text not in caplog.text  # ответ GET не логируется
 
-    ui = (ROOT / "frontend" / "admin-dashboard.html").read_text(encoding="utf-8")
+    # Спринт 15 (change add-vue-s15-final-migration, задача 5.1): перенос
+    # носителя — легаси frontend/admin-dashboard.html удален (замена
+    # монолита целиком, ADR-008); UI — вход каркаса Vue + компонент
+    # (инвариант тот же: password_hash в исходниках UI нет)
+    ui = "\n".join([
+        (ROOT / "frontend" / "vue" / "admin-dashboard.html").read_text(encoding="utf-8"),
+        (ROOT / "frontend" / "vue" / "src" / "pages" / "admin-dashboard"
+         / "App.vue").read_text(encoding="utf-8"),
+    ])
     assert "password_hash" not in ui
     assert stored_hash not in ui
 

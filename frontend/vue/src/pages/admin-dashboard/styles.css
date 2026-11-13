@@ -1,0 +1,141 @@
+/* Админка: дашборд — дословный перенос <style> frontend/admin-dashboard.html
+   (Спринт 15, change add-vue-s15-final-migration, задача 2.2; перенос 1:1,
+   без редизайна; фрагменты design-guard BUG-046 — .badge.wait, rowhint —
+   дословно). */
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#020b13;color:#f7fbfa;font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.app{display:grid;grid-template-columns:250px 1fr;min-height:100svh}
+aside{padding:26px 18px;border-right:1px solid rgba(217,239,238,.14);background:rgba(10,20,26,.6)}
+.logo{display:flex;align-items:center;gap:10px;font-size:19px;font-weight:650;letter-spacing:-.8px;margin:0 10px 30px}.logo em{font-style:normal;color:#55ed9c}
+.check{width:30px;height:30px;display:grid;place-items:center;border:3px solid #49ec9a;border-radius:50%;color:#58efa3;font-size:18px;transform:rotate(-8deg)}
+.nav{display:flex;flex-direction:column;gap:4px}
+.nav button{display:flex;align-items:center;gap:12px;padding:13px 16px;border:0;border-radius:12px;background:none;color:#b9c8cc;font-size:14px;text-align:left;cursor:pointer}
+.nav button:hover{background:rgba(73,236,154,.07);color:#e8f5f3}
+.nav button.active{background:rgba(73,236,154,.13);color:#5cf0a4}
+.nav .soon{opacity:.45}
+.side-foot{margin-top:auto;padding:0 10px;font-size:12px;color:#7d939a}
+main{padding:34px 40px;display:flex;flex-direction:column;min-width:0}
+.top{display:flex;align-items:center;gap:16px;margin-bottom:26px}
+.top h1{margin:0;font-size:26px;font-weight:550;letter-spacing:-.02em}
+.spacer{flex:1}
+.logout{padding:9px 22px;border:1px solid rgba(238,249,249,.3);border-radius:999px;background:none;color:#cfdede;font-size:13px;cursor:pointer}
+.logout:hover{border-color:#49ec9a}
+.toolbar{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.count{font-size:13px;color:#8ea4a8}
+.btn-export{margin-left:auto;padding:10px 24px;border:0;border-radius:999px;background:linear-gradient(95deg,#3fe58f,#2bd47e);color:#04241a;font-size:14px;font-weight:550;cursor:pointer}#ic-deny-box .btn-export{margin-left:0}
+.btn-export:hover{filter:brightness(1.06)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{padding:12px 14px;text-align:left;color:#8ea4a8;font-weight:500;border-bottom:1px solid rgba(217,239,238,.16)}
+td{padding:13px 14px;border-bottom:1px solid rgba(217,239,238,.07);color:#dcebe9}
+tr:hover td{background:rgba(73,236,154,.04)}
+.badge{padding:3px 12px;border-radius:999px;font-size:12px;background:rgba(73,236,154,.14);color:#5cf0a4}
+.badge.red{background:rgba(255,107,107,.14);color:#ffb28e;border:1px solid rgba(255,107,107,.35)}
+.badge.wait{background:#3a2f14;color:#ffc76e;border:1px solid #8a6d1f}
+.rowhint{font-size:11px;color:#6f818b;padding:12px 14px;text-align:right}
+.empty{display:none;padding:60px 0;text-align:center;color:#7d939a;font-size:14px}
+/* Карточка инструктора (модально, мокап design/mocks/instructor-card-admin.html,
+   change add-instructor-student-loop, FR-24/FR-25) */
+.ic-backdrop{position:fixed;inset:0;background:#02070bd0;backdrop-filter:blur(6px);display:none;place-items:center;padding:24px;z-index:30}
+.ic-backdrop.open{display:grid}
+.ic-modal{width:min(880px,100%);max-height:calc(100vh - 60px);overflow:auto;border:1px solid #ffffff20;border-radius:22px;background:linear-gradient(150deg,#16242c,#0b1418);box-shadow:0 30px 80px #000c;padding:26px 28px 28px}
+.ic-head{display:flex;align-items:start;gap:14px;margin-bottom:4px}
+.ic-head h2{font-size:22px;letter-spacing:-.04em;font-weight:600;margin:0}
+.ic-head .sub{font-size:12px;color:#8fa0aa;margin-top:7px}
+.ic-close{margin-left:auto;flex:none;width:36px;height:36px;border-radius:11px;border:1px solid #ffffff18;background:#ffffff06;color:#b9c8ce;font-size:17px;cursor:pointer}
+.ic-close:hover{border-color:#ff6b6b66;color:#ffb28e}
+.ic-grid2{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(240px,1fr);gap:16px;margin-top:18px}
+.ic-panel{border:1px solid #ffffff12;border-radius:15px;background:#ffffff04;padding:17px}
+.ic-panel h3{font-size:10px;color:#8fa0aa;text-transform:uppercase;letter-spacing:.14em;margin:0 0 13px;font-weight:500}
+.ic-rows{display:grid;gap:11px}
+.ic-row{display:flex;justify-content:space-between;gap:12px;font-size:12px}
+.ic-row span{color:#8fa0aa}
+.ic-row b{font-weight:550;text-align:right;color:#e4eef0;word-break:break-word}
+.ic-img-ph{aspect-ratio:16/10;border:1.5px dashed #35d87955;border-radius:13px;background:#0d2b1c55;display:grid;place-items:center;text-align:center;color:#7fe3a3;font-size:11px;line-height:1.7;padding:12px}
+.ic-img-ph img{max-width:100%;max-height:100%;border-radius:9px;display:block}
+.ic-note{font-size:10px;color:#8fa0aa;line-height:1.6;border:1px solid #ffffff12;border-radius:11px;background:#ffffff04;padding:10px 12px;margin-top:12px}
+.ic-note b{color:#a3efbd}
+/* Спринт 7 (change add-car-validation-booking): раздел «Автомобили»
+   (мокап design/mocks/admin-cars.html): фильтры статусов, таблица,
+   карточка авто с чек-листом комплектности */
+.ac-filters{display:flex;gap:6px;margin:0 0 14px;flex-wrap:wrap}
+.ac-filters button{border:1px solid #ffffff14;background:#ffffff05;color:#b9c8ce;border-radius:999px;padding:8px 15px;font-size:11px;cursor:pointer}
+.ac-filters button.on{background:rgba(73,236,154,.13);color:#5cf0a4}
+.ac-filters button .n{color:#ffc76e}
+.ac-card{border:1px solid #ffffff12;border-radius:15px;background:#ffffff04;padding:8px 6px;overflow:auto}
+.ac-card td{font-size:13px}
+.ac-badge{padding:4px 11px;border-radius:999px;font-size:11px;border:1px solid;white-space:nowrap}
+.ac-b-draft{background:#1a242b;color:#aebfc7;border-color:#3a4a52}
+.ac-b-val{background:#332a14;color:#ffc76e;border-color:#6b5426}
+.ac-b-ok{background:#143322;color:#5cf0a4;border-color:#2a5c40}
+.ac-b-ok:before{content:"✓ "}
+.ac-compl{font-size:11px}
+.ac-compl .ok{color:#5cf0a4}
+.ac-compl .miss{color:#ffc76e}
+.ac-backdrop{position:fixed;inset:0;background:#02070bd0;backdrop-filter:blur(6px);display:none;place-items:center;padding:24px;z-index:40}
+.ac-backdrop.open{display:grid}
+.ac-modal{width:min(880px,100%);max-height:calc(100vh - 60px);overflow:auto;border:1px solid #ffffff20;border-radius:22px;background:linear-gradient(150deg,#16242c,#0b1418);box-shadow:0 30px 80px #000c;padding:26px 28px 28px}
+.ac-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(250px,1fr);gap:16px;margin-top:16px}
+.ac-thumbs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ac-thumb{position:relative;aspect-ratio:4/3;border-radius:10px;border:1.5px solid #ffffff14;background:#0d141a;display:grid;place-items:center;font-size:11px;color:#5d707c}
+.ac-thumb.has{border-color:#2a5c40;background:#0d241766;color:#5cf0a4}
+.ac-thumb .tg{position:absolute;left:0;right:0;bottom:0;font-size:8px;padding:2px;color:#d6e4e2;background:#02070bb8;text-align:center}
+.ac-thumb .mark{font-size:16px}
+.ac-toast{position:fixed;bottom:22px;right:22px;max-width:380px;background:#143323;border:1px solid #367b50;color:#b5f8cc;padding:13px 16px;border-radius:13px;font-size:12px;box-shadow:0 10px 40px #0008;display:none;z-index:50}
+.ac-toast.show{display:block}
+@media(max-width:860px){.ac-grid{grid-template-columns:1fr}.ac-modal{padding:18px}}
+@media(max-width:860px){.ic-grid2{grid-template-columns:1fr}.ic-modal{padding:18px}}
+@media(max-width:860px){.app{grid-template-columns:1fr}aside{display:none}main{padding:20px}}
+/* Спринт 8 (change add-s8-cars-docs-booking): раздел «Документы»
+   (мокап design/mocks/admin-documents.html): вкладки, фильтры, строки
+   версий, предпросмотр и отклонение с обязательной причиной. */
+.dc-sub{font-size:12px;color:#8ea4a8;margin:0 0 16px;max-width:860px;line-height:1.65}
+.dc-tabs{display:flex;gap:5px;border:1px solid #ffffff14;background:#ffffff05;border-radius:12px;padding:5px;width:max-content;margin-bottom:14px}
+.dc-tabs button{border:1px solid transparent;background:transparent;color:#aab8c0;border-radius:9px;padding:9px 16px;font-size:12px;white-space:nowrap;cursor:pointer}
+.dc-tabs button.on{background:#143322;border-color:#2c8651;color:#a3efbd}
+.dc-tabs button .n{color:#ffc76e}
+.dc-list{display:grid;gap:11px;padding:6px}
+.dc-row{display:flex;gap:15px;align-items:stretch;border:1px solid #ffffff12;border-radius:15px;background:#ffffff04;padding:13px 16px;flex-wrap:wrap}
+.dc-thumb{position:relative;width:148px;aspect-ratio:16/10;border-radius:11px;overflow:hidden;border:1px solid #ffffff14;flex:none;cursor:zoom-in;background:#0d141a;display:grid;place-items:center;color:#5d707c;font-size:22px}
+.dc-thumb:hover{border-color:#35d87988}
+.dc-thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.dc-thumb .zoom{position:absolute;right:6px;bottom:6px;z-index:2;font-size:9px;color:#c9ffdd;background:#02070bc0;border:1px solid #2c8651;border-radius:999px;padding:3px 9px}
+.dc-info{flex:1;min-width:220px;display:flex;flex-direction:column;gap:6px}
+.dc-line{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.dc-type{font-size:10px;font-weight:600;padding:4px 10px;border-radius:999px;border:1px solid;white-space:nowrap}
+.dc-t-lic{background:#1d3040;color:#9bc5ff;border-color:#2d4a68}
+.dc-t-sts{background:#1d4030;color:#9be8c0;border-color:#2d6848}
+.dc-info b{font-size:14px;font-weight:600;letter-spacing:-.01em}
+.dc-info small{font-size:11px;color:#8ea4a8;display:block;line-height:1.6}
+.dc-badge{padding:4px 11px;border-radius:999px;font-size:10px;border:1px solid;white-space:nowrap}
+.dc-b-pend{background:#332a14;color:#ffc76e;border-color:#6b5426}
+.dc-b-ok{background:#143322;color:#5cf0a4;border-color:#2a5c40}
+.dc-b-ok:before{content:"✓ "}
+.dc-b-rej{background:#33201a;color:#ffb28e;border-color:#5c3030}
+.dc-rej-reason{border:1px solid #5c303066;background:#33201a33;border-radius:10px;padding:9px 12px;color:#ffb28e;font-size:11px;line-height:1.6}
+.dc-actions{display:flex;gap:9px;align-items:center;flex-wrap:wrap;align-self:center}
+.dc-act{border-radius:11px;padding:11px 18px;font-size:12px;font-weight:550;border:1px solid;white-space:nowrap;cursor:pointer}
+.dc-act.view{background:transparent;border-color:#ffffff22;color:#b9c8ce}
+.dc-act.view:hover{border-color:#35d87966;color:#c9ffdd}
+.dc-act.approve{background:#123524;border-color:#2b9c62;color:#c9ffdd}
+.dc-act.approve:hover{filter:brightness(1.12)}
+.dc-act.deny{background:transparent;border-color:#8a3c3c66;color:#ffb28e}
+.dc-act.deny:hover{background:#33201a55}
+.dc-hist-note{font-size:11px;color:#7e909a;line-height:1.6;padding:12px 6px 0}
+.dc-backdrop{position:fixed;inset:0;background:#02070bd0;backdrop-filter:blur(6px);display:none;place-items:center;padding:24px;z-index:40}
+.dc-backdrop.open{display:grid}
+.dc-modal{width:min(760px,100%);max-height:calc(100vh - 60px);overflow:auto;border:1px solid #ffffff20;border-radius:22px;background:linear-gradient(150deg,#16242c,#0b1418);box-shadow:0 30px 80px #000c;padding:26px 28px 28px}
+.dc-modal.small{width:min(520px,100%)}
+.dc-preview{position:relative;aspect-ratio:16/10;border-radius:14px;overflow:hidden;border:1px solid #ffffff14;background:#060d12;display:grid;place-items:center;color:#5d707c;font-size:26px}
+.dc-preview img{width:100%;height:100%;object-fit:contain}
+.dc-preview-foot{margin-top:12px;font-size:10px;color:#7e909a;line-height:1.6}
+.dc-deny-lbl{display:block;font-size:10px;color:#e8b877;text-transform:uppercase;letter-spacing:.12em;margin:14px 0 9px;font-weight:550}
+.dc-deny-lbl em{font-style:normal;color:#ffb28e}
+#dc-reason{width:100%;min-height:84px;resize:vertical;border:1px solid #ffffff16;background:#0b161c;border-radius:11px;padding:11px 13px;font-size:12px;color:#dcebe9;line-height:1.5;font-family:inherit}
+#dc-reason:focus{outline:none;border-color:#35d87966}
+.dc-deny-note{font-size:10px;color:#8ea4a8;margin-top:8px;line-height:1.6}
+.dc-actions-m{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+.dc-m-btn{flex:1;min-width:150px;border-radius:12px;padding:12px;font-size:13px;font-weight:550;border:1px solid;cursor:pointer}
+.dc-m-btn.danger{background:#33201a;border-color:#8a3c3c;color:#ffb28e}
+.dc-m-btn.danger:hover{filter:brightness(1.12)}
+.dc-m-btn.danger:disabled{opacity:.4;cursor:not-allowed;filter:none}
+.dc-m-btn.ghost{background:#ffffff06;border-color:#ffffff16;color:#aab8c0}
+@media(max-width:700px){.dc-actions{width:100%}.dc-actions .dc-act{flex:1}.dc-thumb{width:100%}}

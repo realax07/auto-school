@@ -30,12 +30,13 @@ const DIST = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'dist
 const VENDOR_MAX = 150 * 1024; // (а) КБ → байты
 const FIRST_LOAD_MAX = 200 * 1024; // (б)
 const KB = 1024;
-// page-чанки — по именам входов vite.config.mjs (задача 2.1 С14:
-// +instructors — лендинг инструкторов, +instructor-dashboard — кабинет,
-// +documents — «Мои документы»; всего 8 страниц — design.md «Сверка
-// контрактов решения»: в решении указано «7», фактически 8 = 5
-// существующих входов + 3 страницы партии)
-const PAGES = ['instructors-pending', 'instructors-rejected', 'review-form', 'index', 'instructor-apply', 'instructors', 'instructor-dashboard', 'documents'];
+// page-чанки — по именам входов vite.config.mjs (Спринт 15 — ФИНАЛ
+// миграции, change add-vue-s15-final-migration, задачи 1.1/6.1:
+// +cabinet, +instructor-choice, +admin-login, +admin-dashboard,
+// +registered, +policy — всего 14 страниц; в решении Заказчика «~17» —
+// счет по несуществующим отдельным страницам booking/admin-cars —
+// design.md «Сверка контрактов решения»)
+const PAGES = ['instructors-pending', 'instructors-rejected', 'review-form', 'index', 'instructor-apply', 'instructors', 'instructor-dashboard', 'documents', 'cabinet', 'instructor-choice', 'admin-login', 'admin-dashboard', 'registered', 'policy'];
 
 function chunkRole(file) {
   // instructors-pending-<hash>.js / shared-<hash>.js / vue-<hash>.js

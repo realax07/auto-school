@@ -1,17 +1,7 @@
-<!doctype html>
-<!-- «Выбор инструктора» — кабинет ученика. Вариант A (согласованный мокап
-     design/mocks/choice-instructor-a.html): фильтры колонкой слева.
-     Задачи 3.3/4.2/6.3 (change add-instructor-student-loop).
-     Единственные отличия от мокапа — wiring:
-     - GET /api/student/instructors (сессия X-Session-Token, sessionStorage
-       'session_token'; 401/403 -> редирект на главную, к модалке входа);
-     - фильтры -> query-параметры (transmission, min_rating, min_experience,
-       free_weekday+free_from+free_to), фильтрация на сервере (FR-31, FR-32);
-     - «Подать заявку» -> POST /api/student/requests {instructor_id} (FR-36);
-       409 (активная заявка) -> сообщение, дубля нет;
-     - пустой результат фильтров — валидное состояние (не ошибка). -->
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#071015"><title>СберАвтошкола — Выбор инструктора (кабинет ученика)</title>
-<style>
+/* «Выбор инструктора» — дословный перенос <style>
+   frontend/instructor-choice.html (Спринт 15, change
+   add-vue-s15-final-migration, задача 4.1; перенос 1:1, классы 1:1 из
+   кабинета ученика — мокапы choice-a/b тестами не читаются). */
 :root{--bg:#071015;--panel:rgba(20,32,40,.72);--line:#ffffff16;--text:#f3f7f8;--muted:#93a6b1;--green:#35d879;--green-soft:#9af0b9}
 *{box-sizing:border-box}html,body{margin:0;min-width:320px}
 body{background:radial-gradient(ellipse at 78% 0%,#123b2c4d,transparent 38%),radial-gradient(ellipse at 8% 90%,#27465f26,transparent 40%),var(--bg);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh}
@@ -108,93 +98,3 @@ footer{margin-top:34px;padding-top:18px;border-top:1px solid #ffffff10;display:f
 .snav a.on{color:#8ff2b5;background:#143023;border-color:#286445}
 .snav a:hover{background:#ffffff09}
 @media(max-width:760px){.app{grid-template-columns:1fr}.side{flex-direction:row;align-items:center;padding:10px 14px;border-right:0;border-bottom:1px solid #ffffff12}.snav{display:flex;overflow:auto;gap:5px}.snav a{white-space:nowrap;padding:9px 10px;font-size:11px}.snav a .ico{display:none}}
-</style></head>
-<body>
-<div class="app">
-<!-- BUG-047: единый сайдбар ученика; «Выбрать инструктора» — активный раздел,
-     остальные пункты ведут в кабинет (отдельной кнопки «← В кабинет» больше нет) -->
-<aside class="side">
-  <div class="side-brand"><span class="check">✓</span><div><em>Сбер</em>Автошкола<small>Кабинет ученика</small></div></div>
-  <nav class="snav">
-    <a href="/cabinet"><span class="ico">⌂</span>Главная</a>
-    <a href="/cabinet#/my-requests"><span class="ico">✉</span>Мои заявки</a>
-    <a class="on" href="/instructor-choice"><span class="ico">▤</span>Выбрать инструктора</a>
-    <a href="/cabinet#/my-bookings"><span class="ico">◷</span>Мои брони</a>
-  </nav>
-</aside>
-<div class="frame">
-<header>
-  <div class="user"><span class="uname" id="uname">…</span><button class="logout" id="logout">Выйти</button></div>
-</header>
-
-<div class="page-head">
-  <div class="kicker">Выбор инструктора</div>
-  <h1>Найдите своего инструктора</h1>
-  <p>Одобренные инструкторы школы: рейтинг, стаж, автомобили и свободные часы. Подайте заявку — инструктор увидит её в своём кабинете.</p>
-</div>
-
-<div class="layout">
-  <!-- ВАРИАНТ A: фильтры колонкой слева -->
-  <aside class="filters">
-    <h2>Фильтры</h2>
-    <p class="sub">Сузьте подбор под ваш график</p>
-    <div class="fgroup">
-      <span>Автомобиль (КПП)</span>
-      <div class="seg" id="f-trans">
-        <button class="on" data-v="">Любая</button>
-        <button data-v="manual">Механика</button>
-        <button data-v="automatic">Автомат</button>
-      </div>
-    </div>
-    <div class="fgroup">
-      <span>Рейтинг не ниже</span>
-      <div class="range-lab"><b id="rating-val">0</b><span>из 5</span></div>
-      <input type="range" id="f-rating" min="0" max="5" step="0.5" value="0">
-    </div>
-    <div class="fgroup">
-      <span>Стаж от</span>
-      <div class="chips" id="f-exp">
-        <button class="chip on" data-v="0">Любой</button>
-        <button class="chip" data-v="3">3 года</button>
-        <button class="chip" data-v="5">5 лет</button>
-        <button class="chip" data-v="10">10 лет</button>
-      </div>
-    </div>
-    <div class="fgroup">
-      <span>Свободное время</span>
-      <div class="chips" id="f-day">
-        <button class="chip on" data-v="">Любой день</button>
-        <button class="chip" data-v="0">Пн</button>
-        <button class="chip" data-v="2">Ср</button>
-        <button class="chip" data-v="5">Сб</button>
-        <button class="chip" data-v="6">Вс</button>
-      </div>
-      <div class="frow">
-        <select id="f-from" aria-label="Время от">
-          <option value="">с …</option><option>08:00</option><option>10:00</option><option>12:00</option><option>14:00</option><option>16:00</option><option>18:00</option>
-        </select>
-        <select id="f-to" aria-label="Время до">
-          <option value="">до …</option><option>12:00</option><option>14:00</option><option>16:00</option><option>18:00</option><option>20:00</option><option>22:00</option>
-        </select>
-      </div>
-    </div>
-    <button class="reset" id="reset">Сбросить фильтры</button>
-  </aside>
-
-  <section>
-    <div class="cards-top">
-      <b id="found">Найдено: …</b>
-      <label class="sort">Сортировка
-        <select id="sort"><option value="rating">по рейтингу</option><option value="exp">по стажу</option><option value="name">по фамилии</option></select>
-      </label>
-    </div>
-    <div class="cards" id="cards"></div>
-    <div class="empty" id="empty"><b>Под фильтры никто не подошёл</b>Попробуйте ослабить условия: снизить рейтинг или расширить время.<br><button id="empty-reset">Сбросить фильтры</button></div>
-  </section>
-</div>
-
-<footer><span>СберАвтошкола · «Выбор инструктора», вариант A</span><span>Кабинет ученика</span></footer>
-</div>
-</div>
-<div class="toast" id="toast"></div>
-<script type="module" src="/js/student/instructor-choice.js"></script></body></html>

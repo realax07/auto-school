@@ -51,6 +51,26 @@ export default defineConfig({
         "documents": fileURLToPath(
           new URL("./documents.html", import.meta.url),
         ),
+        // Спринт 15 — ФИНАЛ миграции (change add-vue-s15-final-migration,
+        // задача 1.1): шесть входов последних страниц — имена по сегментам
+        // маршрутов (паттерн С11/С12/С14: dist/<entry>.html = имя артефакта
+        // маршрута). Всего 14 page-чанков (8 существующих + 6 новых — design.md
+        // «Сверка контрактов решения»). Маршруты backend/app.py НЕ
+        // переключаются: легаси обслуживается до задачи 5.1.
+        "cabinet": fileURLToPath(new URL("./cabinet.html", import.meta.url)),
+        "instructor-choice": fileURLToPath(
+          new URL("./instructor-choice.html", import.meta.url),
+        ),
+        "admin-login": fileURLToPath(
+          new URL("./admin-login.html", import.meta.url),
+        ),
+        "admin-dashboard": fileURLToPath(
+          new URL("./admin-dashboard.html", import.meta.url),
+        ),
+        "registered": fileURLToPath(
+          new URL("./registered.html", import.meta.url),
+        ),
+        "policy": fileURLToPath(new URL("./policy.html", import.meta.url)),
       },
       output: {
         // Хэш-имена ассетов — автоматическая cache-инвалидация (design.md).

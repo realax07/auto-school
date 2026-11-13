@@ -42,10 +42,10 @@ _PAGE_ROUTES = {
     # + js/landing.js удалены). Маркер "vue:<вход dist>" — цикл отдачи ниже
     # читает VUE_DIST_DIR (404 при отсутствии dist — паттерн пилота).
     "/": "vue:index.html",
-    "/registered": "registered.html",
-    "/admin-login": "admin-login.html",
-    "/admin-dashboard": "admin-dashboard.html",
-    "/cabinet": "cabinet.html",
+    "/registered": "vue:registered.html",
+    "/admin-login": "vue:admin-login.html",
+    "/admin-dashboard": "vue:admin-dashboard.html",
+    "/cabinet": "vue:cabinet.html",
     # Спринт 2, часть 1 (задача 5.1, sdd.md §15.6): рядом с /cabinet.
     # Спринт 14 (change add-vue-s14-instructor-loop, задачи 4.1/4.2):
     # лендинг инструкторов — каркас Vue (ADR-008, замена монолита целиком:
@@ -76,7 +76,7 @@ _PAGE_ROUTES = {
     "/instructor/documents": "vue:documents.html",
     # Спринт 3 (change add-instructor-student-loop):
     # выбор инструктора учеником
-    "/instructor-choice": "instructor-choice.html",
+    "/instructor-choice": "vue:instructor-choice.html",
     # Спринт 4, Партия A (change add-s3-frontend-links): форма отзыва —
     # целевая страница (открывается из раздела «Мои заявки» кабинета);
     # Спринт 11 (change add-vue-s11-status-forms) — перевод на каркас Vue
@@ -85,7 +85,14 @@ _PAGE_ROUTES = {
     # Спринт 9 (change add-personal-data-policy, задача 2.1): публичная
     # страница-оболочка политики персональных данных (текст — из артефакта
     # через GET /api/policy, в HTML его нет — NFR-25)
-    "/policy": "policy.html",
+    "/policy": "vue:policy.html",
+    # Спринт 15 — ФИНАЛ миграции (change add-vue-s15-final-migration,
+    # задача 5.1): последние шесть маршрутов переведены на каркас Vue
+    # (ADR-008, замена монолита целиком: легаси cabinet.html,
+    # instructor-choice.html, admin-login.html, admin-dashboard.html,
+    # registered.html, policy.html + каталог js/ удалены тем же коммитом,
+    # хендлер /js/{path} снят — потребителей нет). В карте НЕ осталось
+    # значений без маркера «vue:» — все страницы обслуживаются из dist.
 }
 
 # BUG-047 (решение Заказчика 2026-10-17): отдельных standalone-страниц больше
@@ -140,19 +147,6 @@ def create_app() -> FastAPI:
     def health():
         return {"ok": True}
 
-    # Спринт 6, Партия B (PLAN, директива Заказчика 2026-10-16): модульный
-    # фронтенд — /js/* из frontend/js/ (native ES modules), content-type
-    # application/javascript явно (не зависеть от системных mimetypes).
-    @app.get("/js/{filepath:path}")
-    def js_file(filepath: str):
-        if filepath.startswith("/") or ".." in filepath.split("/") \
-                or any(part.startswith(".") for part in filepath.split("/")):
-            raise HTTPException(status_code=404)
-        path = FRONTEND_DIR / "js" / filepath
-        if not path.is_file():
-            raise HTTPException(status_code=404)
-        return FileResponse(path, media_type="application/javascript")
-
     # Спринт 9 (change add-vue-framework-pilot, задача 2.3): пилотная
     # страница «Ожидание модерации» — вход каркаса Vue из dist (FR-84/FR-86,
     # ADR-008: base '/vue/'). Маршрут сохранен (NFR-27); отдача тем же
@@ -190,10 +184,9 @@ def create_app() -> FastAPI:
             # Спринт 11 (change add-vue-s11-status-forms, задача 3.2):
             # маркер "vue:" — страница обслуживается каркасом Vue, вход
             # читается из VUE_DIST_DIR (ADR-008); без собранного dist — 404
-            # (паттерн пилотного хендлера). Остальные значения — файлы
-            # frontend/, как прежде; карта — единственный декларативный
-            # реестр маршрутов страниц (следующие партии миграции добавляют
-            # страницу одной строкой).
+            # (паттерн пилотного хендлера). Спринт 15 (задача 5.1): значений
+            # без маркера не осталось — все страницы из dist; карта —
+            # единственный декларативный реестр маршрутов страниц.
             if filename.startswith("vue:"):
                 path = VUE_DIST_DIR / filename[len("vue:"):]
             else:
