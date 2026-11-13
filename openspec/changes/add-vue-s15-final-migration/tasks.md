@@ -165,7 +165,7 @@ design.md, не против кода друг друга). Типы работ:
 
 ## 5. ФИНАЛЬНАЯ ЧИСТКА (после 2.x, 3.1, 4.1, 4.2 — одна сессия, НЕ делить)
 
-- [ ] 5.1 [code] переключение и удаление одним коммитом:
+- [x] 5.1 [code] переключение и удаление одним коммитом:
       (а) backend/app.py `_PAGE_ROUTES` — все 6 легаси-строк →
       «vue:<вход>» («/registered» → vue:registered.html,
       «/admin-login» → vue:admin-login.html, «/admin-dashboard» →
@@ -199,7 +199,7 @@ design.md, не против кода друг друга). Типы работ:
 
 ## 6. Бюджеты (после 5.1)
 
-- [ ] 6.1 [infra] `npm run build && npm run check:budgets` — 14
+- [x] 6.1 [infra] `npm run build && npm run check:budgets` — 14
       page-чанков: vendor ≤150 КБ gzip; JS первого захода КАЖДОЙ
       страницы ≤200 КБ gzip; чужих page-чанков в замыканиях нет.
       Gzip-замеры всех page-чанков — в отчет задачи (крупнейший —
@@ -211,7 +211,7 @@ design.md, не против кода друг друга). Типы работ:
 
 ## 7. Полный регресс и валидации (гейт партии)
 
-- [ ] 7.1 [tests] полный e2e: `pytest tests/web/test_ui_playwright.py`
+- [x] 7.1 [tests] полный e2e: `pytest tests/web/test_ui_playwright.py`
       против собранного dist (сборка ДО прогона — обязательный шаг) —
       все сценарии passed, 0 правок сценариев (допустимый дифф файла —
       только 4 переноса design-guard 5.1; контроль git diff); полный
