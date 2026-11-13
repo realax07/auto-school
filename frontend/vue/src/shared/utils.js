@@ -34,3 +34,22 @@ export function expWord(n) {
   return n % 10 === 1 && n % 100 !== 11 ? 'год'
     : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? 'года' : 'лет');
 }
+
+// Спринт 15 (change add-vue-s15-final-migration, задача 4.2): дословный
+// перенос из frontend/js/shared/utils.js — потребитель кабинет ученика на
+// Vue (ФИО FR-5, даты заявок; design.md «Судьба каталога js/»: надмножество
+// легаси-хелперов сокращается до фактических потребностей — el/initials
+// не переносятся, DOM-хелпер на Vue не нужен).
+
+// ФИО из учетной записи (FR-5/FR-20): {surname, name, patronymic} -> строка.
+export function fioOf(u) {
+  u = u || {};
+  return [u.surname, u.name, u.patronymic].filter(Boolean).join(' ');
+}
+
+// '2026-10-16 10:22:00' -> '16.10.2026' (строки Created_at из БД).
+export function fmtDate(s) {
+  if (!s) return '';
+  var m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? (m[3] + '.' + m[2] + '.' + m[1]) : String(s);
+}

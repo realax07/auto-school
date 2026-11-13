@@ -9,6 +9,8 @@
      {{ }} (текстовые узлы — XSS-гигиена по построению: пользовательские
      строки ФИО/брендов никогда не проходят через HTML); отрисовка
      ratingNode → v-if/v-else («☆ Нет отзывов», «★ X.Y», «N отзывов»);
+     #empty display:block/none → :style-эквивалент с теми же значениями
+     (класс .empty содержит display:none — v-show здесь не эквивалент);
      fetchSeq-гонка фильтров, sent-кэш («✓ Заявка отправлена»), 409-тост
      БЕЗ кэширования (review-001 #14), сортировка localeCompare 'ru',
      empty-состояние, logout, сайдбар ученика — дословно.
@@ -123,7 +125,7 @@
         <button class="apply" :class="{'sent': !!sent[cardId(i)]}" type="button" @click="applyClick(i)">{{ sent[cardId(i)] ? '✓ Заявка отправлена' : 'Подать заявку' }}</button>
       </article>
     </div>
-    <div class="empty" id="empty" v-show="!view.length"><b>Под фильтры никто не подошёл</b>Попробуйте ослабить условия: снизить рейтинг или расширить время.<br><button id="empty-reset">Сбросить фильтры</button></div>
+    <div class="empty" id="empty" :style="{display: view.length ? 'none' : 'block'}"><b>Под фильтры никто не подошёл</b>Попробуйте ослабить условия: снизить рейтинг или расширить время.<br><button id="empty-reset">Сбросить фильтры</button></div>
   </section>
 </div>
 

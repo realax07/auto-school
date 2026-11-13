@@ -133,7 +133,7 @@ design.md, не против кода друг друга). Типы работ:
       5.1).
       FR: FR-31/32/35/36. NFR: NFR-26. Зависит от: 1.1.
 
-- [ ] 4.2 [code] src/pages/cabinet/ + вход cabinet.html — полный
+- [x] 4.2 [code] src/pages/cabinet/ + вход cabinet.html — полный
       перенос cabinet.html + js/student/cabinet.js 1:1 (КРУПНЕЙШИЙ
       перенос партии; design.md «Страницы партии», «Стратегия
       вербатим-мокапов»): гвард session_token → /api/auth/me
