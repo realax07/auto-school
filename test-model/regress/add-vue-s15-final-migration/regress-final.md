@@ -1,16 +1,16 @@
 # Regress add-vue-s15-final-migration — regress-final.md
 
 - change: add-vue-s15-final-migration
-- date: 2026-11-13T14:12:26+00:00
-- commit: d10d3aba45b7435fbb8cce68104bd5b4040b759a
+- date: 2026-11-13T14:42:08+00:00
+- commit: e0c144fec5a1e6108128ba01986eafedd40d3adf
 - worktree: /home/hermes-bot/.hermes/cache/scratch/wt-s15-final
 - verdict: PASS
 - tier: domain (эшелон 1: доменный regress)
-- duration: 551.2s
+- duration: 567.3s
 - diff source: git diff main...HEAD
 - domain map: project map test-model/regress-domains.json задана, правил нет — применен дефолт
-- changed files: 59
-- changed files: 59
+- changed files: 61
+- changed files: 61
   - architecture/map.md
   - backend/app.py
   - code-reviews/add-vue-s15-final-migration/review-001-1.1-2.1-2.2-3.1-4.1-4.2-5.1-6.1-7.1.md
@@ -61,7 +61,7 @@
   - test-model/approved/add-vue-s15-final-migration/TC-S15-004.md
   - test-model/approved/add-vue-s15-final-migration/TC-S15-005.md
   - test-model/approved/add-vue-s15-final-migration/TC-S15-006.md
-  - … и еще 9
+  - … и еще 11
 - suites: tests
 - pytest exit code: 0
 
@@ -80,10 +80,6 @@
   /home/hermes-bot/auto-school/.venv/lib/python3.14/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
     from starlette.testclient import TestClient as TestClient  # noqa
 
-tests/api/test_s9_backend.py::test_tc_s9be_007_parallel_exchanges_exactly_one_200
-  /home/hermes-bot/auto-school/.venv/lib/python3.14/site-packages/pydantic/_internal/_generate_schema.py:2346: UnsupportedFieldAttributeWarning: The 'alias' attribute with value 'filename' was provided to the `Field()` function, which has no effect in the context it was used. 'alias' is field-specific metadata, and can only be attached to a model field using `Annotated` metadata or by assignment. This may have happened because an `Annotated` type alias using the `type` statement was used, or if the `Field()` function was attached to a single member of a union type.
-    warnings.warn(
-
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-460 passed, 2 warnings in 549.51s (0:09:09)
+460 passed, 1 warning in 565.75s (0:09:25)
 ```
