@@ -18,7 +18,7 @@ design.md, не против кода друг друга). Типы работ:
 
 ## 1. Каркас партии: входы и заглушки
 
-- [ ] 1.1 [code] vite.config.mjs — входы: `cabinet`,
+- [x] 1.1 [code] vite.config.mjs — входы: `cabinet`,
       `instructor-choice`, `admin-login`, `admin-dashboard`,
       `registered`, `policy` (frontend/vue/<имя>.html — имена по
       сегментам маршрутов, паттерн С11/С12/С14); входы — статическая

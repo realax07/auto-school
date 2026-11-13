@@ -1,0 +1,20 @@
+<!doctype html>
+<!-- Личный кабинет ученика /cabinet — вход каркаса Vue (Спринт 15,
+     change add-vue-s15-final-migration, задача 1.1; ADR-008 — multi-entry
+     MPA, НЕ SPA). Перенос страницы — задача 4.2 (полная разметка и wiring
+     из frontend/cabinet.html + js/student/cabinet.js — замена монолита
+     целиком; легаси обслуживается до задачи 5.1 — design.md «Роуты и
+     статика»). До гидрации Vue видна эта же разметка; App.vue монтируется
+     поверх #app (паттерн пилота/С11/С12/С14). Разметку держать синхронной
+     с App.vue. -->
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>СберАвтошкола — Кабинет ученика (мокап)</title>
+<!-- Стили страницы — дословный перенос <style> легаси (задача 4.2);
+     Vite бандлит их в /vue/assets с хэш-именем; CSS вне JS-бюджета NFR-26. -->
+<link rel="stylesheet" href="/src/pages/cabinet/styles.css">
+</head>
+<body>
+<div id="app"></div>
+<script type="module" src="/src/pages/cabinet/main.js"></script></body></html>

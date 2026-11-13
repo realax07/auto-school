@@ -1,0 +1,20 @@
+<!doctype html>
+<!-- Админка: вход по прямой ссылке /admin-login — вход каркаса Vue
+     (Спринт 15, change add-vue-s15-final-migration, задача 1.1; ADR-008 —
+     multi-entry MPA, НЕ SPA). Перенос страницы — задача 2.1 (полная
+     разметка и wiring из frontend/admin-login.html +
+     js/admin/admin-login.js — замена монолита целиком; легаси
+     обслуживается до задачи 5.1 — design.md «Роуты и статика»).
+     До гидрации Vue видна эта же разметка; App.vue монтируется поверх #app
+     (паттерн пилота/С11/С12/С14). Разметку держать синхронной с App.vue. -->
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>СберАвтошкола — Админка</title>
+<!-- Стили страницы — дословный перенос <style> легаси (задача 2.1);
+     Vite бандлит их в /vue/assets с хэш-именем; CSS вне JS-бюджета NFR-26. -->
+<link rel="stylesheet" href="/src/pages/admin-login/styles.css">
+</head>
+<body>
+<div id="app"></div>
+<script type="module" src="/src/pages/admin-login/main.js"></script></body></html>
