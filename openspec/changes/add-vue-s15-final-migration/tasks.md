@@ -61,7 +61,7 @@ design.md, не против кода друг друга). Типы работ:
       test_static.py` зелен.
       FR: FR-84. NFR: NFR-26. Зависит от: 1.1.
 
-- [ ] 2.2 [code] src/pages/admin-dashboard/ + вход
+- [x] 2.2 [code] src/pages/admin-dashboard/ + вход
       admin-dashboard.html — полный перенос admin-dashboard.html +
       js/admin/admin-dashboard.js 1:1 (крупнейший перенос контура;
       design.md «Страницы партии» и «Стратегия вербатим-мокапов»):
