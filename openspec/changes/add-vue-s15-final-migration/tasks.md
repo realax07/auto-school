@@ -44,7 +44,7 @@ design.md, не против кода друг друга). Типы работ:
 
 ## 2. Admin-контур (после 1.1; порядок: вход → панель)
 
-- [ ] 2.1 [code] src/pages/admin-login/ + вход admin-login.html —
+- [x] 2.1 [code] src/pages/admin-login/ + вход admin-login.html —
       полный перенос admin-login.html + js/admin/admin-login.js 1:1
       (design.md «Страницы партии»): разметка/стили дословно
       (карточка, «Админка», «Вход только по прямой ссылке», hint
