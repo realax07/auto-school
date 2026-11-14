@@ -319,6 +319,23 @@ FastAPI-сервис (uvicorn, single-worker)          ← единственн�
 SQLite data/app.db (WAL, в .gitignore) — только хранение (паттерн 5);
 учетные данные — таблица users (email UNIQUE + role), заявки инструкторов —
 instructor_applications (email UNIQUE, password_hash, status), сессии — НЕ в БД
+
+  ▼  (Спринт 16, add-wallet-economy 16.1–16.4 — 2026-11-14: ЭКОНОМИКА)
+Деньги — целые копейки (NFR-33 гард на float); append-only журнал
+transactions (type: topup/hold/release/refund/payout; balance = SUM);
+acquiring_topups (мок-эквайринг, X-Idempotency-Key UNIQUE) и payouts
+(СБП-мок, заявка→confirm оператором) — ОТДЕЛЬНЫЕ таблицы;
+booking_disputes (спор в окне 24ч после «проведена»); instructors:
+price_per_hour_rub + commission_percent (0–100, дефолт 10, ставит
+оператор). Холд-цикл: бронь → HOLD (снапшот цены) → refund строго ДО
+старта (после — 409) → complete → авто-релиз 24ч / timeout-defrost 72ч
+(ленивый свип, single-worker); release floor gross×(100−c)/100 + fee
+(комиссия на момент релиза); price NULL = занятие без холда (легаси).
+API: /api/wallet*, /api/instructor/economy*, /api/admin/transactions*
+(X-Session-Token / X-Admin-Token). UI: «Кошелек» в кабинете ученика,
+цена/«Доходы»/«Вывести» у инструктора, раздел «Транзакции» в админке
+(журнал + баланс компании + комиссии инструкторов за год)
+```
 ```
 
 При Релизе 1 сервис встает за Nginx + Gateway (паттерны 1, 2); статика может

@@ -31,7 +31,12 @@
          предпросмотр (изображение ДОЛЖНО открываться), Подтвердить /
          Отклонить с ОБЯЗАТЕЛЬНОЙ причиной, фильтры, вкладка История. -->
     <button onclick="showSection('documents',this)">▤ Документы</button>
-    <button class="soon" onclick="soon()" title="Появится в следующем спринте">₽ Платежи</button>
+    <!-- Спринт 16 (add-wallet-economy, 16.4.3; мокап admin-transactions.html):
+         слот навигации «₽ Платежи» → РЕАЛЬНЫЙ раздел «Транзакции» —
+         журнал экономики, выплаты, споры, комиссии; e2e-якорей на
+         «Платежи» нет (grep 0 — tasks.md 16.4.3), soon() снят.
+         Разметка синхронна с App.vue (инвариант шапки файла). -->
+    <button onclick="showSection('transactions',this)">₽ Транзакции</button>
     <button class="soon" onclick="soon()" title="Появится в следующем спринте">✎ Настройки</button>
   </nav>
   <div class="side-foot">Спринт 7 · раздел «Автомобили»</div>
@@ -117,7 +122,100 @@
       <div class="empty" id="dc-empty">Записей пока нет</div>
     </div>
   </div>
+
+  <!-- Спринт 16 (add-wallet-economy, 16.4.3; мокап design/mocks/
+       admin-transactions.html — источник дизайна, якорь #sec-transactions):
+       раздел «Транзакции» — журнал экономики (GET /api/admin/transactions
+       с фильтрами тип/роль/юзер/даты), баланс компании (SUM fee), очередь
+       выплат (confirm — диалог, недостача 409 честно), открытые споры
+       (release/refund — комментарий обязателен, BUG-046-паттерн disabled),
+       комиссии инструкторов за год (селектор года) и поле «Комиссия %»
+       каждому инструктору (PUT …/commission, 0–100). Данные — только
+       textContent (XSS-правило). Статика до гидрации — честные нули
+       (прецедент sec-applications); данные гидрируются из App.vue. -->
+  <div id="sec-transactions" style="display:none">
+    <div class="top"><h1>Транзакции</h1><div class="spacer"></div></div>
+    <p class="tx-sub">Весь журнал движения денег: пополнения, холды броней, релизы (с комиссией), возвраты, выплаты. Журнал только читается — записи не изменяются и не удаляются. Денежные суммы хранятся в копейках.</p>
+
+    <div class="tx-company">
+      <div class="tx-card"><small>Баланс компании</small><b id="tx-company">0 ₽</b><div class="tx-hint">накопленные комиссии — SUM fee по журналу release</div></div>
+      <div class="tx-card"><small id="tx-comms-year-label">Комиссий за год</small><b id="tx-comms-year">0 ₽</b><div class="tx-hint">инструкторы с комиссией 0 вносят 0 (факт 0)</div></div>
+      <div class="tx-card"><small>Заявок выплат в очереди</small><b id="tx-payouts-n">0</b><div class="tx-hint">подтверждение списывает баланс инструктора</div></div>
+      <div class="tx-card"><small>Открытых споров</small><b id="tx-disputes-n">0</b><div class="tx-hint">холд заморожен до решения</div></div>
+    </div>
+
+    <div class="tx-toolbar">
+      <label for="tx-f-type">Тип</label>
+      <select id="tx-f-type"><option value="">все</option><option>topup</option><option>hold</option><option>release</option><option>refund</option><option>payout</option></select>
+      <label for="tx-f-role">Роль</label>
+      <select id="tx-f-role"><option value="">все</option><option value="student">ученик</option><option value="instructor">инструктор</option></select>
+      <label for="tx-f-user">Пользователь</label>
+      <select id="tx-f-user"><option value="">все</option></select>
+      <label for="tx-f-from">с</label><input type="date" id="tx-f-from">
+      <label for="tx-f-to">по</label><input type="date" id="tx-f-to">
+      <span class="count" id="tx-count"></span>
+    </div>
+
+    <div class="ac-card">
+      <table id="tx-table">
+        <thead><tr><th>ID</th><th>Дата</th><th>Тип</th><th class="tx-hide">Роль</th><th>Пользователь</th><th class="tx-hide">Источник</th><th class="tx-hide">Gross / Fee / Net</th><th style="text-align:right">Сумма</th></tr></thead>
+        <tbody id="tx-rows"></tbody>
+      </table>
+      <div class="empty" id="tx-empty">Транзакций по фильтру нет</div>
+    </div>
+
+    <div class="tx-grid2">
+      <section class="tx-panel">
+        <div class="tx-panel-head"><div><div class="tx-title">Выплаты — заявки</div><div class="tx-panel-sub">СБП (мок) · подтверждение создает транзакцию payout</div></div></div>
+        <div id="tx-payouts"></div>
+        <div class="empty" id="tx-payouts-empty">Активных заявок на вывод нет</div>
+        <div class="rowhint" style="text-align:left">Недостача баланса к моменту подтверждения → подтверждение отклонено с объяснением, заявка остается активной (деньги не списаны).</div>
+        <div class="tx-panel-head" style="margin-top:18px"><div><div class="tx-title">Споры — открытые</div><div class="tx-panel-sub">окно 24ч от отметки «проведено» · холд заморожен</div></div></div>
+        <div id="tx-disputes"></div>
+        <div class="empty" id="tx-disputes-empty">Открытых споров нет</div>
+        <div class="rowhint" style="text-align:left">Решение — с обязательным комментарием оператора (кнопка недоступна без текста). После решения холд закрыт ровно одной транзакцией release/refund.</div>
+      </section>
+
+      <section class="tx-panel">
+        <div class="tx-panel-head"><div><div class="tx-title">Комиссии инструкторов за год</div><div class="tx-panel-sub">SUM fee по журналу release · без отдельной таблицы</div></div></div>
+        <div class="tx-year">
+          <label for="tx-f-year">Год</label>
+          <select id="tx-f-year"></select>
+        </div>
+        <table>
+          <thead><tr><th>Инструктор</th><th>Релизов</th><th style="text-align:right">Fee за год</th></tr></thead>
+          <tbody id="tx-comm-rows"></tbody>
+        </table>
+        <div class="empty" id="tx-comm-empty">Инструкторов пока нет</div>
+        <div class="rowhint" style="text-align:left">Комиссия ставится оператором каждому инструктору (0–100, по умолчанию 10); меняется ниже — применяется к следующим релизам.</div>
+        <div class="tx-panel-head" style="margin-top:18px"><div><div class="tx-title">Комиссия инструктора</div><div class="tx-panel-sub">целые проценты 0–100 · дефолт 10</div></div></div>
+        <div id="tx-comm-edit"></div>
+        <div class="empty" id="tx-comm-edit-empty">Инструкторов пока нет</div>
+        <div class="rowhint" style="text-align:left">Изменение комиссии не пересчитывает существующие транзакции — исторические fee восстанавливаются из журнала (gross/fee/net).</div>
+      </section>
+    </div>
+  </div>
 </main>
+</div>
+
+<!-- Спринт 16 (16.4.3): решение по спору — релиз инструктору или рефанд
+     ученику; комментарий оператора ОБЯЗАТЕЛЕН — обе кнопки заблокированы
+     до непустого текста (прецедент BUG-046 deny); сервер 422 — страховка -->
+<div class="dc-backdrop" id="tx-resolve" role="dialog" aria-modal="true" aria-labelledby="tx-resolve-title">
+  <div class="dc-modal small">
+    <div class="ic-head">
+      <div><h2 id="tx-resolve-title" style="font-size:18px;margin:0">Решение по спору</h2><div class="sub" id="tx-resolve-sub">—</div></div>
+      <button class="ic-close" id="tx-resolve-close" aria-label="Закрыть">×</button>
+    </div>
+    <p class="m-rep-txt" id="tx-resolve-comment" style="margin-top:4px">—</p>
+    <label class="dc-deny-lbl" for="tx-resolve-text">Комментарий оператора <em>— обязателен</em></label>
+    <textarea id="tx-resolve-text" placeholder="Например: ученику возвращен холд — занятие отменили по месту"></textarea>
+    <div class="dc-deny-note">Решение закрывает спор и холд РОВНО ОДНОЙ журнальной транзакцией: release — инструктору net (комиссия платформе), refund — полный возврат ученику. Существующие записи журнала не пересчитываются.</div>
+    <div class="dc-actions-m">
+      <button class="dc-m-btn danger" id="tx-resolve-refund" disabled>Вернуть ученику</button>
+      <button class="dc-m-btn ok" id="tx-resolve-release" disabled>Выплатить инструктору</button>
+    </div>
+  </div>
 </div>
 
 <!-- Спринт 7: карточка авто (модально, мокап admin-cars.html): чек-лист

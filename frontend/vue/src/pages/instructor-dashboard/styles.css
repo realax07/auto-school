@@ -399,3 +399,33 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
 .warnbox{border:1px solid #6b5426;background:#2a201033;border-radius:13px;padding:14px 16px;font-size:12px;line-height:1.7;color:#ffe4a3;text-align:left}
 .warnbox b{color:#ffd479}
 .m-rep-txt{font-size:12px;color:#c9d6db;line-height:1.7;margin:12px 0 0;text-align:left}
+
+/* Спринт 16 (add-wallet-economy, 16.4.2): раздел «Доходы и выплаты»
+   (#sec-earnings — мокап design/mocks/instructor-earnings.html).
+   Классы ern-* — без коллизий с существующими правилами. */
+#sec-earnings .kicker{margin-bottom:8px}
+.ern-lead{font-size:12px;color:#98a8b1;margin:0 0 20px;max-width:640px;line-height:1.55}
+.ern-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,.9fr);gap:15px;margin-top:15px;align-items:start}
+.ern-table{width:100%;border-collapse:collapse;font-size:13px}
+.ern-table th{padding:11px 13px;text-align:left;color:#8ea4a8;font-weight:500;border-bottom:1px solid #ffffff16;font-size:11px}
+.ern-table td{padding:12px 13px;border-bottom:1px solid #ffffff07;color:#dcebe9}
+.ern-table tr:hover td{background:rgba(53,216,121,.04)}
+.ern-table .td-r{text-align:right;font-weight:600;white-space:nowrap}
+.ern-note{font-size:10px;color:#7f929d;line-height:1.55;border:1px solid #ffffff12;border-radius:11px;background:#ffffff04;padding:10px 12px}
+.ern-empty{font-size:11px;color:#7f929d;padding:8px 2px}
+.ern-label{display:block;font-size:11px;color:#8ea4a8;margin:10px 0 6px}
+.ern-price-line{display:flex;gap:9px;align-items:center}
+.ern-price-line input{width:130px;border:1px solid #ffffff18;background:#ffffff06;color:#f3f7f8;border-radius:12px;padding:11px 13px;font-size:15px;font:inherit}
+.ern-cur{color:#c4d0d5;font-size:13px}
+.ern-btn{border-radius:11px;padding:11px 20px;font-size:12px;font-weight:550;border:1px solid;cursor:pointer;font:inherit;color:inherit;white-space:nowrap}
+.ern-btn.primary{background:#123524;border-color:#2b9c62;color:#c9ffdd}
+.ern-btn.primary:hover{filter:brightness(1.12)}
+.ern-btn.primary:disabled{opacity:.45;cursor:not-allowed;filter:none}
+.ern-prow{display:flex;justify-content:space-between;gap:10px;font-size:12px;align-items:center;border:1px solid #ffffff10;background:#ffffff03;border-radius:12px;padding:11px 13px;margin-top:10px}
+.ern-prow b{font-size:12px;display:block}
+.ern-prow small{color:#8fa0aa;font-size:10px;display:block;margin-top:4px}
+.ern-status{font-size:9px;padding:6px 10px;border-radius:99px;white-space:nowrap}
+.ern-status.st-wait{background:#332a14;color:#ffd479;border:1px solid #6b5426}
+.ern-status.st-paid{background:#143322;color:#91efb1;border:1px solid #2a5c40}
+.ern-input{width:100%;border:1px solid #ffffff18;background:#ffffff06;color:#f3f7f8;border-radius:12px;padding:11px 13px;font-size:13px;font:inherit}
+@media(max-width:1100px){.ern-grid{grid-template-columns:1fr}}
