@@ -115,7 +115,7 @@
     </div>
   </div>
   <div class="bottom-grid day-content">
-    <section class="card panel"><div class="panel-head"><div><div class="panel-title">Последние операции</div><div class="panel-sub">Начисления и выплаты</div></div><button class="text-btn" @click="navTo('Доходы')">Все операции ↗</button></div>
+    <section class="card panel"><div class="panel-head"><div><div class="panel-title">Последние операции</div><div class="panel-sub">Начисления и выплаты</div></div><button class="text-btn" @click="navTo('Доходы и выплаты')">Все операции ↗</button></div>
       <div class="activity">
         <div class="activity-row"><div class="activity-icon">↗</div><div class="activity-copy"><b>Занятие · Александр Иванов</b><small>Сегодня, 09:00 · Начисление</small></div><div class="amount plus">+2 000 ₽</div></div>
         <div class="activity-row"><div class="activity-icon">↗</div><div class="activity-copy"><b>Занятие · Мария Петрова</b><small>Вчера, 16:00 · Начисление</small></div><div class="amount plus">+2 000 ₽</div></div>
@@ -123,7 +123,7 @@
       </div>
     </section>
     <section class="card panel"><div class="panel-head"><div><div class="panel-title">Быстрые действия</div><div class="panel-sub">Самое нужное — в один клик</div></div></div>
-      <div class="quick-actions"><button class="quick" @click="navTo('Расписание')"><span>＋</span>Открыть время<br>для записи</button><button class="quick" @click="navTo('Ученики')"><span>♧</span>Посмотреть<br>учеников</button><button class="quick" @click="navTo('Доходы')"><span>₽</span>Мои доходы<br>и выплаты</button></div>
+      <div class="quick-actions"><button class="quick" @click="navTo('Расписание')"><span>＋</span>Открыть время<br>для записи</button><button class="quick" @click="navTo('Ученики')"><span>♧</span>Посмотреть<br>учеников</button><button class="quick" @click="navTo('Доходы и выплаты')"><span>₽</span>Мои доходы<br>и выплаты</button></div>
     </section>
   </div>
 
