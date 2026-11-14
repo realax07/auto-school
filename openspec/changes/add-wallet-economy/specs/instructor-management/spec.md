@@ -1,12 +1,5 @@
 # Delta: instructor-management
 
-Примечание СА: кейпабилити instructor-management в openspec/specs НЕ
-существует (сверено ls openspec/specs — список без instructor-management).
-По правилам архива openspec (CLI 1.14.1) для новой кейпабилити допускаются
-только ADDED-требования, поэтому дельта оформлена ADDED и СОЗДАЕТ
-кейпабилити (сверка с фактом — design.md «Baseline», proposal «Сверка
-состава с фактом»).
-
 ## ADDED Requirements
 
 ### Requirement: Цена часа занятия задается инструктором
