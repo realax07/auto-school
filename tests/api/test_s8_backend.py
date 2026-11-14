@@ -1079,9 +1079,15 @@ def test_s8_my_students_list_counters_and_access(api, client, monkeypatch):
     _booking(client, s1, instr_a, _add_slot(instr_a["id"], "12:00"), iso(-1))
     _booking(client, s1, instr_a, _add_slot(instr_a["id"], "13:00"), iso(-2))
     _booking(client, s1, instr_a, _add_slot(instr_a["id"], "14:00"), iso(-3))
-    # rejected-бронь s1 (прошлое) — в счетчиках не участвует (только confirmed)
+    # rejected-бронь s1 — в счетчиках не участвует (только confirmed).
+    # [test-adapted] Спринт 16 (add-wallet-economy, МАЖ-1): reject ПОСЛЕ
+    # старта занятия запрещен (409 «Занятие началось» — refund/смена
+    # статуса после старта невозможны), поэтому отклоняемая бронь —
+    # БУДУЩЕГО экземпляра (reject ДО старта); из счетчиков/next_lesson
+    # исключена по статусу, семантика кейса сохранена и усилена
+    # негативной проверкой гварда.
     rejected_id = _booking(
-        client, s1, instr_a, _add_slot(instr_a["id"], "15:00"), iso(-5),
+        client, s1, instr_a, _add_slot(instr_a["id"], "15:00"), iso(3),
         confirm=False,
     )
     resp = client.post(
@@ -1090,6 +1096,20 @@ def test_s8_my_students_list_counters_and_access(api, client, monkeypatch):
         headers=_headers(instr_a["token"]),
     )
     assert resp.status_code == 200, resp.text
+    # МАЖ-1 (Спринт 16): отклонение уже начавшегося экземпляра — 409,
+    # статус не меняется (бронь в прошлом остается 'new' и счетчики
+    # не затрагивает — не confirmed)
+    past_id = _booking(
+        client, s1, instr_a, _add_slot(instr_a["id"], "08:30"), iso(-5),
+        confirm=False,
+    )
+    resp = client.post(
+        f"/api/instructor/bookings/{past_id}/reject",
+        json={"comment": "поздно"},
+        headers=_headers(instr_a["token"]),
+    )
+    assert resp.status_code == 409, resp.text
+    assert resp.json()["error"] == "Занятие началось"
     # запрос (new) s2 — НЕ входит в «следующее»/счетчики (ОВ-5)
     _booking(
         client, s2, instr_a, _add_slot(instr_a["id"], "16:00"), iso(2),
