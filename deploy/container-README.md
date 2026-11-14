@@ -19,21 +19,24 @@ nginx  (nginx:1.29-trixie, pinned; TLS и конфиг — монтирован�
 app    (образ из Dockerfile: python:3.12-slim pinned, venv, non-root appuser)
   │  uvicorn backend.app:app, single-worker, HEALTHCHECK /api/health
   │  named volumes: db → /data/db (app.db), uploads → /data/uploads
-  │  сеть backend
-  ▼
-minio  (pinned release-тег; S3-контур под задачу 6.3; 9000/9001 не публикуются)
 ```
+
+> Спринт 16 (add-wallet-economy 16.0, решение Заказчика 2026-11-14):
+> S3-совместимое хранилище удалено из compose-стека — остается ровно два
+> сервиса (app + nginx, одна сеть frontend); файловые загрузки продолжают
+> жить на volume uploads. История трехсервисного контура Спринта 6 — в
+> статусной приписке ADR-006; выбор хранилища S3 отложен до реальной
+> потребности (BACKLOG п.4: варианты SeaWeedFS/Garage/облачный S3).
 
 ## Где живут секреты и тома
 
 - **Секреты** — только `.env` рядом с `docker-compose.yml` (вне git, вне
   контекста сборки — `.dockerignore` исключает `.env*`; INC-006). Обязательные
   для приложения: `ADMIN_USER`, `ADMIN_PASSWORD_HASH`, `SECRET` (см.
-  `.env.example`). Для MinIO: `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD` —
-  **дефолтные minioadmin запрещены** (арх-ревью), задайте собственные.
-  `TLS_DIR` — каталог хоста с `cert.pem`/`key.pem` (по умолчанию
-  `./deploy/tls`), монтируется в nginx read-only, в образ не попадает.
-- **Состояние** — named volumes `db`, `uploads`, `minio-data`. Переживают
+  `.env.example`). `TLS_DIR` — каталог хоста с `cert.pem`/`key.pem` (по
+  умолчанию `./deploy/tls`), монтируется в nginx read-only, в образ не
+  попадает.
+- **Состояние** — named volumes `db`, `uploads`. Переживают
   `compose down`/`up`; файлы на хосте принадлежат uid appuser — обслуживание
   тома требует root/docker (осознанное ограничение ADR-006).
 
