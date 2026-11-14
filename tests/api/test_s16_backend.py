@@ -1,5 +1,7 @@
-"""Спринт 16 — BACKEND-тесты экономики, волна 16.1 (change
-add-wallet-economy; задачи 16.1.1/16.1.2 — домен и миграция БД).
+"""Спринт 16 — BACKEND-тесты экономики, волны 16.1 и 16.2 (change
+add-wallet-economy; задачи 16.1.1/16.1.2 — домен и миграция БД;
+16.2.1/16.2.2/16.2.3 — API кошелька/цен/статистики/выплат и админ-контур
+«Транзакции»).
 
 Покрывают: миграции экономики (таблицы transactions/acquiring_topups/
 payouts/instructors/booking_disputes; пересоздание booking — статус
@@ -8,7 +10,14 @@ payouts/instructors/booking_disputes; пересоздание booking — ст�
 (NFR-35), SUM-балансы ledger (формулы design «Модель данных») на
 сценариях «Конечные автоматы»: холд→рефанд, холд→релиз с комиссиями
 0/10/100 («учитывает факт 0», FR-114), свип авто-релиза (24ч, спор
-блокирует; задача 16.1.2).
+блокирует; задача 16.1.2); API 16.2 — кошелек ученика (пустой 0/0/0,
+пополнение с идемпотентностью X-Idempotency-Key — NFR-35, валидация
+сумм), цена часа и комиссия (админ-поле 0–100), доходы инструктора
+(месяц по ученикам + итог, net), payout заявка→confirm оператором
+(guard баланса — 409 без списания), решение споров release/refund
+(комментарий обязателен, повтор — 409), журнал оператора (фильтры
+тип/роль/юзер/период + company_balance_kop) и комиссии за год (факт 0,
+FR-115). Денежные величины — целые копейки (NFR-33).
 
 tests/api/test_s5_backend.py НЕ расширяется; трассировка TC-S16-NNN
 в docstring каждого теста (rule 6). Фикстуры — общий client из conftest;
@@ -21,7 +30,7 @@ import pytest
 import backend.core.db as db
 import backend.wallet.ledger as ledger
 import backend.wallet.sweeps as sweeps
-from conftest import admin_headers, db_path
+from conftest import admin_headers, db_path, register
 
 
 # --- helpers ------------------------------------------------------------------
@@ -620,3 +629,758 @@ def test_s16_sweep_release_after_24h_dispute_blocks_and_rerun_idempotent(client)
         assert count == 1
     finally:
         conn.close()
+
+
+# --- 16.2.1: API кошелька ученика ----------------------------------------------
+
+
+def _student(client, email):
+    """Регистрация + вход ученика → {token, id} (конвенция test_s5)."""
+    resp = register(client, email=email)
+    assert resp.status_code == 200, resp.text
+    conn = _conn()
+    user_id = conn.execute(
+        "SELECT id FROM users WHERE email = ?", (email,)
+    ).fetchone()[0]
+    conn.close()
+    login = client.post(
+        "/api/auth/login", json={"email": email, "password": "Qwerty123"}
+    )
+    assert login.status_code == 200, login.text
+    return {"token": login.json()["token"], "id": user_id}
+
+
+def test_s16_wallet_empty_and_guards(client):
+    """TC-S16-011 — кошелек пустого ученика: 0/0/0, история пуста
+    (корректные нули, спека wallet); без токена — 401; инструктор —
+    403 (require_role, задача 16.2.1)."""
+    student = _student(client, "s16w@example.com")
+    resp = client.get("/api/wallet", headers={"X-Session-Token": student["token"]})
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["ok"] is True
+    assert body["available_kop"] == 0
+    assert body["frozen_kop"] == 0
+    assert body["total_kop"] == 0
+    assert body["transactions"] == []
+    assert client.get("/api/wallet").status_code == 401
+    instructor = _instructor_via_approve(
+        client, "s16w-instr@example.com"
+    )
+    login = client.post(
+        "/api/auth/login",
+        json={"email": "s16w-instr@example.com", "password": "Instr1616"},
+    )
+    resp = client.get(
+        "/api/wallet",
+        headers={"X-Session-Token": login.json()["token"]},
+    )
+    assert resp.status_code == 403
+
+
+def test_s16_wallet_topup_and_history(client):
+    """TC-S16-012 — пополнение мгновенно зачисляется (спека wallet):
+    acquiring_topups (mock/succeeded, provider_payment_id NULL) +
+    транзакция topup; available+, история содержит topup (FR-99)."""
+    student = _student(client, "s16w-top@example.com")
+    resp = client.post(
+        "/api/wallet/topup",
+        json={"amount_kop": 250_000},
+        headers={"X-Session-Token": student["token"]},
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["ok"] is True
+    assert body["available_kop"] == 250_000
+    conn = _conn()
+    try:
+        row = conn.execute(
+            "SELECT * FROM acquiring_topups WHERE id = ?",
+            (body["topup_id"],),
+        ).fetchone()
+        assert row["provider"] == "mock"
+        assert row["status"] == "succeeded"
+        assert row["provider_payment_id"] is None  # поле будущего провайдера
+    finally:
+        conn.close()
+    wallet = client.get(
+        "/api/wallet", headers={"X-Session-Token": student["token"]}
+    ).json()
+    types = [t["type"] for t in wallet["transactions"]]
+    assert "topup" in types
+    assert wallet["transactions"][0]["sign"] == 1
+
+
+def test_s16_wallet_topup_idempotency_key_vs_no_key(client):
+    """TC-S16-013 — идемпотентность пополнения (NFR-35): повтор с тем же
+    X-Idempotency-Key — дубля нет, баланс не удваивается (результат
+    первой операции); без ключа каждый вызов — новая операция."""
+    student = _student(client, "s16w-idem@example.com")
+    headers = {"X-Session-Token": student["token"],
+               "X-Idempotency-Key": "op-2026-16-1"}
+    first = client.post("/api/wallet/topup", json={"amount_kop": 100_000},
+                        headers=headers)
+    assert first.status_code == 200
+    repeat = client.post("/api/wallet/topup", json={"amount_kop": 100_000},
+                         headers=headers)
+    assert repeat.status_code == 200
+    assert repeat.json()["topup_id"] == first.json()["topup_id"]
+    conn = _conn()
+    try:
+        topups = conn.execute(
+            "SELECT COUNT(*) c FROM acquiring_topups"
+            " WHERE idempotency_key = 'op-2026-16-1'"
+        ).fetchone()["c"]
+        txs = conn.execute(
+            "SELECT COUNT(*) c FROM transactions t"
+            " JOIN acquiring_topups a ON a.id = t.topup_id"
+            " WHERE a.idempotency_key = 'op-2026-16-1'"
+        ).fetchone()["c"]
+        assert topups == 1 and txs == 1
+    finally:
+        conn.close()
+    wallet = client.get(
+        "/api/wallet", headers={"X-Session-Token": student["token"]}
+    ).json()
+    assert wallet["available_kop"] == 100_000
+    # Без ключа — каждая операция новая
+    for _ in range(2):
+        resp = client.post(
+            "/api/wallet/topup", json={"amount_kop": 50_000},
+            headers={"X-Session-Token": student["token"]},
+        )
+        assert resp.status_code == 200
+    conn = _conn()
+    try:
+        null_key = conn.execute(
+            "SELECT COUNT(*) c FROM acquiring_topups"
+            " WHERE idempotency_key IS NULL"
+        ).fetchone()["c"]
+        assert null_key == 2
+    finally:
+        conn.close()
+    wallet = client.get(
+        "/api/wallet", headers={"X-Session-Token": student["token"]}
+    ).json()
+    assert wallet["available_kop"] == 200_000
+
+
+def test_s16_wallet_topup_validation_limits(client):
+    """TC-S16-014 — валидация суммы (спека wallet «Некорректная сумма»):
+    неположительная/нецелая/сверх предела (500 000 ₽-эквивалент) → 422,
+    записей нет, баланс не изменился (задача 16.2.1)."""
+    student = _student(client, "s16w-valid@example.com")
+    headers = {"X-Session-Token": student["token"]}
+    for amount in (0, -100, ledger.TOPUP_MAX_KOP + 1):
+        resp = client.post("/api/wallet/topup", json={"amount_kop": amount},
+                           headers=headers)
+        assert resp.status_code == 422, (amount, resp.text)
+    # нецелая сумма — pydantic int (дробная часть → 422)
+    resp = client.post("/api/wallet/topup", json={"amount_kop": 100.5},
+                       headers=headers)
+    assert resp.status_code == 422
+    resp = client.post("/api/wallet/topup", json={"amount_kop": "abc"},
+                       headers=headers)
+    assert resp.status_code == 422
+    conn = _conn()
+    try:
+        assert conn.execute(
+            "SELECT COUNT(*) c FROM acquiring_topups"
+        ).fetchone()["c"] == 0
+        assert conn.execute(
+            "SELECT COUNT(*) c FROM transactions"
+        ).fetchone()["c"] == 0
+    finally:
+        conn.close()
+
+
+def test_s16_wallet_isolation_between_students(client):
+    """TC-S16-017 — чужой кошелек недоступен (спека wallet): кошелек Б
+    показывает ТОЛЬКО данные Б; параметра владельца в API нет —
+    user_id только из сессии (задача 16.2.1)."""
+    a = _student(client, "s16w-a@example.com")
+    b = _student(client, "s16w-b@example.com")
+    client.post("/api/wallet/topup", json={"amount_kop": 300_000},
+                headers={"X-Session-Token": a["token"]})
+    wallet_b = client.get(
+        "/api/wallet", headers={"X-Session-Token": b["token"]}
+    ).json()
+    assert wallet_b["available_kop"] == 0
+    assert wallet_b["transactions"] == []
+
+
+# --- 16.2.2: инструкторская экономика ------------------------------------------
+
+
+def test_s16_instructor_price_save_validate_reset(client):
+    """TC-S16-018 — цена часа (FR-100): сохраняется; валидируется
+    (отрицательная → 422, прежнее значение сохранено); NULL-сброс —
+    явное поле; GET economy отражает (задача 16.2.2)."""
+    _instructor_via_approve(client, "s16p@example.com")
+    login = client.post(
+        "/api/auth/login",
+        json={"email": "s16p@example.com", "password": "Instr1616"},
+    )
+    headers = {"X-Session-Token": login.json()["token"]}
+    economy = client.get("/api/instructor/economy", headers=headers).json()
+    assert economy["ok"] is True
+    assert economy["price_per_hour_rub"] is None
+    assert economy["commission_percent"] == 10  # DEFAULT схемы (FR-109)
+    resp = client.put("/api/instructor/price",
+                      json={"price_per_hour_rub": 1500}, headers=headers)
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["price_per_hour_rub"] == 1500
+    resp = client.put("/api/instructor/price",
+                      json={"price_per_hour_rub": -5}, headers=headers)
+    assert resp.status_code == 422
+    economy = client.get("/api/instructor/economy", headers=headers).json()
+    assert economy["price_per_hour_rub"] == 1500  # прежнее сохранено
+    # нецелое → 422 (pydantic int)
+    resp = client.put("/api/instructor/price",
+                      json={"price_per_hour_rub": 1.5}, headers=headers)
+    assert resp.status_code == 422
+    # NULL-сброс — явное поле
+    resp = client.put("/api/instructor/price",
+                      json={"price_per_hour_rub": None}, headers=headers)
+    assert resp.status_code == 200
+    assert resp.json()["price_per_hour_rub"] is None
+    # ученик на инструкторский эндпоинт — 403
+    student = _student(client, "s16p-student@example.com")
+    resp = client.get(
+        "/api/instructor/economy",
+        headers={"X-Session-Token": student["token"]},
+    )
+    assert resp.status_code == 403
+
+
+def test_s16_instructor_earnings_month_by_student(client):
+    """TC-S16-018b — статистика месяца (FR-110): посевные release
+    (10% и 0% комиссии) → разбивка по ученикам net=gross−fee + итог
+    месяца; месяц без заработка — нули (задача 16.2.2)."""
+    instructor_id = _instructor_via_approve(client, "s16e@example.com")
+    login = client.post(
+        "/api/auth/login",
+        json={"email": "s16e@example.com", "password": "Instr1616"},
+    )
+    headers = {"X-Session-Token": login.json()["token"]}
+    # Пустой месяц — нули без ошибки
+    empty = client.get("/api/instructor/earnings", headers=headers).json()
+    assert empty["ok"] is True
+    assert empty["total_net_kop"] == 0 and empty["by_student"] == []
+    # Посев release: ученик 1 (комиссия 10), ученик 2 (после смены на 0)
+    conn = _conn()
+    try:
+        gross1 = 400_000
+        fee1, net1 = ledger.release_gross_split(gross1, 10)
+        ledger.insert_transaction(
+            conn, tx_type="release", user_id=901, amount_kop=gross1,
+            booking_id=901, student_id=901, instructor_id=instructor_id,
+            amount_gross_kop=gross1, fee_kop=fee1, amount_net_kop=net1,
+        )
+        conn.commit()
+        gross2 = 600_000
+        ledger.insert_transaction(
+            conn, tx_type="release", user_id=902, amount_kop=gross2,
+            booking_id=902, student_id=902, instructor_id=instructor_id,
+            amount_gross_kop=gross2, fee_kop=0, amount_net_kop=gross2,
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    data = client.get("/api/instructor/earnings", headers=headers).json()
+    assert data["total_net_kop"] == net1 + gross2
+    assert data["total_gross_kop"] == gross1 + gross2
+    by_id = {e["student_id"]: e for e in data["by_student"]}
+    assert by_id[901]["net_kop"] == net1
+    assert by_id[902]["net_kop"] == gross2  # комиссия 0: net = gross
+    # Чужая статистика недоступна (спека instructor-management)
+    _instructor_via_approve(client, "s16e2@example.com")
+    login2 = client.post(
+        "/api/auth/login",
+        json={"email": "s16e2@example.com", "password": "Instr1616"},
+    )
+    other = client.get(
+        "/api/instructor/earnings",
+        headers={"X-Session-Token": login2.json()["token"]},
+    ).json()
+    assert other["total_net_kop"] == 0
+
+
+def _arrange_instructor_with_pending_payout(client, email="s16po@example.com"):
+    """Аранжировка выплаты: инструктор через approve + release-посев
+    (balance = net) + активная заявка 300 000. Возвращает кортеж
+    (instructor_id, payout_id, balance_kop)."""
+    instructor_id = _instructor_via_approve(client, email)
+    conn = _conn()
+    try:
+        gross = 1_000_000
+        fee, net = ledger.release_gross_split(gross, 10)
+        ledger.insert_transaction(
+            conn, tx_type="release", user_id=910, amount_kop=gross,
+            booking_id=910, student_id=910, instructor_id=instructor_id,
+            amount_gross_kop=gross, fee_kop=fee, amount_net_kop=net,
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    resp = client.post(
+        "/api/instructor/payouts",
+        json={"amount_kop": 300_000, "bank": "Сбер", "phone": "+79000000000"},
+        headers=_instr_headers(client, email),
+    )
+    assert resp.status_code == 200, resp.text
+    return instructor_id, resp.json()["payout_id"], net
+
+
+def _instr_headers(client, email, password="Instr1616"):
+    login = client.post(
+        "/api/auth/login", json={"email": email, "password": password}
+    )
+    assert login.status_code == 200, login.text
+    return {"X-Session-Token": login.json()["token"]}
+
+
+def test_s16_instructor_payout_request_guards(client):
+    """TC-S16-019 — заявка вывода (FR-111): создается при amount ≤
+    balance; вторая активная → 409; сумма > balance → 422; bank/phone
+    обязательны → 422; список своих заявок; баланс заявкой не
+    замораживается (задача 16.2.2)."""
+    instructor_id = _instructor_via_approve(client, "s16po@example.com")
+    headers = _instr_headers(client, "s16po@example.com")
+    # Баланс 0: заявка сверх → 422
+    resp = client.post(
+        "/api/instructor/payouts",
+        json={"amount_kop": 50_000, "bank": "Сбер", "phone": "+79000000000"},
+        headers=headers,
+    )
+    assert resp.status_code == 422
+    # Посев release → balance
+    conn = _conn()
+    try:
+        gross = 1_000_000
+        fee, net = ledger.release_gross_split(gross, 10)
+        ledger.insert_transaction(
+            conn, tx_type="release", user_id=910, amount_kop=gross,
+            booking_id=910, student_id=910, instructor_id=instructor_id,
+            amount_gross_kop=gross, fee_kop=fee, amount_net_kop=net,
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    # bank/phone обязательны
+    resp = client.post(
+        "/api/instructor/payouts",
+        json={"amount_kop": 50_000, "bank": "", "phone": "+79000000000"},
+        headers=headers,
+    )
+    assert resp.status_code == 422
+    resp = client.post(
+        "/api/instructor/payouts",
+        json={"amount_kop": 50_000, "bank": "Сбер", "phone": ""},
+        headers=headers,
+    )
+    assert resp.status_code == 422
+    # Заявка > balance → 422
+    resp = client.post(
+        "/api/instructor/payouts",
+        json={"amount_kop": 5_000_000, "bank": "Сбер",
+              "phone": "+79000000000"},
+        headers=headers,
+    )
+    assert resp.status_code == 422
+    # Успешная заявка: баланс НЕ изменился (заявка не замораживает)
+    resp = client.post(
+        "/api/instructor/payouts",
+        json={"amount_kop": 300_000, "bank": "Сбер",
+              "phone": "+79000000000"},
+        headers=headers,
+    )
+    assert resp.status_code == 200, resp.text
+    payout_id = resp.json()["payout_id"]
+    economy = client.get("/api/instructor/economy", headers=headers).json()
+    assert economy["balance_kop"] == net
+    # Вторая активная → 409
+    resp = client.post(
+        "/api/instructor/payouts",
+        json={"amount_kop": 10_000, "bank": "ВТБ", "phone": "+79000000001"},
+        headers=headers,
+    )
+    assert resp.status_code == 409
+    # Список своих
+    listed = client.get("/api/instructor/payouts", headers=headers).json()
+    assert [p["id"] for p in listed["payouts"]] == [payout_id]
+    assert listed["payouts"][0]["status"] == "requested"
+    assert listed["payouts"][0]["bank"] == "Сбер"
+
+
+# --- 16.2.3: админ-контур --------------------------------------------------------
+
+
+def test_s16_admin_transactions_filters_and_company_balance(client):
+    """TC-S16-020 — журнал оператора (FR-113/114): все типы/пользователи,
+    свежие сверху; фильтры тип/роль/юзер/период; company_balance_kop =
+    SUM fee (задача 16.2.3)."""
+    admin = admin_headers(client)
+    # Реальные пользователи (JOIN журнала на users — роль фильтра)
+    s1 = _student(client, "s16adm-a@example.com")
+    s2 = _student(client, "s16adm-b@example.com")
+    conn = _conn()
+    try:
+        ledger.insert_transaction(conn, tx_type="topup", user_id=s1["id"],
+                                  amount_kop=100_000, topup_id=1)
+        ledger.insert_transaction(conn, tx_type="hold", user_id=s1["id"],
+                                  amount_kop=60_000, booking_id=800,
+                                  student_id=s1["id"], instructor_id=s2["id"])
+        ledger.insert_transaction(
+            conn, tx_type="release", user_id=s1["id"], amount_kop=60_000,
+            booking_id=800, student_id=s1["id"], instructor_id=s2["id"],
+            amount_gross_kop=60_000, fee_kop=6_000, amount_net_kop=54_000,
+        )
+        ledger.insert_transaction(conn, tx_type="topup", user_id=s2["id"],
+                                  amount_kop=10_000, topup_id=2)
+        conn.commit()
+    finally:
+        conn.close()
+    admin = admin_headers(client)
+    resp = client.get("/api/admin/transactions", headers=admin)
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["company_balance_kop"] == 6_000
+    types = [t["type"] for t in body["transactions"]]
+    assert set(types) == {"topup", "hold", "release"}
+    assert types == ["topup", "release", "hold", "topup"]  # свежие сверху
+    # Фильтр типа
+    only_release = client.get(
+        "/api/admin/transactions?type=release", headers=admin
+    ).json()
+    assert [t["type"] for t in only_release["transactions"]] == ["release"]
+    # Фильтр роли
+    students = client.get(
+        "/api/admin/transactions?role=student", headers=admin
+    ).json()
+    assert {t["role"] for t in students["transactions"]} == {"student"}
+    # Фильтр юзера
+    mine = client.get(
+        f"/api/admin/transactions?user_id={s2['id']}", headers=admin
+    ).json()
+    assert {t["user_id"] for t in mine["transactions"]} == {s2["id"]}
+    # Фильтр периода: только будущая дата — пусто (валидное состояние)
+    empty = client.get(
+        "/api/admin/transactions?date_from=2030-01-01", headers=admin
+    ).json()
+    assert empty["transactions"] == []
+    assert empty["company_balance_kop"] == 6_000  # баланс не фильтруется
+    # Неверный тип → 422
+    assert client.get(
+        "/api/admin/transactions?type=hack", headers=admin
+    ).status_code == 422
+    assert client.get(
+        "/api/admin/transactions?date_from=2026-02-30", headers=admin
+    ).status_code == 422
+    # Доступ: сессия ученика не заменяет админ-токен (401)
+    student = _student(client, "s16adm-st@example.com")
+    assert client.get(
+        "/api/admin/transactions",
+        headers={"X-Session-Token": student["token"]},
+    ).status_code == 401
+
+
+def test_s16_admin_payout_confirm_and_insufficiency(client):
+    """TC-S16-021 — подтверждение выплаты оператором (FR-112): ровно одна
+    payout-транзакция, balance−, статус paid; повтор → 409; недостаток —
+    409 без списания, заявка остается requested (задача 16.2.3)."""
+    instructor_id, payout_id, net = _arrange_instructor_with_pending_payout(
+        client, "s16conf@example.com"
+    )
+    admin = admin_headers(client)
+    # Очередь requested содержит заявку
+    queue = client.get("/api/admin/payouts", headers=admin).json()
+    assert [p["id"] for p in queue["payouts"]] == [payout_id]
+    # Искусственное списание (имитация «суммарные списания уменьшили
+    # баланс» — спека payouts): balance → net − 300_000 < amount
+    conn = _conn()
+    try:
+        ledger.insert_transaction(
+            conn, tx_type="payout", user_id=instructor_id, amount_kop=net,
+        )
+        conn.commit()
+        balance_after = ledger.instructor_balances(conn, instructor_id)
+        assert balance_after["balance_kop"] < 300_000
+    finally:
+        conn.close()
+    # Недостача: 409 без списания, заявка ОСТАЕТСЯ requested
+    resp = client.post(f"/api/admin/payouts/{payout_id}/confirm", headers=admin)
+    assert resp.status_code == 409, resp.text
+    conn = _conn()
+    try:
+        row = conn.execute(
+            "SELECT status FROM payouts WHERE id = ?", (payout_id,)
+        ).fetchone()
+        assert row["status"] == "requested"
+        assert conn.execute(
+            "SELECT COUNT(*) c FROM transactions WHERE payout_id = ?",
+            (payout_id,),
+        ).fetchone()["c"] == 0
+    finally:
+        conn.close()
+    # Восстанавливаем баланс новым release (500 000, комиссия 10)
+    conn = _conn()
+    try:
+        gross = 500_000
+        fee, net2 = ledger.release_gross_split(gross, 10)
+        ledger.insert_transaction(
+            conn, tx_type="release", user_id=910, amount_kop=gross,
+            booking_id=911, student_id=910, instructor_id=instructor_id,
+            amount_gross_kop=gross, fee_kop=fee, amount_net_kop=net2,
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    conn = _conn()
+    try:
+        assert ledger.instructor_balances(conn, instructor_id)["balance_kop"] \
+            >= 300_000
+    finally:
+        conn.close()
+    # Успешный confirm: ровно одна транзакция, balance−, статус paid
+    resp = client.post(f"/api/admin/payouts/{payout_id}/confirm", headers=admin)
+    assert resp.status_code == 200, resp.text
+    conn = _conn()
+    try:
+        txs = conn.execute(
+            "SELECT * FROM transactions WHERE payout_id = ? AND type='payout'",
+            (payout_id,),
+        ).fetchall()
+        assert len(txs) == 1
+        row = conn.execute(
+            "SELECT status, paid_at FROM payouts WHERE id = ?", (payout_id,)
+        ).fetchone()
+        assert row["status"] == "paid" and row["paid_at"] is not None
+    finally:
+        conn.close()
+    balance_now = ledger.instructor_balances(_conn(), instructor_id)
+    assert balance_now["balance_kop"] < 300_000 + net2  # списание прошло
+    # Повторный confirm → 409, дубль-транзакции нет
+    resp = client.post(f"/api/admin/payouts/{payout_id}/confirm", headers=admin)
+    assert resp.status_code == 409
+    conn = _conn()
+    try:
+        assert conn.execute(
+            "SELECT COUNT(*) c FROM transactions WHERE payout_id = ?",
+            (payout_id,),
+        ).fetchone()["c"] == 1
+    finally:
+        conn.close()
+    # paid-заявка не в очереди requested
+    queue = client.get("/api/admin/payouts", headers=admin).json()
+    assert queue["payouts"] == []
+    # Несуществующая заявка → 404
+    assert client.post("/api/admin/payouts/999999/confirm",
+                       headers=admin).status_code == 404
+
+
+def _seed_dispute(client, *, suffix, gross=250_000):
+    """Аранжировка спора: пара users (уникальные email по suffix),
+    completed бронь с холдом, hold-транзакция, открытый спор.
+    Возвращает (instructor_id, student_id, booking_id, dispute_id, gross)."""
+    conn = _conn()
+    try:
+        conn.execute(
+            "INSERT INTO users (surname, name, patronymic, email, phone,"
+            " password_hash, role) VALUES ('Спорный', 'Инструктор', 'И.',"
+            " ?, '+79000000009', 'x', 'instructor')",
+            (f"s16d-instr-{suffix}@example.com",),
+        )
+        instructor_id = conn.execute(
+            "SELECT id FROM users WHERE email = ?",
+            (f"s16d-instr-{suffix}@example.com",),
+        ).fetchone()[0]
+        conn.execute(
+            "INSERT INTO instructors (user_id, commission_percent)"
+            " VALUES (?, 10)", (instructor_id,),
+        )
+        conn.execute(
+            "INSERT INTO users (surname, name, patronymic, email, phone,"
+            " password_hash, role) VALUES ('Спорный', 'Ученик', 'У.',"
+            " ?, '+79000000010', 'x', 'student')",
+            (f"s16d-student-{suffix}@example.com",),
+        )
+        real_student = conn.execute(
+            "SELECT id FROM users WHERE email = ?",
+            (f"s16d-student-{suffix}@example.com",),
+        ).fetchone()[0]
+        conn.execute(
+            "INSERT INTO booking (student_id, instructor_id, availability_id,"
+            " lesson_date, status, hold_amount_kop, completed_at)"
+            " VALUES (?, ?, 1, '2026-01-10', 'completed', ?, datetime('now'))",
+            (real_student, instructor_id, gross),
+        )
+        booking_id = int(conn.execute(
+            "SELECT id FROM booking WHERE student_id = ?", (real_student,)
+        ).fetchone()[0])
+        ledger.insert_transaction(
+            conn, tx_type="hold", user_id=real_student, amount_kop=gross,
+            booking_id=booking_id, student_id=real_student,
+            instructor_id=instructor_id,
+        )
+        conn.commit()
+        conn.execute(
+            "INSERT INTO booking_disputes (booking_id, student_id, comment)"
+            " VALUES (?, ?, 'Качество занятия не устроило')",
+            (booking_id, real_student),
+        )
+        conn.commit()
+        dispute_id = conn.execute(
+            "SELECT id FROM booking_disputes WHERE booking_id = ?",
+            (booking_id,),
+        ).fetchone()[0]
+    finally:
+        conn.close()
+    return instructor_id, real_student, booking_id, int(dispute_id), gross
+
+
+def test_s16_admin_disputes_resolve_release_refund(client):
+    """TC-S16-022 — решение спора оператором (FR-108): release (fee/net
+    по текущей комиссии) и refund (полный возврат) закрывают спор и холд
+    РОВНО одной транзакцией; комментарий обязателен (422); повторное
+    решение → 409 (задача 16.2.3)."""
+    admin = admin_headers(client)
+    # Список открытых
+    instr_id, student_id, booking_id, dispute_id, gross = _seed_dispute(
+        client, suffix="ref"
+    )
+    open_list = client.get("/api/admin/disputes", headers=admin).json()
+    assert len(open_list["disputes"]) == 1
+    assert open_list["disputes"][0]["hold_amount_kop"] == gross
+    assert open_list["disputes"][0]["student_full_name"] == "Спорный Ученик У."
+    # Решение без комментария → 422
+    resp = client.post(
+        f"/api/admin/disputes/{dispute_id}/resolve",
+        json={"resolution": "refund", "comment": ""},
+        headers=admin,
+    )
+    assert resp.status_code == 422
+    # Неизвестное решение → 422
+    resp = client.post(
+        f"/api/admin/disputes/{dispute_id}/resolve",
+        json={"resolution": "cancel", "comment": "х"},
+        headers=admin,
+    )
+    assert resp.status_code == 422
+    # resolve refund: полный возврат, спор закрыт
+    resp = client.post(
+        f"/api/admin/disputes/{dispute_id}/resolve",
+        json={"resolution": "refund", "comment": "Подтверждено учеником"},
+        headers=admin,
+    )
+    assert resp.status_code == 200, resp.text
+    conn = _conn()
+    try:
+        tx = conn.execute(
+            "SELECT * FROM transactions WHERE booking_id = ?"
+            " AND type = 'refund'", (booking_id,),
+        ).fetchone()
+        assert tx is not None and tx["amount_kop"] == gross
+        dispute = conn.execute(
+            "SELECT resolution, operator_comment, resolved_at"
+            " FROM booking_disputes WHERE id = ?", (dispute_id,),
+        ).fetchone()
+        assert dispute["resolution"] == "refund"
+        assert dispute["operator_comment"] == "Подтверждено учеником"
+        assert dispute["resolved_at"] is not None
+    finally:
+        conn.close()
+    # Повторное решение → 409
+    resp = client.post(
+        f"/api/admin/disputes/{dispute_id}/resolve",
+        json={"resolution": "release", "comment": "поздно"},
+        headers=admin,
+    )
+    assert resp.status_code == 409
+    # Решенный спор не в открытых
+    assert client.get("/api/admin/disputes", headers=admin).json()["disputes"] == []
+    # release-ветка: второй спор (новая бронь) → release с fee/net
+    instr2, stud2, book2, disp2, gross2 = _seed_dispute(
+        client, suffix="rel", gross=200_000
+    )
+    resp = client.post(
+        f"/api/admin/disputes/{disp2}/resolve",
+        json={"resolution": "release", "comment": "Занятие состоялось"},
+        headers=admin,
+    )
+    assert resp.status_code == 200, resp.text
+    conn = _conn()
+    try:
+        tx = conn.execute(
+            "SELECT * FROM transactions WHERE booking_id = ?"
+            " AND type = 'release'", (book2,),
+        ).fetchone()
+        fee, net = ledger.release_gross_split(gross2, 10)
+        assert tx["fee_kop"] == fee and tx["amount_net_kop"] == net
+        assert tx["amount_gross_kop"] == gross2
+    finally:
+        conn.close()
+
+
+def test_s16_admin_commission_and_yearly_commissions(client):
+    """TC-S16-023 — комиссия оператором (FR-109) и таблица комиссий за
+    год (FR-115): PUT 0–100 (границы; 101 → 422; не-инструктор → 404);
+    GET commissions?year — агрегат посевных релизов; год без данных —
+    нулевые строки инструкторов (факт 0); дефолт — текущий год
+    (задача 16.2.3)."""
+    admin = admin_headers(client)
+    instructor_id = _instructor_via_approve(client, "s16c@example.com")
+    # PUT границы
+    resp = client.put(
+        f"/api/admin/instructors/{instructor_id}/commission",
+        json={"commission_percent": 25}, headers=admin,
+    )
+    assert resp.status_code == 200 and resp.json()["commission_percent"] == 25
+    assert client.put(
+        f"/api/admin/instructors/{instructor_id}/commission",
+        json={"commission_percent": 101}, headers=admin,
+    ).status_code == 422
+    assert client.put(
+        f"/api/admin/instructors/{instructor_id}/commission",
+        json={"commission_percent": -1}, headers=admin,
+    ).status_code == 422
+    assert client.put(
+        "/api/admin/instructors/999999/commission",
+        json={"commission_percent": 10}, headers=admin,
+    ).status_code == 404
+    # Посев release за текущий год (комиссия 25) и «прошлый» год (fee 777)
+    conn = _conn()
+    try:
+        gross = 200_000
+        fee, net = ledger.release_gross_split(gross, 25)
+        ledger.insert_transaction(
+            conn, tx_type="release", user_id=940, amount_kop=gross,
+            booking_id=940, student_id=940, instructor_id=instructor_id,
+            amount_gross_kop=gross, fee_kop=fee, amount_net_kop=net,
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    import datetime
+    year = datetime.datetime.now(datetime.timezone.utc).year
+    data = client.get(f"/api/admin/commissions?year={year}", headers=admin).json()
+    assert data["year"] == year
+    row = next(
+        c for c in data["commissions"]
+        if c["instructor_id"] == instructor_id
+    )
+    assert row["fee_kop"] == fee  # 25% от 200000 = 50000
+    # Дефолт — текущий год
+    default = client.get("/api/admin/commissions", headers=admin).json()
+    assert default["year"] == year
+    # Год без данных: инструктор присутствует с нулевой строкой (факт 0)
+    empty_year = client.get("/api/admin/commissions?year=2030", headers=admin).json()
+    row_empty = next(
+        c for c in empty_year["commissions"]
+        if c["instructor_id"] == instructor_id
+    )
+    assert row_empty["fee_kop"] == 0 and row_empty["releases"] == 0
+    # Неверный год → 422
+    assert client.get(
+        "/api/admin/commissions?year=abcd", headers=admin
+    ).status_code == 422

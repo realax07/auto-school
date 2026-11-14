@@ -28,6 +28,9 @@ from backend.auth.register import router as register_router
 from backend.student.reviews import router as reviews_router
 from backend.student.student_marketplace import router as student_marketplace_router
 from backend.student.student_requests import router as student_requests_router
+from backend.wallet.wallets import router as wallet_router
+from backend.wallet.instructor_economy import router as instructor_economy_router
+from backend.wallet.admin_transactions import router as admin_transactions_router
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = ROOT_DIR / "frontend"
@@ -138,6 +141,16 @@ def create_app() -> FastAPI:
     app.include_router(reviews_router)
     app.include_router(student_requests_router)
     app.include_router(instructor_summary_router)
+    # Спринт 16 (add-wallet-economy, задача 16.2.1): кошелек ученика
+    # (правило префиксов: /api/wallet/* — контур ученика)
+    app.include_router(wallet_router)
+    # Спринт 16 (add-wallet-economy, задача 16.2.2): экономика
+    # инструктора (/api/instructor/* — кабинет инструктора, правило
+    # префиксов)
+    app.include_router(instructor_economy_router)
+    # Спринт 16 (add-wallet-economy, задача 16.2.3): админ-контур
+    # экономики (/api/admin/* — контур оператора, правило префиксов)
+    app.include_router(admin_transactions_router)
     # Спринт 9 (change add-personal-data-policy, задача 2.1): домен
     # PersonalData — GET /api/policy публичный, БЕЗ префикса роли
     # (политика читается гостями до любой регистрации, механика /api/health)
