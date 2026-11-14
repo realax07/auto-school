@@ -17,12 +17,26 @@ POST /api/instructor/bookings/{id}/confirm — подтверждение (FR-48
 POST /api/instructor/bookings/{id}/reject  — отклонение, комментарий
      обязателен (ОВ-2, FR-48);
 POST /api/instructor/bookings/{id}/cancel  — отмена ПОДТВЕРЖДЕННОЙ брони
-     (BUG-049), без комментария;
+     (BUG-049), без комментария; Спринт 16: СТРОГО ДО СТАРТА занятия
+     (после старта 409 «Занятие началось», МАЖ-1) + refund живого холда
+     в той же транзакции (FR-104);
 helper blocking_bookings — согласование PUT availability с активными
      бронями (MAJ-1): уровень ЭКЗЕМПЛЯРОВ (дата+время) — слоты с бронями
      'new'/'confirmed', НЕ покрытые новым графиком (серий или one_off),
      блокируют замену → 409 с перечнем, содержащим дату (FR-92);
      прошедшие экземпляры (начало < NOW) не блокируют (D8).
+
+Спринт 16 (add-wallet-economy, 16.3.1 — холд-интеграция, design.md
+«Конечные автоматы»): create_booking — СНАПШОТ цены инструктора при
+брони (FR-101) + HOLD (FR-102) в ОДНОЙ BEGIN IMMEDIATE-транзакции;
+цена NULL → легаси-путь 1:1 (холда нет — обратная совместимость s5);
+недостаток средств → 402 {ok:false, error, need_kop, available_kop}
+БЕЗ записи брони (FR-103); complete-эндпоинт «проведено» (FR-105 —
+авто-релиз через 24ч ленивым свипом, не здесь); dispute-эндпоинт
+(спор ученика ≤24ч от «проведено», ТОЛЬКО при живом холде — МАЖ-2,
+FR-107). Деньги — целые копейки (NFR-33), журнал append-only
+(ledger.insert_transaction; NFR-34), исход холда — ровно один
+(частичные UNIQUE, NFR-35).
 
 Гонки (NFR-8): POST запроса брони — транзакция BEGIN IMMEDIATE + частичный
 UNIQUE-индекс uq_booking_active_slot (db.py, Спринт 10: по ЭКЗЕМПЛЯРУ —
@@ -57,6 +71,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 import backend.core.db as db
+import backend.wallet.ledger as ledger
 from backend.core.guards import _error, full_name, require_role
 
 router = APIRouter()
@@ -559,17 +574,68 @@ def create_booking(
             conn.execute("ROLLBACK")
             return _error(409, "Слот уже занят")
 
+        # Спринт 16 (FR-101/102/103): снапшот цены и холд — В ТОЙ ЖЕ
+        # транзакции. Цена инструктора NULL → легаси-путь 1:1 (холда
+        # нет, колонки-дефолты); задана → снапшот в брони +
+        # hold_amount_kop = цена×100×часы слота (floor до целого часа,
+        # NFR-33 — целые копейки). Недостаток средств → 402
+        # {ok:false, error, need_kop, available_kop}, бронь и холд НЕ
+        # создаются (откат).
+        price_row = conn.execute(
+            "SELECT price_per_hour_rub FROM instructors WHERE user_id = ?",
+            (slot["instructor_id"],),
+        ).fetchone()
+        price_per_hour = (
+            price_row["price_per_hour_rub"] if price_row is not None else None
+        )
+        hold_kop = 0
+        if price_per_hour is not None:
+            hold_kop = ledger.hold_amount_kop(
+                price_per_hour, slot["start_time"], slot["end_time"]
+            )
+            balances = ledger.student_balances(conn, student_id)
+            if balances["available_kop"] < hold_kop:
+                conn.execute("ROLLBACK")
+                return JSONResponse(
+                    status_code=402,
+                    content={
+                        "ok": False,
+                        "error": (
+                            "Недостаточно средств для бронирования —"
+                            " пополните кошелек"
+                        ),
+                        "need_kop": hold_kop - balances["available_kop"],
+                        "available_kop": balances["available_kop"],
+                    },
+                )
+
         try:
             cur = conn.execute(
                 "INSERT INTO booking (student_id, instructor_id,"
-                " availability_id, lesson_date, status)"
-                " VALUES (?, ?, ?, ?, 'new')",
+                " availability_id, lesson_date, status,"
+                " price_per_hour_rub, hold_amount_kop)"
+                " VALUES (?, ?, ?, ?, 'new', ?, ?)",
                 (student_id, slot["instructor_id"], data.availability_id,
-                 lesson_date),
+                 lesson_date, price_per_hour, hold_kop),
             )
+            if hold_kop > 0:
+                # HOLD (FR-102): заморозка в журнале (available−, frozen+)
+                # той же транзакцией; частичный UNIQUE
+                # uq_tx_hold_per_booking — второй холд на бронь
+                # невозможен (гонка проигравшего → честный отказ, NFR-35).
+                ledger.insert_transaction(
+                    conn,
+                    tx_type="hold",
+                    user_id=student_id,
+                    amount_kop=hold_kop,
+                    booking_id=int(cur.lastrowid),
+                    student_id=student_id,
+                    instructor_id=slot["instructor_id"],
+                )
         except sqlite3.IntegrityError:
             # Гарантия внутри строки: частичный UNIQUE
-            # (availability_id, lesson_date) — параллельный проигравший.
+            # (availability_id, lesson_date) — параллельный проигравший
+            # (либо hold-UNIQUE — исход холда уже есть, отказ честный).
             conn.execute("ROLLBACK")
             return _error(409, "Слот уже занят")
         booking_id = cur.lastrowid
@@ -581,6 +647,8 @@ def create_booking(
         "booking_id": booking_id,
         "status": "new",
         "lesson_date": lesson_date,
+        "price_per_hour_rub": price_per_hour,
+        "hold_amount_kop": hold_kop,
     }
 
 
@@ -588,11 +656,51 @@ def _booking_row(conn: sqlite3.Connection, booking_id: int):
     return conn.execute(
         "SELECT b.id, b.student_id, b.instructor_id, b.status,"
         " b.reject_comment, b.lesson_date, b.created_at, b.decided_at,"
+        " b.price_per_hour_rub, b.hold_amount_kop, b.completed_at,"
         " a.weekday, a.start_time, a.end_time"
         " FROM booking AS b JOIN availability AS a ON a.id = b.availability_id"
         " WHERE b.id = ?",
         (booking_id,),
     ).fetchone()
+
+
+def _hold_alive(conn: sqlite3.Connection, booking_id: int) -> bool:
+    """Живой холд брони (МАЖ-2/design «Конечные автоматы»): hold-
+    транзакция существует и НЕ исполнена — release/refund по брони нет.
+    Исполнитель исхода (свип/решение спора) проверяет по booking-строке;
+    здесь — журнальная правда (единственный источник, NFR-34)."""
+    executed = conn.execute(
+        "SELECT 1 FROM transactions WHERE booking_id = ?"
+        " AND type IN ('release', 'refund') LIMIT 1",
+        (booking_id,),
+    ).fetchone()
+    return executed is None
+
+
+def _refund_held_amount(conn: sqlite3.Connection, row) -> None:
+    """Refund живого холда В ТЕКУЩЕЙ write-транзакции (FR-104,
+    design «Конечные автоматы: Холд»): hold_amount_kop>0 и исхода еще
+    нет → INSERT refund (frozen−, available+); идемпотентно — холд
+    исполнен (defrost/спор) → no-op. Гонка (NFR-35): частичный UNIQUE
+    uq_tx_refund_per_booking роняет проигравшего — молча (исход уже
+    есть у параллельного исполнителя)."""
+    hold_kop = row["hold_amount_kop"] or 0
+    if hold_kop <= 0 or not _hold_alive(conn, row["id"]):
+        return
+    try:
+        ledger.insert_transaction(
+            conn,
+            tx_type="refund",
+            user_id=row["student_id"],
+            amount_kop=hold_kop,
+            booking_id=row["id"],
+            student_id=row["student_id"],
+            instructor_id=row["instructor_id"],
+        )
+    except sqlite3.IntegrityError:
+        # Исход уже создан параллельным исполнителем (свип/решение
+        # спора) — refund идемпотентен, второй не нужен.
+        pass
 
 
 @router.get("/api/student/bookings")
@@ -612,6 +720,7 @@ def my_bookings(
         rows = conn.execute(
             "SELECT b.id, b.instructor_id, b.status, b.reject_comment,"
             " b.lesson_date, b.created_at, b.decided_at,"
+            " b.price_per_hour_rub, b.hold_amount_kop, b.completed_at,"
             " a.weekday, a.start_time, a.end_time"
             " FROM booking AS b JOIN availability AS a"
             " ON a.id = b.availability_id"
@@ -641,6 +750,10 @@ def my_bookings(
                 ),
                 "created_at": row["created_at"],
                 "decided_at": row["decided_at"],
+                # Спринт 16 (отображение холдов, легаси-поля без удаления):
+                "price_per_hour_rub": row["price_per_hour_rub"],
+                "hold_amount_kop": row["hold_amount_kop"],
+                "completed_at": row["completed_at"],
             })
     finally:
         conn.close()
@@ -667,6 +780,7 @@ def instructor_bookings(
         rows = conn.execute(
             "SELECT b.id, b.student_id, b.status, b.reject_comment,"
             " b.lesson_date, b.created_at, b.decided_at,"
+            " b.price_per_hour_rub, b.hold_amount_kop, b.completed_at,"
             " a.weekday, a.start_time, a.end_time"
             " FROM booking AS b JOIN availability AS a"
             " ON a.id = b.availability_id"
@@ -696,6 +810,10 @@ def instructor_bookings(
                 ),
                 "created_at": row["created_at"],
                 "decided_at": row["decided_at"],
+                # Спринт 16 (отображение холдов, легаси-поля без удаления):
+                "price_per_hour_rub": row["price_per_hour_rub"],
+                "hold_amount_kop": row["hold_amount_kop"],
+                "completed_at": row["completed_at"],
             })
     finally:
         conn.close()
@@ -745,24 +863,43 @@ def cancel_booking(
     Эффект: status='rejected' (CHECK в db.py статуса 'cancelled' не знает),
     decided_at; слот освобождается — 'rejected' выпадает из частичного
     индекса uq_booking_active_slot (ОВ-5). Атомарно: guard
-    AND status='confirmed' + rowcount (0 → 409)."""
+    AND status='confirmed' + rowcount (0 → 409).
+
+    Спринт 16 (МАЖ-1, FR-104): отмена СТРОГО ДО СТАРТА занятия —
+    код-гвард now < start_time экземпляра; после старта 409 «Занятие
+    началось» БЕЗ смены статуса и БЕЗ refund (исходы холда после старта:
+    complete→release, спор оператора, timeout-defrost — деньги не
+    теряются ни в одной ветке). Refund живого холда — в ТОЙ ЖЕ
+    транзакции (BEGIN IMMEDIATE — NFR-35): hold/refund —
+    идемпотентно (цена NULL → холда нет → легаси-поведение 1:1)."""
     instructor_id, err = require_role(x_session_token, "instructor")
     if err is not None:
         return err
 
     conn = db.get_conn()
     try:
+        conn.isolation_level = None
+        conn.execute("BEGIN IMMEDIATE")
         row = _booking_row(conn, booking_id)
         if row is None or row["instructor_id"] != instructor_id:
+            conn.execute("ROLLBACK")
             return _error(404, "Бронь не найдена")
+        # МАЖ-1: refund после старта невозможен — гвард ДО веток смены
+        # статуса (после старта исходы холда: complete→release, спор,
+        # timeout-defrost).
+        if instance_start(row["lesson_date"], row["start_time"]) <= now_moscow():
+            conn.execute("ROLLBACK")
+            return _error(409, "Занятие началось")
         cur = conn.execute(
             "UPDATE booking SET status = 'rejected',"
             " decided_at = datetime('now') WHERE id = ? AND status = 'confirmed'",
             (booking_id,),
         )
         if cur.rowcount == 0:
+            conn.execute("ROLLBACK")
             return _error(409, "Бронь: решение уже принято")
-        conn.commit()
+        _refund_held_amount(conn, row)
+        conn.execute("COMMIT")
     finally:
         conn.close()
     return {"ok": True, "status": "rejected"}
@@ -778,7 +915,13 @@ def reject_booking(
     пустой/отсутствующий → 422, действие заблокировано, статус 'new'
     остается; только своя и 'new' → иначе 404/409. Эффект: 'rejected' +
     reject_comment; слот освобождается (ОВ-5) — повторный запрос
-    возможен (rejected выпадает из частичного индекса)."""
+    возможен (rejected выпадает из частичного индекса).
+
+    Спринт 16 (МАЖ-1, FR-104): отклонение СТРОГО ДО СТАРТА занятия —
+    код-гвард now < start_time; после старта 409 «Занятие началось»
+    БЕЗ смены статуса и БЕЗ refund. Refund живого холда — В ТОЙ ЖЕ
+    транзакции (BEGIN IMMEDIATE — NFR-35); идемпотентно (цена NULL →
+    холда нет → легаси-поведение 1:1)."""
     instructor_id, err = require_role(x_session_token, "instructor")
     if err is not None:
         return err
@@ -789,17 +932,168 @@ def reject_booking(
 
     conn = db.get_conn()
     try:
+        conn.isolation_level = None
+        conn.execute("BEGIN IMMEDIATE")
         row = _booking_row(conn, booking_id)
         if row is None or row["instructor_id"] != instructor_id:
+            conn.execute("ROLLBACK")
             return _error(404, "Бронь не найдена")
+        # МАЖ-1: refund после старта невозможен — гвард ДО веток смены
+        # статуса (task 16.3.1: booking.py reject-ветка).
+        if instance_start(row["lesson_date"], row["start_time"]) <= now_moscow():
+            conn.execute("ROLLBACK")
+            return _error(409, "Занятие началось")
         cur = conn.execute(
             "UPDATE booking SET status = 'rejected', reject_comment = ?,"
             " decided_at = datetime('now') WHERE id = ? AND status = 'new'",
             (comment.strip(), booking_id),
         )
         if cur.rowcount == 0:
+            conn.execute("ROLLBACK")
             return _error(409, "Бронь: решение уже принято")
-        conn.commit()
+        _refund_held_amount(conn, row)
+        conn.execute("COMMIT")
     finally:
         conn.close()
     return {"ok": True, "status": "rejected"}
+
+
+# --- Спринт 16: complete (проведено) и спор (МАЖ-2) ---------------------------
+
+
+class DisputePayload(BaseModel):
+    # Дефолт вместо Pydantic-required — валидация в хендлере
+    # (конвенция модуля).
+    comment: str = ""
+
+
+@router.post("/api/instructor/bookings/{booking_id}/complete")
+def complete_booking(
+    booking_id: int,
+    x_session_token: str | None = Header(default=None, alias="X-Session-Token"),
+):
+    """Отметка «проведено» (FR-105, Спринт 16 задача 16.3.1): только своя
+    бронь → иначе 404; экземпляр НАЧАЛСЯ (начало ≤ NOW МСК, правило
+    instance_start) → иначе 409 «Занятие еще не началось»; только
+    'confirmed' → иначе 409; холд уже исполнен (timeout-defrost вернул
+    деньги ученику / исход спора) → 409 БЕЗ смены статуса — иначе
+    последующий авто-релиз создал бы деньги из ничего (исход холда —
+    РОВНО ОДИН, design «Конечные автоматы»).
+    Эффект: status='completed' + completed_at; РЕЛИЗ здесь НЕ создается —
+    авто-релиз через 24ч ленивым свипом (sweeps.wallet_sweep в точках
+    чтения кошельков/админ-раздела). Атомарно: BEGIN IMMEDIATE
+    (NFR-35) + guard AND status='confirmed' + rowcount."""
+    instructor_id, err = require_role(x_session_token, "instructor")
+    if err is not None:
+        return err
+
+    conn = db.get_conn()
+    try:
+        conn.isolation_level = None
+        conn.execute("BEGIN IMMEDIATE")
+        row = _booking_row(conn, booking_id)
+        if row is None or row["instructor_id"] != instructor_id:
+            conn.execute("ROLLBACK")
+            return _error(404, "Бронь не найдена")
+        if instance_start(row["lesson_date"], row["start_time"]) > now_moscow():
+            conn.execute("ROLLBACK")
+            return _error(409, "Занятие еще не началось")
+        if not _hold_alive(conn, row["id"]):
+            # Timeout-defrost/спор исполнили холд: статус и деньги
+            # не меняются (возврат ученику — правда журнала, NFR-34).
+            conn.execute("ROLLBACK")
+            return _error(
+                409,
+                "Холд уже исполнен (возврат ученику) — отметить"
+                " проведенным нельзя",
+            )
+        cur = conn.execute(
+            "UPDATE booking SET status = 'completed',"
+            " completed_at = datetime('now')"
+            " WHERE id = ? AND status = 'confirmed'",
+            (booking_id,),
+        )
+        if cur.rowcount == 0:
+            conn.execute("ROLLBACK")
+            return _error(409, "Бронь: решение уже принято")
+        conn.execute("COMMIT")
+    finally:
+        conn.close()
+    return {"ok": True, "status": "completed"}
+
+
+@router.post("/api/student/bookings/{booking_id}/dispute")
+def create_dispute(
+    booking_id: int,
+    data: DisputePayload,
+    x_session_token: str | None = Header(default=None, alias="X-Session-Token"),
+):
+    """Спор ученика (FR-107, Спринт 16 задача 16.3.1; design «Конечные
+    автоматы: Спор»): комментарий обязателен (422); окно — ровно 24ч от
+    completed_at (иначе 409); ТОЛЬКО по проведенной брони (иначе 409);
+    ТОЛЬКО при ЖИВОМ холде (МАЖ-2: hold_amount_kop>0 и нет
+    release/refund) — иначе 422 «Спор: только по тарифицированным
+    броням» (брони с ценой NULL спора не открывают — release/refund
+    нулевой суммы невозможны по CHECK журнала). Открытый спор на брони →
+    409 (предпроверка + частичный UNIQUE uq_disputes_open страхует
+    гонку, NFR-35). РЕШЕНИЕ — оператором (admin_dispute_resolve);
+    здесь холд не исполняется."""
+    student_id, err = require_role(x_session_token, "student")
+    if err is not None:
+        return err
+    if not data.comment.strip():
+        return _error(422, "Комментарий: поле обязательно")
+
+    conn = db.get_conn()
+    try:
+        conn.isolation_level = None
+        conn.execute("BEGIN IMMEDIATE")
+        row = _booking_row(conn, booking_id)
+        if row is None or row["student_id"] != student_id:
+            conn.execute("ROLLBACK")
+            return _error(404, "Бронь не найдена")
+        if row["status"] != "completed" or row["completed_at"] is None:
+            conn.execute("ROLLBACK")
+            return _error(409, "Спор: только по проведенным занятиям")
+        # Окно ровно 24ч от «проведено»: completed_at — UTC-метка
+        # datetime('now'); сравнение в UTC (сдвиг формата/зоны ломал бы
+        # границу окна).
+        completed = datetime.datetime.strptime(
+            row["completed_at"], "%Y-%m-%d %H:%M:%S"
+        )
+        now_utc = datetime.datetime.now(datetime.timezone.utc).replace(
+            tzinfo=None
+        )
+        if now_utc > completed + datetime.timedelta(hours=24):
+            conn.execute("ROLLBACK")
+            return _error(409, "Окно спора закрыто (24ч с момента занятия)")
+        # МАЖ-2: спор ТОЛЬКО при живом холде (замороженные деньги —
+        # предмет спора; price NULL / исполненный холд → 422).
+        if (row["hold_amount_kop"] or 0) <= 0 or not _hold_alive(
+            conn, row["id"]
+        ):
+            conn.execute("ROLLBACK")
+            return _error(422, "Спор: только по тарифицированным броням")
+        open_dispute = conn.execute(
+            "SELECT 1 FROM booking_disputes"
+            " WHERE booking_id = ? AND resolution IS NULL LIMIT 1",
+            (row["id"],),
+        ).fetchone()
+        if open_dispute is not None:
+            conn.execute("ROLLBACK")
+            return _error(409, "Спор по этой брони уже открыт")
+        try:
+            cur = conn.execute(
+                "INSERT INTO booking_disputes (booking_id, student_id,"
+                " comment) VALUES (?, ?, ?)",
+                (row["id"], student_id, data.comment.strip()),
+            )
+        except sqlite3.IntegrityError:
+            # uq_disputes_open — гонка параллельного спора (NFR-35).
+            conn.execute("ROLLBACK")
+            return _error(409, "Спор по этой брони уже открыт")
+        dispute_id = int(cur.lastrowid)
+        conn.execute("COMMIT")
+    finally:
+        conn.close()
+    return {"ok": True, "dispute_id": dispute_id, "status": "open"}
