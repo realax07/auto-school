@@ -24,7 +24,9 @@ add-code-domain-folders). Новых pip/npm-зависимостей нет; м
       «add-wallet-economy» (одна строка).
       Готовность: `docker compose config` валиден; services = {app,
       nginx}; `git grep -in minio docker-compose.yml` — пусто.
-      FR: — (гигиена). NFR: NFR-37. Зависит от: —.
+      FR: — (гигиена). NFR: — (MinIO-чистка без собственного NFR —
+      решение Заказчика «Закрой minio»; трассировка — REMOVED-дельта
+      containerization). Зависит от: —.
 
 - [ ] 16.0.2 [tests][infra] tests/test_container_contract.py — переработка
       РОВНО ЧЕТЫРЕХ минio-точек (полный инвентарь — design.md «Инвентарь
@@ -40,6 +42,10 @@ add-code-domain-folders). Новых pip/npm-зависимостей нет; м
       .github/workflows/flow.yml (шаг printf MINIO_* удален),
       scripts/container_test.sh (MINIO_* env удалены),
       deploy/container-README.md (сервис/креды/volume minio вычищены),
+      .env.example (ОБА минio-блока удалены: 18–21 «Креды MinIO…» и
+      дубль 28–30 «CHANGE_ME_*»; секция «Контейнерный контур» оставляет
+      только TLS_DIR — compose теряет ${MINIO_*:?}, мертвые
+      инструктирующие цепочки недопустимы),
       architecture/map.md (строка 16, диаграмма «app ↔ MinIO», MIN-1/MIN-2
       примечания — факт удаления с датой; карта — живой документ),
       docs/ba/requirements-containerization.md (minio-упоминания вычищены),
@@ -49,10 +55,12 @@ add-code-domain-folders). Новых pip/npm-зависимостей нет; м
       Готовность: `pytest tests/test_container_contract.py` зелен;
       `git grep -il minio -- docker-compose.yml deploy/container-README.md
       architecture/map.md docs/ba/requirements-containerization.md
-      .github/workflows flow.yml scripts/container_test.sh` — пусто;
+      .github/workflows flow.yml scripts/container_test.sh .env.example`
+      — пусто;
       `grep -c MinIO architecture/adr/006-containerization.md` —
       неизменен кроме приписки (исторический текст сохранен).
-      FR: —. NFR: NFR-37. Зависит от: 16.0.1.
+      FR: —. NFR: — (MinIO-чистка без собственного NFR — см. 16.0.1).
+      Зависит от: 16.0.1.
 
 ## 16.1 Домен экономики и миграция БД ([P] с 16.0)
 
@@ -60,7 +68,9 @@ add-code-domain-folders). Новых pip/npm-зависимостей нет; м
       availability_new): НОВЫЕ таблицы transactions (append-only журнал;
       частичные UNIQUE uq_tx_hold/release/refund_per_booking,
       uq_tx_payout_per_request — design «Модель данных»),
-      acquiring_topups (provider=mock, provider_payment_id UNIQUE),
+      acquiring_topups (provider=mock, idempotency_key — клиентский
+      X-Idempotency-Key с частичным UNIQUE; provider_payment_id — поле
+      будущего провайдера, мок не заполняет),
       payouts (частичный UNIQUE одной активной заявки на инструктора),
       instructors (user_id PK, commission_percent 0–100 DEFAULT 10,
       price_per_hour_rub NULL; бэкфилл INSERT OR IGNORE из users
@@ -91,14 +101,17 @@ add-code-domain-folders). Новых pip/npm-зависимостей нет; м
 
 - [ ] 16.2.1 [code] backend/wallet/wallets.py + включение роутера в
       backend/app.py: GET /api/wallet (суммы + история; вызов свипа),
-      POST /api/wallet/topup (мок: acquiring_topups + journal topup,
-      идемпотентность provider_payment_id; валидация суммы — положительная,
-      верхний предел MVP 500 000 ₽-эквивалент в копейках — защита от
-      опечаток); гварды require_role; ПД: без логирования сумм/идентификаторов
-      в текстах логов (наследование).
+      POST /api/wallet/topup (мок: acquiring_topups + journal topup;
+      идемпотентность — клиентский заголовок X-Idempotency-Key →
+      idempotency_key с частичным UNIQUE; provider_payment_id не
+      заполняется — поле будущего провайдера (NFR-36); валидация суммы —
+      положительная, верхний предел MVP 500 000 ₽-эквивалент в копейках —
+      защита от опечаток); гварды require_role; ПД: без логирования
+      сумм/идентификаторов в текстах логов (наследование).
       Готовность: test_s16_backend.py — кошелек пустого ученика
       (0/0/0), пополнение → доступно+, история содержит topup, повтор с
-      тем же provider_payment_id — дубля нет (NFR-35).
+      тем же X-Idempotency-Key — дубля нет (частичный UNIQUE, NFR-35);
+      без ключа каждый вызов — новая операция.
       FR: FR-98/99. NFR: NFR-33/34/35/36. Зависит от: 16.1.2.
 
 - [ ] 16.2.2 [code] инструкторская экономика (backend/wallet/ или
@@ -142,12 +155,26 @@ add-code-domain-folders). Новых pip/npm-зависимостей нет; м
       available_kop} (бронь НЕ создана); иначе INSERT booking (снапшот) +
       INSERT transactions hold (частичный UNIQUE — гонка проигравшего →
       честный отказ). reject_booking/cancel_booking — refund в той же
-      транзакции (guard hold_amount_kop>0 и отсутствия refund —
-      идемпотентно). complete-эндпоинт POST
+      транзакции ТОЛЬКО ДО СТАРТА занятия: перед ветками смены статуса
+      (cancel_booking booking.py:737 / reject_booking booking.py:772 —
+      сейчас guard только по статусу) код-гвард now < start_time
+      экземпляра, иначе 409 {ok:false, error:"Занятие началось"} БЕЗ
+      смены статуса и БЕЗ refund (МАЖ-1: refund после старта невозможен —
+      исходы холда после старта: complete→release, спор оператора,
+      timeout-defrost; деньги не теряются ни в одной ветке); refund-гвард:
+      hold_amount_kop>0 и отсутствия refund — идемпотентно.
+      complete-эндпоинт POST
       /api/instructor/bookings/{id}/complete (confirmed→completed,
       экземпляр начался: instance_start ≤ now_moscow; completed_at).
       dispute-эндпоинт POST /api/student/bookings/{id}/dispute
-      (≤24ч от completed_at, комментарий обязателен, открытый спор — 409).
+      (≤24ч от completed_at, комментарий обязателен, открытый спор — 409;
+      код-гвард «живой холд» (МАЖ-2): hold_amount_kop>0 и нет
+      release/refund по брони — иначе 422 «спор только по
+      тарифицированным броням»; брони с price NULL спора не открывают).
+      Свип в точках чтения ДОПОЛНЯЕТСЯ timeout-defrost: брони new/
+      confirmed с hold_amount_kop>0, чей экземпляр начался ≥72ч назад,
+      без отметки «проведена» и без refund → REFUND ученику (холд не
+      висит вечно; MIN-1).
       Отображение: статусы/холды в my_bookings/instructor_bookings
       (легаси-поля без удаления).
       Готовность: test_s16_hold_booking.py — полный цикл design
@@ -155,7 +182,12 @@ add-code-domain-folders). Новых pip/npm-зависимостей нет; м
       402 без записи брони, reject→refund, cancel→refund, complete→
       свип до 24ч — релиза НЕТ, после 24ч (заморозка часов/подстановка
       now) — release с gross/fee/net (10% и 0% — «факт 0»), спор в окне
-      → свип НЕ релизит → resolve release/refund оператором; КОНТРОЛЬ:
+      → свип НЕ релизит → resolve release/refund оператором; МАЖ-гварды:
+      cancel/reject ПОСЛЕ старта — 409 «Занятие началось» (статус и холд
+      не изменены, refund нет), спор по брони без холда (price NULL) —
+      422, timeout-defrost: confirmed-бронь со стартом ≥72ч назад без
+      complete → REFUND при свипе (повторный свип без дубля — частичный
+      UNIQUE); КОНТРОЛЬ:
       ПОЛНЫЙ прогон tests/api/test_s5_backend.py (27) — зелен БЕЗ ПРАВОК
       (цены NULL в фикстурах); прогон e2e кабинет-кластера
       (test_ui_playwright TC-UI-019/025/026/027, BUG-049/052) — зелен.
@@ -222,6 +254,18 @@ add-code-domain-folders). Новых pip/npm-зависимостей нет; м
       решение Заказчика зафиксировано.
       FR: FR-116. NFR: NFR-37. Зависит от: 16.4.1/16.4.2/16.4.3.
 
+- [ ] 16.5.2 [docs] architecture/map.md — раздел «Компоненты» дополнен
+      блоком «Экономика»: backend/wallet/ (домен), 5 новых таблиц
+      (transactions, acquiring_topups, payouts, instructors,
+      booking_disputes), эндпоинты контура (design «API-контур»), раздел
+      админ-ки «Транзакции». Строка ADR-006 обновляется ТОЛЬКО 16.0.2
+      (здесь НЕ дублируется). Карта — живой пос-принтный документ
+      (прецедент s10: раздел «Компоненты» дополнялся каждым спринтом).
+      Готовность: grep по map.md находит wallet-компоненты, таблицы
+      экономики и раздел «Транзакции»; диаграмма/строки консистентны с
+      фактом HEAD ветки.
+      FR: —. NFR: —. Зависит от: 16.4.1/16.4.2/16.4.3.
+
 ## 16.6 Бюджеты, гарды и гейт партии (после всех)
 
 - [ ] 16.6.1 [tests][infra] гарды денег: tests/api/test_qa_s16_money.py —
@@ -247,7 +291,7 @@ add-code-domain-folders). Новых pip/npm-зависимостей нет; м
       — 0 ✗; self-check состава: каждая дословная цитата Заказчика
       покрыта дельтой (proposal «Отслеживание» ↔ specs/).
       FR: FR-98…116. NFR: NFR-26/27/33…37. Зависит от: 16.0.2, 16.3.1,
-      16.4.1…16.4.3, 16.5.1, 16.6.1.
+      16.4.1…16.4.3, 16.5.1, 16.5.2, 16.6.1.
 
 ## Зависимости (волны)
 
@@ -257,7 +301,7 @@ add-code-domain-folders). Новых pip/npm-зависимостей нет; м
 - Волна 2: { 16.2.1, 16.2.2, 16.2.3 } (после 16.1.2; [P] между собой) и
   16.3.1 (после 16.1.2; не ждет 16.2.x).
 - Волна 3: { 16.4.1, 16.4.2, 16.4.3 } (после 16.2.x; [P] между собой);
-  16.5.1 — после 16.4.x.
+  16.5.1 и 16.5.2 — после 16.4.x.
 - Волна 4: 16.6.1 (после денежных задач) → 16.6.2 (гейт, последним).
 
 ## Рекомендации к нарезке

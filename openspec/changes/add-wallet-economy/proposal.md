@@ -76,8 +76,10 @@
   журнал (type ∈ topup/hold/release/refund/payout), баланс = SUM по журналу
   (деньги — целые копейки, NFR-33/34); ученик: доступно + заморожено
   (холды); инструктор: balance (net минус выплаченное) + earned; таблица
-  acquiring_topups ОТДЕЛЬНО (провайдер=mock, provider_payment_id UNIQUE —
-  идемпотентность, пополнение мгновенно успешно); раздел «Кошелек» кабинета
+  acquiring_topups ОТДЕЛЬНО (провайдер=mock, idempotency_key UNIQUE —
+  идемпотентность по клиентскому X-Idempotency-Key; provider_payment_id —
+  поле будущего провайдера, мок не заполняет; пополнение мгновенно
+  успешно); раздел «Кошелек» кабинета
   ученика (баланс/заморожено/пополнить/история).
 - **Цена часа и снапшот (NEW instructor-management + AMENDED booking)**:
   таблица instructors (комиссия 0–100 дефолт 10 — оператор в админке; цена
@@ -144,7 +146,8 @@
   tests/test_container_contract.py (4 точки — design.md); тесты
   test_s5_backend (27) и e2e кабинет-кластер — БЕЗ ПРАВОК (цены NULL →
   холда нет; контроль прогоном в 16.3 — design.md «Инвентарь ссылок»).
-- Доки/деплой: docker-compose.yml, deploy/container-README.md,
+- Доки/деплой: docker-compose.yml, .env.example (оба MINIO-блока —
+  18–21, 28–30), deploy/container-README.md,
   architecture/map.md, ADR-006 (приписка), docs/ba/requirements-
   containerization.md, .github/workflows/flow.yml, scripts/container_test.sh,
   BACKLOG.md (опечатка id пакета).
@@ -181,6 +184,6 @@
 - NFR-33/34/35 (копейки, append-only, конкурентность) → все дельты
   доменов; tasks 16.1/16.2/16.3/16.6.
 - NFR-36 (мок-границы) → specs/wallet + payouts; tasks 16.1/16.2.
-- NFR-37 + «Закрой minio» → specs/containerization (REMOVED/MODIFIED);
-  tasks 16.0/16.6.
+- «Закрой minio» → specs/containerization (REMOVED/MODIFIED);
+  tasks 16.0 (без собственного NFR; NFR-37 — только бюджеты/гарды UI).
 - Решение Заказчика 2026-11-14 (дословные цитаты) → весь пакет.

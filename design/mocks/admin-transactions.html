@@ -10,7 +10,9 @@
      баланс компании = SUM fee (FR-114, «факт 0»); комиссии каждого инструктора
      за год (GET /api/admin/commissions?year= — селектор года, FR-115).
      Один логотип ✓ в сайдбаре (инвариант TC-UI-059); плитки без тегов
-     (TC-UI-060, BUG-059/060); пароль-хеш в UI отсутствует. Данные демо. -->
+     (TC-UI-060, BUG-059/060); пароль-хеш в UI отсутствует.
+     Якорь раздела: id="sec-transactions" (вербатим-сверка — 16.5.1).
+     Данные демо. -->
 <html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>СберАвтошкола — Админка · Транзакции</title><style>
 *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#020b13;color:#f7fbfa;font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 .app{display:grid;grid-template-columns:250px 1fr;min-height:100svh}
@@ -88,7 +90,7 @@ footer{margin-top:26px;padding-top:18px;border-top:1px solid rgba(217,239,238,.1
   <div class="side-foot">Админка · оператор</div>
 </aside>
 
-<main>
+<main id="sec-transactions">
   <div class="top"><h1>Транзакции</h1><div class="spacer"></div><button class="logout">Выйти</button></div>
   <p class="sub">Весь журнал движения денег: пополнения, холды броней, релизы (с комиссией), возвраты, выплаты. Журнал только читается — записи не изменяются и не удаляются. Денежные суммы хранятся в копейках.</p>
 

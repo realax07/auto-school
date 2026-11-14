@@ -49,7 +49,8 @@ my-requests}.html (сайдбары, бренд ✓-круг — ОДИН, те�
 - Контейнерный контур: compose services app+nginx+minio(minio под профилем,
   «MinIO отключен» комментарий), volumes db/uploads/minio-data, сети
   frontend/backend; CI flow.yml — dummy .env c MINIO_ROOT_* перед compose
-  (F-1); scripts/container_test.sh — MINIO_ROOT_* локально;
+  (F-1); scripts/container_test.sh — MINIO_ROOT_* локально; .env.example —
+  ДВА минio-блока (18–21 «Креды MinIO…»; 28–30 дубль «CHANGE_ME_*»);
   test_container_contract.py — 4 минio-точки (см. «Инвентарь ссылок: MinIO»).
 - Спеки: openspec/specs/{booking,containerization,…}; кейпабилити
   wallet/payouts/admin-transactions/instructor-management НЕ существуют
@@ -105,7 +106,14 @@ my-requests}.html (сайдбары, бренд ✓-круг — ОДИН, те�
       id, student_id NOT NULL,
       amount_kop INTEGER NOT NULL CHECK (amount_kop > 0),
       provider TEXT NOT NULL DEFAULT 'mock',
-      provider_payment_id TEXT NOT NULL (UNIQUE — идемпотентность),
+      idempotency_key TEXT
+        -- клиентский X-Idempotency-Key — идемпотентность пополнения:
+        -- частичный UNIQUE uq_topups_idem ON (idempotency_key)
+        -- WHERE idempotency_key IS NOT NULL (повтор с тем же ключом
+        -- возвращает существующую запись, дубль-транзакции нет)
+      provider_payment_id TEXT
+        -- поле БУДУЩЕГО провайдера: мок не заполняет; UNIQUE при
+        -- интеграции реального эквайринга — отдельный объем (NFR-36)
       status CHECK IN ('pending','succeeded','failed') DEFAULT 'succeeded'
         -- мок: мгновенный успех; pending/failed — машинерия будущего
         -- реального провайдера, сейчас не используется
@@ -175,26 +183,47 @@ availability_new, пересоздание с переносом строк):
     new ──confirm──▶ confirmed ──cancel(BUG-049)──▶ rejected ─┐
      │                    │                                   │
      └──reject──────────▶ rejected (refund: полный размороз)◀──┘
-                              │
+                              │   ▲ cancel/reject ПОСЛЕ старта ЗАПРЕЩЕНЫ:
+                              │     409 «Занятие началось» (МАЖ-1)
                               ▼ complete (инструктор; экземпляр начался:
                                 начало ≤ NOW МСК — правило instance_start)
                           completed ──(24ч, нет спора)──▶ [releasejournal]
                               │
                               └── dispute ученика (≤24ч от completed_at,
-                                  комментарий обязателен) ──▶ [спор открыт]
+                                  комментарий обязателен; ТОЛЬКО при живом
+                                  холде — МАЖ-2) ──▶ [спор открыт]
                                     ──решение оператора──▶ release ИЛИ refund
+
+    Денежные гварды переходов (МАЖ-1/МАЖ-2):
+    - cancel/reject допустимы СТРОГО ДО СТАРТА занятия (guard now <
+      start_time экземпляра); refund ПОСЛЕ старта не выполняется ни в
+      какой ветке. После старта исходы холда: «проведена» (авто-релиз),
+      решение спора оператором или timeout-defrost — деньги не теряются.
+    - спор открывается ТОЛЬКО из состояния «холд жив и заморожен»
+      (held_awaiting): hold-транзакция существует и не исполнена;
+      брони с price NULL (hold_amount=0) спора не открывают (422).
 
 Холд (журнал):
 
     [нет] ──создание брони с ценой──▶ HOLD (available−, frozen+)
-    HOLD ──reject/cancel до старта──▶ REFUND (frozen−, available+)
+    HOLD ──reject/cancel СТРОГО ДО СТАРТА (now < start_time)──▶ REFUND
+      (frozen−, available+); при start_time ≤ NOW — отказ 409 «Занятие
+      началось», холд не меняется (МАЖ-1: refund после старта невозможен)
     HOLD ──авто-релиз (24ч после completed, спора нет)──▶ RELEASE
-    HOLD ──спор──▶ (заморожен) ──оператор──▶ RELEASE или REFUND
+    HOLD ──timeout-defrost (экземпляр начался ≥72ч назад, complete НЕ
+      было; статусы new/confirmed; спора нет)──▶ REFUND (авто-разморозка
+      ученику — холд не висит вечно)
+    HOLD ──спор (ТОЛЬКО живой холд: hold_amount_kop>0 и не исполнен —
+      held_awaiting; price NULL без спора)──▶ (заморожен)
+      ──оператор──▶ RELEASE или REFUND
     RELEASE/REFUND — терминальные; повтор невозможен (частичные UNIQUE).
 
 Спор:
 
-    [нет] ──POST /api/student/bookings/{id}/dispute (≤24ч, комментарий)──▶ open
+    [нет] ──POST /api/student/bookings/{id}/dispute (≤24ч, комментарий;
+           ЖИВОЙ холд обязателен: hold-транзакция существует и не исполнена
+           — hold_amount_kop>0 и нет release/refund по брони; иначе 422
+           «спор только по тарифицированным броням»)──▶ open
     open ──POST /api/admin/disputes/{id}/resolve {resolution, comment}──▶
       release → RELEASE (gross→net инструктору, fee платформе)
       refund  → REFUND  (полный возврат в available ученику)
@@ -203,12 +232,16 @@ availability_new, пересоздание с переносом строк):
 
 Пополнение (мок):
 
-    POST /api/wallet/topup {amount_kop}
-      → acquiring_topups(provider=mock, provider_payment_id=сгенерирован,
-        status='succeeded')  -- мгновенный успех
+    POST /api/wallet/topup {amount_kop} (+ опциональный заголовок
+      X-Idempotency-Key)
+      → acquiring_topups(provider=mock, idempotency_key=значение ключа,
+        provider_payment_id=NULL — поле будущего провайдера, мок не
+        заполняет, status='succeeded')  -- мгновенный успех
       → transactions topup (available+)
-    Идемпотентность: повторный provider_payment_id → существующая запись
-    (UNIQUE), дубль-транзакции нет.
+    Идемпотентность: повтор с тем же X-Idempotency-Key → существующая
+    запись (частичный UNIQUE uq_topups_idem), дубль-транзакции нет;
+    без ключа каждый вызов — новая операция (клиент посылает ключ при
+    повторе после сетевой неопределенности).
 
 Выплата:
 
@@ -223,9 +256,16 @@ availability_new, пересоздание с переносом строк):
 
 Авто-релиз — ЛЕНИВЫЙ СВИП (single-worker, без фоновых потоков/кронов):
 
-    wallet_sweep(conn): BEGIN IMMEDIATE; SELECT брони
-      status='completed' AND hold_amount_kop>0 AND completed_at ≤ NOW−24ч
-      AND нет открытого спора AND нет release-транзакции → RELEASE.
+    wallet_sweep(conn): BEGIN IMMEDIATE; два SELECT'а:
+      (1) авто-релиз: брони status='completed' AND hold_amount_kop>0 AND
+          completed_at ≤ NOW−24ч AND нет открытого спора AND нет
+          release-транзакции → RELEASE;
+      (2) timeout-defrost (холд не висит вечно): брони status IN ('new',
+          'confirmed') AND hold_amount_kop>0 AND экземпляр начался ≥72ч
+          назад (start_time ≤ NOW−72ч) AND «проведена» не отмечена AND
+          нет refund-транзакции → REFUND (полный возврат ученику:
+          инструктор за 72ч не отметил «проведена» и не отменил до
+          старта).
     Точки вызова (внутри write-транзакции): GET /api/wallet,
     GET /api/instructor/economy|earnings, GET /api/admin/transactions,
     GET /api/admin/disputes. Детерминизм: релиз ровно один на бронь
@@ -277,6 +317,7 @@ availability_new, пересоздание с переносом строк):
 | tests/test_container_contract.py | (1) test_compose_yaml_valid_and_has_services — set ≥ {app,nginx,minio}; (2) test_compose_minio_credentials_required_interpolation — ${MINIO_*:?}; (3) test_dockerfile_non_root_healthcheck_pinned — regex minio/minio-пина; (4) test_ci_docker_build_job_and_dummy_env_step — dummy .env MINIO_ROOT_USER | (1) → services == {app,nginx} (ровно; minio запрещен); (2) → заменен негативным тестом «minio в compose отсутствует»; (3) → minio-часть удалена (nginx-пин остается); (4) → dummy-шаг удален из flow.yml, тест проверяет compose-команды без dummy-env условия |
 | .github/workflows/flow.yml | комментарий + шаг printf MINIO_ROOT_* > .env | Шаг удален (compose больше не требует переменных; ${POLICY_DIR/TLS_DIR} — с дефолтами) |
 | scripts/container_test.sh | MINIO_ROOT_USER/PASSWORD | Удалены |
+| .env.example | ДВА минio-блока: 18–21 «Креды MinIO (сервис minio читает из этого же env_file)… MINIO_ROOT_USER/PASSWORD» и 28–30 дубль «MinIO (обязательно при docker compose up…)… CHANGE_ME_*» | ОБА блока УДАЛЕНЫ (попутно закрывается pre-existing дубль MINIO_ROOT_* в одном файле); секция «Контейнерный контур» оставляет только TLS_DIR — compose после 16.0.1 теряет ${MINIO_*:?}, мертвые инструктирующие цепочки в репо недопустимы |
 | deploy/container-README.md | сервис minio, креды MINIO_*, volume minio-data | Вычищены (описание стека app+nginx) |
 | architecture/map.md | строка 16 (контейнеризация), диаграмма «сеть backend (app ↔ MinIO)», строка ADR-006, MIN-1/MIN-2 примечания | Вычищено/помечено: карта — живой документ (прецедент С10 «карта дополняется»); строка 16 — факт удаления с датой решения; диаграмма — два сервиса |
 | architecture/adr/006-containerization.md | MinIO в заголовке/решениях/альтернативах | ТОЛЬКО статусная приписка «2026-11-14 — MinIO удален из стека (решение Заказчика «Закрой minio», add-wallet-economy 16.0)»; ИСТОРИЯ НЕ ПЕРЕПИСЫВАЕТСЯ (заголовок/текст решений — как есть) |
@@ -309,9 +350,11 @@ availability_new, пересоздание с переносом строк):
   инструктору / Вернуть ученику); таблица «Комиссии инструкторов за год» +
   селектор года.
 - Все три — статические демо-данные, шапка-комментарий с доменом (прецедент
-  my-requests.html); один логотип на страницу; data-якоря разделов
-  (#sec-wallet/#sec-earnings/#sec-transactions) совпадают с будущей
-  версткой (носители будущих вербатим-сверок — задача 16.5).
+  my-requests.html); один логотип на страницу; id-якоря разделов
+  #sec-wallet/#sec-earnings/#sec-transactions ПРИСУТСТВУЮТ в мокапах
+  (прецедент anchor-стиля — admin-dashboard.html:88 id="sec-applications")
+  и совпадают с будущей версткой (носители будущих вербатим-сверок и
+  контрольного grep — задача 16.5.1).
 
 ## API-контур (волна 16.2 — контракты дельт)
 
@@ -348,8 +391,10 @@ availability_new, пересоздание с переносом строк):
   (список выше), мок-пополнение, комиссия-PUT; test_s16_backend.py.
   Зависит от 16.1.
 - **16.3 Холд-интеграция в бронирование** [code]: create_booking (холд в
-  BEGIN IMMEDIATE, 402, снапшот), reject/cancel→refund, complete,
-  dispute; свип в точках чтения; test_s16_hold_booking.py; КОНТРОЛЬНЫЙ
+  BEGIN IMMEDIATE, 402, снапшот), reject/cancel→refund СТРОГО ДО СТАРТА
+  (после старта — 409 «Занятие началось», МАЖ-1), complete, dispute
+  (ТОЛЬКО живой холд, МАЖ-2); свип в точках чтения (+ timeout-defrost
+  72ч — холд не висит вечно); test_s16_hold_booking.py; КОНТРОЛЬНЫЙ
   полный прогон test_s5_backend + кабинет-кластера e2e (зелен без правок —
   критерий обратной совместимости). Зависит от 16.1 (16.2 не блокирует —
   холд-ядро в 16.1).
@@ -393,6 +438,23 @@ availability_new, пересоздание с переносом строк):
   (test_s5_backend/e2e без правок); инструктор, не выставивший цену, не
   участвует в экономике (осознанный MVP; смена дефолта — решение Заказчика
   отдельным объемом).
+- Отмена/отклонение ПОСЛЕ СТАРТА занятия невозможны (МАЖ-1, решение СА):
+  refund выполняется СТРОГО до start_time (guard now < start_time в
+  cancel/reject — код-гвард задачи 16.3.1, booking.py:737/772); попытка
+  после старта — 409 «Занятие началось», статус и холд не меняются.
+  После старта исходы холда — «проведена» (авто-релиз), спор оператора
+  или timeout-defrost: деньги не теряются ни в одной ветке.
+- Спор — ТОЛЬКО по брони с живым холдом (МАЖ-2): hold-транзакция
+  существует и не исполнена (hold_amount_kop>0, нет release/refund);
+  price NULL (hold_amount=0) спора не создает (422) — иначе решение
+  оператора ронялось бы на CHECK amount_kop>0 журнала (release/refund
+  нулевой суммы невозможны). Жалоба на бесплатное занятие — вне денежного
+  контура (канал жалоб в MVP не вводится).
+- Холд не висит вечно (MIN-1): если инструктор за 72ч после старта не
+  отметил «проведена» (и не отменил/не отклонил до старта), свип
+  возвращает холд ученику (timeout-defrost — REFUND по брони new/
+  confirmed с прошедшим экземпляром, задача 16.3.1); 72ч — константа
+  MVP (время на отметку после занятия и разбор инцидента).
 - Заявка выплаты не замораживает баланс (guard на confirm — design
   «Конечные автоматы»).
 - Окно спора — ровно 24ч от completed_at; продление/перенос — вне объема.
