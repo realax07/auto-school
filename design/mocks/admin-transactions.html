@@ -1,0 +1,177 @@
+<!doctype html>
+<!-- Мокап: «Транзакции» — НОВЫЙ раздел админки. Спринт 16, задача 16.4.3
+     (change add-wallet-economy; мокап создан в пакете СА — прецедент 1d40a46;
+     слот навигации «₽ Платежи» → «Транзакции», заглушка soon() снята).
+     Домен admin-transactions: GET /api/admin/transactions?type&role&user_id&
+     date_from&date_to (+company_balance_kop) — весь журнал; подтверждение
+     выплат (POST /api/admin/payouts/{id}/confirm — guard недостачи); решения
+     по спорам (POST /api/admin/disputes/{id}/resolve — release|refund,
+     комментарий обязателен); комиссия инструктора (PUT …/commission, 0–100);
+     баланс компании = SUM fee (FR-114, «факт 0»); комиссии каждого инструктора
+     за год (GET /api/admin/commissions?year= — селектор года, FR-115).
+     Один логотип ✓ в сайдбаре (инвариант TC-UI-059); плитки без тегов
+     (TC-UI-060, BUG-059/060); пароль-хеш в UI отсутствует. Данные демо. -->
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>СберАвтошкола — Админка · Транзакции</title><style>
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#020b13;color:#f7fbfa;font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.app{display:grid;grid-template-columns:250px 1fr;min-height:100svh}
+aside{padding:26px 18px;border-right:1px solid rgba(217,239,238,.14);background:rgba(10,20,26,.6)}
+.logo{display:flex;align-items:center;gap:10px;font-size:19px;font-weight:650;letter-spacing:-.8px;margin:0 10px 30px}.logo em{font-style:normal;color:#55ed9c}
+.check{width:30px;height:30px;display:grid;place-items:center;border:3px solid #49ec9a;border-radius:50%;color:#58efa3;font-size:18px;transform:rotate(-8deg)}
+.nav{display:flex;flex-direction:column;gap:4px}
+.nav button{display:flex;align-items:center;gap:12px;padding:13px 16px;border:0;border-radius:12px;background:none;color:#b9c8cc;font-size:14px;text-align:left;cursor:pointer}
+.nav button:hover{background:rgba(73,236,154,.07);color:#e8f5f3}
+.nav button.active{background:rgba(73,236,154,.13);color:#5cf0a4}
+.side-foot{margin-top:auto;padding:0 10px;font-size:12px;color:#7d939a}
+main{padding:34px 40px;display:flex;flex-direction:column;min-width:0}
+.top{display:flex;align-items:center;gap:16px;margin-bottom:26px}
+.top h1{margin:0;font-size:26px;font-weight:550;letter-spacing:-.02em}
+.spacer{flex:1}
+.logout{padding:9px 22px;border:1px solid rgba(238,249,249,.3);border-radius:999px;background:none;color:#cfdede;font-size:13px;cursor:pointer}
+.logout:hover{border-color:#49ec9a}
+.sub{font-size:12px;color:#8fa0aa;margin:-18px 0 20px;line-height:1.55;max-width:760px}
+/* баланс компании */
+.company{display:flex;gap:13px;align-items:stretch;margin-bottom:20px;flex-wrap:wrap}
+.c-card{border:1px solid #ffffff14;border-radius:16px;background:linear-gradient(150deg,#16242c,#0b1418);padding:16px 20px;min-width:220px}
+.c-card small{display:block;font-size:10px;color:#8fa0aa;text-transform:uppercase;letter-spacing:.12em}
+.c-card b{display:block;font-size:24px;font-weight:600;letter-spacing:-.04em;margin-top:8px;white-space:nowrap}
+.c-card .hint{font-size:10px;color:#7d939a;margin-top:6px}
+/* фильтры */
+.toolbar{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.toolbar select,.toolbar input{border:1px solid #ffffff18;background:#ffffff06;color:#e4eef0;border-radius:10px;padding:9px 11px;font-size:12px}
+.toolbar label{font-size:11px;color:#8ea4a8}
+.count{font-size:13px;color:#8ea4a8;margin-left:6px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{padding:12px 14px;text-align:left;color:#8ea4a8;font-weight:500;border-bottom:1px solid rgba(217,239,238,.16);font-size:11px}
+td{padding:12px 14px;border-bottom:1px solid rgba(217,239,238,.07);color:#dcebe9}
+tr:hover td{background:rgba(73,236,154,.04)}
+.badge{padding:3px 12px;border-radius:999px;font-size:12px;background:rgba(73,236,154,.14);color:#5cf0a4}
+.badge.hold{background:#3a2f14;color:#ffc76e;border:1px solid #8a6d1f}
+.badge.pay{background:#17283a;color:#9bc5ff;border:1px solid #2d4a68}
+.badge.ref{background:#2a1f33;color:#d3b8ff;border:1px solid #4d3a66}
+.td-r{text-align:right;font-weight:600;white-space:nowrap}
+.plus{color:#8aefad}.minus{color:#ffb28e}
+.grid2{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:15px;align-items:start;margin-bottom:15px}
+.panel{border:1px solid #ffffff14;border-radius:18px;background:linear-gradient(150deg,rgba(28,43,52,.6),rgba(15,25,32,.7));padding:18px}
+.panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:13px}
+.panel-title{font-size:14px;font-weight:600;letter-spacing:-.02em}
+.panel-sub{font-size:11px;color:#8799a3;margin-top:4px}
+.prow{display:flex;justify-content:space-between;gap:12px;align-items:center;border:1px solid #ffffff10;background:#ffffff03;border-radius:12px;padding:11px 13px;margin-bottom:9px;font-size:12px}
+.prow b{display:block;font-size:12px}
+.prow small{color:#8fa0aa;font-size:10px;display:block;margin-top:4px;line-height:1.5}
+.btn{border-radius:10px;padding:9px 16px;font-size:12px;font-weight:550;border:1px solid;cursor:pointer}
+.btn.ok{background:#123524;border-color:#2b9c62;color:#c9ffdd}
+.btn.ok:hover{filter:brightness(1.12)}
+.btn.danger{background:transparent;border-color:#5c3030;color:#ffb28e}
+.btn.blue{background:transparent;border-color:#2d4a68;color:#9bc5ff}
+.rowhint{font-size:11px;color:#6f818b;padding:12px 14px}
+.year{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.year label{font-size:11px;color:#8ea4a8}
+.year select{border:1px solid #ffffff18;background:#ffffff06;color:#e4eef0;border-radius:10px;padding:8px 10px;font-size:12px}
+footer{margin-top:26px;padding-top:18px;border-top:1px solid rgba(217,239,238,.12);display:flex;justify-content:space-between;font-size:12px;color:#7d939a}
+.toast{position:fixed;bottom:22px;right:22px;max-width:360px;background:#143323;border:1px solid #367b50;color:#b5f8cc;padding:13px 16px;border-radius:13px;font-size:12px;box-shadow:0 10px 40px #0008;display:none;z-index:20}
+.toast.show{display:block}
+@media(max-width:900px){.app{grid-template-columns:1fr}aside{display:none}main{padding:20px}.grid2{grid-template-columns:1fr}.td-hide{display:none}}
+</style></head>
+<body>
+<div class="app">
+<aside>
+  <div class="logo"><span class="check">✓</span><span><em>Сбер</em>Автошкола</span></div>
+  <div class="nav">
+    <button>👤 Пользователи</button>
+    <button>▦ Заявки инструкторов</button>
+    <button>▣ Автомобили</button>
+    <button>▤ Документы</button>
+    <button class="active">₽ Транзакции</button>
+    <button>⌗ Расписания</button>
+    <button>✎ Настройки</button>
+  </div>
+  <div class="side-foot">Админка · оператор</div>
+</aside>
+
+<main>
+  <div class="top"><h1>Транзакции</h1><div class="spacer"></div><button class="logout">Выйти</button></div>
+  <p class="sub">Весь журнал движения денег: пополнения, холды броней, релизы (с комиссией), возвраты, выплаты. Журнал только читается — записи не изменяются и не удаляются. Денежные суммы хранятся в копейках.</p>
+
+  <div class="company">
+    <div class="c-card"><small>Баланс компании</small><b>23 470 ₽</b><div class="hint">накопленные комиссии — SUM fee по журналу release</div></div>
+    <div class="c-card"><small>Комиссий за 2026 год</small><b>23 470 ₽</b><div class="hint">инструкторы с комиссией 0 вносят 0 (факт 0)</div></div>
+    <div class="c-card"><small>Заявок выплат в очереди</small><b>2</b><div class="hint">подтверждение списывает баланс инструктора</div></div>
+    <div class="c-card"><small>Открытых споров</small><b>1</b><div class="hint">холд заморожен до решения</div></div>
+  </div>
+
+  <div class="toolbar">
+    <label>Тип</label><select id="f-type"><option>все</option><option>topup</option><option>hold</option><option>release</option><option>refund</option><option>payout</option></select>
+    <label>Роль</label><select id="f-role"><option>все</option><option>ученик</option><option>инструктор</option><option>платформа</option></select>
+    <label>Пользователь</label><select id="f-user"><option>все</option><option>Иван Ковалёв (ученик)</option><option>Михаил Самойлов (инструктор)</option><option>Ольга Тихая (ученик)</option></select>
+    <label>с</label><input type="date" value="2026-11-01"><label>по</label><input type="date" value="2026-11-14">
+    <span class="count" id="cnt"></span>
+  </div>
+
+  <table>
+    <thead><tr><th>ID</th><th>Дата</th><th>Тип</th><th class="td-hide">Роль</th><th>Пользователь</th><th class="td-hide">Источник</th><th class="td-hide">Gross / Fee / Net</th><th style="text-align:right">Сумма</th></tr></thead>
+    <tbody>
+      <tr><td>1043</td><td>14.11 12:04</td><td><span class="badge hold">hold</span></td><td class="td-hide">ученик</td><td>Иван Ковалёв</td><td class="td-hide">Бронь №412 · Самойлов</td><td class="td-hide">—</td><td class="td-r minus">− 3 000 ₽</td></tr>
+      <tr><td>1042</td><td>14.11 09:31</td><td><span class="badge">topup</span></td><td class="td-hide">ученик</td><td>Иван Ковалёв</td><td class="td-hide">Мок-эквайринг · topup #88</td><td class="td-hide">—</td><td class="td-r plus">+ 15 000 ₽</td></tr>
+      <tr><td>1041</td><td>13.11 20:10</td><td><span class="badge pay">release</span></td><td class="td-hide">инструктор</td><td>Михаил Самойлов</td><td class="td-hide">Занятие №408 · Ковалёв</td><td class="td-hide">5 000 / 500 / 4 500 ₽</td><td class="td-r plus">+ 4 500 ₽</td></tr>
+      <tr><td>1040</td><td>12.11 16:44</td><td><span class="badge ref">refund</span></td><td class="td-hide">ученик</td><td>Ольга Тихая</td><td class="td-hide">Отмена брони №405 · Белов</td><td class="td-hide">—</td><td class="td-r plus">+ 3 000 ₽</td></tr>
+      <tr><td>1039</td><td>12.11 10:02</td><td><span class="badge pay">payout</span></td><td class="td-hide">инструктор</td><td>Михаил Самойлов</td><td class="td-hide">Выплата #31 · СБП Сбер</td><td class="td-hide">—</td><td class="td-r minus">− 15 000 ₽</td></tr>
+    </tbody>
+  </table>
+
+  <div class="grid2" style="margin-top:15px">
+    <section class="panel">
+      <div class="panel-head"><div><div class="panel-title">Выплаты — заявки</div><div class="panel-sub">СБП (мок) · подтверждение создает транзакцию payout</div></div></div>
+      <div class="prow"><div><b>20 000 ₽ · Михаил Самойлов</b><small>СБП · Т-Банк · +7 9•• ••• 42 17 · заявка 14.11 11:20</small></div><button class="btn ok" data-confirm>Подтвердить выплату</button></div>
+      <div class="prow"><div><b>8 000 ₽ · Анна Гордеева</b><small>СБП · Сбер · +7 9•• ••• 08 55 · заявка 14.11 09:05</small></div><button class="btn ok" data-confirm>Подтвердить выплату</button></div>
+      <div class="rowhint">Недостача баланса к моменту подтверждения → подтверждение отклонено с объяснением, заявка остается активной (деньги не списаны).</div>
+      <div class="panel-head" style="margin-top:18px"><div><div class="panel-title">Споры — открытые</div><div class="panel-sub">окно 24ч от отметки «проведено» · холд заморожен</div></div></div>
+      <div class="prow"><div><b>Бронь №411 · Ковалёв → Самойлов</b><small>«Инструктор отменил занятие по месту, откатал только час» · 13.11 21:02</small></div>
+        <div style="display:flex;gap:8px"><button class="btn blue" data-resolve="release">Инструктору</button><button class="btn danger" data-resolve="refund">Вернуть ученику</button></div></div>
+      <div class="rowhint">Решение — с обязательным комментарием оператора (кнопка недоступна без текста). После решения холд закрыт ровно одной транзакцией release/refund.</div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><div><div class="panel-title">Комиссии инструкторов за год</div><div class="panel-sub">SUM fee по журналу release · без отдельной таблицы</div></div></div>
+      <div class="year"><label>Год</label><select id="f-year"><option>2026</option><option>2025</option></select></div>
+      <table>
+        <thead><tr><th>Инструктор</th><th>Комиссия</th><th style="text-align:right">Fee за год</th></tr></thead>
+        <tbody>
+          <tr><td>Михаил Самойлов</td><td>10%</td><td class="td-r">12 400 ₽</td></tr>
+          <tr><td>Анна Гордеева</td><td>10%</td><td class="td-r">7 850 ₽</td></tr>
+          <tr><td>Артём Белов</td><td>0%</td><td class="td-r">0 ₽</td></tr>
+          <tr><td>Наталья Зорина</td><td>25%</td><td class="td-r">3 220 ₽</td></tr>
+        </tbody>
+      </table>
+      <div class="rowhint">Комиссия ставится оператором каждому инструктору (0–100, по умолчанию 10); меняется ниже — применяется к следующим релизам.</div>
+      <div class="panel-head" style="margin-top:18px"><div><div class="panel-title">Комиссия инструктора</div><div class="panel-sub">целые проценты 0–100 · дефолт 10</div></div></div>
+      <div class="prow"><div><b>Михаил Самойлов</b><small>одобрен 03.10.2026 · 14 учеников</small></div>
+        <div style="display:flex;gap:8px;align-items:center"><input id="comm" value="10" style="width:64px;border:1px solid #ffffff18;background:#ffffff06;color:#e4eef0;border-radius:10px;padding:8px 10px;font-size:12px"><button class="btn ok" id="comm-save">Сохранить</button></div></div>
+      <div class="rowhint">Изменение комиссии не пересчитывает существующие транзакции — исторические fee восстанавливаются из журнала (gross/fee/net).</div>
+    </section>
+  </div>
+
+  <footer><span>СберАвтошкола · мокап «Транзакции»</span><span>Демонстрационный интерфейс · данные вымышлены</span></footer>
+</main>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+// фильтры журнала и действия оператора — демо (контракты — спека admin-transactions)
+document.getElementById('cnt').textContent='Записей: 5 (страница 1)';
+function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(window._tt);window._tt=setTimeout(function(){t.classList.remove('show')},3200)}
+document.querySelectorAll('[data-confirm]').forEach(function(b){b.addEventListener('click',function(){
+  if(window.confirm('Подтвердить выплату? С баланса инструктора будет списана сумма заявки (транзакция payout).')){
+    b.disabled=true;b.textContent='Выплачено ✓';toast('Выплата подтверждена: транзакция payout создана, баланс списан.');
+  }
+})});
+document.querySelectorAll('[data-resolve]').forEach(function(b){b.addEventListener('click',function(){
+  var c=window.prompt('Комментарий оператора (обязателен):');
+  if(!c||!c.trim()){toast('Без комментария решение недоступно');return}
+  toast(b.dataset.resolve==='release'?'Спор решен: холд переведен инструктору (release).':'Спор решен: холд возвращен ученику (refund).');
+})});
+document.getElementById('comm-save').addEventListener('click',function(){
+  var v=parseInt(document.getElementById('comm').value,10);
+  if(isNaN(v)||v<0||v>100){toast('Комиссия — целые проценты 0–100');return}
+  toast('Комиссия сохранена: '+v+'%. Применится к следующим релизам; журнал не пересчитывается.');
+});
+document.getElementById('f-year').addEventListener('change',function(){toast('Агрегат комиссий за '+this.value+' год (SUM fee журнала).')});
+</script></body></html>

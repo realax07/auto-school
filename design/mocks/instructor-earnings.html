@@ -1,0 +1,191 @@
+<!doctype html>
+<!-- Мокап: «Доходы» — раздел кабинета инструктора. Спринт 16, задача 16.4.2
+     (change add-wallet-economy; мокап создан в пакете СА — прецедент 1d40a46).
+     Домен instructor-economy: цена часа (PUT /api/instructor/price, целые рубли;
+     снапшот в брони — правка цены не трогает холды), статистика (GET
+     /api/instructor/earnings — за месяц по ученикам + итог, net после комиссии),
+     выплаты СБП (POST /api/instructor/payouts — банк/телефон; мок, оператор
+     подтверждает в админке), «Отметить проведенным» на начавшихся занятиях.
+     Балансы = SUM по журналу (NFR-34); деньги — целые копейки (NFR-33).
+     Один логотип ✓ в сайдбаре (инвариант TC-UI-059); плитки без тегов
+     (TC-UI-060, BUG-059/060). Данные демо. -->
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#071015"><title>СберАвтошкола — Кабинет инструктора · Доходы</title>
+<style>
+:root{--bg:#081117;--line:#ffffff18;--text:#f3f7f8;--muted:#98a9b3;--green:#35d879}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 70% 0%,#123b2c55,transparent 35%),#081117;color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}button,input,select{font:inherit}button{cursor:pointer}
+.app{min-height:100vh;display:grid;grid-template-columns:236px 1fr}
+.sidebar{padding:25px 17px;border-right:1px solid #ffffff12;background:#071016b8;display:flex;flex-direction:column;gap:28px}
+.brand{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:700;letter-spacing:-.04em;padding:0 8px}
+.brand em{font-style:normal;color:var(--green)}
+.check{width:31px;height:31px;flex:none;display:grid;place-items:center;border:3px solid var(--green);border-radius:50%;color:var(--green);font-size:19px;font-weight:500;transform:rotate(-8deg)}
+.brand small{display:block;font-size:9px;color:#80919b;letter-spacing:.12em;text-transform:uppercase;margin-top:3px}
+.nav-label{font-size:10px;color:#637681;text-transform:uppercase;letter-spacing:.16em;padding:0 11px;margin-bottom:-17px}
+.nav{display:grid;gap:5px}
+.nav button{border:1px solid transparent;background:transparent;color:#aab8c0;text-align:left;padding:12px;border-radius:12px;font-size:13px;display:flex;align-items:center;gap:12px}
+.nav button .ico{width:20px;text-align:center;font-size:16px}
+.nav button.active{color:#8ff2b5;background:#143023;border-color:#286445}
+.nav button:hover{background:#ffffff09}
+main{padding:28px clamp(20px,3vw,44px) 45px;max-width:1600px;width:100%;margin:0 auto}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:30px}
+.crumb{font-size:11px;color:#7e909a;margin-bottom:7px}
+.topbar h1{font-size:28px;letter-spacing:-.05em;font-weight:600;margin:0}
+.user{display:flex;align-items:center;gap:10px}
+.avatar{width:37px;height:37px;border-radius:12px;background:linear-gradient(145deg,#315744,#14261e);display:grid;place-items:center;color:#a0f2bd;font-size:12px;font-weight:700}
+.user b{font-size:12px;display:block}.user small{display:block;color:#80929c;font-size:10px;margin-top:4px}
+.logout{padding:9px 20px;border:1px solid #ffffff33;border-radius:999px;background:transparent;color:#cfdede;font-size:12px}
+.logout:hover{border-color:var(--green)}
+.kicker{font-size:10px;color:#79eaa5;text-transform:uppercase;letter-spacing:.17em;margin-bottom:8px}
+.lead{font-size:12px;color:#98a8b1;margin:0 0 20px;max-width:640px;line-height:1.55}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px}
+.card{border:1px solid var(--line);border-radius:19px;background:linear-gradient(145deg,rgba(28,43,52,.78),rgba(15,25,32,.78));box-shadow:inset 0 1px #ffffff08;min-width:0}
+.stat{padding:18px 18px 16px;position:relative;overflow:hidden}
+.stat-head{display:flex;justify-content:space-between;align-items:center;color:#9babb4;font-size:11px;gap:8px}
+.stat-icon{width:31px;height:31px;border:1px solid #ffffff13;background:#ffffff06;border-radius:10px;display:grid;place-items:center;font-size:15px}
+.value{font-size:27px;letter-spacing:-.06em;font-weight:600;margin:15px 0 8px;white-space:nowrap}
+.value small{font-size:13px;letter-spacing:-.02em;color:#c4d0d5}
+.stat-foot{font-size:10px;color:#7f929d}
+.grid2{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,.9fr);gap:15px;margin-top:15px;align-items:start}
+.panel{padding:19px}
+.panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:15px}
+.panel-title{font-size:15px;font-weight:600;letter-spacing:-.025em}
+.panel-sub{font-size:11px;color:#8799a3;margin-top:5px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{padding:11px 13px;text-align:left;color:#8ea4a8;font-weight:500;border-bottom:1px solid #ffffff16;font-size:11px}
+td{padding:12px 13px;border-bottom:1px solid #ffffff07;color:#dcebe9}
+tr:hover td{background:rgba(53,216,121,.04)}
+.td-r{text-align:right;font-weight:600;white-space:nowrap}
+.pill{font-size:10px;padding:5px 10px;border-radius:999px;border:1px solid #ffffff12;background:#ffffff05;color:#b9c8ce}
+.price-box{display:grid;gap:12px}
+.price-box label{font-size:11px;color:#8ea4a8}
+.price-line{display:flex;gap:9px;align-items:center}
+.price-line input{width:130px;border:1px solid #ffffff18;background:#ffffff06;color:var(--text);border-radius:12px;padding:11px 13px;font-size:15px}
+.price-line .cur{color:#c4d0d5;font-size:13px}
+.btn{border-radius:11px;padding:11px 20px;font-size:12px;font-weight:550;border:1px solid}
+.btn.primary{background:#123524;border-color:#2b9c62;color:#c9ffdd}
+.btn.primary:hover{filter:brightness(1.12)}
+.btn.ghost{background:transparent;border-color:#2a5c40;color:#91efb1}
+.note{font-size:10px;color:#7f929d;line-height:1.55;border:1px solid #ffffff12;border-radius:11px;background:#ffffff04;padding:10px 12px}
+.payout{display:grid;gap:10px;margin-top:14px}
+.prow{display:flex;justify-content:space-between;gap:10px;font-size:12px;align-items:center;border:1px solid #ffffff10;background:#ffffff03;border-radius:12px;padding:11px 13px}
+.prow b{font-size:12px;display:block}
+.prow small{color:#8fa0aa;font-size:10px;display:block;margin-top:4px}
+.status{font-size:9px;padding:6px 10px;border-radius:99px;white-space:nowrap}
+.st-wait{background:#332a14;color:#ffd479;border:1px solid #6b5426}
+.st-paid{background:#143322;color:#91efb1;border:1px solid #2a5c40}
+footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content:space-between;gap:15px}
+.toast{position:fixed;bottom:22px;right:22px;max-width:340px;background:#143323;border:1px solid #367b50;color:#b5f8cc;padding:13px 16px;border-radius:13px;font-size:12px;box-shadow:0 10px 40px #0008;display:none;z-index:10}
+.toast.show{display:block}
+/* модал выплаты СБП */
+.p-backdrop{position:fixed;inset:0;background:#02070bd0;backdrop-filter:blur(6px);display:none;place-items:center;padding:24px;z-index:30}
+.p-backdrop.open{display:grid}
+.p-modal{width:min(440px,100%);border:1px solid #ffffff20;border-radius:22px;background:linear-gradient(150deg,#16242c,#0b1418);box-shadow:0 30px 80px #000c;padding:24px 26px}
+.p-modal h2{margin:0;font-size:19px;letter-spacing:-.03em;font-weight:600}
+.p-modal .sub{font-size:11px;color:#8fa0aa;margin:8px 0 16px;line-height:1.55}
+.p-modal label{display:block;font-size:11px;color:#8ea4a8;margin:12px 0 6px}
+.p-modal input,.p-modal select{width:100%;border:1px solid #ffffff18;background:#ffffff06;color:var(--text);border-radius:12px;padding:11px 13px;font-size:13px}
+.p-actions{display:flex;gap:9px;margin-top:18px}
+.p-actions .btn{flex:1}
+.p-close{background:transparent;border-color:#ffffff22;color:#b9c8ce}
+@media(max-width:1100px){.app{grid-template-columns:200px 1fr}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:1fr}}
+@media(max-width:720px){.app{display:block}.sidebar{padding:13px 16px;border-right:0;border-bottom:1px solid #ffffff12}.nav-label,.brand small{display:none}.nav{display:flex;overflow:auto;gap:5px}.nav button{white-space:nowrap;padding:9px 10px;font-size:11px}.nav button .ico{display:none}main{padding:23px 16px 35px}.topbar h1{font-size:23px}.user b,.user small{display:none}.stats{gap:9px}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="sidebar">
+  <div class="brand"><div class="check">✓</div><div><em>Сбер</em>Автошкола<small>Кабинет инструктора</small></div></div>
+  <div class="nav-label">Разделы</div>
+  <div class="nav">
+    <button><span class="ico">▦</span>Мой день</button>
+    <button><span class="ico">◷</span>Календарь</button>
+    <button><span class="ico">♧</span>Мои ученики</button>
+    <button class="active"><span class="ico">₽</span>Доходы</button>
+    <button><span class="ico">✎</span>Профиль и документы</button>
+    <button><span class="ico">▣</span>Мои автомобили</button>
+  </div>
+</aside>
+
+<main>
+  <div class="topbar">
+    <div><div class="crumb">Кабинет инструктора · Доходы</div><h1>Доходы</h1></div>
+    <div class="user"><span class="avatar">МС</span><div><b>Михаил Самойлов</b><small>Инструктор · комиссия 10%</small></div><button class="logout">Выйти</button></div>
+  </div>
+
+  <div class="kicker">Ноябрь 2026</div>
+  <p class="lead">Заработок считается по журналу транзакций: занятие проведено → через 24 часа без спора ученика сумма холда переводится вам (net — после комиссии платформы). Цена часа — ваша: правка цены не меняет суммы уже созданных броней.</p>
+
+  <section class="stats">
+    <article class="card stat"><div class="stat-head">Заработано за месяц <span class="stat-icon">₽</span></div><div class="value">42 300 <small>₽</small></div><div class="stat-foot">net · после комиссии 10%</div></article>
+    <article class="card stat"><div class="stat-head">Доступно к выводу <span class="stat-icon">◈</span></div><div class="value">47 300 <small>₽</small></div><div class="stat-foot">balance — заработанное минус выплаты</div></article>
+    <article class="card stat"><div class="stat-head">В заморозке <span class="stat-icon">◷</span></div><div class="value">9 000 <small>₽</small></div><div class="stat-foot">холды броней до релиза</div></article>
+    <article class="card stat"><div class="stat-head">Комиссия платформы <span class="stat-icon">%</span></div><div class="value">10<small>%</small></div><div class="stat-foot">ставит оператор · fee за месяц 4 700 ₽</div></article>
+  </section>
+
+  <div class="grid2">
+    <section class="card panel">
+      <div class="panel-head"><div><div class="panel-title">Заработано по ученикам — ноябрь</div><div class="panel-sub">net после комиссии · агрегат журнала release</div></div></div>
+      <table>
+        <thead><tr><th>Ученик</th><th>Занятий</th><th style="text-align:right">Net</th></tr></thead>
+        <tbody>
+          <tr><td>Иван Ковалёв</td><td>6</td><td class="td-r">18 900 ₽</td></tr>
+          <tr><td>Ольга Тихая</td><td>4</td><td class="td-r">13 500 ₽</td></tr>
+          <tr><td>Павел Ершов</td><td>2</td><td class="td-r">6 300 ₽</td></tr>
+          <tr><td>Семён Гущин</td><td>1</td><td class="td-r">3 600 ₽</td></tr>
+        </tbody>
+      </table>
+      <div class="note" style="margin-top:14px">Всего за месяц: 42 300 ₽ net (gross 47 000 ₽, комиссия 4 700 ₽). Суммы в копейках в журнале — на экране в рублях.</div>
+    </section>
+
+    <section class="card panel">
+      <div class="panel-head"><div><div class="panel-title">Цена часа</div><div class="panel-sub">целые рубли · действует на новые брони</div></div></div>
+      <div class="price-box">
+        <label>Ставка за час занятия</label>
+        <div class="price-line"><input id="price" inputmode="numeric" value="1500"><span class="cur">₽ / час</span><button class="btn primary" id="price-save">Сохранить</button></div>
+        <div class="note">При бронировании цена фиксируется снапшотом в брони: последующее изменение ставки не меняет сумм существующих холдов. Пустая ставка — занятия бесплатны (без холда).</div>
+      </div>
+      <div class="panel-head" style="margin-top:20px"><div><div class="panel-title">Выплаты</div><div class="panel-sub">СБП · заявка → подтверждение оператором</div></div><button class="btn primary" id="payout-open">Вывести деньги</button></div>
+      <div class="payout">
+        <div class="prow"><div><b>15 000 ₽</b><small>СБП · Сбер · +7 9•• ••• 42 17 · 12.11</small></div><span class="status st-paid">выплачено</span></div>
+        <div class="prow"><div><b>20 000 ₽</b><small>СБП · Т-Банк · +7 9•• ••• 42 17 · 14.11</small></div><span class="status st-wait">заявка</span></div>
+      </div>
+    </section>
+  </div>
+
+  <footer><span>СберАвтошкола · мокап «Доходы»</span><span>Демонстрационный интерфейс · данные вымышлены</span></footer>
+</main>
+</div>
+
+<div class="p-backdrop" id="p-backdrop">
+  <div class="p-modal">
+    <h2>Вывести деньги</h2>
+    <div class="sub">Перевод по СБП на моках (MVP): заявку подтверждает оператор в админке; списание с баланса — в момент подтверждения. Активная заявка может быть только одна.</div>
+    <label>Сумма (рубли, ≤ 47 300 ₽ доступно)</label>
+    <input id="p-amount" inputmode="numeric" value="10000">
+    <label>Банк получателя</label>
+    <select id="p-bank"><option>Сбер</option><option>ВТБ</option><option>Т-Банк</option><option>Альфа-Банк</option><option>Другой банк РФ</option></select>
+    <label>Телефон СБП</label>
+    <input id="p-phone" value="+7 903 000-00-00">
+    <div class="p-actions">
+      <button class="btn primary" id="p-confirm">Отправить заявку</button>
+      <button class="btn ghost p-close" id="p-close">Отмена</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(window._tt);window._tt=setTimeout(function(){t.classList.remove('show')},3200)}
+document.getElementById('price-save').addEventListener('click',function(){
+  var v=parseInt(document.getElementById('price').value,10);
+  if(isNaN(v)||v<0){toast('Цена — целые рубли, неотрицательная');return}
+  toast('Цена часа сохранена: '+v.toLocaleString('ru-RU')+' ₽. Существующие холды не изменились (снапшоты).');
+});
+var bd=document.getElementById('p-backdrop');
+document.getElementById('payout-open').addEventListener('click',function(){bd.classList.add('open')});
+document.getElementById('p-close').addEventListener('click',function(){bd.classList.remove('open')});
+document.getElementById('p-confirm').addEventListener('click',function(){
+  var v=parseInt(document.getElementById('p-amount').value,10);
+  if(!v||v<=0){toast('Сумма — целое положительное число рублей');return}
+  if(v>47300){toast('Сумма больше доступного баланса');return}
+  bd.classList.remove('open');toast('Заявка на '+v.toLocaleString('ru-RU')+' ₽ отправлена. Оператор подтвердит в админке — баланс спишется при подтверждении.');
+});
+</script></body></html>

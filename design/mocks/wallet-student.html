@@ -1,0 +1,182 @@
+<!doctype html>
+<!-- Мокап: «Кошелек» — раздел кабинета ученика. Спринт 16, задача 16.4.1
+     (change add-wallet-economy; мокап создан в пакете СА — прецедент 1d40a46).
+     Домен wallet: GET /api/wallet — доступно/заморожено/всего (копейки → ₽) +
+     история транзакций (topup/hold/release/refund); «Пополнить» — POST
+     /api/wallet/topup (мок эквайринга, мгновенный успех, acquiring_topups).
+     Холд при брони: при 402 «недостаточно средств» из попапа брони — переход
+     сюда. Балансы = SUM по журналу (NFR-34); деньги — целые копейки (NFR-33).
+     Один логотип ✓ (инвариант TC-UI-059), плиток-сервисов и тегов-бейджей
+     раздела нет — негативные инварианты TC-UI-060 (BUG-059/060).
+     Данные демо. -->
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#071015"><title>СберАвтошкола — Кабинет ученика · Кошелек</title>
+<style>
+:root{--bg:#071015;--line:#ffffff16;--text:#f3f7f8;--muted:#93a6b1;--green:#35d879}
+*{box-sizing:border-box}html,body{margin:0;min-width:320px}
+body{background:radial-gradient(ellipse at 78% 0%,#123b2c4d,transparent 38%),radial-gradient(ellipse at 8% 90%,#27465f26,transparent 40%),var(--bg);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh}
+button{font:inherit;color:inherit;cursor:pointer}
+.frame{max-width:1080px;margin:auto;padding:26px 24px 46px}
+header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;height:48px;margin-bottom:6px}
+.brand{display:flex;align-items:center;gap:10px;font-size:22px;font-weight:650;letter-spacing:-1px}
+.brand em{font-style:normal;color:var(--green)}
+.check{width:32px;height:32px;flex:none;display:grid;place-items:center;border:3px solid var(--green);border-radius:50%;color:var(--green);font-size:20px;transform:rotate(-8deg)}
+.brand small{display:block;font-size:9px;color:#80919b;letter-spacing:.14em;text-transform:uppercase;margin-top:3px;font-weight:500}
+.crumb{font-size:12px;color:#8fa2ad;justify-self:center}
+.user{justify-self:end;display:flex;align-items:center;gap:13px}
+.uname{font-size:13px;color:#d6e4e2}
+.avatar{width:34px;height:34px;border-radius:11px;background:linear-gradient(145deg,#315744,#14261e);display:grid;place-items:center;color:#a0f2bd;font-size:11px;font-weight:700}
+.logout{padding:8px 20px;border:1px solid #ffffff40;border-radius:999px;background:transparent;font-size:13px}
+.logout:hover{border-color:var(--green)}
+.page-head{margin:26px 0 6px;display:flex;align-items:end;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.kicker{font-size:10px;color:#79eaa5;text-transform:uppercase;letter-spacing:.18em}
+h1{font-size:28px;letter-spacing:-.05em;font-weight:600;margin:9px 0 8px}
+.page-head p{font-size:12px;color:var(--muted);margin:0;max-width:560px;line-height:1.55}
+/* карточки балансов */
+.balances{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin:18px 0 6px}
+.bal{border:1px solid var(--line);border-radius:18px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:17px 18px 15px}
+.bal small{display:block;font-size:11px;color:#8fa0aa}
+.bal b{display:block;font-size:26px;letter-spacing:-.04em;font-weight:600;margin-top:9px;white-space:nowrap}
+.bal b small{display:inline;font-size:13px;color:#c4d0d5;letter-spacing:-.02em;margin-left:4px}
+.bal.frozen b{color:#ffd479}
+.bal .hint{font-size:10px;color:#7f929d;margin-top:8px}
+.top-actions{display:flex;gap:9px;align-items:center;margin:14px 0 20px}
+.act{border-radius:11px;padding:11px 22px;font-size:12px;font-weight:550;border:1px solid}
+.act.primary{background:#123524;border-color:#2b9c62;color:#c9ffdd}
+.act.primary:hover{filter:brightness(1.12)}
+.act.ghost{background:transparent;border-color:#2a5c40;color:#91efb1}
+.legenda{font-size:11px;color:#8fa0aa}
+/* история транзакций */
+.hist-title{font-size:13px;font-weight:600;letter-spacing:-.02em;margin:8px 0 12px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{padding:11px 14px;text-align:left;color:#8ea4a8;font-weight:500;border-bottom:1px solid #ffffff16;font-size:11px}
+td{padding:12px 14px;border-bottom:1px solid #ffffff07;color:#dcebe9}
+tr:hover td{background:rgba(53,216,121,.04)}
+.ttype{font-size:10px;padding:5px 11px;border-radius:999px;white-space:nowrap}
+.t-topup{background:#143322;color:#91efb1;border:1px solid #2a5c40}
+.t-hold{background:#332a14;color:#ffd479;border:1px solid #6b5426}
+.t-release{background:#17283a;color:#9bc5ff;border:1px solid #2d4a68}
+.t-refund{background:#2a1f33;color:#d3b8ff;border:1px solid #4d3a66}
+.td-amount{text-align:right;font-weight:600;white-space:nowrap}
+.plus{color:#8aefad}.minus{color:#ffb28e}
+.td-when{white-space:nowrap;color:#9fb0b8}
+footer{margin-top:32px;padding-top:18px;border-top:1px solid #ffffff10;display:flex;justify-content:space-between;gap:14px;font-size:11px;color:#5f717b;flex-wrap:wrap}
+/* модал пополнения (мок эквайринга) */
+.m-backdrop{position:fixed;inset:0;background:#02070bd0;backdrop-filter:blur(6px);display:none;place-items:center;padding:24px;z-index:30}
+.m-backdrop.open{display:grid}
+.m-modal{width:min(430px,100%);border:1px solid #ffffff20;border-radius:22px;background:linear-gradient(150deg,#16242c,#0b1418);box-shadow:0 30px 80px #000c;padding:24px 26px}
+.m-modal h2{margin:0;font-size:19px;letter-spacing:-.03em;font-weight:600}
+.m-modal .sub{font-size:11px;color:#8fa0aa;margin:8px 0 16px;line-height:1.55}
+.m-row{display:flex;gap:8px;margin-bottom:12px}
+.presets{display:flex;gap:8px;margin-bottom:14px}
+.presets button{flex:1;border:1px solid #ffffff14;background:#ffffff05;color:#c6d1d6;border-radius:11px;padding:10px 6px;font-size:12px}
+.presets button.on{background:#143322;border-color:#2c8651;color:#a3efbd}
+.m-input{width:100%;border:1px solid #ffffff18;background:#ffffff06;color:var(--text);border-radius:12px;padding:12px 14px;font-size:15px}
+.m-note{font-size:10px;color:#7f929d;margin:10px 0 16px;line-height:1.5}
+.m-actions{display:flex;gap:9px}
+.m-actions .act{flex:1}
+.m-close{background:transparent;border-color:#ffffff22;color:#b9c8ce}
+@media(max-width:850px){.frame{padding:20px 16px 36px}.crumb{display:none}h1{font-size:24px}.balances{grid-template-columns:1fr}.td-hide{display:none}}
+@media(max-width:560px){header{grid-template-columns:1fr auto}.brand{font-size:19px}.uname{display:none}}
+</style></head>
+<body>
+<div class="frame">
+<header>
+  <div class="brand"><span class="check">✓</span><span><em>Сбер</em>Автошкола<small>Кабинет ученика</small></span></div>
+  <div class="crumb">Кабинет ученика · Кошелек</div>
+  <div class="user"><span class="uname">Иван Ковалёв</span><span class="avatar">ИК</span><button class="logout">Выйти</button></div>
+</header>
+
+<div class="page-head">
+  <div>
+    <div class="kicker">Кошелек</div>
+    <h1>Мой кошелек</h1>
+    <p>Деньги хранятся в копейках, баланс — по журналу транзакций. При бронировании занятия сумма блокируется: она уходит из «Доступно» в «Заморожено» и возвращается, если занятие отменили.</p>
+  </div>
+  <div class="legenda">Заморожено — холды ваших броней</div>
+</div>
+
+<div class="balances" id="balances">
+  <div class="bal"><small>Доступно</small><b id="b-avail">12 400<small>₽</small></b><div class="hint">можно тратить на бронирования</div></div>
+  <div class="bal frozen"><small>Заморожено</small><b id="b-frozen">3 000<small>₽</small></b><div class="hint">холды броней — до релиза или возврата</div></div>
+  <div class="bal"><small>Всего</small><b id="b-total">15 400<small>₽</small></b><div class="hint">доступно + заморожено</div></div>
+</div>
+
+<div class="top-actions">
+  <button class="act primary" id="topup-open">＋ Пополнить</button>
+  <button class="act ghost" id="to-bookings">Мои брони</button>
+  <span class="legenda" id="count"></span>
+</div>
+
+<div class="hist-title">История транзакций</div>
+<table>
+  <thead><tr><th>Дата</th><th>Тип</th><th>Описание</th><th class="td-hide">Источник</th><th style="text-align:right">Сумма</th></tr></thead>
+  <tbody id="hist"></tbody>
+</table>
+
+<footer><span>СберАвтошкола · мокап «Кошелек»</span><span>Демонстрационный интерфейс · данные вымышлены</span></footer>
+</div>
+
+<div class="m-backdrop" id="m-backdrop">
+  <div class="m-modal">
+    <h2>Пополнить кошелек</h2>
+    <div class="sub">Оплата на моках эквайринга (MVP): зачисление мгновенное, реальных списаний нет.</div>
+    <div class="presets">
+      <button data-r="1000">1 000 ₽</button>
+      <button class="on" data-r="3000">3 000 ₽</button>
+      <button data-r="5000">5 000 ₽</button>
+    </div>
+    <input class="m-input" id="m-amount" inputmode="numeric" value="3000" title="Сумма в рублях, целое число">
+    <div class="m-note">Сумма — целые рубли; зачисление происходит в копейках (× 100). Повторы той же операции не удваивают зачисление.</div>
+    <div class="m-actions">
+      <button class="act primary" id="m-confirm">Пополнить</button>
+      <button class="act m-close" id="m-close">Отмена</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" style="position:fixed;bottom:22px;right:22px;max-width:360px;background:#143323;border:1px solid #367b50;color:#b5f8cc;padding:13px 16px;border-radius:13px;font-size:12px;box-shadow:0 10px 40px #0008;display:none;z-index:20"></div>
+<script>
+// журнал транзакций ученика (GET /api/wallet) — демо; суммы в копейках, показ в ₽
+var tx=[
+ {when:'14.11.2026 12:04',type:'hold',   src:'Бронь №412 — Михаил Самойлов, 14.11 16:00–18:00', kop:300000},
+ {when:'14.11.2026 09:31',type:'topup',  src:'Пополнение · мок-эквайринг', kop:1500000},
+ {when:'09.11.2026 19:40',type:'release',src:'Занятие №408 — Анна Гордеева (комиссия 10%)', kop:-45000},
+ {when:'07.11.2026 08:12',type:'refund', src:'Отмена брони №405 — Артём Белов', kop:300000},
+ {when:'05.11.2026 21:15',type:'release',src:'Занятие №401 — Михаил Самойлов (комиссия 10%)', kop:-45000},
+ {when:'05.11.2026 20:58',type:'topup',  src:'Пополнение · мок-эквайринг', kop:3000000}
+];
+var T={topup:['Пополнение','t-topup'],hold:['Холд брони','t-hold'],release:['Оплата занятия','t-release'],refund:['Возврат холда','t-refund']};
+function rub(kop){var v=Math.abs(kop)/100;return v.toLocaleString('ru-RU')}
+function toast(m){var t=document.getElementById('toast');t.textContent=m;t.style.display='block';clearTimeout(window._tt);window._tt=setTimeout(function(){t.style.display='none'},3200)}
+function render(){
+  var tb=document.getElementById('hist');tb.innerHTML='';
+  tx.forEach(function(r){
+    var tr=document.createElement('tr');
+    var sign=r.kop>0?'+':'−';
+    var td=document.createElement('td');td.className='td-when';td.textContent=r.when;tr.appendChild(td);
+    td=document.createElement('td');var s=document.createElement('span');s.className='ttype '+T[r.type][1];s.textContent=T[r.type][0];td.appendChild(s);tr.appendChild(td);
+    td=document.createElement('td');td.textContent=r.src;tr.appendChild(td);
+    td=document.createElement('td');td.className='td-hide td-amount';td.style.fontWeight='400';td.style.color='#9fb0b8';td.textContent=r.type;tr.appendChild(td);
+    td=document.createElement('td');td.className='td-amount '+(r.kop>0?'plus':'minus');td.textContent=sign+' '+rub(r.kop)+' ₽';tr.appendChild(td);
+    tb.appendChild(tr);
+  });
+  document.getElementById('count').textContent='Операций: '+tx.length;
+}
+render();
+// модал пополнения (мок)
+var backdrop=document.getElementById('m-backdrop');
+document.getElementById('topup-open').addEventListener('click',function(){backdrop.classList.add('open')});
+document.getElementById('m-close').addEventListener('click',function(){backdrop.classList.remove('open')});
+document.querySelectorAll('.presets button').forEach(function(b){b.addEventListener('click',function(){
+  document.querySelectorAll('.presets button').forEach(function(x){x.classList.remove('on')});
+  b.classList.add('on');document.getElementById('m-amount').value=b.dataset.r;
+})});
+document.getElementById('m-confirm').addEventListener('click',function(){
+  var rubles=parseInt(document.getElementById('m-amount').value,10);
+  if(!rubles||rubles<=0){toast('Сумма — целое положительное число рублей');return}
+  var kop=rubles*100; // деньги только в копейках (NFR-33)
+  tx.unshift({when:'сейчас',type:'topup',src:'Пополнение · мок-эквайринг',kop:kop});
+  render();backdrop.classList.remove('open');
+  toast('Зачислено '+rub(kop)+' ₽ (мок). Пополнение мгновенное.');
+});
+document.getElementById('to-bookings').addEventListener('click',function(){toast('Переход в раздел «Мои брони».')});
+</script></body></html>
