@@ -1,16 +1,16 @@
 # Regress add-wallet-economy — regress-final.md
 
 - change: add-wallet-economy
-- date: 2026-11-14T21:48:47+00:00
-- commit: dc378fa9301c75f4b2582e7074acc6a255bf1ef1
+- date: 2026-11-14T22:26:05+00:00
+- commit: 81e7caa1e0f976173bfe5e79330537d8af13762b
 - worktree: /home/hermes-bot/.hermes/cache/scratch/wt-s16-economy
 - verdict: PASS
 - tier: domain (эшелон 1: доменный regress)
-- duration: 614.6s
+- duration: 602.8s
 - diff source: git diff main...HEAD
 - domain map: project map test-model/regress-domains.json задана, правил нет — применен дефолт
-- changed files: 60
-- changed files: 60
+- changed files: 62
+- changed files: 62
   - .env.example
   - .github/workflows/flow.yml
   - BACKLOG.md
@@ -61,7 +61,7 @@
   - test-model/approved/add-wallet-economy/TC-S16-004.md
   - test-model/approved/add-wallet-economy/TC-S16-005.md
   - test-model/approved/add-wallet-economy/TC-S16-006.md
-  - … и еще 10
+  - … и еще 12
 - suites: tests
 - pytest exit code: 0
 
@@ -81,5 +81,5 @@
     from starlette.testclient import TestClient as TestClient  # noqa
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-501 passed, 1 warning in 612.58s (0:10:12)
+501 passed, 1 warning in 601.27s (0:10:01)
 ```
