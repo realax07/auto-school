@@ -119,6 +119,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_student_requests_active
 
 -- Спринт 5 (add-booking-docs, задача 4.1): бронирование слотов.
 -- Гарантия единственности (NFR-8) — частичный UNIQUE-индекс ниже.
+-- Спринт 16 (add-wallet-economy, задача 16.1.1): статус 'completed'
+-- («проведена», FR-105) + снапшот цены/холда брони (FR-101) +
+-- completed_at (момент отметки «проведено» — окно спора 24ч и
+-- авто-релиз холда). Легаси-брони: price_per_hour_rub NULL,
+-- hold_amount_kop 0 (без холда), completed_at NULL — вне экономики.
 CREATE TABLE IF NOT EXISTS booking (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   student_id INTEGER NOT NULL,
@@ -126,8 +131,11 @@ CREATE TABLE IF NOT EXISTS booking (
   availability_id INTEGER NOT NULL,
   lesson_date TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'new'
-    CHECK (status IN ('new','confirmed','rejected')),
+    CHECK (status IN ('new','confirmed','rejected','completed')),
   reject_comment TEXT,
+  price_per_hour_rub INTEGER,
+  hold_amount_kop INTEGER NOT NULL DEFAULT 0,
+  completed_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   decided_at TEXT
 );
@@ -170,6 +178,121 @@ CREATE TABLE IF NOT EXISTS document_versions (
 -- частичный UNIQUE — механика uq_booking_active_slot).
 CREATE UNIQUE INDEX IF NOT EXISTS uq_document_versions_pending
   ON document_versions(target_type, target_id) WHERE status = 'pending';
+
+-- Спринт 16 (add-wallet-economy, задача 16.1.1): домен экономики
+-- (design.md «Модель данных»; FR-98…FR-116).
+--
+-- ┌─ ОБЯЗАТЕЛЬСТВО APPEND-ONLY (NFR-34, гард test_qa_s16_money) ─────────┐
+-- │ Таблица transactions — ЖУРНАЛ ДЕНЕГ: записи НИКОГДА не обновляются   │
+-- │ и не удаляются (ни миграциями, ни кодом домена backend/wallet/**).   │
+-- │ Ошибочные движения закрываются КОМПЕНСИРУЮЩЕЙ транзакцией (refund),  │
+-- │ а не правкой: журнал = единственный источник правды о деньгах.        │
+-- └──────────────────────────────────────────────────────────────────────┘
+CREATE TABLE IF NOT EXISTS transactions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  type TEXT NOT NULL
+    CHECK (type IN ('topup','hold','release','refund','payout')),
+  user_id INTEGER NOT NULL,
+  amount_kop INTEGER NOT NULL CHECK (amount_kop > 0),
+  booking_id INTEGER,
+  payout_id INTEGER,
+  topup_id INTEGER,
+  student_id INTEGER,
+  instructor_id INTEGER,
+  amount_gross_kop INTEGER,
+  fee_kop INTEGER,
+  amount_net_kop INTEGER,
+  note TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_tx_user ON transactions(user_id, type);
+CREATE INDEX IF NOT EXISTS idx_tx_booking ON transactions(booking_id, type);
+-- Частичные UNIQUE (гонки NFR-35 — механика uq_booking_active_slot):
+-- ровно одно движение каждого исхода холда на бронь; повторный релиз/
+-- рефанд/холд в гонке роняет проигравшего → IntegrityError → честный 409.
+-- Строки с NULL booking_id/payout_id (topup) индексом не учитываются
+-- (NULL в UNIQUE-индексе не конфликтует).
+CREATE UNIQUE INDEX IF NOT EXISTS uq_tx_hold_per_booking
+  ON transactions(booking_id) WHERE type = 'hold';
+CREATE UNIQUE INDEX IF NOT EXISTS uq_tx_release_per_booking
+  ON transactions(booking_id) WHERE type = 'release';
+CREATE UNIQUE INDEX IF NOT EXISTS uq_tx_refund_per_booking
+  ON transactions(booking_id) WHERE type = 'refund';
+CREATE UNIQUE INDEX IF NOT EXISTS uq_tx_payout_per_request
+  ON transactions(payout_id) WHERE type = 'payout';
+
+-- Мок-эквайринг (NFR-36) — ОТДЕЛЬНО от журнала (решение Заказчика
+-- «База эквайринга наверное отдельно должна быть»): журнал хранит только
+-- факт денег (transactions topup со ссылкой topup_id).
+CREATE TABLE IF NOT EXISTS acquiring_topups (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  student_id INTEGER NOT NULL,
+  amount_kop INTEGER NOT NULL CHECK (amount_kop > 0),
+  provider TEXT NOT NULL DEFAULT 'mock',
+  -- Клиентский X-Idempotency-Key (NFR-35): повтор с тем же ключом
+  -- возвращает существующую запись, дубля-транзакции нет; без ключа
+  -- (NULL) каждый вызов — новая операция.
+  idempotency_key TEXT,
+  -- Поле БУДУЩЕГО провайдера: мок не заполняет; UNIQUE при интеграции
+  -- реального эквайринга — отдельный объем (NFR-36).
+  provider_payment_id TEXT,
+  status TEXT NOT NULL DEFAULT 'succeeded'
+    CHECK (status IN ('pending','succeeded','failed')),
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_topups_idem
+  ON acquiring_topups(idempotency_key) WHERE idempotency_key IS NOT NULL;
+
+-- Заявки вывода СБП (мок, NFR-36): сумма не замораживает баланс;
+-- списание — факт выплаты (transactions payout при confirm оператора).
+CREATE TABLE IF NOT EXISTS payouts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  instructor_id INTEGER NOT NULL,
+  amount_kop INTEGER NOT NULL CHECK (amount_kop > 0),
+  channel TEXT NOT NULL DEFAULT 'sbp',
+  bank TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'requested'
+    CHECK (status IN ('requested','paid')),
+  operator_comment TEXT,
+  requested_at TEXT NOT NULL DEFAULT (datetime('now')),
+  paid_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_payouts_instructor
+  ON payouts(instructor_id, status);
+-- Не более одной АКТИВНОЙ заявки на инструктора (гвард + БД-гарантия).
+CREATE UNIQUE INDEX IF NOT EXISTS uq_payouts_one_pending
+  ON payouts(instructor_id) WHERE status = 'requested';
+
+-- Экономические атрибуты инструктора (дословно Заказчика: «в админке
+-- ставится каждому инструктору»). user_id = users.id (role='instructor');
+-- строка создается бэкфиллом миграции и при одобрении заявки
+-- (backend/auth/instructor_admin.py, approve-ветка).
+CREATE TABLE IF NOT EXISTS instructors (
+  user_id INTEGER PRIMARY KEY,
+  commission_percent INTEGER NOT NULL DEFAULT 10
+    CHECK (commission_percent BETWEEN 0 AND 100),
+  price_per_hour_rub INTEGER,
+  updated_at TEXT
+);
+
+-- Споры учеников по проведенным занятиям (FR-107/108): resolution NULL =
+-- спор открыт (блокирует авто-релиз холда); решение оператора закрывает
+-- запись необратимо.
+CREATE TABLE IF NOT EXISTS booking_disputes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  booking_id INTEGER NOT NULL,
+  student_id INTEGER NOT NULL,
+  comment TEXT NOT NULL,
+  resolution TEXT CHECK (resolution IN ('release','refund')),
+  operator_comment TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  resolved_at TEXT
+);
+-- Один открытый спор на бронь (частичный UNIQUE — механика
+-- uq_student_requests_active/uq_payouts_one_pending).
+CREATE UNIQUE INDEX IF NOT EXISTS uq_disputes_open
+  ON booking_disputes(booking_id) WHERE resolution IS NULL;
 """
 
 # Спринт 0–1: users.role (add-instructor-flow, задача 1.2, sdd.md §16).
@@ -284,11 +407,85 @@ _AVAILABILITY_COPY = (
 )
 
 
+# Спринт 16 (add-wallet-economy, задача 16.1.1): DDL перестройки booking —
+# РОВНО новый _SCHEMA-вид таблицы (статус CHECK расширен 'completed' —
+# ALTER'ом CHECK не расширяется; прецедент availability_new/ADR-010,
+# design.md «Модель данных»). Выполняется ПОШАГОВО conn.execute
+# (не executescript — тот делает неявный COMMIT и разорвал бы
+# транзакцию BEGIN IMMEDIATE).
+_BOOKING_NEW_DDL = """
+CREATE TABLE booking_new (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  student_id INTEGER NOT NULL,
+  instructor_id INTEGER NOT NULL,
+  availability_id INTEGER NOT NULL,
+  lesson_date TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'new'
+    CHECK (status IN ('new','confirmed','rejected','completed')),
+  reject_comment TEXT,
+  price_per_hour_rub INTEGER,
+  hold_amount_kop INTEGER NOT NULL DEFAULT 0,
+  completed_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  decided_at TEXT
+)
+"""
+
+# INSERT … SELECT — id/created_at/decided_at СОХРАНЯЮТСЯ (ссылки журнала
+# экономики на booking_id валидны); новые колонки легаси-строки получают
+# через DEFAULT: price NULL (без снапшота), hold 0 (без холда),
+# completed_at NULL (не отмечена) — существующие брони вне экономики
+# (FR-101, обратная совместимость).
+_BOOKING_COPY = (
+    "INSERT INTO booking_new"
+    " (id, student_id, instructor_id, availability_id, lesson_date,"
+    " status, reject_comment, created_at, decided_at)"
+    " SELECT id, student_id, instructor_id, availability_id, lesson_date,"
+    " status, reject_comment, created_at, decided_at"
+    " FROM booking"
+)
+
+# Индексы брони пересоздаются после rebuild (DROP TABLE роняет их вместе
+# с таблицей); uq_booking_active_slot — БЕЗ 'completed': проведенный
+# экземпляр в прошлом, слот не занят (design.md).
+_BOOKING_INDEXES = """
+CREATE INDEX IF NOT EXISTS idx_booking_instructor
+  ON booking(instructor_id, status);
+CREATE INDEX IF NOT EXISTS idx_booking_student
+  ON booking(student_id, status);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_booking_active_slot
+  ON booking(availability_id, lesson_date) WHERE status IN ('new','confirmed');
+"""
+
+
+def _migrate_booking_economy(conn: sqlite3.Connection) -> None:
+    """Спринт 16 (задача 16.1.1): idempotent-миграция статуса 'completed' и
+    снапшот-колонок booking — guard по отсутствию колонки hold_amount_kop
+    (повторный запуск — no-op, данные не дублируются). ОДНА транзакция
+    BEGIN IMMEDIATE: перестройка booking_new + перенос всех строк
+    (id/created_at сохранены) + пересоздание индексов. Легаси-брони
+    получают price NULL / hold 0 / completed_at NULL — вне экономики."""
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(booking)")}
+    if "hold_amount_kop" in columns:
+        return
+    conn.isolation_level = None
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        conn.execute(_BOOKING_NEW_DDL)
+        conn.execute(_BOOKING_COPY)
+        conn.execute("DROP TABLE booking")
+        conn.execute("ALTER TABLE booking_new RENAME TO booking")
+        for statement in _BOOKING_INDEXES.strip().split(";"):
+            if statement.strip():
+                conn.execute(statement)
+        conn.execute("COMMIT")
+    except Exception:
+        conn.execute("ROLLBACK")
+        raise
+
+
 def _migrate_availability_slots(conn: sqlite3.Connection) -> None:
     """Спринт 10 (задача 1.1): idempotent-миграция recurring/one_off —
-    guard по отсутствию колонки slot_type (повторный запуск — no-op,
-    дубли невозможны, NFR-30). ОДНА транзакция BEGIN IMMEDIATE:
-    перестройка availability (новый UNIQUE с slot_date) + замена
     частичного индекса брони на экземпляры (availability_id, lesson_date)
     — design.md «Модель данных», D2/D4. Существующие строки → recurring
     через DEFAULT; данные не теряются (INSERT SELECT всех строк).
@@ -394,7 +591,13 @@ def init_db() -> None:
     NULL у исторических строк — без backfill) + частичные UNIQUE-индексы;
     Спринт 10 — перестройка availability под recurring/one_off (слоты
     легаси становятся recurring через DEFAULT, id/created_at сохраняются)
-    + индекс занятости экземпляра брони (availability_id, lesson_date)."""
+    + индекс занятости экземпляра брони (availability_id, lesson_date);
+    Спринт 16 — таблицы экономики (transactions — append-only журнал,
+    acquiring_topups, payouts, instructors, booking_disputes) +
+    перестройка booking под статус 'completed' и снапшот-колонки
+    (легаси-строки: price NULL / hold 0 / completed_at NULL — вне
+    экономики) + бэкфилл instructors из users (role='instructor',
+    INSERT OR IGNORE — идемпотентно, комиссия по умолчанию 10)."""
     conn = get_conn()
     try:
         conn.executescript(_SCHEMA)
@@ -408,7 +611,18 @@ def init_db() -> None:
         # Спринт 10 (задача 1.1): перестройка availability под
         # recurring/one_off + индекс занятости экземпляра (NFR-30, D2/D4).
         _migrate_availability_slots(conn)
+        # Спринт 16 (задача 16.1.1): перестройка booking под 'completed'
+        # + снапшот-колонки экономики ( прецедент availability_new).
+        _migrate_booking_economy(conn)
         conn.executescript(_TOKEN_INDEXES)
+        # Спринт 16 (16.1.1): бэкфилл instructors — строка экономических
+        # атрибутов для КАЖДОГО инструктора (комиссия 10 по умолчанию,
+        # цена не задана). INSERT OR IGNORE — идемпотентно: строки,
+        # созданные approve-веткой с кастомной комиссией, не перезаписываются.
+        conn.execute(
+            "INSERT OR IGNORE INTO instructors (user_id)"
+            " SELECT id FROM users WHERE role = 'instructor'"
+        )
         _seed_document_versions(conn)
         conn.commit()
     finally:
