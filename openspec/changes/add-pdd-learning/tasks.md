@@ -23,7 +23,7 @@ design.md, не против кода друг друга). Типы работ:
 
 ## 17.2 Доставка контента: генератор JSON + статика + бюджеты ([P] с 17.3–17.6 — контрактный фундамент)
 
-- [ ] 17.2.1 [code] frontend/vue/scripts/generate-pdd-json.mjs —
+- [x] 17.2.1 [code] frontend/vue/scripts/generate-pdd-json.mjs —
       генератор (Node stdlib, БЕЗ зависимостей). Входы — content/pdd/:
       pravila 26 глав — H1-блок → заголовок + html-абзацы; znaki 8 групп
       group-md, ОБА формата `## N.N` и `## | N.N` (t8) → номер/название/
@@ -49,7 +49,7 @@ design.md, не против кода друг друга). Типы работ:
       FR: состав разделов (решение 2026-11-15). NFR: точность контента
       (перегенерация, без ручных правок). Зависит от: —.
 
-- [ ] 17.2.2 [code] backend/app.py — роут GET /pdd-assets/{group}/{file}
+- [x] 17.2.2 [code] backend/app.py — роут GET /pdd-assets/{group}/{file}
       из content/pdd/images (group ∈ znaki|bilety, иначе 404):
       traversal-guard и карта media-types .png/.gif/.jpg/.jpeg по
       паттерну /vue/assets (ADR-001; неизвестный суффикс — 404).
@@ -60,7 +60,7 @@ design.md, не против кода друг друга). Типы работ:
       `docker build` содержит content/. FR: доставка контента. NFR: —.
       Зависит от: 17.2.1 (смысловые пути файлов — из генератора).
 
-- [ ] 17.2.3 [code] frontend/vue/scripts/check-budgets.mjs — amendment
+- [x] 17.2.3 [code] frontend/vue/scripts/check-budgets.mjs — amendment
       (design «Бюджеты»): importedChunks разделяет статические
       (from"/import") и динамические импорты; (б)/(в) — статическое
       замыкание (семантика NFR-26 «static-import graph»; для 14 страниц
@@ -72,7 +72,7 @@ design.md, не против кода друг друга). Типы работ:
       17.2.1-чанков (г)/(д) зелен. FR: —. NFR: NFR-26 (первый заход
       кабинета не меняется). Зависит от: 17.2.1.
 
-- [ ] 17.2.4 [docs] content/pdd/README.md — синхронизация фактов корпуса
+- [x] 17.2.4 [docs] content/pdd/README.md — синхронизация фактов корпуса
       (только документация): 8 групп знаков (t1…t8, 321 знак, формат t8
       «## | N.N»), znaki-details.json (321 записи: title/desc/fine —
       источник деталей и штраф-блоков знака; img пуст, long не
@@ -86,7 +86,7 @@ design.md, не против кода друг друга). Типы работ:
 
 ## 17.3 Раздел «Знаки» ([P] с 17.4–17.6; после 17.2 — приемка)
 
-- [ ] 17.3.1 [code] Секция «Знаки»: src/pages/cabinet/sections/
+- [x] 17.3.1 [code] Секция «Знаки»: src/pages/cabinet/sections/
       PddSigns.vue (defineAsyncComponent в App.vue; visited-загрузка) +
       синхронно cabinet.html (скелет sec-pdd-signs: page-head «Обучение ·
       ПДД»/«Дорожные знаки») + 4 кнопки .snav ЗДЕСЬ или в 17.3.1-брате —
@@ -107,7 +107,7 @@ design.md, не против кода друг друга). Типы работ:
       работают; `npm run check:budgets` зелен (17.2.3).
       FR: раздел «Знаки». NFR: NFR-26 (lazy). Зависит от: 17.2.1 (JSON).
 
-- [ ] 17.3.2 [tests] Гард-тесты секции по мокапу design/mocks/
+- [x] 17.3.2 [tests] Гард-тесты секции по мокапу design/mocks/
       pdd-znaki-student.html (прецедент test_cabinet_page.py):
       файл-носитель tests/web/test_pdd_sections.py — фрагменты мокапа
       (chips/zn-grid/zn-detail классы, page-head заголовки) в носителях
@@ -117,7 +117,7 @@ design.md, не против кода друг друга). Типы работ:
 
 ## 17.4 Раздел «Правила» ([P] с 17.3/17.5/17.6)
 
-- [ ] 17.4.1 [code] Секция «Правила»: sections/PddRules.vue по мокапу
+- [x] 17.4.1 [code] Секция «Правила»: sections/PddRules.vue по мокапу
       pdd-pravila-student.html (two-column prav-wrap: toc 26 глав слева
       — заголовки из pdd-pravila.json; chapter справа — v-html
       сгенерированных блоков; активный toc-item; клик — переход без
@@ -129,7 +129,7 @@ design.md, не против кода друг друга). Типы работ:
       FR: раздел «Правила». NFR: NFR-26 (lazy ~90 КБ gzip чанк ≤ 150).
       Зависит от: 17.2.1.
 
-- [ ] 17.4.2 [tests] Гард по мокапу pdd-pravila-student.html (фрагменты
+- [x] 17.4.2 [tests] Гард по мокапу pdd-pravila-student.html (фрагменты
       toc/toc-item/chapter/prav-wrap + CSS-строки; число toc-пунктов = 26
       по корпусу, мокап-29 — иллюстрация, proposal «Сверка»).
       Готовность: pytest зелен. Зависит от: 17.4.1.
