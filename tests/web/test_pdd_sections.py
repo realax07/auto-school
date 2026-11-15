@@ -188,3 +188,80 @@ def test_pdd_signs_images_via_pdd_assets():
     assert '<img :src="selected.image"' in src
     # 48 МБ не в бандле: данные — из pdd-data (генератор), не из content/
     assert "pdd-data/pdd-znaki.json" in src
+
+
+# --- 17.4: секция «Правила» по мокапу pdd-pravila-student.html ---------------
+
+
+def rules_source() -> str:
+    return RULES.read_text(encoding="utf-8")
+
+
+def test_pdd_rules_skeleton_sync_in_both_carriers():
+    """Скелет sec-pdd-rules (page-head «Обучение · ПДД» / «Правила дорожного
+    движения») синхронен в cabinet.html и App.vue."""
+    fragment = (
+        '<div id="sec-pdd-rules" style="display:none">\n'
+        '  <div class="page-head">\n'
+        '    <div>\n'
+        '      <div class="kicker">Обучение · ПДД</div>\n'
+        '      <h1>Правила дорожного движения</h1>\n'
+        '      <p>26 глав действующей редакции. Глава раскрывается по клику; пункты — полный текст.</p>\n'
+        '    </div>\n'
+        '  </div>'
+    )
+    assert fragment in cabinet_html()
+    assert fragment in app_source()
+
+
+def test_pdd_rules_mockup_fragments_in_component():
+    """Фрагменты мокапа (two-column prav-wrap: toc/toc-item/chapter) — в
+    носителе PddRules.vue; переход по toc — клиентский (без перезагрузки),
+    активный toc-item подсвечен."""
+    src = rules_source()
+    fragments = [
+        'class="prav-wrap"',
+        'class="toc"',
+        'class="toc-item"',
+        ':class="{ on: c.id === activeId }"',
+        '@click="openChapter(c.id)"',
+        'class="chapter"',
+        '<h2>{{ activeChapter.title }}</h2>',
+    ]
+    for fragment in fragments:
+        assert fragment in src, fragment
+
+
+def test_pdd_rules_toc_count_is_corpus_26():
+    """Число глав toc = 26 ПО КОРПУСУ (мокап-29 — иллюстрация, proposal
+    «Сверка»); рендер — v-for по pdd-pravila.json генератора."""
+    assert corpus_chapter_count() == 26
+    src = rules_source()
+    assert 'v-for="c in chapters"' in src
+    assert "pdd-data/pdd-pravila.json" in src
+    # первая глава рендерится по умолчанию (мокап начинает с активной главы)
+    assert "activeId: pravilaData.length ? pravilaData[0].id : 1" in src
+
+
+def test_pdd_rules_v_html_only_for_generated_blocks():
+    """v-html — ТОЛЬКО для сгенерированных полей корпуса (экранирование на
+    этапе генерации); сырых md-строк и пользовательского ввода нет."""
+    src = rules_source()
+    assert 'v-html="activeHtml"' in src
+    # activeHtml — join сгенерированных <p>-блоков JSON, не сырой текст md
+    assert "activeChapter.html.join" in src
+
+
+def test_pdd_rules_mockup_css_verbatim_in_styles():
+    """CSS-строки секции мокапа — дословно в styles.css (новые правила —
+    только в конце файла)."""
+    page_css = STYLES.read_text(encoding="utf-8")
+    for line in mockup_css(MOCKUP_RULES):
+        assert line in page_css, f"CSS-строка мокапа изменена/удалена: {line[:60]}"
+
+
+def test_pdd_rules_visited_async_component():
+    """PddRules — lazy-чанк: defineAsyncComponent + visited-загрузка."""
+    src = app_source()
+    assert "import('./sections/PddRules.vue')" in src
+    assert '<pdd-rules v-if="pddRulesVisited"></pdd-rules>' in src
