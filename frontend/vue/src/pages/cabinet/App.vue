@@ -39,6 +39,13 @@
          кабинета (BUG-047: standalone-страницы запрещены), после «Мои брони»;
          баланс по журналу транзакций + пополнение (мок эквайринга) + история -->
     <button data-tab="Кошелек" type="button"><span class="ico">₽</span>Кошелек</button>
+    <!-- Спринт 17 (add-pdd-learning, 17.3.1): обучающие разделы ПДД —
+         4 пункта после «Кошелек» (к порядку существующих, БЕЗ
+         перегруппировки; иконки — юникод-глифы стиля кабинета) -->
+    <button data-tab="Знаки" type="button"><span class="ico">◈</span>Знаки</button>
+    <button data-tab="Правила" type="button"><span class="ico">☰</span>Правила</button>
+    <button data-tab="Билеты" type="button"><span class="ico">◉</span>Билеты</button>
+    <button data-tab="Штрафы" type="button"><span class="ico">⚠</span>Штрафы</button>
   </nav>
 </aside>
 <div class="hero"><div class="frame">
@@ -270,6 +277,67 @@
   </table>
 </div>
 
+<!-- Спринт 17 (add-pdd-learning, 17.3.1): раздел «Знаки» (мокап
+     design/mocks/pdd-znaki-student.html): скелет — синхронно с cabinet.html;
+     списки (чипы/сетка/деталь) — в PddSigns.vue (defineAsyncComponent,
+     v-if="pddSignsVisited" — visited-загрузка: чанк при ПЕРВОМ открытии,
+     остается смонтированным, NFR-26) -->
+<div id="sec-pdd-signs" style="display:none">
+  <div class="page-head">
+    <div>
+      <div class="kicker">Обучение · ПДД</div>
+      <h1>Дорожные знаки</h1>
+      <p>8 групп · 321 знак с описаниями. Выбери группу — внутри карточки знаков и их значение.</p>
+    </div>
+  </div>
+  <pdd-signs v-if="pddSignsVisited"></pdd-signs>
+</div>
+
+<!-- Спринт 17 (add-pdd-learning, 17.4.1): раздел «Правила» (мокап
+     design/mocks/pdd-pravila-student.html, two-column prav-wrap): скелет —
+     синхронно с cabinet.html; toc/глава — в PddRules.vue
+     (defineAsyncComponent, v-if="pddRulesVisited", NFR-26) -->
+<div id="sec-pdd-rules" style="display:none">
+  <div class="page-head">
+    <div>
+      <div class="kicker">Обучение · ПДД</div>
+      <h1>Правила дорожного движения</h1>
+      <p>26 глав действующей редакции. Глава раскрывается по клику; пункты — полный текст.</p>
+    </div>
+  </div>
+  <pdd-rules v-if="pddRulesVisited"></pdd-rules>
+</div>
+
+<!-- Спринт 17 (add-pdd-learning, 17.5.1): раздел «Билеты» — тренажер
+     (мокап design/mocks/pdd-bilety-trenazher.html): скелет — синхронно
+     с cabinet.html; выбор/тренировка/результат — в PddTickets.vue
+     (defineAsyncComponent, v-if="pddTicketsVisited", NFR-26) -->
+<div id="sec-pdd-tickets" style="display:none">
+  <div class="page-head">
+    <div>
+      <div class="kicker">Обучение · ПДД</div>
+      <h1>Билеты ПДД — тренажер</h1>
+      <p>Режим экзамена: 20 вопросов, 20 минут. Картинки вопросов — как на реальном экзамене ГИБДД.</p>
+    </div>
+  </div>
+  <pdd-tickets v-if="pddTicketsVisited"></pdd-tickets>
+</div>
+
+<!-- Спринт 17 (add-pdd-learning, 17.6.1): раздел «Штрафы» (мокап
+     design/mocks/pdd-shtrafi-student.html): скелет — синхронно с
+     cabinet.html; поиск/таблица — в PddFines.vue
+     (defineAsyncComponent, v-if="pddFinesVisited", NFR-26) -->
+<div id="sec-pdd-fines" style="display:none">
+  <div class="page-head">
+    <div>
+      <div class="kicker">Обучение · ПДД</div>
+      <h1>Штрафы ГИБДД</h1>
+      <p>Таблица нарушений главы 12 КоАП: статья, нарушение, наказание. Поиск — по любой колонке, без перезагрузки.</p>
+    </div>
+  </div>
+  <pdd-fines v-if="pddFinesVisited"></pdd-fines>
+</div>
+
 <!-- модалка: пополнение кошелька (мок эквайринга; POST /api/wallet/topup
      с X-Idempotency-Key — повтор той же операции не удваивает зачисление) -->
 <div class="wal-backdrop" id="m-backdrop" role="dialog" aria-modal="true" aria-labelledby="wal-topup-title">
@@ -355,11 +423,28 @@
 // Токен — sessionStorage 'session_token' (свой clearSession/toLogin —
 // как legacy); toast/fmtDate/nowMoscow/fioOf — из vue/src/shared/utils.js
 // (дословные переносы С14/С15); fetch-логика — локальная (как legacy).
-import { onMounted, ref, computed } from 'vue';
+import { onMounted, ref, computed, defineAsyncComponent } from 'vue';
 import { toast, fmtDate, nowMoscow, fioOf } from '../../shared/utils.js';
 
 export default {
   name: 'CabinetApp',
+  // Спринт 17 (add-pdd-learning, 17.3.1): секции обучения ПДД — lazy-чанки
+  // (NFR-26): defineAsyncComponent + v-if="pdd*-Visited" в шаблоне — чанк
+  // грузится при ПЕРВОМ открытии раздела и остается смонтированным.
+  components: {
+    PddSigns: defineAsyncComponent(function () {
+      return import('./sections/PddSigns.vue');
+    }),
+    PddRules: defineAsyncComponent(function () {
+      return import('./sections/PddRules.vue');
+    }),
+    PddTickets: defineAsyncComponent(function () {
+      return import('./sections/PddTickets.vue');
+    }),
+    PddFines: defineAsyncComponent(function () {
+      return import('./sections/PddFines.vue');
+    }),
+  },
   setup: function () {
     // --- сессия (sdd §10.2–10.4): токен сессии — sessionStorage, ключ
     // session_token (единый snake_case-паттерн с admin_token Спринта 0);
@@ -391,6 +476,11 @@ export default {
     // --- раздел «Мои заявки» — реактивные данные (el()-отрисовка → v-for) ---
     var reqs = ref([]);
     var cur = ref('all');
+    // Спринт 17 (17.3.1): visited-загрузка lazy-секций ПДД (NFR-26)
+    var pddSignsVisited = ref(false);
+    var pddRulesVisited = ref(false);
+    var pddTicketsVisited = ref(false);
+    var pddFinesVisited = ref(false);
     var STATUS = {new:['На рассмотрении','st-new'],accepted:['Принята','st-acc'],denied:['Отказана','st-den']};
     // системный комментарий автозакрытия (ОВ-1) — тот же текст, что в бэкенде
     var SYSTEM_COMMENT = 'Заявка закрыта: ученик принят другим инструктором';
@@ -931,23 +1021,56 @@ export default {
         var isBk = (name === 'Мои брони');
         // Спринт 16 (16.4.1): «Кошелек» — третий реальный раздел кабинета
         var isWal = (name === 'Кошелек');
-        document.getElementById('sec-home').style.display = (isReq || isBk || isWal) ? 'none' : 'block';
+        // Спринт 17 (17.3.1): обучающие разделы ПДД — 4 пункта после «Кошелек»
+        var isSigns = (name === 'Знаки');
+        var isRules = (name === 'Правила');
+        var isTickets = (name === 'Билеты');
+        var isFines = (name === 'Штрафы');
+        var isPdd = isSigns || isRules || isTickets || isFines;
+        document.getElementById('sec-home').style.display = (isReq || isBk || isWal || isPdd) ? 'none' : 'block';
         document.getElementById('sec-requests').style.display = isReq ? 'block' : 'none';
         document.getElementById('sec-bookings').style.display = isBk ? 'block' : 'none';
         document.getElementById('sec-wallet').style.display = isWal ? 'block' : 'none';
+        // Спринт 17: div#sec-pdd-* добавляет задача своей секции (17.4.1 —
+        // sec-pdd-rules; 17.5.1/17.6.1 — sec-pdd-tickets/sec-pdd-fines),
+        // display переключается только для существующих носителей
+        var signsSec = document.getElementById('sec-pdd-signs');
+        if (signsSec) signsSec.style.display = isSigns ? 'block' : 'none';
+        var rulesSec = document.getElementById('sec-pdd-rules');
+        if (rulesSec) rulesSec.style.display = isRules ? 'block' : 'none';
+        // Спринт 17 (17.5.1/17.6.1): sec-pdd-tickets/sec-pdd-fines —
+        // носители появляются в этой же волне; display — только для
+        // существующих (тот же guard-паттерн)
+        var ticketsSec = document.getElementById('sec-pdd-tickets');
+        if (ticketsSec) ticketsSec.style.display = isTickets ? 'block' : 'none';
+        var finesSec = document.getElementById('sec-pdd-fines');
+        if (finesSec) finesSec.style.display = isFines ? 'block' : 'none';
         document.querySelectorAll('.snav button[data-tab]').forEach(function (b) {
           b.classList.toggle('on', b.dataset.tab === name);
         });
         // BUG-047: хеш раздела синхронизируется с табом — reload не сбрасывает
         // раздел, старые ссылки #/my-requests открывают его напрямую;
-        // Спринт 16: #/wallet — раздел «Кошелек»
-        var wantHash = isReq ? '#/my-requests' : isBk ? '#/my-bookings' : isWal ? '#/wallet' : '';
+        // Спринт 16: #/wallet — раздел «Кошелек»;
+        // Спринт 17: #/pdd-signs #/pdd-rules #/pdd-tickets #/pdd-fines
+        var wantHash = isReq ? '#/my-requests'
+          : isBk ? '#/my-bookings'
+          : isWal ? '#/wallet'
+          : isSigns ? '#/pdd-signs'
+          : isRules ? '#/pdd-rules'
+          : isTickets ? '#/pdd-tickets'
+          : isFines ? '#/pdd-fines'
+          : '';
         if (location.hash !== wantHash) {
           try { history.replaceState(null, '', location.pathname + location.search + (wantHash || '')); } catch (e) {}
         }
         if (isReq) loadRequests();
         if (isBk) loadBookingsSection();
         if (isWal) loadWallet();
+        // Спринт 17 (NFR-26): чанк секции грузится при ПЕРВОМ открытии
+        if (isSigns) pddSignsVisited.value = true;
+        if (isRules) pddRulesVisited.value = true;
+        if (isTickets) pddTicketsVisited.value = true;
+        if (isFines) pddFinesVisited.value = true;
       }
       document.querySelectorAll('.snav button[data-tab]').forEach(function (b) {
         b.addEventListener('click', function () { navTo(b.dataset.tab); });
@@ -959,6 +1082,11 @@ export default {
       if (location.hash === '#/my-bookings') navTo('Мои брони');
       // Спринт 16 (16.4.1): старые ссылки /cabinet#/wallet — сразу «Кошелек»
       if (location.hash === '#/wallet') navTo('Кошелек');
+      // Спринт 17 (17.3.1): старые ссылки /cabinet#/pdd-* — сразу раздел
+      if (location.hash === '#/pdd-signs') navTo('Знаки');
+      if (location.hash === '#/pdd-rules') navTo('Правила');
+      if (location.hash === '#/pdd-tickets') navTo('Билеты');
+      if (location.hash === '#/pdd-fines') navTo('Штрафы');
 
       // --- Раздел «Мои заявки»: bootstrap-привязки (данные/функции —
       //     setup-область выше: loadRequests/renderFilters/retry) ---
@@ -1100,6 +1228,10 @@ export default {
       walBalances: walBalances, walletTxs: walletTxs,
       rubFmt: rubFmt, walWhen: walWhen, walDesc: walDesc,
       txBadge: txBadge, openDispute: openDispute,
+      // Спринт 17 (17.3.1): visited-загрузка lazy-секций ПДД
+      pddSignsVisited: pddSignsVisited, pddRulesVisited: pddRulesVisited,
+      // Спринт 17 (17.5.1/17.6.1): секции «Билеты»/«Штрафы»
+      pddTicketsVisited: pddTicketsVisited, pddFinesVisited: pddFinesVisited,
     };
   },
 };

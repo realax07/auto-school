@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "node scripts/generate-pdd-json.mjs && vite build",
     "check:budgets": "node scripts/check-budgets.mjs"
   },
   "dependencies": {

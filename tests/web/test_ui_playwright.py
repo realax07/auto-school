@@ -4849,3 +4849,346 @@ def test_tc_ui_063_instructor_price_save_persists(page, server):
     page.locator('.nav button[data-tab="Мой день"]').click()
     page.locator('.nav button[data-tab="Доходы и выплаты"]').click()
     expect(page.locator("#price-input")).to_have_value("1500")
+
+
+# ------------------------------------------------- Спринт 17: обучение ПДД
+def test_tc_ui_070_pdd_sidebar_nav_hashes_and_reload(page, server):
+    """TC-UI-070 (Спринт 17, add-pdd-learning 17.7.2): навигация сайдбара
+    обучающих разделов — «Знаки»/«Правила» открываются внутри кабинета
+    (BUG-047-прецедент), активный пункт подсвечен, хеш синхронизируется
+    (#/pdd-signs, #/pdd-rules), остальные разделы скрыты; хеш открывает
+    раздел напрямую и переживает перезагрузку. Реальный бэкенд."""
+    _seed_session(page, "session_token", _student_token(server))
+    page.goto(f"{server}/cabinet")
+    expect(page.locator("#sec-home")).to_be_visible()
+
+    # сайдбар: «Знаки» → раздел, подсветка, хеш
+    page.locator('.snav button[data-tab="Знаки"]').click()
+    expect(page.locator("#sec-pdd-signs")).to_be_visible()
+    expect(page.locator('.snav button[data-tab="Знаки"]')).to_have_class("on")
+    expect(page.locator("#sec-home")).to_be_hidden()
+    assert page.evaluate("location.hash") == "#/pdd-signs"
+
+    # переключение взаимоисключающее: «Правила» скрывают «Знаки»
+    page.locator('.snav button[data-tab="Правила"]').click()
+    expect(page.locator("#sec-pdd-rules")).to_be_visible()
+    expect(page.locator("#sec-pdd-signs")).to_be_hidden()
+    assert page.evaluate("location.hash") == "#/pdd-rules"
+    expect(page.locator('.snav button[data-tab="Правила"]')).to_have_class("on")
+
+    # reload сохраняет раздел (replaceState-паттерн BUG-047)
+    page.reload()
+    expect(page.locator("#sec-pdd-rules")).to_be_visible()
+    expect(page.locator("#sec-home")).to_be_hidden()
+    expect(page.locator('.snav button[data-tab="Правила"]')).to_have_class("on")
+
+
+def test_tc_ui_070a_pdd_hash_opens_section_directly(page, server):
+    """Хеш раздела открывает его напрямую без клика (прецедент
+    test_bug047_myrequests_route_redirects_into_cabinet)."""
+    _seed_session(page, "session_token", _student_token(server))
+    page.goto(f"{server}/cabinet#/pdd-signs")
+    expect(page.locator("#sec-pdd-signs")).to_be_visible()
+    expect(page.locator("#sec-home")).to_be_hidden()
+    expect(page.locator('.snav button[data-tab="Знаки"]')).to_have_class("on")
+    expect(page.locator("#sec-pdd-signs h1")).to_have_text("Дорожные знаки")
+
+
+def test_tc_ui_071_pdd_signs_group_grid_detail_back(page, server):
+    """TC-UI-071 (Спринт 17, add-pdd-learning 17.7.2): раздел «Знаки» —
+    чипы 8 групп со счётчиками корпуса, сетка карточек активной группы
+    (47 у «Предупреждающих», 77 у «Таблички»-t8), клик карточки → деталь
+    (kicker «Знак N.N», название, группа, описание, блок штрафа при
+    наличии записи), «назад к группе» возвращает сетку; блок штрафа
+    отсутствует у знака без записи fine (1.18), блок описания — у 5.33.1
+    (допуск корпуса). Изображения — /pdd-assets/znaki (200)."""
+    _seed_session(page, "session_token", _student_token(server))
+    page.goto(f"{server}/cabinet#/pdd-signs")
+
+    # lazy-чанк секции грузится при первом открытии; чипы — 8 групп
+    expect(page.locator('[data-test="pdd-chips"] .chip')).to_have_count(8)
+    # счётчики корпуса на чипах (47/13/38/24/63/37/22/77)
+    expect(page.locator('[data-test="pdd-chip-t1"]')).to_contain_text("47")
+    expect(page.locator('[data-test="pdd-chip-t8"]')).to_contain_text("77")
+    # сетка активной (первой) группы — 47 карточек знака t1
+    expect(page.locator('[data-test="pdd-grid"] .zn')).to_have_count(47)
+    # изображение карточки — статика /pdd-assets/znaki (реальный файл)
+    expect(page.locator('[data-test="pdd-grid"] .zn img').first).to_have_attribute(
+        "src", "/pdd-assets/znaki/1.1small.png")
+
+    # деталь знака 1.1: kicker/название/группа/описание/блок штрафа
+    page.locator('[data-test="pdd-grid"] .zn', has_text="1.1").first.click()
+    expect(page.locator('[data-test="pdd-detail"]')).to_be_visible()
+    expect(page.locator('[data-test="pdd-detail"] .kicker')).to_have_text("Знак 1.1")
+    expect(page.locator('[data-test="pdd-detail"] b').first).to_have_text(
+        "Железнодорожный переезд со шлагбаумом")
+    expect(page.locator('[data-test="pdd-desc"]')).to_be_visible()
+    expect(page.locator('[data-test="pdd-fine"]')).to_be_visible()
+
+    # «назад к группе» — деталь скрыта, сетка на месте
+    page.locator('[data-test="pdd-back"]').click()
+    expect(page.locator('[data-test="pdd-detail"]')).to_have_count(0)
+    expect(page.locator('[data-test="pdd-grid"] .zn')).to_have_count(47)
+
+    # знак без записи штрафа (1.18) — fine-блок НЕ рендерится
+    page.locator('[data-test="pdd-grid"] .zn', has_text="1.18").first.click()
+    expect(page.locator('[data-test="pdd-detail"]')).to_be_visible()
+    expect(page.locator('[data-test="pdd-fine"]')).to_have_count(0)
+    expect(page.locator('[data-test="pdd-desc"]')).to_be_visible()
+    page.locator('[data-test="pdd-back"]').click()
+
+    # группа «Таблички» (формат t8 «## | N.N») — 77 карточек
+    page.locator('[data-test="pdd-chip-t8"]').click()
+    expect(page.locator('[data-test="pdd-grid"] .zn')).to_have_count(77)
+    expect(page.locator('[data-test="pdd-grid"] .zn img').first).to_have_attribute(
+        "src", "/pdd-assets/znaki/8.1.1small.png")
+
+    # 5.33.1: desc пуст (допуск корпуса) — блок описания не рендерится
+    page.locator('[data-test="pdd-chip-t5"]').click()
+    page.locator('[data-test="pdd-grid"] .zn', has_text="5.33.1").first.click()
+    expect(page.locator('[data-test="pdd-detail"]')).to_be_visible()
+    expect(page.locator('[data-test="pdd-desc"]')).to_have_count(0)
+
+
+def test_tc_ui_072_pdd_rules_toc_opens_chapter_without_reload(page, server):
+    """TC-UI-072 (Спринт 17, add-pdd-learning 17.7.2): раздел «Правила» —
+    toc из 26 глав корпуса, глава 1 открыта по умолчанию; клик по пункту
+    оглавления рендерит главу справа БЕЗ перезагрузки страницы (клиентский
+    маркер window переживает переход), активный пункт подсвечен."""
+    _seed_session(page, "session_token", _student_token(server))
+    page.goto(f"{server}/cabinet#/pdd-rules")
+
+    expect(page.locator('[data-test="pdd-toc"] .toc-item')).to_have_count(26)
+    # глава 1 — по умолчанию (заголовок = H1-блок корпуса r1)
+    expect(page.locator('[data-test="pdd-chapter"] h2')).to_contain_text("Общие положения")
+    expect(page.locator('[data-test="pdd-toc-item-1"]')).to_have_class("toc-item on")
+
+    # клик по главе 13 — без перезагрузки (маркер window выживает)
+    page.evaluate("window.__pddNoReload = true")
+    page.locator('[data-test="pdd-toc-item-13"]').click()
+    expect(page.locator('[data-test="pdd-chapter"] h2')).to_have_text("13. Проезд перекрестков")
+    expect(page.locator('[data-test="pdd-toc-item-13"]')).to_have_class("toc-item on")
+    expect(page.locator('[data-test="pdd-toc-item-1"]')).to_have_class("toc-item")
+    assert page.evaluate("window.__pddNoReload") is True
+    # полный текст пунктов главы (13.1 из корпуса)
+    expect(page.locator('[data-test="pdd-chapter-body"]')).to_contain_text("13.1")
+
+
+def test_tc_ui_073_pdd_assets_route_group_suffix_traversal(server):
+    """TC-UI-073 (Спринт 17, add-pdd-learning 17.7.2): статика корпуса —
+    /pdd-assets/{znaki|bilety}/{file} отдает изображения (200, корректный
+    content-type); чужая группа / неизвестный суффикс / traversal / без
+    файла — 404 (угадывание не вводится)."""
+    import urllib.error
+    import urllib.request
+
+    base = str(server)
+    with urllib.request.urlopen(base + "/pdd-assets/znaki/1.1small.png", timeout=10) as r:
+        assert r.status == 200
+        assert r.headers.get("Content-Type") == "image/png"
+        assert len(r.read()) > 0
+    with urllib.request.urlopen(base + "/pdd-assets/bilety/6942508s.jpg", timeout=10) as r:
+        assert r.status == 200
+        assert r.headers.get("Content-Type") == "image/jpeg"
+
+    for bad in (
+        "/pdd-assets/other/1.1small.png",       # группа не znaki|bilety
+        "/pdd-assets/znaki/x.txt",              # неизвестный суффикс — 404
+        "/pdd-assets/znaki/../app.py",          # traversal
+        "/pdd-assets/znaki/no-such-file.png",   # нет файла
+    ):
+        try:
+            with urllib.request.urlopen(base + bad, timeout=10) as r:
+                raise AssertionError(f"{bad} -> {r.status}, ожидался 404")
+        except urllib.error.HTTPError as exc:
+            assert exc.code == 404, (bad, exc.code)
+
+
+def test_tc_ui_074_pdd_tickets_trainer_flow(page, server):
+    """TC-UI-074 (Спринт 17, add-pdd-learning 17.7.2): тренажёр «Билеты» —
+    выбор билета (категории abm/cd, 40+40) → тренировка: таймер 20:00
+    тикает (обратный отсчет), вопрос N/20 (текст + картинка /pdd-assets/
+    bilety на вопросе 2 билета abm-01), клик верного ответа — подсветка
+    зеленым + тег «Верный» + пояснение, фиксация ОДНОКРАТНАЯ (повторный
+    клик по другому варианту ничего не меняет), сетка q-nav 1–20 со
+    статусами done-g и текущим вопросом, счёт верных/ошибок; «Сдать» —
+    итоговый экран (балл, статусы, «Пройти снова»/«Выбрать другой
+    билет»). Хеш #/pdd-tickets открывает раздел напрямую. Данные —
+    корпус (билет abm-01: верные ответы вопросов 1 и 2 — варианты 2 и 1).
+    Реальный бэкенд + статика /pdd-assets."""
+    import re
+
+    _seed_session(page, "session_token", _student_token(server))
+    page.goto(f"{server}/cabinet#/pdd-tickets")
+    expect(page.locator("#sec-pdd-tickets")).to_be_visible()
+    expect(page.locator("#sec-pdd-tickets h1")).to_have_text("Билеты ПДД — тренажер")
+
+    # ЭКРАН ВЫБОРА: 2 категории × 40 билетов (корпус 80)
+    expect(page.locator('[data-test="pdd-tk-cat-abm"] .tk-ticket')).to_have_count(40)
+    expect(page.locator('[data-test="pdd-tk-cat-cd"] .tk-ticket')).to_have_count(40)
+
+    # выбор билета 1 (abm-01) — lazy-чанк билета тянет JSON, тренировка
+    page.locator('[data-test="pdd-tk-ticket-abm-01"]').click()
+    expect(page.locator('[data-test="pdd-exam-bar"]')).to_be_visible()
+    expect(page.locator('[data-test="pdd-exam-bar"] .exam-meta b')).to_have_text("Билет 1")
+    expect(page.locator('[data-test="pdd-exam-bar"] .exam-meta span')).to_have_text(
+        "категория A/B/M")
+    expect(page.locator('[data-test="pdd-score"]')).to_have_text(
+        re.compile(r"Верных: 0 · Ошибок: 0"))
+
+    # таймер 20:00 — обратный отсчет тикает (следующее значение ≤ через 1с)
+    timer = page.locator('[data-test="pdd-timer"]')
+    assert re.match(r"^\d{2}:\d{2}$", timer.text_content() or "")
+    m, s = (int(x) for x in timer.text_content().split(":"))
+    total = m * 60 + s
+    expect(timer).to_have_text(
+        f"{(total - 1) // 60:02d}:{(total - 1) % 60:02d}", timeout=5000)
+
+    # вопрос 1 из 20 — без картинки (корпус abm-01 q1)
+    expect(page.locator('[data-test="pdd-q-num"]')).to_have_text("Вопрос 1 из 20")
+    expect(page.locator('[data-test="pdd-q-text"]')).to_contain_text(
+        "вынужденную остановку")
+    expect(page.locator('[data-test="pdd-q-img"]')).to_have_count(0)
+
+    # верный ответ вопроса 1 — вариант 2: зеленый + тег «Верный» + пояснение
+    page.locator('[data-test="pdd-ans-1"]').click()
+    expect(page.locator('[data-test="pdd-ans-1"]')).to_have_class("ans good")
+    expect(page.locator('[data-test="pdd-ans-1"]')).to_contain_text("Верный")
+    expect(page.locator('[data-test="pdd-tip"]')).to_be_visible()
+    expect(page.locator('[data-test="pdd-tip"]')).to_contain_text("Пояснение")
+
+    # фиксация ОДНОКРАТНАЯ: клик по другому варианту ничего не меняет,
+    # счёт верных не растет
+    page.locator('[data-test="pdd-ans-0"]').click()
+    expect(page.locator('[data-test="pdd-ans-0"]')).to_have_class("ans")
+    expect(page.locator('[data-test="pdd-ans-1"]')).to_have_class("ans good")
+    expect(page.locator('[data-test="pdd-score"]')).to_contain_text("Верных: 1")
+
+    # сетка q-nav: 1 — done-g, текущий 1 — cur; переход к вопросу 2
+    expect(page.locator('[data-test="pdd-qn-1"]')).to_have_class("qn done-g cur")
+    expect(page.locator('[data-test="pdd-q-nav"] .qn')).to_have_count(20)
+    page.locator('[data-test="pdd-qn-2"]').click()
+    expect(page.locator('[data-test="pdd-q-num"]')).to_have_text("Вопрос 2 из 20")
+
+    # вопрос 2 — с картинкой корпуса (/pdd-assets/bilety, native lazy);
+    # верный ответ — вариант 1
+    expect(page.locator('[data-test="pdd-q-img"]')).to_have_attribute(
+        "src", "/pdd-assets/bilety/6942508s.jpg")
+    expect(page.locator('[data-test="pdd-q-img"]')).to_have_attribute(
+        "loading", "lazy")
+    page.locator('[data-test="pdd-ans-0"]').click()
+    expect(page.locator('[data-test="pdd-ans-0"]')).to_have_class("ans good")
+    expect(page.locator('[data-test="pdd-score"]')).to_have_text(
+        re.compile(r"Верных: 2 · Ошибок: 0"))
+    expect(page.locator('[data-test="pdd-qn-2"]')).to_have_class("qn done-g cur")
+
+    # «Сдать» досрочно — итоговый экран: балл, статусы, кнопки
+    page.locator('[data-test="pdd-finish"]').click()
+    expect(page.locator('[data-test="pdd-result"]')).to_be_visible()
+    expect(page.locator('[data-test="pdd-res-score"]')).to_have_text("2 из 20")
+    expect(page.locator('[data-test="pdd-res-detail"]')).to_contain_text(
+        "Не отвечено: 18")
+    expect(page.locator('[data-test="pdd-res-nav"] .qn.done-g')).to_have_count(2)
+
+    # «Пройти снова» — тот же билет с нуля (вопрос 1, счёт сброшен)
+    page.locator('[data-test="pdd-res-again"]').click()
+    expect(page.locator('[data-test="pdd-q-num"]')).to_have_text("Вопрос 1 из 20")
+    expect(page.locator('[data-test="pdd-score"]')).to_contain_text("Верных: 0")
+
+    # «Выбрать другой билет» — возврат к экрану выбора
+    page.locator('[data-test="pdd-ans-1"]').click()
+    page.locator('[data-test="pdd-finish"]').click()
+    page.locator('[data-test="pdd-res-other"]').click()
+    expect(page.locator('[data-test="pdd-tk-pick"]')).to_be_visible()
+    expect(page.locator('[data-test="pdd-tk-ticket-cd-40"]')).to_be_visible()
+
+
+def test_tc_ui_075_pdd_fines_table_and_search(page, server):
+    """TC-UI-075 (Спринт 17, add-pdd-learning 17.7.2): раздел «Штрафы» —
+    таблица fines рендерит ВСЕ строки корпуса (сейчас 58; заголовки
+    «Пункт КоАП/Нарушение/Наказание»), поиск фильтрует клиентски без
+    перезагрузки (подстрока без учета регистра по любой колонке),
+    пустой результат — «Ничего не найдено…», очистка возвращает все
+    строки. Хеш #/pdd-fines открывает раздел напрямую и переживает
+    reload. Реальный бэкенд."""
+    import json as _json
+
+    rows = _json.loads(
+        (ROOT / "frontend" / "vue" / "src" / "pages" / "cabinet" / "pdd-data"
+         / "pdd-shtrafi.json").read_text(encoding="utf-8"))
+    assert len(rows) == 58
+
+    _seed_session(page, "session_token", _student_token(server))
+    page.goto(f"{server}/cabinet#/pdd-fines")
+    expect(page.locator("#sec-pdd-fines")).to_be_visible()
+    expect(page.locator("#sec-pdd-fines h1")).to_have_text("Штрафы ГИБДД")
+
+    # все строки корпуса — в таблице, заголовки по tasks.md 17.6.1
+    body_rows = page.locator('[data-test="pdd-fines-table"] tbody tr')
+    expect(body_rows).to_have_count(58)
+    first = rows[0]
+    expect(body_rows.first).to_contain_text(first["article"])
+    expect(body_rows.first).to_contain_text(first["violation"][:40])
+    ths = page.locator('[data-test="pdd-fines-table"] thead th')
+    expect(ths).to_have_text(["Пункт КоАП", "Нарушение", "Наказание"])
+
+    # поиск-подстрока (регистр не учитывается): число строк по корпусу
+    query = "ПЕШЕХОД"
+    expected = [r for r in rows if any(
+        query.lower() in str(r[k]).lower() for k in ("article", "violation", "penalty"))]
+    assert 0 < len(expected) < 58
+    page.locator('[data-test="pdd-search-input"]').fill(query)
+    expect(body_rows).to_have_count(len(expected))
+    expect(page.locator('[data-test="pdd-fines-table"]')).to_contain_text(
+        expected[0]["article"])
+    # фильтрация — без перезагрузки (клиентский маркер выживает)
+    page.evaluate("window.__finesNoReload = true")
+    assert page.evaluate("window.__finesNoReload") is True
+
+    # пустой результат — строка-заглушка
+    page.locator('[data-test="pdd-search-input"]').fill("запрос-xyz-без-совпадений")
+    expect(page.locator('[data-test="pdd-fines-empty"]')).to_contain_text(
+        "Ничего не найдено по запросу")
+    expect(body_rows).to_have_count(1)  # только строка-заглушка
+
+    # очистка — снова все строки
+    page.locator('[data-test="pdd-search-input"]').fill("")
+    expect(body_rows).to_have_count(58)
+    expect(page.locator('[data-test="pdd-fines-empty"]')).to_have_count(0)
+
+    # reload сохраняет раздел (хеш-паттерн BUG-047)
+    page.reload()
+    expect(page.locator("#sec-pdd-fines")).to_be_visible()
+    expect(page.locator('[data-test="pdd-fines-table"] tbody tr')).to_have_count(58)
+
+
+def test_tc_ui_076_pdd_tickets_fines_snav_tabs(page, server):
+    """TC-UI-076 (Спринт 17, add-pdd-learning 17.7.2): сайдбар — «Билеты»
+    и «Штрафы» открываются кликом внутри кабинета (BUG-047-прецедент),
+    подсветка активного пункта, хеши #/pdd-tickets и #/pdd-fines,
+    переключение взаимоисключающее с остальными разделами ПДД (9 пунктов
+    .snav в сайдбаре). Реальный бэкенд."""
+    _seed_session(page, "session_token", _student_token(server))
+    page.goto(f"{server}/cabinet")
+    # 9 пунктов .snav (8 data-tab + data-goto «Выбрать инструктора»)
+    expect(page.locator(".snav button")).to_have_count(9)
+    expect(page.locator("#sec-home")).to_be_visible()
+
+    # «Билеты» → раздел, подсветка, хеш; чанк секции грузится при первом открытии
+    page.locator('.snav button[data-tab="Билеты"]').click()
+    expect(page.locator("#sec-pdd-tickets")).to_be_visible()
+    expect(page.locator("#sec-home")).to_be_hidden()
+    expect(page.locator('.snav button[data-tab="Билеты"]')).to_have_class("on")
+    assert page.evaluate("location.hash") == "#/pdd-tickets"
+
+    # переключение на «Штрафы» — взаимоисключающее, хеш меняется
+    page.locator('.snav button[data-tab="Штрафы"]').click()
+    expect(page.locator("#sec-pdd-fines")).to_be_visible()
+    expect(page.locator("#sec-pdd-tickets")).to_be_hidden()
+    expect(page.locator('.snav button[data-tab="Штрафы"]')).to_have_class("on")
+    assert page.evaluate("location.hash") == "#/pdd-fines"
+
+    # возврат на «Главную» — ПДД-разделы скрыты, хеш сброшен
+    page.locator('.snav button[data-tab="Главная"]').click()
+    expect(page.locator("#sec-home")).to_be_visible()
+    expect(page.locator("#sec-pdd-fines")).to_be_hidden()

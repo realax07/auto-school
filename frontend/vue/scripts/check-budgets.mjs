@@ -15,6 +15,20 @@
 //       замыкание импортов входа состоит только из ее page-чанка,
 //       'shared' и vendor-чанков.
 //
+// Спринт 17 (change add-pdd-learning, задача 17.2.3 — amendment, design
+// «Бюджеты чанков»; без правки спеки Frontend — скрипт правится под
+// собственный текст NFR-26 «static-import graph»):
+//   1. importedChunks разделяет статические (from"…", import"…") и
+//      динамические (import("…")) импорты; (б)/(в) считают СТАТИЧЕСКОЕ
+//      замыкание (поведение для 14 страниц не меняется — динамических
+//      импортов у них нет);
+//   2. роль 'lazy' для pdd-чанков: имя с префиксом pdd- (JSON-чанки
+//      билетов — модули pdd-bilety-*) и чанки секций обучения (имя чанка =
+//      имя модуля Pdd*.vue; JSON знаков/правил инлайнится в чанк секции);
+//   3. НОВОЕ (г): каждый lazy-чанк ≤ 150 КБ gzip (выравнено с vendor);
+//   4. НОВОЕ (д): ни один lazy-чанк не входит в статическое замыкание
+//      ни одной из 14 страниц («кабинет не распухает»); PAGES = 14.
+//
 // Роли чанков — по правилам manualChunks (vite.config.mjs, ADR-008):
 // имя чанка до хэша — 'shared' (свой код), имя одного из входов
 // (PAGES), остальные имена — vendor-чанки по пакетам ('vue',
@@ -29,6 +43,7 @@ import { fileURLToPath } from 'node:url';
 const DIST = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const VENDOR_MAX = 150 * 1024; // (а) КБ → байты
 const FIRST_LOAD_MAX = 200 * 1024; // (б)
+const LAZY_MAX = 150 * 1024; // (г) Спринт 17 (amendment): выравнено с vendor
 const KB = 1024;
 // page-чанки — по именам входов vite.config.mjs (Спринт 15 — ФИНАЛ
 // миграции, change add-vue-s15-final-migration, задачи 1.1/6.1:
@@ -37,6 +52,11 @@ const KB = 1024;
 // счет по несуществующим отдельным страницам booking/admin-cars —
 // design.md «Сверка контрактов решения»)
 const PAGES = ['instructors-pending', 'instructors-rejected', 'review-form', 'index', 'instructor-apply', 'instructors', 'instructor-dashboard', 'documents', 'cabinet', 'instructor-choice', 'admin-login', 'admin-dashboard', 'registered', 'policy'];
+// Спринт 17 (amendment): чанки секций обучения — имя чанка = имя модуля
+// (sections/PddSigns.vue → PddSigns-<hash>.js); их JSON-данные (pdd-znaki/
+// pdd-pravila) инлайнятся в чанк секции, чанки билетов — модули JSON
+// pdd-bilety-* (генератор именует с префиксом pdd-).
+const PDD_SECTION_CHUNKS = new Set(['PddSigns', 'PddRules', 'PddTickets', 'PddFines']);
 
 function chunkRole(file) {
   // instructors-pending-<hash>.js / shared-<hash>.js / vue-<hash>.js
@@ -44,6 +64,7 @@ function chunkRole(file) {
   const name = base.replace(/-[A-Za-z0-9_-]{8}$/, '');
   if (name === 'shared') return { name, role: 'shared' };
   if (PAGES.includes(name)) return { name, role: 'page' };
+  if (name.startsWith('pdd-') || PDD_SECTION_CHUNKS.has(name)) return { name, role: 'lazy' };
   return { name, role: 'vendor' };
 }
 
@@ -58,12 +79,15 @@ function gzipSize(file) {
   }
 }
 
-// Static-import graph чанка: Vite пишет относительные импорты внутри
-// assets ("./vue-<hash>.js" — from"/import"-форма; relative base '/vue/')
-function importedChunks(file, allByName) {
+// Спринт 17 (amendment): static-import graph чанка — только статические
+// импорты (from"…"/import"…); динамические (import("…")) — отдельная
+// регулярка, в замыкание первого захода НЕ входят (NFR-26).
+function importedChunks(file, allByName, dynamic = false) {
   const src = readFileSync(file, 'utf8');
   const found = new Set();
-  const re = /(?:from"|import")\.{0,2}\/?([A-Za-z0-9_-]+\.js)"/g;
+  const re = dynamic
+    ? /import\("\.{0,2}\/?([A-Za-z0-9_-]+\.js)"\)/g
+    : /(?:from"|import")\.{0,2}\/?([A-Za-z0-9_-]+\.js)"/g;
   let m;
   while ((m = re.exec(src)) !== null) {
     if (allByName.has(m[1])) found.add(m[1]);
@@ -163,6 +187,26 @@ for (const pageName of PAGES) {
   }
 }
 
+// (г) Спринт 17 (amendment): каждый lazy-чанк ≤ 150 КБ gzip
+for (const f of jsFiles) {
+  if (roles.get(f).role !== 'lazy') continue;
+  const gz = sizes.get(f).gz;
+  if (gz > LAZY_MAX) {
+    failures.push(
+      `lazy-чанк ${f}: ${(gz / KB).toFixed(1)} КБ gzip > 150 КБ (NFR-26г)`);
+  }
+}
+
+// (д) Спринт 17 (amendment): ни один lazy-чанк не входит в статическое
+// замыкание ни одной из 14 страниц («кабинет не распухает»)
+for (const pageName of PAGES) {
+  for (const f of pageClosures.get(pageName)) {
+    if (roles.get(f).role === 'lazy') {
+      failures.push(`lazy-чанк ${f} в статическом замыкании ${pageName} (NFR-26д)`);
+    }
+  }
+}
+
 console.log('');
 console.log(
   '(а) vendor-чанки: ' +
@@ -180,6 +224,20 @@ for (const pageName of PAGES) {
       ` = ${(firstLoad / KB).toFixed(1)} КБ gzip — бюджет ≤200 КБ`);
 }
 console.log('(в) чужие page-чанки в замыканиях входов: отсутствуют');
+// Спринт 17 (amendment): отчет по lazy-чанкам (роль 'lazy' — отдельной
+// строкой отчета, правила (г)/(д))
+const lazyFiles = jsFiles.filter((f) => roles.get(f).role === 'lazy');
+console.log(
+  '(г) lazy-чанки: ' +
+    (lazyFiles.length
+      ? lazyFiles.map((f) => `${roles.get(f).name}=${(sizes.get(f).gz / KB).toFixed(1)} КБ`).join(', ') +
+        ` — бюджет ≤150 КБ каждый`
+      : 'нет (секции обучения не собраны)'));
+if (lazyFiles.length) {
+  console.log('(д) lazy-чанки вне статических замыканий 14 страниц: да');
+} else {
+  console.log('(д) lazy-чанки вне статических замыканий 14 страниц: (lazy-чанков нет)');
+}
 
 if (failures.length > 0) {
   console.error('');
