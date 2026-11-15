@@ -76,7 +76,6 @@
 
 <script>
 import { onBeforeUnmount } from 'vue';
-import biletyIndex from '../pdd-data/pdd-bilety-index.json';
 import {
   fmtClock, decClock, timeUp, isAnswered, fixAnswer, statusesOf, scoreOf,
 } from './pdd-logic.mjs';
@@ -94,7 +93,7 @@ export default {
   name: 'PddTickets',
   data() {
     return {
-      categories: biletyIndex.categories,
+      categories: [],
       // выбранный билет: id ('abm-01')/номер/категория и его вопросы
       ticketId: null,
       ticketNumber: 0,
@@ -126,6 +125,15 @@ export default {
     clockText() {
       return fmtClock(this.clock);
     },
+  },
+  mounted() {
+    // индекс билетов из glob-карты (MIN-2: без статического импорта —
+    // иначе дублирование + INEFFECTIVE_DYNAMIC_IMPORT паразитный чанк)
+    var idxLoader = TICKET_CHUNKS['../pdd-data/pdd-bilety-index.json'];
+    if (idxLoader) {
+      var self = this;
+      idxLoader().then(function (m) { self.categories = (m.default || m).categories; });
+    }
   },
   beforeUnmount() {
     this.stopTimer();

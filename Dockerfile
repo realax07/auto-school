@@ -23,6 +23,8 @@ WORKDIR /app/frontend/vue
 COPY frontend/vue/package.json frontend/vue/package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY frontend/vue/ ./
+# корпус ПДД (Спринт 17): генератор pdd-data читает content/pdd на build-стадии
+COPY content/ /app/content/
 RUN npm run build
 
 # --- builder: зависимости в изолированный venv ---

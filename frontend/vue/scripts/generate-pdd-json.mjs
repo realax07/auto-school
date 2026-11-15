@@ -82,7 +82,10 @@ function escHtml(text) {
 // ===========================================================================
 function buildPravila() {
   const dir = path.join(CONTENT_DIR, 'pravila');
-  if (!existsSync(dir)) fail('content/pdd/pravila отсутствует');
+  if (!existsSync(dir)) {
+    fail('content/pdd/pravila отсутствует');
+    return [];
+  }
   const files = readdirSync(dir).filter((f) => f.endsWith('.md'));
   // порядок глав — по числовому префиксу r<N>_ (design «Решение 5»)
   files.sort((a, b) => {
@@ -133,7 +136,10 @@ const NUM_RE = /^##\s+\|?\s*(\d+(?:\.\d+)*)\s*$/;
 
 function buildZnaki() {
   const dir = path.join(CONTENT_DIR, 'znaki');
-  if (!existsSync(dir)) fail('content/pdd/znaki отсутствует');
+  if (!existsSync(dir)) {
+    fail('content/pdd/znaki отсутствует');
+    return { groups, signs };
+  }
   const groups = [];
   const signs = [];
   for (const g of GROUPS) {
@@ -406,7 +412,7 @@ rmSync(OUT_DIR, { recursive: true, force: true });
 mkdirSync(OUT_DIR, { recursive: true });
 
 const out = (name, data, pretty = false) => {
-  writeFileSync(path.join(OUT_DIR, name), JSON.stringify(data, null, pretty ? 2 : 0) + (pretty ? '\n' : '\n'));
+  writeFileSync(path.join(OUT_DIR, name), JSON.stringify(data, null, pretty ? 2 : 0) + '\n');
 };
 
 out('pdd-pravila.json', pravila);
