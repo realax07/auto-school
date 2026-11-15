@@ -1,5 +1,7 @@
 """Unit-тесты генератора контента ПДД (Спринт 17, change add-pdd-learning,
-задачи 17.2.1/17.7.2a — прецедент контрольных гейтов).
+задачи 17.2.1/17.7.2a — прецедент контрольных гейтов). Юнит-уровень
+кейса TC-UI-075 (гейты целостности корпуса; нумерация TC-UI-07x —
+партия QA, прецедент TC-UI-073 в tests/web/test_pdd_sections.py).
 
 Генератор frontend/vue/scripts/generate-pdd-json.mjs — Node stdlib,
 запускается subprocess на РЕАЛЬНОМ корпусе content/pdd в tmp-каталог

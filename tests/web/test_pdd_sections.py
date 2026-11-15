@@ -19,6 +19,8 @@ student.html и pdd-pravila-student.html (источник дизайна). Но
 import re
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[2]
 CABINET = ROOT / "frontend" / "vue" / "cabinet.html"
 APP = ROOT / "frontend" / "vue" / "src" / "pages" / "cabinet" / "App.vue"
@@ -485,3 +487,107 @@ def test_pdd_fines_table_renders_all_corpus_rows():
     assert "filterFines(this.rows, this.query)" in src
     logic = LOGIC.read_text(encoding="utf-8")
     assert "export function filterFines" in logic
+
+
+# --- 17.7: приемка — консолидация носителей + интеграция ---------------------
+
+
+def test_pdd_four_section_skeletons_in_both_carriers():
+    """Консолидация (17.7.1): все 4 обучающих секции — скелеты в ОБОИХ
+    носителях (кабинет.html синхронен App.vue), компоненты — только в
+    App.vue (прецедент sec-requests)."""
+    sections = [
+        ("sec-pdd-signs", "Дорожные знаки"),
+        ("sec-pdd-rules", "Правила дорожного движения"),
+        ("sec-pdd-tickets", "Билеты ПДД — тренажер"),
+        ("sec-pdd-fines", "Штрафы ГИБДД"),
+    ]
+    for sec_id, h1 in sections:
+        for carrier in (cabinet_html(), app_source()):
+            assert f'<div id="{sec_id}" style="display:none">' in carrier, sec_id
+            assert f"<h1>{h1}</h1>" in carrier, sec_id
+        assert 'style="display:none">' in app_source()  # статические скелеты
+
+
+def test_pdd_snav_nine_items_order():
+    """Сайдбар — 9 пунктов (design «Решение 3»): 8 data-tab + data-goto;
+    обучающие ПДД — после «Кошелек» в порядке Знаки→Правила→Билеты→Штрафы
+    (без перегруппировки существующих)."""
+    for carrier in (cabinet_html(), app_source()):
+        nav = carrier.split('<nav class="snav">')[1].split("</nav>")[0]
+        buttons = re.findall(r'data-(?:tab|goto)="([^"]+)"', nav)
+        assert buttons == [
+            "Главная", "Мои заявки", "/instructor-choice", "Мои брони",
+            "Кошелек", "Знаки", "Правила", "Билеты", "Штрафы",
+        ], buttons
+
+
+def test_pdd_four_hashes_bootstrap_in_app():
+    """4 хеша открывают разделы напрямую (прецедент BUG-047: хвост старых
+    ссылок) — начальные проверки хешей в App.vue (полный список)."""
+    src = app_source()
+    for hash_, tab in (
+        ("#/pdd-signs", "Знаки"),
+        ("#/pdd-rules", "Правила"),
+        ("#/pdd-tickets", "Билеты"),
+        ("#/pdd-fines", "Штрафы"),
+    ):
+        assert f"if (location.hash === '{hash_}') navTo('{tab}');" in src
+
+
+@pytest.fixture()
+def pdd_asset_endpoint(monkeypatch, tmp_path):
+    """Эндпоинт /pdd-assets/{{group}}/{{file}} из create_app() — вызов
+    напрямую (без HTTP-стека/lifespan; прецедент env-фикстуры
+    test_static.py)."""
+    import bcrypt
+
+    monkeypatch.setenv("ADMIN_USER", "admin")
+    monkeypatch.setenv(
+        "ADMIN_PASSWORD_HASH",
+        bcrypt.hashpw(b"x", bcrypt.gensalt()).decode(),
+    )
+    monkeypatch.setenv("SECRET", "test-secret")
+    monkeypatch.setenv("AUTOSCHOOL_DB_PATH", str(tmp_path / "app.db"))
+    from fastapi import HTTPException
+
+    from backend.app import create_app
+
+    app = create_app()
+    route = next(
+        r for r in app.routes
+        if getattr(r, "path", "") == "/pdd-assets/{group}/{file}"
+    )
+    endpoint = route.endpoint
+    return endpoint
+
+
+def test_pdd_assets_route_200_media_types(pdd_asset_endpoint):
+    """/pdd-assets: реальные файлы корпуса — 200 с корректным media-type
+    по явной карте (.png/.jpg; роут 17.2.2, ADR-001)."""
+    resp = pdd_asset_endpoint(group="znaki", file="1.1small.png")
+    assert resp.media_type == "image/png"
+    from pathlib import Path as _Path
+
+    assert _Path(resp.path).is_file()
+    resp = pdd_asset_endpoint(group="bilety", file="6942508s.jpg")
+    assert resp.media_type == "image/jpeg"
+    assert _Path(resp.path).is_file()
+
+
+def test_pdd_assets_route_404_guards(pdd_asset_endpoint):
+    """/pdd-assets: чужая группа / неизвестный суффикс / traversal /
+    отсутствующий файл — 404 (угадывание не вводится; e2e-зеркало
+    TC-UI-073)."""
+    from fastapi import HTTPException
+
+    for group, file in (
+        ("other", "1.1small.png"),      # группа не znaki|bilety
+        ("znaki", "1.1small.txt"),      # неизвестный суффикс
+        ("znaki", "../app.py"),         # traversal
+        ("znaki", ".hidden.png"),       # скрытый файл
+        ("znaki", "no-such-file.png"),  # нет файла
+    ):
+        with pytest.raises(HTTPException) as exc_info:
+            pdd_asset_endpoint(group=group, file=file)
+        assert exc_info.value.status_code == 404, (group, file)

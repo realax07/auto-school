@@ -78,8 +78,7 @@
 import { onBeforeUnmount } from 'vue';
 import biletyIndex from '../pdd-data/pdd-bilety-index.json';
 import {
-  fmtClock, decClock, timeUp, correctIndex, isAnswered,
-  fixAnswer, answerStatus, statusesOf, scoreOf,
+  fmtClock, decClock, timeUp, isAnswered, fixAnswer, statusesOf, scoreOf,
 } from './pdd-logic.mjs';
 
 // Шардинг ПО БИЛЕТУ (design «Бюджеты»): import.meta.glob (lazy по

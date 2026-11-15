@@ -315,6 +315,27 @@ FastAPI-сервис (uvicorn, single-worker)          ← единственн�
                      (спринт-0…3A: legacy-файлы booking/admin-cars/
                      кабинет-stub) — ИСТОРИЧЕСКИЕ носители (файлы
                      умерли в С5/С8/С13/С14)
+                     + СПРИНТ-17 (add-pdd-learning, 17.2.2/17.5–17.7 —
+                     2026-11-15): СТАТИКА КОРПУСА ПДД —
+                     GET /pdd-assets/{znaki|bilety}/{file} тем же
+                     сервисом (ADR-001; traversal-guard + явная карта
+                     media-types .png/.gif/.jpg/.jpeg, чужая группа/
+                     суффикс — 404; маршрут публичный, как /vue/assets)
+                     из content/pdd/images (group-md знаки 321×
+                     <номер>small.png + bilety-вопросы по whitelist
+                     ссылок .md; Dockerfile: COPY content/ content/ —
+                     образ +~48 МБ, принят MVP). Контент кабинета —
+                     build-time JSON (генератор generate-pdd-json.mjs
+                     в npm run build) → frontend/vue/src/pages/cabinet/
+                     pdd-data/*.json (в git НЕ коммитятся) — lazy-чанки
+                     секций обучения кабинета ученика: «Знаки»
+                     (#/pdd-signs), «Правила» (#/pdd-rules), «Билеты»
+                     (#/pdd-tickets; тренажёр: JSON каждого билета —
+                     отдельный lazy-чанк pdd-bilety-<cat>-<nn>),
+                     «Штрафы» (#/pdd-fines); бюджеты NFR-26(г)/(д)
+                     держит scripts/check-budgets.mjs (lazy ≤ 150 КБ
+                     gzip, вне статических замыканий 14 страниц —
+                     первый заход кабинета не меняется)
    ▼
 SQLite data/app.db (WAL, в .gitignore) — только хранение (паттерн 5);
 учетные данные — таблица users (email UNIQUE + role), заявки инструкторов —
