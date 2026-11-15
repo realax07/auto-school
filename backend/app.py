@@ -34,6 +34,11 @@ from backend.wallet.admin_transactions import router as admin_transactions_route
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = ROOT_DIR / "frontend"
+# Спринт 17 (change add-pdd-learning, задача 17.2.2): изображения корпуса
+# content/pdd/images (знаки/вопросы билетов, ~48 МБ) — статикой МИМО
+# vite-бандла (design.md «Решение 1»: бандл не распухает); путь — от ROOT,
+# тот же layout, что в репозитории (Dockerfile COPY content/ content/).
+CONTENT_DIR = ROOT_DIR / "content"
 # Спринт 9 (change add-vue-framework-pilot): артефакты сборки каркаса
 # Vue/Vite (ADR-008) — в git не коммитятся, собираются `npm ci && npm run
 # build` (Dockerfile frontend-builder, задача 2.2; bare-metal FR-57).
@@ -188,6 +193,34 @@ def create_app() -> FastAPI:
         if media_type is None:
             raise HTTPException(status_code=404)
         file_path = VUE_DIST_DIR / "assets" / path
+        if not file_path.is_file():
+            raise HTTPException(status_code=404)
+        return FileResponse(file_path, media_type=media_type)
+
+    # Спринт 17 (change add-pdd-learning, задача 17.2.2): изображения корпуса
+    # ПДД — GET /pdd-assets/{group}/{file} из content/pdd/images по паттерну
+    # /vue/assets (ADR-001: тот же сервис отдает API и статику): traversal-
+    # guard («/», «..», скрытые), явная карта media-types (.png/.gif/.jpg/
+    # .jpeg — не зависеть от системных mimetypes; неизвестный суффикс — 404),
+    # групп ровно две (znaki|bilety — остальное 404, угадывание не вводится).
+    # Маршрут публичный (без auth) — как /vue/assets: материалы — публичные
+    # учебные (design.md «Решение 1»).
+    @app.get("/pdd-assets/{group}/{file}")
+    def pdd_asset(group: str, file: str):
+        if group not in ("znaki", "bilety"):
+            raise HTTPException(status_code=404)
+        if "/" in file or ".." in file or file.startswith("."):
+            raise HTTPException(status_code=404)
+        media_types = {
+            ".png": "image/png",
+            ".gif": "image/gif",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+        }
+        media_type = media_types.get(Path(file).suffix.lower())
+        if media_type is None:
+            raise HTTPException(status_code=404)
+        file_path = CONTENT_DIR / "pdd" / "images" / group / file
         if not file_path.is_file():
             raise HTTPException(status_code=404)
         return FileResponse(file_path, media_type=media_type)

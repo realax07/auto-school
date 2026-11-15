@@ -47,6 +47,11 @@ WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv
 COPY backend/ backend/
 COPY frontend/ frontend/
+# Спринт 17 (change add-pdd-learning, задача 17.2.2): корпус контента ПДД
+# рядом с frontend/ — роут /pdd-assets читает content/pdd/images относительно
+# ROOT (тот же layout, что в репозитории; bare-metal без изменений). Образ
+# +~48 МБ — принимается (design.md «Решение 1»; корпус не выборочно трепется).
+COPY content/ content/
 # Собранный фронт каркаса Vue — из node builder-этапа (Спринт 9, ADR-008);
 # локальный dist исключен .dockerignore — в образе артефакт сборки образа.
 COPY --from=frontend-builder /app/frontend/vue/dist ./frontend/vue/dist
