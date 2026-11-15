@@ -293,6 +293,21 @@
   <pdd-signs v-if="pddSignsVisited"></pdd-signs>
 </div>
 
+<!-- Спринт 17 (add-pdd-learning, 17.4.1): раздел «Правила» (мокап
+     design/mocks/pdd-pravila-student.html, two-column prav-wrap): скелет —
+     синхронно с cabinet.html; toc/глава — в PddRules.vue
+     (defineAsyncComponent, v-if="pddRulesVisited", NFR-26) -->
+<div id="sec-pdd-rules" style="display:none">
+  <div class="page-head">
+    <div>
+      <div class="kicker">Обучение · ПДД</div>
+      <h1>Правила дорожного движения</h1>
+      <p>26 глав действующей редакции. Глава раскрывается по клику; пункты — полный текст.</p>
+    </div>
+  </div>
+  <pdd-rules v-if="pddRulesVisited"></pdd-rules>
+</div>
+
 <!-- модалка: пополнение кошелька (мок эквайринга; POST /api/wallet/topup
      с X-Idempotency-Key — повтор той же операции не удваивает зачисление) -->
 <div class="wal-backdrop" id="m-backdrop" role="dialog" aria-modal="true" aria-labelledby="wal-topup-title">
@@ -389,6 +404,9 @@ export default {
   components: {
     PddSigns: defineAsyncComponent(function () {
       return import('./sections/PddSigns.vue');
+    }),
+    PddRules: defineAsyncComponent(function () {
+      return import('./sections/PddRules.vue');
     }),
   },
   setup: function () {

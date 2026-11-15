@@ -292,3 +292,22 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
 .zn-back{margin-top:14px;border:1px solid #2a5c40;background:transparent;color:#91efb1;border-radius:11px;padding:10px 18px;font-size:12px;cursor:pointer}
 .zn-back:hover{background:#14332266}
 .fine-link{margin-left:10px;color:#8a5a00}
+
+/* Спринт 17 (add-pdd-learning, 17.4.1): раздел «Правила» (мокап
+   design/mocks/pdd-pravila-student.html — источник дизайна, two-column по
+   правке Заказчика). Правила ТОЛЬКО добавлены в конце файла (design-guard
+   test_cabinet_page); классы секции — дословно из мокапа (toc/toc-item/
+   chapter/prav-wrap), коллизий нет (.fine мокапа правил дополняет .fine
+   знаков отступом сверху — тот же стиль блока). */
+.prav-wrap{display:grid;grid-template-columns:300px 1fr;gap:30px;align-items:start}
+.prav-wrap .toc{margin-bottom:0}
+@media(max-width:1100px){.prav-wrap{grid-template-columns:1fr}}
+.toc{display:flex;flex-direction:column;gap:4px;position:sticky;top:20px}
+.toc-item{text-align:left;padding:9px 14px;font-size:13px;border:1px solid rgba(227,247,245,.14);border-radius:14px;background:rgba(9,22,28,.9);font-size:14px;color:#c9d6da}
+.toc-item:hover{border-color:rgba(85,237,156,.5);color:#f7fbfa}
+.toc-item.on{background:rgba(73,236,154,.14);color:#55ed9c;border-color:rgba(73,236,154,.3)}
+.chapter{padding:24px;border:1px solid rgba(221,249,245,.14);border-radius:18px;background:rgba(9,22,28,.9)}
+.chapter h2{margin:8px 0 18px;font-size:22px;font-weight:550}
+.chapter p{color:#dcebe9;font-size:14px;line-height:1.65;margin:0 0 14px}
+.chapter b{color:#55ed9c}
+.fine{margin-top:6px;padding:10px 14px;border-radius:10px;background:#fff3df;color:#6b4a00;font-size:13px;border-left:3px solid #ffb3b3}
