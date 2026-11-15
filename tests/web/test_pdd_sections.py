@@ -395,3 +395,93 @@ def test_pdd_tickets_data_sharded_per_ticket_chunk():
     counts = corpus_tickets_per_category()
     assert counts == {"abm": 40, "cd": 40}
 
+
+# --- 17.6: секция «Штрафы» по мокапу pdd-shtrafi-student.html ---------------
+
+
+def fines_source() -> str:
+    return FINES.read_text(encoding="utf-8")
+
+
+def corpus_shtrafi_rows() -> int:
+    """Число строк таблицы корпуса (tab-строки после заголовка «Пункт
+    КоАП»; факт: 58 — мокап-63 иллюстративен, proposal «Сверка»)."""
+    lines = [
+        ln for ln in CORPUS_SHTRAFI.read_text(encoding="utf-8").splitlines()
+        if ln.count("\t") >= 2
+    ]
+    return len(lines) - 1  # минус строка заголовка
+
+
+def test_pdd_fines_skeleton_sync_in_both_carriers():
+    """Скелет sec-pdd-fines (page-head «Обучение · ПДД» / «Штрафы ГИБДД»)
+    синхронен в cabinet.html и App.vue."""
+    fragment = (
+        '<div id="sec-pdd-fines" style="display:none">\n'
+        '  <div class="page-head">\n'
+        '    <div>\n'
+        '      <div class="kicker">Обучение · ПДД</div>\n'
+        '      <h1>Штрафы ГИБДД</h1>\n'
+        '      <p>Таблица нарушений главы 12 КоАП: статья, нарушение, наказание. Поиск — по любой колонке, без перезагрузки.</p>\n'
+        '    </div>\n'
+        '  </div>'
+    )
+    assert fragment in cabinet_html()
+    assert fragment in app_source()
+
+
+def test_pdd_fines_mockup_fragments_in_component():
+    """Фрагменты мокапа (search + fines-таблица) — в носителе PddFines.vue;
+    поиск — клиентский (v-model), без перезагрузки; пустой результат —
+    строка-заглушка. Заголовок первого столбца — «Пункт КоАП» (tasks.md
+    17.6.1 / design «Решение 6», как в источнике; «Статья» мокапа —
+    иллюстрация)."""
+    src = fines_source()
+    fragments = [
+        'class="search"',
+        'v-model="query"',
+        'placeholder="Поиск по статье или нарушению… (например: скорость, переезд, пешеход)"',
+        'class="fines"',
+        '<th>Пункт КоАП</th>',
+        '<th>Нарушение</th>',
+        '<th>Наказание</th>',
+        'Ничего не найдено по запросу',
+    ]
+    for fragment in fragments:
+        assert fragment in src, fragment
+
+
+def test_pdd_fines_mockup_css_verbatim_in_styles():
+    """CSS-строки секции мокапа — дословно в styles.css (новые правила —
+    только в конце файла)."""
+    page_css = STYLES.read_text(encoding="utf-8")
+    for line in mockup_css(MOCKUP_FINES):
+        assert line in page_css, f"CSS-строка мокапа изменена/удалена: {line[:60]}"
+
+
+def test_pdd_fines_lazy_component_and_visited():
+    """PddFines — lazy-чанк: defineAsyncComponent + visited-загрузка."""
+    src = app_source()
+    assert "import('./sections/PddFines.vue')" in src
+    assert '<pdd-fines v-if="pddFinesVisited"></pdd-fines>' in src
+    assert "if (isFines) pddFinesVisited.value = true;" in src
+
+
+def test_pdd_fines_table_renders_all_corpus_rows():
+    """Таблица — ВСЕ строки pdd-shtrafi.json (число = строкам tab-таблицы
+    корпуса; сейчас 58); фильтр — чистая функция filterFines из
+    pdd-logic.mjs (поиск по трем колонкам, без учета регистра)."""
+    import json
+
+    data = json.loads(
+        (ROOT / "frontend" / "vue" / "src" / "pages" / "cabinet" / "pdd-data" / "pdd-shtrafi.json")
+        .read_text(encoding="utf-8")
+    )
+    assert len(data) == corpus_shtrafi_rows() == 58
+    for row in data:
+        assert set(row) == {"article", "violation", "penalty"}
+    src = fines_source()
+    assert "pdd-data/pdd-shtrafi.json" in src
+    assert "filterFines(this.rows, this.query)" in src
+    logic = LOGIC.read_text(encoding="utf-8")
+    assert "export function filterFines" in logic
