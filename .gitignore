@@ -234,4 +234,8 @@ deploy/tls/*.crt
 # ограничения»); dist собирается `npm ci && npm run build`
 frontend/vue/dist/
 frontend/vue/node_modules/
+# Спринт 17 (change add-pdd-learning, задача 17.2.1): сгенерированный
+# контент ПДД (generate-pdd-json.mjs из content/pdd/) — в git НЕ коммитится,
+# корпус — единственный источник истины (design.md «Решение 1»)
+frontend/vue/src/pages/cabinet/pdd-data/
 
