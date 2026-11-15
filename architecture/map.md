@@ -76,7 +76,7 @@ Bare-metal режим (без изменений, FR-57): deploy/autoschool.serv
 MAJ-1 ЗАКРЫТА: tests/ доставляются read-only монтированием при прогоне
 (scripts/container_test.sh: -v ./tests:/app/tests:ro).
 
-## Компоненты (спринт-0 контур + спринт-1 auth//cabinet + спринт-2 поток инструктора + спринт-2.2 кабинет инструктора + спринт-3A контур инструктор↔ученик + спринт-5 бронирование и документы + спринт-8 версии документов + спринт-9 политика ПД, статус-опрос, Vue-пилот + спринт-10 календарь недель)
+## Компоненты (спринт-0…10: контур, auth/cabinet, поток инструктора, кабинет инструктора, инструктор↔ученик, бронирование и документы, версии документов, политика ПД/статус/Vue-пилот, календарь; спринт 11–12: статусные экраны, лендинг/анкета; спринт 14: инструкторский контур; спринт 15: ФИНАЛ миграции ADR-008; спринт 16: экономика — блок «ЭКОНОМИКА» в схеме ниже)
 
 ```
 Клиент (браузер)
@@ -331,7 +331,7 @@ price_per_hour_rub + commission_percent (0–100, дефолт 10, ставит
 старта (после — 409) → complete → авто-релиз 24ч / timeout-defrost 72ч
 (ленивый свип, single-worker); release floor gross×(100−c)/100 + fee
 (комиссия на момент релиза); price NULL = занятие без холда (легаси).
-API: /api/wallet*, /api/instructor/economy*, /api/admin/transactions*
+API: /api/wallet, /api/wallet/topup; /api/instructor/price, /api/instructor/economy, /api/instructor/earnings, /api/instructor/payouts; /api/admin/transactions, /api/admin/payouts, /api/admin/disputes, /api/admin/commissions, /api/admin/instructors/{id}/commission
 (X-Session-Token / X-Admin-Token). UI: «Кошелек» в кабинете ученика,
 цена/«Доходы»/«Вывести» у инструктора, раздел «Транзакции» в админке
 (журнал + баланс компании + комиссии инструкторов за год)
