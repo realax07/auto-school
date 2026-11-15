@@ -226,3 +226,99 @@ return: **MAJ-1** — Dockerfile:18–26 (frontend-builder без corpus для
 по желанию партии, не блокеры; process-note §8 — в следующие волны.
 Повторное ревью — только дифф фикса + факты CI docker-build (для закрытия
 связки BUG-064).
+
+---
+
+<!-- Ре-ревью: независимый код-ревьюер (не автор диффа) | дифф фикса: e6f72c6..f340550 (Dockerfile, generate-pdd-json.mjs, PddTickets.vue) | ветка: feat/s17-pdd-learning | дата: 2026-11-15 -->
+
+# Ре-ревью 2026-11-15: approve (с оговоркой MIN-4)
+
+Периметр: дифф CR-фикса f340550 (3 файла) + регрессионные гейты на HEAD
+f340550. Метод — тот же, что в review-001: layout builder-стейджа
+воспроизводится в песочнице (docker.sock в среде нет — факт среды BUG-064
+не изменился), негативные ветки генератора — через PDD_CONTENT_DIR.
+
+## Статусы находок
+
+- **MAJ-1 — ЗАКРЫТ.** Dockerfile:27 `COPY content/ /app/content/` в
+  frontend-builder перед `RUN npm build` (:28). Layout стейджа воспроизведен
+  точно (WORKDIR /app/frontend/vue + corpus в /app/content): REPO_ROOT
+  генератора = /app → CONTENT_DIR = /app/content/pdd существует →
+  `node scripts/generate-pdd-json.mjs` **EXIT=0**: «26 глав, 8 групп /
+  321 знаков (fine: 166), 58 строк штрафов, 80 билетов × 20 вопросов»,
+  85 pdd-файлов. Контроль (тот же layout БЕЗ content/ — состояние до
+  фикса): EXIT=1. Симметрично доказательству MAJ-1 в review-001.
+  Оговорка прежняя: docker build локально невоспроизводим (нет docker.sock)
+  — связку BUG-064/17.7.4 ПМ закрывает фактом зеленого CI job docker-build;
+  локальных препятствий для него больше нет.
+- **MIN-1 — pravila ЗАКРЫТ; znaki НЕ ЗАКРЫТ → новый MIN-4.**
+  - pravila (`return []`, :85–88): PDD_CONTENT_DIR → пустой каталог ⇒
+    «ГЕЙТ ЦЕЛОСТНОСТИ КОРПУСА ПРОВАЛЕН (pravila): - content/pdd/pravila
+    отсутствует … Сборка прервана», EXIT=1 — чистый гейт, как требовалось.
+  - znaki: `return { groups, signs }` (:141) стоит ДО объявления
+    `const groups/signs` (:143–144) → TDZ. На реальном генераторе
+    (PDD_CONTENT_DIR с pravila, без znaki/): сырой
+    `ReferenceError: Cannot access 'groups' before initialization`
+    (generate-pdd-json.mjs:141) со стеком — ровно та деградация
+    диагностики, которую MIN-1 должен был устранить. Контрольная проба на
+    минимальной реплике структуры — тот же ReferenceError. Класс последствий
+    идентичен исходному MIN-1 (exit ненулевой — пропуск невозможен; страдает
+    только диагностика) → уровень MIN, НЕ MAJ. В сборочных путях ветка
+    недостижима (corpus после MAJ-1-фикса в builder-стейдже всегда есть;
+    в репо есть всегда), юниты и сборка не задеваются.
+    **MIN-4 (не блокер, в следующую волну): generate-pdd-json.mjs:141 —
+    фикс одной строкой `return { groups: [], signs: [] };`** (по аналогии
+    с buildPravila/buildShtrafi) + опционально негативный юнит «каталога
+    znaki нет ⇒ stderr содержит ГЕЙТ, а не ReferenceError», чтобы ветка
+    была под гардом.
+- **MIN-2 — ЗАКРЫТ.** Статический импорт pdd-bilety-index.json удален
+  (grep по src: biletyIndex не встречается); индекс — в mounted() из
+  `TICKET_CHUNKS['../pdd-data/pdd-bilety-index.json']`, ключ матчится глоб
+  `'../pdd-data/pdd-bilety-*.json'`. `npm run build`: EXIT=0, warning
+  INEFFECTIVE_DYNAMIC_IMPORT — НЕТ (0 warning в логе сборки); чанков
+  pdd-bilety-* — 81 (80 билетов + index), index-чанк теперь ИСПОЛЬЗУЕТСЯ
+  (0.5 КБ gzip, в бюджетной карте (г)) — паразитный дубль ушел. Альтернативный
+  фикс (динамическая загрузка индекса вместо сужения глоба) принят: цель
+  находки (нет дублирования и warning) достигнута.
+  **Гонки mounted→рендер НЕТ:** categories=[] — до резолва чанка экран
+  выбора рендерится пустым, кнопок билетов не существует ⇒ startTicket
+  недостижим; секция монтируется лениво (App.vue:441 defineAsyncComponent +
+  v-if pddTicketsVisited, флаг ставится в navTo при первом открытии) — на
+  рендер каркаса кабинета не влияет; e2e TC-UI-074 ждет auto-wait expect'ами
+  (to_have_count(40)) — полный e2e-прогон зелен (ниже). Процесс-ноты (не
+  дефекты): (1) шапка PddTickets.vue:7 до сих пор описывает «static import»
+  — доку обновить в следующей волне; (2) у mounted-промиса нет .catch (у
+  startTicket есть) — при недоступности чанка unhandled rejection; косметика
+  для локального ассета.
+- **MIN-3 — ЗАКРЫТ.** generate-pdd-json.mjs:414–416: тернарник удален
+  (`+ '\n'` безусловно; pretty остался только для отступов манифеста).
+  Детерминизм не задет (юнит-гейт байт-идентичной перегенерации зелен).
+
+## Регрессионные гейты на HEAD f340550
+
+- `npm run build`: EXIT=0 (генератор + vite, без warning'ей);
+  `npm run check:budgets`: OK — (а)–(д), «страниц: 14», PddTickets=3.4 КБ,
+  pdd-bilety-index=0.5 КБ, кабинет первый-заход 42.3 КБ gzip — не распух.
+- pytest: unit **37 passed** + api **362 passed** + web без playwright
+  **67 passed** (= 466, как в review-001); точечно test_pdd_generator.py +
+  test_pdd_tickets_logic.py + test_container_contract.py: **20 passed**.
+- e2e полный `tests/web/test_ui_playwright.py`: **84 passed** (вкл.
+  TC-UI-074 тренажер — async-загрузка индекса в браузере, TC-UI-070…076).
+  Замечание по среде: первый прогон e2e (параллельно с api-сюитом) дал
+  70 ERROR «BrowserType.launch: Target page … closed» на фикстуре браузера
+  — конкуренция трех одновременных pytest-процессов, к диффу отношения не
+  имеет: solo-прогон 84/84.
+- `openspec validate --all --strict`: 26 passed, 0 failed.
+- `python3 scripts/flow_check.py .`: 1 ошибка J10 (15 закрытых dev-задач без
+  approve-ревью) — закрывается этим approve (как и планировалось в review-001).
+
+## Итог ре-ревью
+
+approve: единственный блокер партии (MAJ-1) закрыт и подтвержден
+воспроизведением; MIN-2/MIN-3 закрыты; MIN-1 закрыт наполовину — по
+znaki-ветке новый **MIN-4** (TDZ в раннем return buildZnaki; не блокер:
+негативная ветка, exit ненулевой, в сборочных путях недостижима) —
+однострочный фикс + негативный юнит в следующей волне, вместе с доку-нотами
+PddTickets.vue:7 (.catch по желанию). BUG-064/17.7.4: к этому ревью прилагается
+локальное доказательство layout-фикса; финальное закрытие связки — факт
+зеленого CI docker-build (у ПМ).
