@@ -19,17 +19,17 @@ cd "$(dirname "$0")/.."
 
 TESTS_DIR="${1:-tests}"
 
-# env_file .env обязателен для compose. Если .env нет (чистая машина) —
-# временный с placeholder-значениями: креды тестов всё равно перекрываются
-# ниже через -e. Файл .env в git не попадает (gitignored).
+# env_file .env обязателен для compose (сервис app читает ADMIN_*/SECRET).
+# Если .env нет (чистая машина) — временный с placeholder-значениями: креды
+# тестов всё равно перекрываются ниже через -e. Файл .env в git не попадает
+# (gitignored). Спринт 16 (add-wallet-economy 16.0): строки S3-хранилища
+# сняты — сервис удален из стека, compose не требует этих переменных.
 generated_env=0
 if [ ! -f .env ]; then
   cat > .env <<'EOF'
 ADMIN_USER=admin
 ADMIN_PASSWORD_HASH=x
 SECRET=container-test-secret
-MINIO_ROOT_USER=container-test-user
-MINIO_ROOT_PASSWORD=container-test-password
 EOF
   generated_env=1
   trap '[ "$generated_env" -eq 1 ] && rm -f .env' EXIT

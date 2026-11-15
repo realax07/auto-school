@@ -29,7 +29,11 @@
          предпросмотр (изображение ДОЛЖНО открываться), Подтвердить /
          Отклонить с ОБЯЗАТЕЛЬНОЙ причиной, фильтры, вкладка История. -->
     <button @click="showSection('documents', $event.currentTarget)">▤ Документы</button>
-    <button class="soon" @click="soon()" title="Появится в следующем спринте">₽ Платежи</button>
+    <!-- Спринт 16 (add-wallet-economy, 16.4.3; мокап admin-transactions.html):
+         слот навигации «₽ Платежи» → РЕАЛЬНЫЙ раздел «Транзакции» —
+         журнал экономики, выплаты, споры, комиссии; e2e-якорей на
+         «Платежи» нет (grep 0 — tasks.md 16.4.3), soon() снят -->
+    <button @click="showSection('transactions', $event.currentTarget)">₽ Транзакции</button>
     <button class="soon" @click="soon()" title="Появится в следующем спринте">✎ Настройки</button>
   </nav>
   <div class="side-foot">Спринт 7 · раздел «Автомобили»</div>
@@ -115,7 +119,99 @@
       <div class="empty" id="dc-empty">Записей пока нет</div>
     </div>
   </div>
+
+  <!-- Спринт 16 (add-wallet-economy, 16.4.3; мокап design/mocks/
+       admin-transactions.html — источник дизайна, якорь #sec-transactions):
+       раздел «Транзакции» — журнал экономики (GET /api/admin/transactions
+       с фильтрами тип/роль/юзер/даты), баланс компании (SUM fee), очередь
+       выплат (confirm — диалог, недостача 409 честно), открытые споры
+       (release/refund — комментарий обязателен, BUG-046-паттерн disabled),
+       комиссии инструкторов за год (селектор года) и поле «Комиссия %»
+       каждому инструктору (PUT …/commission, 0–100). Данные — только
+       textContent (XSS-правило). -->
+  <div id="sec-transactions" style="display:none">
+    <div class="top"><h1>Транзакции</h1><div class="spacer"></div></div>
+    <p class="tx-sub">Весь журнал движения денег: пополнения, холды броней, релизы (с комиссией), возвраты, выплаты. Журнал только читается — записи не изменяются и не удаляются. Денежные суммы хранятся в копейках.</p>
+
+    <div class="tx-company">
+      <div class="tx-card"><small>Баланс компании</small><b id="tx-company">0 ₽</b><div class="tx-hint">накопленные комиссии — SUM fee по журналу release</div></div>
+      <div class="tx-card"><small id="tx-comms-year-label">Комиссий за год</small><b id="tx-comms-year">0 ₽</b><div class="tx-hint">инструкторы с комиссией 0 вносят 0 (факт 0)</div></div>
+      <div class="tx-card"><small>Заявок выплат в очереди</small><b id="tx-payouts-n">0</b><div class="tx-hint">подтверждение списывает баланс инструктора</div></div>
+      <div class="tx-card"><small>Открытых споров</small><b id="tx-disputes-n">0</b><div class="tx-hint">холд заморожен до решения</div></div>
+    </div>
+
+    <div class="tx-toolbar">
+      <label for="tx-f-type">Тип</label>
+      <select id="tx-f-type"><option value="">все</option><option>topup</option><option>hold</option><option>release</option><option>refund</option><option>payout</option></select>
+      <label for="tx-f-role">Роль</label>
+      <select id="tx-f-role"><option value="">все</option><option value="student">ученик</option><option value="instructor">инструктор</option></select>
+      <label for="tx-f-user">Пользователь</label>
+      <select id="tx-f-user"><option value="">все</option></select>
+      <label for="tx-f-from">с</label><input type="date" id="tx-f-from">
+      <label for="tx-f-to">по</label><input type="date" id="tx-f-to">
+      <span class="count" id="tx-count"></span>
+    </div>
+
+    <div class="ac-card">
+      <table id="tx-table">
+        <thead><tr><th>ID</th><th>Дата</th><th>Тип</th><th class="tx-hide">Роль</th><th>Пользователь</th><th class="tx-hide">Источник</th><th class="tx-hide">Gross / Fee / Net</th><th style="text-align:right">Сумма</th></tr></thead>
+        <tbody id="tx-rows"></tbody>
+      </table>
+      <div class="empty" id="tx-empty">Транзакций по фильтру нет</div>
+    </div>
+
+    <div class="tx-grid2">
+      <section class="tx-panel">
+        <div class="tx-panel-head"><div><div class="tx-title">Выплаты — заявки</div><div class="tx-panel-sub">СБП (мок) · подтверждение создает транзакцию payout</div></div></div>
+        <div id="tx-payouts"></div>
+        <div class="empty" id="tx-payouts-empty">Активных заявок на вывод нет</div>
+        <div class="rowhint" style="text-align:left">Недостача баланса к моменту подтверждения → подтверждение отклонено с объяснением, заявка остается активной (деньги не списаны).</div>
+        <div class="tx-panel-head" style="margin-top:18px"><div><div class="tx-title">Споры — открытые</div><div class="tx-panel-sub">окно 24ч от отметки «проведено» · холд заморожен</div></div></div>
+        <div id="tx-disputes"></div>
+        <div class="empty" id="tx-disputes-empty">Открытых споров нет</div>
+        <div class="rowhint" style="text-align:left">Решение — с обязательным комментарием оператора (кнопка недоступна без текста). После решения холд закрыт ровно одной транзакцией release/refund.</div>
+      </section>
+
+      <section class="tx-panel">
+        <div class="tx-panel-head"><div><div class="tx-title">Комиссии инструкторов за год</div><div class="tx-panel-sub">SUM fee по журналу release · без отдельной таблицы</div></div></div>
+        <div class="tx-year">
+          <label for="tx-f-year">Год</label>
+          <select id="tx-f-year"></select>
+        </div>
+        <table>
+          <thead><tr><th>Инструктор</th><th>Релизов</th><th style="text-align:right">Fee за год</th></tr></thead>
+          <tbody id="tx-comm-rows"></tbody>
+        </table>
+        <div class="empty" id="tx-comm-empty">Инструкторов пока нет</div>
+        <div class="rowhint" style="text-align:left">Комиссия ставится оператором каждому инструктору (0–100, по умолчанию 10); меняется ниже — применяется к следующим релизам.</div>
+        <div class="tx-panel-head" style="margin-top:18px"><div><div class="tx-title">Комиссия инструктора</div><div class="tx-panel-sub">целые проценты 0–100 · дефолт 10</div></div></div>
+        <div id="tx-comm-edit"></div>
+        <div class="empty" id="tx-comm-edit-empty">Инструкторов пока нет</div>
+        <div class="rowhint" style="text-align:left">Изменение комиссии не пересчитывает существующие транзакции — исторические fee восстанавливаются из журнала (gross/fee/net).</div>
+      </section>
+    </div>
+  </div>
 </main>
+</div>
+
+<!-- Спринт 16 (16.4.3): решение по спору — релиз инструктору или рефанд
+     ученику; комментарий оператора ОБЯЗАТЕЛЕН — обе кнопки заблокированы
+     до непустого текста (прецедент BUG-046 deny); сервер 422 — страховка -->
+<div class="dc-backdrop" id="tx-resolve" role="dialog" aria-modal="true" aria-labelledby="tx-resolve-title">
+  <div class="dc-modal small">
+    <div class="ic-head">
+      <div><h2 id="tx-resolve-title" style="font-size:18px;margin:0">Решение по спору</h2><div class="sub" id="tx-resolve-sub">—</div></div>
+      <button class="ic-close" id="tx-resolve-close" aria-label="Закрыть">×</button>
+    </div>
+    <p class="m-rep-txt" id="tx-resolve-comment" style="margin-top:4px">—</p>
+    <label class="dc-deny-lbl" for="tx-resolve-text">Комментарий оператора <em>— обязателен</em></label>
+    <textarea id="tx-resolve-text" placeholder="Например: ученику возвращен холд — занятие отменили по месту"></textarea>
+    <div class="dc-deny-note">Решение закрывает спор и холд РОВНО ОДНОЙ журнальной транзакцией: release — инструктору net (комиссия платформе), refund — полный возврат ученику. Существующие записи журнала не пересчитываются.</div>
+    <div class="dc-actions-m">
+      <button class="dc-m-btn danger" id="tx-resolve-refund" disabled>Вернуть ученику</button>
+      <button class="dc-m-btn ok" id="tx-resolve-release" disabled>Выплатить инструктору</button>
+    </div>
+  </div>
 </div>
 
 <!-- Спринт 7: карточка авто (модально, мокап admin-cars.html): чек-лист
@@ -327,15 +423,18 @@ export default {
         // пользователи, заявки, автомобили — querySelector('table') больше не годится)
         var users=name==='users',apps=name==='applications',cars=name==='cars';
         var docs=name==='documents'; // Спринт 8: раздел «Документы» (ОВ-1/ОВ-4)
+        var tx=name==='transactions'; // Спринт 16: раздел «Транзакции» (16.4.3)
         document.getElementById('users-table').style.display=users?'':'none';
         document.getElementById('empty').style.display=users?'':'none';
         document.querySelector('.toolbar').style.display=users?'':'none';
         document.getElementById('sec-applications').style.display=apps?'block':'none';
         document.getElementById('sec-cars-admin').style.display=cars?'block':'none';
         document.getElementById('sec-documents').style.display=docs?'block':'none';
+        document.getElementById('sec-transactions').style.display=tx?'block':'none';
         if(apps)loadApplications();
         if(cars)acLoad();
         if(docs)dcLoad();
+        if(tx)txLoad();
       }
       function loadApplications(){
         fetch('/api/admin/instructor-applications',{headers:{'X-Admin-Token':TOKEN}})
@@ -932,8 +1031,333 @@ export default {
         });
       });
       document.addEventListener('keydown',function(e){
-        if(e.key==='Escape'){dcClosePreview();dcCloseDeny();}
+        if(e.key==='Escape'){dcClosePreview();dcCloseDeny();txCloseResolve();}
       });
+      // =========================================================================
+      // Спринт 16 (add-wallet-economy, 16.4.3; мокап admin-transactions.html):
+      // раздел «Транзакции» — журнал экономики + операционные блоки.
+      // Данные: GET /api/admin/transactions (+company_balance_kop) с фильтрами,
+      // GET /api/admin/payouts?status=requested, GET /api/admin/disputes?status=open,
+      // GET /api/admin/commissions?year= (заодно список инструкторов для
+      // редактирования комиссии — yearly_commissions возвращает ВСЕХ инструкторов,
+      // факт 0 без релизов). Имена пользователей — /api/admin/users (id → fio).
+      // Пользовательские строки — ТОЛЬКО textContent (XSS-правило review-001).
+      var TX_SIGNS={topup:1,hold:-1,release:1,refund:1,payout:-1};
+      var TX_BADGE={topup:'',hold:'hold',release:'pay',refund:'ref',payout:'pay'};
+      var txUsers={};          // id → fio (для колонки «Пользователь»)
+      var txResolveTarget=null;
+      // выбранный год «Комиссий за год» — ОБЪЯВЛЕНИЕ обязательно:
+      // ES-модуль = strict mode, присвоение без var падает ReferenceError
+      // и обрывает txLoad() (поймано TC-UI-062)
+      var txYear=0;
+      function txFetch(path,opts){
+        opts=opts||{};
+        opts.headers=Object.assign({'X-Admin-Token':TOKEN},opts.headers||{});
+        if(opts.body)opts.headers['Content-Type']='application/json';
+        return fetch(path,opts)
+          .then(function(r){
+            if(r.status===401){location.href='/admin-login';throw new Error('unauthorized');}
+            return r.json().then(function(d){return {status:r.status,data:d};},
+              function(){return {status:r.status,data:null};});
+          });
+      }
+      function txRub(kop){var a=Math.abs(Number(kop)||0);return ((a-(a%100))/100).toLocaleString('ru-RU')}
+      function txWhen(iso){
+        var s=String(iso||''),p=s.split(' '),d=(p[0]||'').split('-'),t=p[1]||'';
+        return d.length===3?d[2]+'.'+d[1]+(t?' '+t.slice(0,5):''):s;
+      }
+      function txUserName(id){return txUsers[id]||('№'+id)}
+      function txSource(t){
+        if(t.type==='topup')return 'Мок-эквайринг · topup #'+t.topup_id;
+        if(t.type==='hold')return 'Бронь №'+t.booking_id;
+        if(t.type==='release')return 'Занятие · бронь №'+t.booking_id;
+        if(t.type==='refund')return 'Возврат брони №'+t.booking_id;
+        if(t.type==='payout')return 'Выплата · заявка №'+t.payout_id;
+        return '—';
+      }
+      function txLoadUsers(){
+        return fetch('/api/admin/users',{headers:{'X-Admin-Token':TOKEN}})
+          .then(function(r){
+            if(r.status===401){location.href='/admin-login';throw new Error('unauthorized');}
+            return r.json();
+          })
+          .then(function(d){
+            txUsers={};
+            (d.users||[]).forEach(function(u){txUsers[u.id]=u.fio;});
+            var sel=document.getElementById('tx-f-user');
+            var cur=sel.value;
+            sel.innerHTML='<option value="">все</option>';
+            (d.users||[]).forEach(function(u){
+              var o=document.createElement('option');
+              o.value=String(u.id);
+              o.textContent=u.fio;
+              sel.appendChild(o);
+            });
+            sel.value=cur;
+          });
+      }
+      function txLoadJournal(){
+        var params=[];
+        var t=document.getElementById('tx-f-type').value;
+        var r=document.getElementById('tx-f-role').value;
+        var u=document.getElementById('tx-f-user').value;
+        var df=document.getElementById('tx-f-from').value;
+        var dt=document.getElementById('tx-f-to').value;
+        if(t)params.push('type='+encodeURIComponent(t));
+        if(r)params.push('role='+encodeURIComponent(r));
+        if(u)params.push('user_id='+encodeURIComponent(u));
+        if(df)params.push('date_from='+encodeURIComponent(df));
+        if(dt)params.push('date_to='+encodeURIComponent(dt));
+        var qs=params.length?('?'+params.join('&')):'';
+        return txFetch('/api/admin/transactions'+qs).then(function(res){
+          if(res.status!==200||!res.data||!res.data.ok){
+            toastMsg((res.data&&res.data.error)||'Не удалось загрузить журнал');
+            return;
+          }
+          document.getElementById('tx-company').textContent=txRub(res.data.company_balance_kop)+' ₽';
+          var tb=document.getElementById('tx-rows');
+          tb.innerHTML='';
+          var list=res.data.transactions||[];
+          document.getElementById('tx-count').textContent='Записей: '+list.length;
+          document.getElementById('tx-empty').style.display=list.length?'none':'block';
+          list.forEach(function(x){
+            var tr=document.createElement('tr');
+            function td(text){var c=document.createElement('td');c.textContent=text;return c;}
+            tr.appendChild(td(String(x.id)));
+            tr.appendChild(td(txWhen(x.created_at)));
+            var badgeTd=document.createElement('td');
+            var sp=document.createElement('span');
+            sp.className='badge'+(TX_BADGE[x.type]?' '+TX_BADGE[x.type]:'');
+            sp.textContent=x.type;
+            badgeTd.appendChild(sp);tr.appendChild(badgeTd);
+            tr.appendChild(td(x.role==='student'?'ученик':x.role==='instructor'?'инструктор':(x.role||'—')));
+            tr.appendChild(td(txUserName(x.user_id)));
+            tr.appendChild(td(txSource(x)));
+            tr.appendChild(td(x.type==='release'
+              ?(txRub(x.amount_gross_kop)+' / '+txRub(x.fee_kop)+' / '+txRub(x.amount_net_kop)+' ₽')
+              :'—'));
+            var amt=document.createElement('td');
+            amt.className='td-r '+(TX_SIGNS[x.type]>0?'tx-plus':'tx-minus');
+            amt.textContent=(TX_SIGNS[x.type]>0?'+':'−')+' '+txRub(x.amount_kop)+' ₽';
+            tr.appendChild(amt);
+            tb.appendChild(tr);
+          });
+        });
+      }
+      function txLoadPayouts(){
+        return txFetch('/api/admin/payouts?status=requested').then(function(res){
+          if(res.status!==200||!res.data||!res.data.ok)return;
+          var box=document.getElementById('tx-payouts');
+          box.innerHTML='';
+          var list=res.data.payouts||[];
+          document.getElementById('tx-payouts-n').textContent=String(list.length);
+          document.getElementById('tx-payouts-empty').style.display=list.length?'none':'block';
+          list.forEach(function(p){
+            var row=document.createElement('div');row.className='tx-prow';
+            var div=document.createElement('div');
+            var b=document.createElement('b');
+            b.textContent=txRub(p.amount_kop)+' ₽ · '+(p.instructor_full_name||('№'+p.instructor_id));
+            var sm=document.createElement('small');
+            sm.textContent='СБП · '+(p.bank||'—')+' · '+(p.phone||'')+' · заявка '+txWhen(p.requested_at);
+            div.appendChild(b);div.appendChild(sm);
+            row.appendChild(div);
+            var btn=document.createElement('button');
+            btn.type='button';btn.className='tx-btn ok';btn.textContent='Подтвердить выплату';
+            btn.addEventListener('click',function(){txConfirmPayout(p.id);});
+            row.appendChild(btn);
+            box.appendChild(row);
+          });
+        });
+      }
+      // Подтверждение выплаты: dialog-прецедент админки (window.confirm —
+      // e2e page.on('dialog')); 409 недостачи — честный тост, заявка остается
+      function txConfirmPayout(id){
+        if(!confirm('Подтвердить выплату? С баланса инструктора будет списана сумма заявки (транзакция payout).'))return;
+        txFetch('/api/admin/payouts/'+id+'/confirm',{method:'POST'}).then(function(res){
+          if(res.status===200&&res.data&&res.data.ok){
+            toastMsg('Выплата подтверждена: транзакция payout создана, баланс списан.');
+          }else{
+            // 409 «недостача/уже подтверждена» — деньги не списаны
+            toastMsg((res.data&&res.data.error)||'Не удалось подтвердить выплату');
+          }
+          txLoadPayouts();
+          txLoadJournal();
+        });
+      }
+      function txLoadDisputes(){
+        return txFetch('/api/admin/disputes?status=open').then(function(res){
+          if(res.status!==200||!res.data||!res.data.ok)return;
+          var box=document.getElementById('tx-disputes');
+          box.innerHTML='';
+          var list=res.data.disputes||[];
+          document.getElementById('tx-disputes-n').textContent=String(list.length);
+          document.getElementById('tx-disputes-empty').style.display=list.length?'none':'block';
+          list.forEach(function(dp){
+            var row=document.createElement('div');row.className='tx-prow';
+            var div=document.createElement('div');
+            var b=document.createElement('b');
+            b.textContent='Бронь №'+dp.booking_id+' · '+(dp.student_full_name||'ученик')+' → '+(dp.instructor_full_name||'инструктор');
+            var sm=document.createElement('small');
+            sm.textContent='«'+(dp.comment||'')+'» · холд '+txRub(dp.hold_amount_kop)+' ₽ · '+txWhen(dp.created_at);
+            div.appendChild(b);div.appendChild(sm);
+            row.appendChild(div);
+            var act=document.createElement('div');act.style.display='flex';act.style.gap='8px';
+            var rel=document.createElement('button');
+            rel.type='button';rel.className='tx-btn blue';rel.textContent='Инструктору';
+            rel.addEventListener('click',function(){txOpenResolve(dp);});
+            var ref=document.createElement('button');
+            ref.type='button';ref.className='tx-btn danger';ref.textContent='Вернуть ученику';
+            ref.addEventListener('click',function(){txOpenResolve(dp);});
+            act.appendChild(rel);act.appendChild(ref);
+            row.appendChild(act);
+            box.appendChild(row);
+          });
+        });
+      }
+      // Решение по спору: комментарий ОБЯЗАТЕЛЕН — обе кнопки заблокированы
+      // до непустого текста (прецедент BUG-046 deny; сервер 422 — страховка)
+      function txOpenResolve(dp){
+        txResolveTarget=dp;
+        document.getElementById('tx-resolve-sub').textContent='Бронь №'+dp.booking_id+' · холд '+txRub(dp.hold_amount_kop)+' ₽';
+        document.getElementById('tx-resolve-comment').textContent='«'+(dp.comment||'')+'» — '+(dp.student_full_name||'ученик')+' → '+(dp.instructor_full_name||'инструктор');
+        document.getElementById('tx-resolve-text').value='';
+        document.getElementById('tx-resolve-release').disabled=true;
+        document.getElementById('tx-resolve-refund').disabled=true;
+        document.getElementById('tx-resolve').classList.add('open');
+        document.body.style.overflow='hidden';
+        document.getElementById('tx-resolve-text').focus();
+      }
+      function txCloseResolve(){
+        txResolveTarget=null;
+        document.getElementById('tx-resolve').classList.remove('open');
+        document.body.style.overflow='';
+      }
+      document.getElementById('tx-resolve-close').addEventListener('click',txCloseResolve);
+      document.getElementById('tx-resolve').addEventListener('click',function(e){
+        if(e.target===this)txCloseResolve();
+      });
+      document.getElementById('tx-resolve-text').addEventListener('input',function(){
+        var empty=!this.value.trim();
+        document.getElementById('tx-resolve-release').disabled=empty;
+        document.getElementById('tx-resolve-refund').disabled=empty;
+      });
+      function txSendResolve(resolution){
+        if(!txResolveTarget)return;
+        var comment=document.getElementById('tx-resolve-text').value.trim();
+        if(!comment)return;
+        var id=txResolveTarget.id;
+        txFetch('/api/admin/disputes/'+id+'/resolve',{method:'POST',body:JSON.stringify({resolution:resolution,comment:comment})})
+          .then(function(res){
+            if(res.status===200&&res.data&&res.data.ok){
+              txCloseResolve();
+              toastMsg(resolution==='release'
+                ?'Спор решен: холд переведен инструктору (release) — fee платформе, net инструктору.'
+                :'Спор решен: холд возвращен ученику (refund).');
+            }else{
+              // 409 «уже решен/холд исполнен», 422 «комментарий обязателен»
+              toastMsg((res.data&&res.data.error)||'Не удалось закрыть спор');
+            }
+            txLoadDisputes();
+            txLoadJournal();
+          });
+      }
+      document.getElementById('tx-resolve-release').addEventListener('click',function(){txSendResolve('release');});
+      document.getElementById('tx-resolve-refund').addEventListener('click',function(){txSendResolve('refund');});
+      // --- Комиссии за год (селектор) + редактирование комиссии каждому ---
+      function txYearOptions(){
+        var now=new Date(),y=now.getFullYear();
+        var sel=document.getElementById('tx-f-year');
+        sel.innerHTML='';
+        for(var i=0;i<5;i++){
+          var o=document.createElement('option');
+          o.value=String(y-i);
+          o.textContent=String(y-i);
+          sel.appendChild(o);
+        }
+        txYear=y;
+        sel.value=String(y);
+        document.getElementById('tx-comms-year-label').textContent='Комиссий за '+y+' год';
+      }
+      function txLoadCommissions(){
+        return txFetch('/api/admin/commissions?year='+txYear).then(function(res){
+          if(res.status!==200||!res.data||!res.data.ok)return;
+          var tb=document.getElementById('tx-comm-rows');
+          tb.innerHTML='';
+          var list=res.data.commissions||[];
+          var total=0;
+          document.getElementById('tx-comm-empty').style.display=list.length?'none':'block';
+          list.forEach(function(c){
+            total+=c.fee_kop;
+            var tr=document.createElement('tr');
+            function td(text){var cell=document.createElement('td');cell.textContent=text;return cell;}
+            tr.appendChild(td(c.instructor_full_name||('№'+c.instructor_id)));
+            tr.appendChild(td(String(c.releases)));
+            var fee=document.createElement('td');
+            fee.className='td-r';
+            fee.textContent=txRub(c.fee_kop)+' ₽';
+            tr.appendChild(fee);
+            tb.appendChild(tr);
+          });
+          document.getElementById('tx-comms-year').textContent=txRub(total)+' ₽';
+          // редактирование комиссии — ВСЕ инструкторы (факт 0 включительно)
+          var box=document.getElementById('tx-comm-edit');
+          box.innerHTML='';
+          document.getElementById('tx-comm-edit-empty').style.display=list.length?'none':'block';
+          list.forEach(function(c){
+            var row=document.createElement('div');row.className='tx-prow';
+            var div=document.createElement('div');
+            var b=document.createElement('b');
+            b.textContent=c.instructor_full_name||('№'+c.instructor_id);
+            var sm=document.createElement('small');
+            sm.textContent='id '+c.instructor_id+' · релизов за год: '+c.releases;
+            div.appendChild(b);div.appendChild(sm);
+            row.appendChild(div);
+            var act=document.createElement('div');act.style.display='flex';act.style.gap='8px';act.style.alignItems='center';
+            var inp=document.createElement('input');
+            inp.type='number';inp.min='0';inp.max='100';inp.step='1';
+            inp.className='tx-comm-input';inp.value='10';
+            inp.title='Комиссия % (0–100, дефолт 10)';
+            var save=document.createElement('button');
+            save.type='button';save.className='tx-btn ok';save.textContent='Сохранить';
+            save.addEventListener('click',function(){
+              var raw=String(inp.value||'').trim();
+              var v=parseInt(raw,10);
+              if(raw===''||isNaN(v)||v<0||v>100||String(v)!==raw){
+                toastMsg('Комиссия — целые проценты 0–100');
+                return;
+              }
+              save.disabled=true;
+              txFetch('/api/admin/instructors/'+c.instructor_id+'/commission',{method:'PUT',body:JSON.stringify({commission_percent:v})})
+                .then(function(res2){
+                  save.disabled=false;
+                  if(res2.status===200&&res2.data&&res2.data.ok){
+                    toastMsg('Комиссия сохранена: '+v+'%. Применится к следующим релизам; журнал не пересчитывается.');
+                  }else{
+                    toastMsg((res2.data&&res2.data.error)||'Не удалось сохранить комиссию');
+                  }
+                });
+            });
+            act.appendChild(inp);act.appendChild(save);
+            row.appendChild(act);
+            box.appendChild(row);
+          });
+        });
+      }
+      document.getElementById('tx-f-year').addEventListener('change',function(){
+        txYear=parseInt(this.value,10);
+        document.getElementById('tx-comms-year-label').textContent='Комиссий за '+txYear+' год';
+        txLoadCommissions();
+      });
+      document.querySelectorAll('#sec-transactions .tx-toolbar select, #sec-transactions .tx-toolbar input').forEach(function(el){
+        el.addEventListener('change',txLoadJournal);
+      });
+      function txLoad(){
+        txYearOptions();
+        txLoadUsers().then(function(){txLoadJournal();});
+        txLoadPayouts();
+        txLoadDisputes();
+        txLoadCommissions();
+      }
       // onclick-эквиваленты в разметке — bridge (ES-модуль глобальные
       // объявления не создает — механика legacy window.showSection)
       bridge.showSection = showSection;

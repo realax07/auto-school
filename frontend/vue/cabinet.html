@@ -40,6 +40,9 @@
     <button data-tab="Мои заявки" type="button"><span class="ico">✉</span>Мои заявки</button>
     <button data-goto="/instructor-choice" type="button"><span class="ico">▤</span>Выбрать инструктора</button>
     <button data-tab="Мои брони" type="button"><span class="ico">◷</span>Мои брони</button>
+    <!-- Спринт 16 (add-wallet-economy, 16.4.1): раздел «Кошелек» — ВНУТРИ
+         кабинета (BUG-047), после «Мои брони» -->
+    <button data-tab="Кошелек" type="button"><span class="ico">₽</span>Кошелек</button>
   </nav>
 </aside>
 <div class="hero"><div class="frame">
@@ -170,6 +173,71 @@
   <div class="bk-list" id="bk-list"></div>
 </div>
 
+<!-- раздел «Кошелек» (Спринт 16, add-wallet-economy 16.4.1; мокап
+     design/mocks/wallet-student.html, якорь #sec-wallet): балансы/история —
+     GET /api/wallet; данные гидрируются из App.vue (статика — оболочка) -->
+<div id="sec-wallet" style="display:none">
+  <div class="page-head">
+    <div>
+      <div class="kicker">Кошелек</div>
+      <h1>Мой кошелек</h1>
+      <p>Деньги хранятся в копейках, баланс — по журналу транзакций. При бронировании занятия сумма блокируется: она уходит из «Доступно» в «Заморожено» и возвращается, если занятие отменили.</p>
+    </div>
+    <div class="wal-legenda">Заморожено — холды ваших броней</div>
+  </div>
+  <div class="wal-balances" id="balances">
+    <div class="wal-bal"><small>Доступно</small><b id="b-avail">0<small>₽</small></b><div class="wal-hint">можно тратить на бронирования</div></div>
+    <div class="wal-bal frozen"><small>Заморожено</small><b id="b-frozen">0<small>₽</small></b><div class="wal-hint">холды броней — до релиза или возврата</div></div>
+    <div class="wal-bal"><small>Всего</small><b id="b-total">0<small>₽</small></b><div class="wal-hint">доступно + заморожено</div></div>
+  </div>
+  <div class="wal-actions">
+    <button class="wal-btn primary" id="topup-open" type="button">＋ Пополнить</button>
+    <button class="wal-btn ghost" id="to-bookings" type="button">Мои брони</button>
+    <span class="wal-legenda" id="wal-count">Операций: 0</span>
+  </div>
+  <div class="wal-hist-title">История транзакций</div>
+  <table class="wal-table">
+    <thead><tr><th>Дата</th><th>Тип</th><th>Описание</th><th style="text-align:right">Сумма</th></tr></thead>
+    <tbody id="hist"></tbody>
+  </table>
+</div>
+
+<!-- модалка: пополнение кошелька (мок эквайринга; POST /api/wallet/topup
+     с X-Idempotency-Key) -->
+<div class="wal-backdrop" id="m-backdrop" role="dialog" aria-modal="true" aria-labelledby="wal-topup-title">
+  <div class="wal-modal">
+    <h2 id="wal-topup-title">Пополнить кошелек</h2>
+    <div class="wal-sub">Оплата на моках эквайринга (MVP): зачисление мгновенное, реальных списаний нет.</div>
+    <div class="wal-presets">
+      <button type="button" data-r="1000">1 000 ₽</button>
+      <button type="button" class="on" data-r="3000">3 000 ₽</button>
+      <button type="button" data-r="5000">5 000 ₽</button>
+    </div>
+    <input class="wal-input" id="m-amount" inputmode="numeric" value="3000" title="Сумма в рублях, целое число">
+    <div class="wal-note">Сумма — целые рубли; зачисление происходит в копейках (× 100). Повторы той же операции не удваивают зачисление.</div>
+    <div class="wal-mactions">
+      <button class="wal-btn primary" id="m-confirm" type="button">Пополнить</button>
+      <button class="wal-btn m-close" id="m-close" type="button">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<!-- модалка: спор по проведенному занятию (POST …/dispute, комментарий
+     обязателен — кнопка заблокирована без текста) -->
+<div class="wal-backdrop" id="m-dispute" role="dialog" aria-modal="true" aria-labelledby="wal-dispute-title">
+  <div class="wal-modal">
+    <h2 id="wal-dispute-title">Оспорить занятие</h2>
+    <div class="wal-sub" id="wal-dispute-sub">—</div>
+    <label class="wal-label" for="wal-dispute-comment">Что произошло? — обязательно</label>
+    <textarea class="wal-textarea" id="wal-dispute-comment" rows="3" placeholder="Например: инструктор отменил занятие по месту, откатал только час"></textarea>
+    <div class="wal-note">Спор открывается в течение 24 часов после отметки занятия проведенным. Замороженная сумма не распределяется, пока спор не решит оператор.</div>
+    <div class="wal-mactions">
+      <button class="wal-btn primary" id="wal-dispute-go" type="button" disabled>Открыть спор</button>
+      <button class="wal-btn m-close" id="wal-dispute-cancel" type="button">Отмена</button>
+    </div>
+  </div>
+</div>
+
 <!-- модалка: подтверждение запроса брони (POST /api/student/bookings) -->
 <div class="backdrop" id="m-book" role="dialog" aria-modal="true" aria-labelledby="bk-title">
   <div class="bk-modal">
@@ -184,6 +252,12 @@
       <div class="row"><span>Автомобиль</span><b id="bk-car">—</b></div>
     </div>
     <div class="bk-form-note">Слот бронируется целиком (availability_id). Если инструктор отклонит запрос — слот освободится, и вы сможете отправить его снова; комментарий отказа будет виден здесь, в «Моих бронях».</div>
+    <!-- Спринт 16 (16.4.1): блок 402 «недостаточно средств» + переход в кошелек -->
+    <div class="bk-no-funds" id="bk-no-funds" style="display:none">
+      <b>Недостаточно средств</b>
+      <span id="bk-no-funds-msg">На кошельке не хватает суммы холда за это занятие.</span>
+      <button class="bk-btn primary" id="bk-go-wallet" type="button">Пополнить кошелек</button>
+    </div>
     <div class="bk-form-actions">
       <button class="bk-btn primary" id="bk-send" type="button">Отправить запрос</button>
       <button class="bk-btn ghost" data-close-book type="button">Отмена</button>

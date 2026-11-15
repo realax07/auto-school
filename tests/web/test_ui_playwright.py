@@ -4731,3 +4731,121 @@ def test_tc_ui_060_cabinet_tiles_no_v_kabinete_tag(page, server):
     # навигация плиток жива: «Найти водителя» ведет в выбор инструктора
     tile_instructor.click()
     page.wait_for_url("**/instructor-choice")
+
+
+# ----------------------------------------------------- Спринт 16: экономика
+def test_tc_ui_061_student_wallet_topup_updates_balance(page, server):
+    """TC-UI-061 (Спринт 16, add-wallet-economy 16.4.1): раздел «Кошелек»
+    кабинета ученика — честные нули нового кошелька, модал пополнения
+    (мок эквайринга, POST /api/wallet/topup с X-Idempotency-Key) после
+    «Пополнить» зачисляет сумму: балансы Доступно/Всего = 3 000 ₽,
+    история транзакций показывает topup «Пополнение». Реальный бэкенд."""
+    _seed_session(page, "session_token", _student_token(server))
+    page.goto(f"{server}/cabinet")
+    # раздел открывается табом сайдбара (BUG-047: внутри кабинета)
+    page.locator('.snav button[data-tab="Кошелек"]').click()
+    expect(page.locator("#sec-wallet")).to_be_visible()
+    # новый кошелек — корректные нули (0/0/0)
+    expect(page.locator("#b-avail")).to_have_text("0₽")
+    expect(page.locator("#b-frozen")).to_have_text("0₽")
+    # пустая история — честное пустое состояние
+    expect(page.locator("#hist tr")).to_have_count(1)
+    expect(page.locator("#hist .wal-empty")).to_be_visible()
+
+    # пополнение: модал с пресетами, сумма 3 000 ₽ (зачисление в копейках)
+    page.locator("#topup-open").click()
+    expect(page.locator("#m-backdrop.wal-open")).to_be_visible()
+    page.fill("#m-amount", "3000")
+    page.locator("#m-confirm").click()
+
+    # честный тост успеха + балансы по свежему журналу (SUM)
+    expect(page.locator("#toast")).to_contain_text("Зачислено 3 000 ₽")
+    expect(page.locator("#m-backdrop.wal-open")).to_have_count(0)
+    expect(page.locator("#b-avail")).to_contain_text("3 000")
+    expect(page.locator("#b-total")).to_contain_text("3 000")
+    expect(page.locator("#b-frozen")).to_contain_text("0")
+    # история: ровно одна операция — topup «Пополнение», +3 000 ₽
+    expect(page.locator("#hist tr")).to_have_count(1)
+    row = page.locator("#hist tr").first
+    expect(row.locator(".wal-ttype")).to_have_text("Пополнение")
+    expect(row.locator(".wal-amount")).to_contain_text("+ 3 000 ₽")
+
+
+def test_tc_ui_062_admin_transactions_section_and_company_balance(page, server):
+    """TC-UI-062 (Спринт 16, add-wallet-economy 16.4.3): раздел «Транзакции»
+    в админке — навигация «₽ Платежи» заменена реальным разделом (soon()
+    снят, якорей «Платежи» нет), #sec-transactions виден: журнал показывает
+    topup ученика, «Баланс компании» рендерится (SUM fee — 0 ₽ без релизов),
+    таблица «Комиссии инструкторов за год» содержит инструктора с фактом 0.
+    Реальный бэкенд."""
+    # данные: ученик с пополнением (строка журнала) + одобренный инструктор
+    stu = _student_token(server)
+    status, data = api("POST", "/api/wallet/topup", base=server, token=stu,
+                       body={"amount_kop": 150000})
+    assert status == 200 and data and data["ok"], (status, data)
+    _approve_instructor(server)
+
+    _seed_session(page, "admin_token", admin_login(server))
+    # ОЖИДАНИЯ — по живому API, не «ровно 1»: сервер сессии один, журнал
+    # общий для всех e2e прогона (пополнения других кластеров тоже видны)
+    admin_token = admin_login(server)
+    status, journal = api("GET", "/api/admin/transactions", base=server,
+                          admin_token=admin_token)
+    assert status == 200 and journal and journal["ok"], (status, journal)
+    n_tx = len(journal["transactions"])
+    assert n_tx >= 1 and journal["transactions"][0]["type"] == "topup", journal
+    status, comms = api("GET", "/api/admin/commissions", base=server,
+                        admin_token=admin_token)
+    assert status == 200 and comms and comms["ok"], (status, comms)
+    n_comm = len(comms["commissions"])
+    assert n_comm >= 1, comms  # инструктор из _approve_instructor виден
+
+    page.goto(f"{server}/admin-dashboard")
+    # слот «Платежи» заменен: кнопки-заглушки «Платежи» больше нет
+    assert page.locator(".nav button", has_text="Платежи").count() == 0
+    page.locator(".nav button", has_text="Транзакции").click()
+    expect(page.locator("#sec-transactions")).to_be_visible()
+    # журнал раздела — ровно по журналу API, свежая запись сверху (наш topup)
+    expect(page.locator("#tx-count")).to_have_text(f"Записей: {n_tx}")
+    expect(page.locator("#tx-rows tr")).to_have_count(n_tx)
+    expect(page.locator("#tx-rows tr").first).to_contain_text("topup")
+    expect(page.locator("#tx-rows tr").first).to_contain_text("+ 1 500 ₽")
+    # баланс компании рендерится (SUM fee по release — релизов нет → 0 ₽)
+    expect(page.locator("#tx-company")).to_have_text("0 ₽")
+    # комиссии за год: инструкторы раздела (наш — факт 0 без релизов)
+    expect(page.locator("#tx-comm-rows tr")).to_have_count(n_comm)
+    # пустые операционные состояния — честные
+    expect(page.locator("#tx-payouts-empty")).to_be_visible()
+    expect(page.locator("#tx-disputes-empty")).to_be_visible()
+
+
+def test_tc_ui_063_instructor_price_save_persists(page, server):
+    """TC-UI-063 (Спринт 16, add-wallet-economy 16.4.2): раздел «Доходы
+    и выплаты» кабинета инструктора — цена часа вводится целыми рублями,
+    «Сохранить» (PUT /api/instructor/price) подтверждается тостом со
+    снапшот-инвариантом («существующие холды не изменились»); значение
+    переживает перезагрузку раздела (GET /api/instructor/economy).
+    Реальный бэкенд."""
+    token, _instructor_id = _approve_instructor(server)
+    _seed_session(page, "session_token", token)
+    page.goto(f"{server}/instructor/dashboard")
+    page.locator('.nav button[data-tab="Доходы и выплаты"]').click()
+    expect(page.locator("#sec-earnings")).to_be_visible()
+    # цена не задана — пустое поле (NULL = занятия бесплатны)
+    expect(page.locator("#price-input")).to_have_value("")
+
+    page.fill("#price-input", "1500")
+    page.locator("#price-save").click()
+    expect(page.locator("#toast")).to_contain_text(
+        "Цена часа сохранена: 1 500 ₽")
+    expect(page.locator("#toast")).to_contain_text(
+        "Существующие холды не изменились")
+
+    # значение сохранено на сервере — переживает повторное открытие раздела
+    status, data = api("GET", "/api/instructor/economy", base=server,
+                       token=token)
+    assert status == 200 and data and data["ok"], (status, data)
+    assert data["price_per_hour_rub"] == 1500, data
+    page.locator('.nav button[data-tab="Мой день"]').click()
+    page.locator('.nav button[data-tab="Доходы и выплаты"]').click()
+    expect(page.locator("#price-input")).to_have_value("1500")

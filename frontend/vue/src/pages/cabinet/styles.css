@@ -203,3 +203,61 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
 @media(max-width:850px){.req-top{flex-wrap:wrap}.status{margin-left:57px;order:3}}
 @media(max-width:760px){.app{grid-template-columns:1fr}.side{flex-direction:row;align-items:center;padding:10px 14px;border-right:0;border-bottom:1px solid rgba(234,255,249,.12)}.snav{display:flex;overflow:auto;gap:5px}.snav button{white-space:nowrap;padding:9px 10px;font-size:11px}.snav button .ico{display:none}}
 @media(max-width:560px){.filters{overflow-x:auto}.act{flex:1}}
+
+/* Спринт 16 (add-wallet-economy, 16.4.1): раздел «Кошелек» (мокап
+   design/mocks/wallet-student.html — источник дизайна). Правила ТОЛЬКО
+   добавлены в конце файла (design-guard test_cabinet_page: перенос 1:1
+   не изменяется); классы wal-* — без коллизий с легаси-правилами. */
+#sec-wallet{padding-bottom:10px}
+.wal-balances{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin:18px 0 6px}
+.wal-bal{border:1px solid var(--line,#ffffff16);border-radius:18px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:17px 18px 15px}
+.wal-bal small{display:block;font-size:11px;color:#8fa0aa}
+.wal-bal b{display:block;font-size:26px;letter-spacing:-.04em;font-weight:600;margin-top:9px;white-space:nowrap;color:#f3f7f8}
+.wal-bal b small{display:inline;font-size:13px;color:#c4d0d5;letter-spacing:-.02em;margin-left:4px}
+.wal-bal.frozen b{color:#ffd479}
+.wal-hint{font-size:10px;color:#7f929d;margin-top:8px}
+.wal-actions{display:flex;gap:9px;align-items:center;margin:14px 0 20px;flex-wrap:wrap}
+.wal-btn{border-radius:11px;padding:11px 22px;font-size:12px;font-weight:550;border:1px solid;cursor:pointer;font:inherit;color:inherit}
+.wal-btn.primary{background:#123524;border-color:#2b9c62;color:#c9ffdd}
+.wal-btn.primary:hover{filter:brightness(1.12)}
+.wal-btn.primary:disabled{opacity:.45;cursor:not-allowed;filter:none}
+.wal-btn.ghost,.wal-btn.m-close{background:transparent;border-color:#2a5c40;color:#91efb1}
+.wal-legenda{font-size:11px;color:#8fa0aa}
+.wal-hist-title{font-size:13px;font-weight:600;letter-spacing:-.02em;margin:8px 0 12px;color:#f3f7f8}
+.wal-table{width:100%;border-collapse:collapse;font-size:13px}
+.wal-table th{padding:11px 14px;text-align:left;color:#8ea4a8;font-weight:500;border-bottom:1px solid #ffffff16;font-size:11px}
+.wal-table td{padding:12px 14px;border-bottom:1px solid #ffffff07;color:#dcebe9}
+.wal-table tr:hover td{background:rgba(53,216,121,.04)}
+.wal-ttype{font-size:10px;padding:5px 11px;border-radius:999px;white-space:nowrap}
+.wal-t-topup{background:#143322;color:#91efb1;border:1px solid #2a5c40}
+.wal-t-hold{background:#332a14;color:#ffd479;border:1px solid #6b5426}
+.wal-t-release{background:#17283a;color:#9bc5ff;border:1px solid #2d4a68}
+.wal-t-refund{background:#2a1f33;color:#d3b8ff;border:1px solid #4d3a66}
+.wal-t-payout{background:#241a2c;color:#e0b8ff;border:1px solid #4d3a66}
+.wal-amount{text-align:right;font-weight:600;white-space:nowrap}
+.wal-amount.plus{color:#8aefad}
+.wal-amount.minus{color:#ffb28e}
+.wal-when{white-space:nowrap;color:#9fb0b8}
+.wal-empty{color:#7f929d;text-align:left}
+.wal-backdrop{position:fixed;inset:0;background:#02070bd0;backdrop-filter:blur(6px);display:none;place-items:center;padding:24px;z-index:30}
+.wal-backdrop.wal-open{display:grid}
+.wal-modal{width:min(430px,100%);border:1px solid #ffffff20;border-radius:22px;background:linear-gradient(150deg,#16242c,#0b1418);box-shadow:0 30px 80px #000c;padding:24px 26px}
+.wal-modal h2{margin:0;font-size:19px;letter-spacing:-.03em;font-weight:600;color:#f3f7f8}
+.wal-modal .wal-sub{font-size:11px;color:#8fa0aa;margin:8px 0 16px;line-height:1.55}
+.wal-presets{display:flex;gap:8px;margin-bottom:14px}
+.wal-presets button{flex:1;border:1px solid #ffffff14;background:#ffffff05;color:#c6d1d6;border-radius:11px;padding:10px 6px;font-size:12px}
+.wal-presets button.on{background:#143322;border-color:#2c8651;color:#a3efbd}
+.wal-input{width:100%;border:1px solid #ffffff18;background:#ffffff06;color:#f3f7f8;border-radius:12px;padding:12px 14px;font-size:15px}
+.wal-note{font-size:10px;color:#7f929d;margin:10px 0 16px;line-height:1.5}
+.wal-label{display:block;font-size:11px;color:#8ea4a8;margin:4px 0 6px}
+.wal-textarea{width:100%;border:1px solid #ffffff18;background:#ffffff06;color:#f3f7f8;border-radius:12px;padding:10px 12px;font-size:13px;font:inherit;resize:vertical}
+.wal-mactions{display:flex;gap:9px}
+.wal-mactions .wal-btn{flex:1}
+/* блок нехватки средств в попапе брони (402) */
+.bk-no-funds{display:flex;gap:12px;align-items:center;flex-wrap:wrap;border:1px solid #6b5426;background:#332a14;color:#ffd479;border-radius:12px;padding:12px 14px;margin-top:12px;font-size:12px}
+.bk-no-funds b{color:#ffd479;font-size:12px}
+.bk-no-funds span{flex:1 1 200px;line-height:1.5}
+/* «Оспорить» в «Моих бронях» */
+.bk-act.dispute{border-color:#6b5426;background:#332a14;color:#ffd479}
+.bk-act.dispute:hover{filter:brightness(1.1)}
+@media(max-width:850px){.wal-balances{grid-template-columns:1fr}}

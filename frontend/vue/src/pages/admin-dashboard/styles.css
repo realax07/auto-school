@@ -139,3 +139,44 @@ tr:hover td{background:rgba(73,236,154,.04)}
 .dc-m-btn.danger:disabled{opacity:.4;cursor:not-allowed;filter:none}
 .dc-m-btn.ghost{background:#ffffff06;border-color:#ffffff16;color:#aab8c0}
 @media(max-width:700px){.dc-actions{width:100%}.dc-actions .dc-act{flex:1}.dc-thumb{width:100%}}
+
+/* Спринт 16 (add-wallet-economy, 16.4.3): раздел «Транзакции»
+   (#sec-transactions — мокап design/mocks/admin-transactions.html).
+   Классы tx-* — без коллизий с существующими правилами. */
+.tx-sub{font-size:12px;color:#8fa0aa;margin:-14px 0 20px;line-height:1.55;max-width:760px}
+.tx-company{display:flex;gap:13px;align-items:stretch;margin-bottom:20px;flex-wrap:wrap}
+.tx-card{border:1px solid #ffffff14;border-radius:16px;background:linear-gradient(150deg,#16242c,#0b1418);padding:16px 20px;min-width:220px}
+.tx-card small{display:block;font-size:10px;color:#8fa0aa;text-transform:uppercase;letter-spacing:.12em}
+.tx-card b{display:block;font-size:24px;font-weight:600;letter-spacing:-.04em;margin-top:8px;white-space:nowrap;color:#f7fbfa}
+.tx-card .tx-hint{font-size:10px;color:#7d939a;margin-top:6px}
+.tx-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.tx-toolbar select,.tx-toolbar input{border:1px solid #ffffff18;background:#ffffff06;color:#e4eef0;border-radius:10px;padding:9px 11px;font-size:12px;font:inherit}
+.tx-toolbar label{font-size:11px;color:#8ea4a8}
+.badge.hold{background:#3a2f14;color:#ffc76e;border:1px solid #8a6d1f}
+.badge.pay{background:#17283a;color:#9bc5ff;border:1px solid #2d4a68}
+.badge.ref{background:#2a1f33;color:#d3b8ff;border:1px solid #4d3a66}
+td.td-r{text-align:right;font-weight:600;white-space:nowrap}
+td.tx-plus{color:#8aefad}
+td.tx-minus{color:#ffb28e}
+.tx-grid2{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:15px;align-items:start;margin-top:15px}
+.tx-panel{border:1px solid #ffffff14;border-radius:18px;background:linear-gradient(150deg,rgba(28,43,52,.6),rgba(15,25,32,.7));padding:18px}
+.tx-panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:13px}
+.tx-title{font-size:14px;font-weight:600;letter-spacing:-.02em;color:#f7fbfa}
+.tx-panel-sub{font-size:11px;color:#8799a3;margin-top:4px}
+.tx-prow{display:flex;justify-content:space-between;gap:12px;align-items:center;border:1px solid #ffffff10;background:#ffffff03;border-radius:12px;padding:11px 13px;margin-bottom:9px;font-size:12px}
+.tx-prow b{display:block;font-size:12px;color:#f7fbfa}
+.tx-prow small{color:#8fa0aa;font-size:10px;display:block;margin-top:4px;line-height:1.5}
+.tx-btn{border-radius:10px;padding:9px 16px;font-size:12px;font-weight:550;border:1px solid;cursor:pointer;font:inherit;color:inherit;white-space:nowrap}
+.tx-btn.ok{background:#123524;border-color:#2b9c62;color:#c9ffdd}
+.tx-btn.ok:hover{filter:brightness(1.12)}
+.tx-btn.ok:disabled{opacity:.45;cursor:not-allowed;filter:none}
+.tx-btn.danger{background:transparent;border-color:#5c3030;color:#ffb28e}
+.tx-btn.blue{background:transparent;border-color:#2d4a68;color:#9bc5ff}
+.tx-year{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.tx-year label{font-size:11px;color:#8ea4a8}
+.tx-year select{border:1px solid #ffffff18;background:#ffffff06;color:#e4eef0;border-radius:10px;padding:8px 10px;font-size:12px;font:inherit}
+.tx-comm-input{width:64px;border:1px solid #ffffff18;background:#ffffff06;color:#e4eef0;border-radius:10px;padding:8px 10px;font-size:12px;font:inherit}
+.dc-m-btn.ok{background:#123524;border-color:#2b9c62;color:#c9ffdd}
+.dc-m-btn.ok:hover{filter:brightness(1.12)}
+@media(max-width:900px){.tx-grid2{grid-template-columns:1fr}.tx-hide{display:none}}
+.m-rep-txt{font-size:13px;color:#dcebe9;line-height:1.55;margin:0 0 6px}

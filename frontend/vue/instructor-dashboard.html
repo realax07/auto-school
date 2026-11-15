@@ -17,7 +17,9 @@
     <button data-tab="Календарь"><span class="ico">▦</span>Календарь</button>
     <button data-tab="Мои ученики"><span class="ico">♧</span>Мои ученики</button>
     <button data-tab="Мои автомобили"><span class="ico">▰</span>Мои автомобили</button>
-    <button data-tab="Доходы и выплаты"><span class="ico">₽</span>Доходы и выплаты<small class="demo-tag">демо</small></button>
+    <!-- Спринт 16 (16.4.2): «Доходы и выплаты» — реальный раздел
+         (#sec-earnings); пометка «демо» снята, data-tab НЕ переименован -->
+    <button data-tab="Доходы и выплаты"><span class="ico">₽</span>Доходы и выплаты</button>
     <button data-tab="Материалы и обучение"><span class="ico">◈</span>Материалы и обучение<small class="demo-tag">демо</small></button>
     <button data-tab="Профиль и документы"><span class="ico">▤</span>Профиль и документы</button>
     <button data-tab="__logout__"><span class="ico">⎋</span>Выход</button>
@@ -92,7 +94,7 @@
     </div>
   </div>
   <div class="bottom-grid day-content">
-    <section class="card panel"><div class="panel-head"><div><div class="panel-title">Последние операции</div><div class="panel-sub">Начисления и выплаты</div></div><button class="text-btn" onclick="navTo('Доходы')">Все операции ↗</button></div>
+    <section class="card panel"><div class="panel-head"><div><div class="panel-title">Последние операции</div><div class="panel-sub">Начисления и выплаты</div></div><button class="text-btn" onclick="navTo('Доходы и выплаты')">Все операции ↗</button></div>
       <div class="activity">
         <div class="activity-row"><div class="activity-icon">↗</div><div class="activity-copy"><b>Занятие · Александр Иванов</b><small>Сегодня, 09:00 · Начисление</small></div><div class="amount plus">+2 000 ₽</div></div>
         <div class="activity-row"><div class="activity-icon">↗</div><div class="activity-copy"><b>Занятие · Мария Петрова</b><small>Вчера, 16:00 · Начисление</small></div><div class="amount plus">+2 000 ₽</div></div>
@@ -100,7 +102,7 @@
       </div>
     </section>
     <section class="card panel"><div class="panel-head"><div><div class="panel-title">Быстрые действия</div><div class="panel-sub">Самое нужное — в один клик</div></div></div>
-      <div class="quick-actions"><button class="quick" onclick="navTo('Расписание')"><span>＋</span>Открыть время<br>для записи</button><button class="quick" onclick="navTo('Ученики')"><span>♧</span>Посмотреть<br>учеников</button><button class="quick" onclick="navTo('Доходы')"><span>₽</span>Мои доходы<br>и выплаты</button></div>
+      <div class="quick-actions"><button class="quick" onclick="navTo('Расписание')"><span>＋</span>Открыть время<br>для записи</button><button class="quick" onclick="navTo('Ученики')"><span>♧</span>Посмотреть<br>учеников</button><button class="quick" onclick="navTo('Доходы и выплаты')"><span>₽</span>Мои доходы<br>и выплаты</button></div>
     </section>
   </div>
 
@@ -301,6 +303,51 @@
     </section>
   </section>
 
+  <!-- Раздел «Доходы и выплаты» (Спринт 16, add-wallet-economy 16.4.2; мокап
+       design/mocks/instructor-earnings.html — источник дизайна, якорь
+       #sec-earnings): цена часа (PUT /api/instructor/price — снапшоты
+       существующих холдов не пересчитываются), статистика месяца
+       (GET /api/instructor/earnings — разбивка по ученикам + итог,
+       net после комиссии платформы), выплаты СБП (POST/GET
+       /api/instructor/payouts — активная заявка одна, 409 — честный тост).
+       «Отметить проведенным» — в модалке брони #m-bk календаря.
+       Статика до гидрации — честные нули/пустые состояния (прецедент
+       виджетов главной); данные гидрируются из App.vue. -->
+  <section class="card panel" id="sec-earnings" style="display:none">
+    <div class="kicker" id="ern-month-label">…</div>
+    <p class="ern-lead">Заработок считается по журналу транзакций: занятие проведено → через 24 часа без спора ученика сумма холда переводится вам (net — после комиссии платформы). Цена часа — ваша: правка цены не меняет сумм уже созданных броней.</p>
+    <section class="stats">
+      <article class="card stat"><div class="stat-head">Заработано за месяц <span class="stat-icon">₽</span></div><div class="value" id="ern-month-net">0 <small>₽</small></div><div class="stat-foot" id="ern-month-net-foot">net · после комиссии платформы 10%</div></article>
+      <article class="card stat"><div class="stat-head">Всего за месяц <span class="stat-icon">Σ</span></div><div class="value" id="ern-month-gross">0 <small>₽</small></div><div class="stat-foot" id="ern-month-gross-foot">gross · комиссия платформы 0 ₽</div></article>
+      <article class="card stat"><div class="stat-head">Доступно к выводу <span class="stat-icon">◈</span></div><div class="value" id="ern-balance">0 <small>₽</small></div><div class="stat-foot">balance — заработанное минус выплаты</div></article>
+      <article class="card stat"><div class="stat-head">Комиссия платформы <span class="stat-icon">%</span></div><div class="value" id="ern-commission">10<small>%</small></div><div class="stat-foot">ставит оператор · применяется к следующим релизам</div></article>
+    </section>
+    <div class="ern-grid">
+      <section class="card panel">
+        <div class="panel-head"><div><div class="panel-title">Заработано по ученикам — <span id="ern-month-name">…</span></div><div class="panel-sub">net после комиссии · агрегат журнала release</div></div></div>
+        <table class="ern-table">
+          <thead><tr><th>Ученик</th><th style="text-align:right">Net</th></tr></thead>
+          <tbody id="ern-students"></tbody>
+        </table>
+        <div class="ern-empty" id="ern-students-empty" style="display:none">В этом месяце релизов еще нет — суммы появятся после первых проведенных занятий.</div>
+        <div class="ern-note" id="ern-total-note" style="margin-top:14px">Всего за месяц: 0 ₽ net.</div>
+      </section>
+      <section class="card panel">
+        <div class="panel-head"><div><div class="panel-title">Цена часа</div><div class="panel-sub">целые рубли · действует на новые брони</div></div></div>
+        <label class="ern-label" for="price-input">Ставка за час занятия</label>
+        <div class="ern-price-line">
+          <input id="price-input" inputmode="numeric" placeholder="не задана" title="Целые рубли; пусто — занятия бесплатны">
+          <span class="ern-cur">₽ / час</span>
+          <button class="ern-btn primary" id="price-save" type="button">Сохранить</button>
+        </div>
+        <div class="ern-note">При бронировании цена фиксируется снапшотом в брони: последующее изменение ставки не меняет сумм существующих холдов. Пустая ставка — занятия бесплатны (без холда).</div>
+        <div class="panel-head" style="margin-top:20px"><div><div class="panel-title">Выплаты</div><div class="panel-sub">СБП · заявка → подтверждение оператором</div></div><button class="ern-btn primary" id="payout-open" type="button">Вывести деньги</button></div>
+        <div id="payout-list"></div>
+        <div class="ern-empty" id="payout-empty">Заявок на вывод пока нет.</div>
+      </section>
+    </div>
+  </section>
+
   <!-- Раздел «Бронирования» УДАЛЕН (Спринт 8, FR-74: без остатков — пункт
        меню, секция, JS-контур, CSS). Запросы и брони отображаются РОВНО на
        выбранных слотах в разделе «Календарь» (#sec-calendar); решения — на
@@ -349,6 +396,9 @@
         <button class="btn primary" id="bk-slot-confirm" type="button">✓ Принять</button>
         <button class="btn ghost" id="bk-slot-reject-btn" type="button">✕ Отклонить…</button>
         <button class="btn ghost danger" id="bk-slot-reject-go" type="button" style="display:none">✕ Отклонить запрос</button>
+        <!-- Спринт 16 (16.4.2): «Отметить проведенным» — confirmed-бронь,
+             чей экземпляр НАЧАЛСЯ (POST …/complete; до старта кнопки нет) -->
+        <button class="btn primary" id="bk-slot-complete" type="button" style="display:none">✓ Отметить проведенным</button>
         <button class="btn ghost danger" id="bk-slot-cancel" type="button" style="display:none">✕ Отменить бронь</button>
         <button class="btn ghost" id="bk-slot-close2" type="button">Закрыть</button>
       </div>
@@ -375,6 +425,32 @@
   <!-- единый скрытый input загрузки документов (ВУ/СТС): открывается
        после явного «Заменить» (или сразу — для первой загрузки) -->
   <input type="file" id="doc-file" accept="image/jpeg,image/png" style="display:none">
+
+  <!-- Спринт 16 (16.4.2): заявка вывода СБП (мок) — POST
+       /api/instructor/payouts {amount_kop, bank, phone}; сумма ≤ balance
+       (422), активная заявка одна (409 — честный тост); подтверждение —
+       оператором в админке (мокап instructor-earnings.html, #p-backdrop) -->
+  <div class="backdrop" id="m-payout" role="dialog" aria-modal="true" aria-labelledby="payout-title">
+    <div class="viewer" style="width:min(440px,100%)">
+      <div class="viewer-head">
+        <div><h2 id="payout-title">Вывести деньги</h2><small id="payout-sub">СБП · заявка → подтверждение оператором</small></div>
+        <button class="close" id="payout-close" aria-label="Закрыть">×</button>
+      </div>
+      <p class="m-rep-txt" style="margin-top:4px">Перевод по СБП на моках (MVP): заявку подтверждает оператор в админке; списание с баланса — в момент подтверждения. Активная заявка может быть только одна.</p>
+      <label class="ern-label" for="payout-amount">Сумма (рубли, ≤ <span id="payout-max">0</span> ₽ доступно)</label>
+      <input class="ern-input" id="payout-amount" inputmode="numeric" value="">
+      <label class="ern-label" for="payout-bank">Банк получателя</label>
+      <select class="ern-input" id="payout-bank">
+        <option>Сбер</option><option>ВТБ</option><option>Т-Банк</option><option>Альфа-Банк</option><option>Другой банк РФ</option>
+      </select>
+      <label class="ern-label" for="payout-phone">Телефон СБП</label>
+      <input class="ern-input" id="payout-phone" placeholder="+7 …">
+      <div class="form-actions">
+        <button class="btn primary" id="payout-confirm" type="button">Отправить заявку</button>
+        <button class="btn ghost" id="payout-cancel" type="button">Отмена</button>
+      </div>
+    </div>
+  </div>
 
   <footer><span>СберАвтошкола · Кабинет инструктора</span><span>Демонстрационный интерфейс · Все данные вымышлены</span></footer>
 </main>

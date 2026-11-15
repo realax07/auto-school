@@ -37,7 +37,10 @@
     <button data-tab="Календарь"><span class="ico">▦</span>Календарь</button>
     <button data-tab="Мои ученики"><span class="ico">♧</span>Мои ученики</button>
     <button data-tab="Мои автомобили"><span class="ico">▰</span>Мои автомобили</button>
-    <button data-tab="Доходы и выплаты"><span class="ico">₽</span>Доходы и выплаты<small class="demo-tag">демо</small></button>
+    <!-- Спринт 16 (add-wallet-economy, 16.4.2): «Доходы и выплаты» — реальный
+         раздел (#sec-earnings, мокап instructor-earnings.html); пометка
+         «демо» снята, data-tab НЕ переименован (якорь e2e TC-UI-005) -->
+    <button data-tab="Доходы и выплаты"><span class="ico">₽</span>Доходы и выплаты</button>
     <button data-tab="Материалы и обучение"><span class="ico">◈</span>Материалы и обучение<small class="demo-tag">демо</small></button>
     <button data-tab="Профиль и документы"><span class="ico">▤</span>Профиль и документы</button>
     <button data-tab="__logout__"><span class="ico">⎋</span>Выход</button>
@@ -112,7 +115,7 @@
     </div>
   </div>
   <div class="bottom-grid day-content">
-    <section class="card panel"><div class="panel-head"><div><div class="panel-title">Последние операции</div><div class="panel-sub">Начисления и выплаты</div></div><button class="text-btn" @click="navTo('Доходы')">Все операции ↗</button></div>
+    <section class="card panel"><div class="panel-head"><div><div class="panel-title">Последние операции</div><div class="panel-sub">Начисления и выплаты</div></div><button class="text-btn" @click="navTo('Доходы и выплаты')">Все операции ↗</button></div>
       <div class="activity">
         <div class="activity-row"><div class="activity-icon">↗</div><div class="activity-copy"><b>Занятие · Александр Иванов</b><small>Сегодня, 09:00 · Начисление</small></div><div class="amount plus">+2 000 ₽</div></div>
         <div class="activity-row"><div class="activity-icon">↗</div><div class="activity-copy"><b>Занятие · Мария Петрова</b><small>Вчера, 16:00 · Начисление</small></div><div class="amount plus">+2 000 ₽</div></div>
@@ -120,7 +123,7 @@
       </div>
     </section>
     <section class="card panel"><div class="panel-head"><div><div class="panel-title">Быстрые действия</div><div class="panel-sub">Самое нужное — в один клик</div></div></div>
-      <div class="quick-actions"><button class="quick" @click="navTo('Расписание')"><span>＋</span>Открыть время<br>для записи</button><button class="quick" @click="navTo('Ученики')"><span>♧</span>Посмотреть<br>учеников</button><button class="quick" @click="navTo('Доходы')"><span>₽</span>Мои доходы<br>и выплаты</button></div>
+      <div class="quick-actions"><button class="quick" @click="navTo('Расписание')"><span>＋</span>Открыть время<br>для записи</button><button class="quick" @click="navTo('Ученики')"><span>♧</span>Посмотреть<br>учеников</button><button class="quick" @click="navTo('Доходы и выплаты')"><span>₽</span>Мои доходы<br>и выплаты</button></div>
     </section>
   </div>
 
@@ -321,6 +324,49 @@
     </section>
   </section>
 
+  <!-- Раздел «Доходы и выплаты» (Спринт 16, add-wallet-economy 16.4.2; мокап
+       design/mocks/instructor-earnings.html — источник дизайна, якорь
+       #sec-earnings): цена часа (PUT /api/instructor/price — снапшоты
+       существующих холдов не пересчитываются), статистика месяца
+       (GET /api/instructor/earnings — разбивка по ученикам + итог,
+       net после комиссии платформы), выплаты СБП (POST/GET
+       /api/instructor/payouts — активная заявка одна, 409 — честный тост).
+       «Отметить проведенным» — в модалке брони #m-bk календаря. -->
+  <section class="card panel" id="sec-earnings" style="display:none">
+    <div class="kicker" id="ern-month-label">…</div>
+    <p class="ern-lead">Заработок считается по журналу транзакций: занятие проведено → через 24 часа без спора ученика сумма холда переводится вам (net — после комиссии платформы). Цена часа — ваша: правка цены не меняет сумм уже созданных броней.</p>
+    <section class="stats">
+      <article class="card stat"><div class="stat-head">Заработано за месяц <span class="stat-icon">₽</span></div><div class="value" id="ern-month-net">0 <small>₽</small></div><div class="stat-foot" id="ern-month-net-foot">net · после комиссии платформы 10%</div></article>
+      <article class="card stat"><div class="stat-head">Всего за месяц <span class="stat-icon">Σ</span></div><div class="value" id="ern-month-gross">0 <small>₽</small></div><div class="stat-foot" id="ern-month-gross-foot">gross · комиссия платформы 0 ₽</div></article>
+      <article class="card stat"><div class="stat-head">Доступно к выводу <span class="stat-icon">◈</span></div><div class="value" id="ern-balance">0 <small>₽</small></div><div class="stat-foot">balance — заработанное минус выплаты</div></article>
+      <article class="card stat"><div class="stat-head">Комиссия платформы <span class="stat-icon">%</span></div><div class="value" id="ern-commission">10<small>%</small></div><div class="stat-foot">ставит оператор · применяется к следующим релизам</div></article>
+    </section>
+    <div class="ern-grid">
+      <section class="card panel">
+        <div class="panel-head"><div><div class="panel-title">Заработано по ученикам — <span id="ern-month-name">…</span></div><div class="panel-sub">net после комиссии · агрегат журнала release</div></div></div>
+        <table class="ern-table">
+          <thead><tr><th>Ученик</th><th style="text-align:right">Net</th></tr></thead>
+          <tbody id="ern-students"></tbody>
+        </table>
+        <div class="ern-empty" id="ern-students-empty" style="display:none">В этом месяце релизов еще нет — суммы появятся после первых проведенных занятий.</div>
+        <div class="ern-note" id="ern-total-note" style="margin-top:14px">Всего за месяц: 0 ₽ net.</div>
+      </section>
+      <section class="card panel">
+        <div class="panel-head"><div><div class="panel-title">Цена часа</div><div class="panel-sub">целые рубли · действует на новые брони</div></div></div>
+        <label class="ern-label" for="price-input">Ставка за час занятия</label>
+        <div class="ern-price-line">
+          <input id="price-input" inputmode="numeric" placeholder="не задана" title="Целые рубли; пусто — занятия бесплатны">
+          <span class="ern-cur">₽ / час</span>
+          <button class="ern-btn primary" id="price-save" type="button">Сохранить</button>
+        </div>
+        <div class="ern-note">При бронировании цена фиксируется снапшотом в брони: последующее изменение ставки не меняет сумм существующих холдов. Пустая ставка — занятия бесплатны (без холда).</div>
+        <div class="panel-head" style="margin-top:20px"><div><div class="panel-title">Выплаты</div><div class="panel-sub">СБП · заявка → подтверждение оператором</div></div><button class="ern-btn primary" id="payout-open" type="button">Вывести деньги</button></div>
+        <div id="payout-list"></div>
+        <div class="ern-empty" id="payout-empty">Заявок на вывод пока нет.</div>
+      </section>
+    </div>
+  </section>
+
   <!-- Раздел «Бронирования» УДАЛЕН (Спринт 8, FR-74: без остатков — пункт
        меню, секция, JS-контур, CSS). Запросы и брони отображаются РОВНО на
        выбранных слотах в разделе «Календарь» (#sec-calendar); решения — на
@@ -369,6 +415,9 @@
         <button class="btn primary" id="bk-slot-confirm" type="button">✓ Принять</button>
         <button class="btn ghost" id="bk-slot-reject-btn" type="button">✕ Отклонить…</button>
         <button class="btn ghost danger" id="bk-slot-reject-go" type="button" style="display:none">✕ Отклонить запрос</button>
+        <!-- Спринт 16 (16.4.2): «Отметить проведенным» — confirmed-бронь,
+             чей экземпляр НАЧАЛСЯ (POST …/complete; до старта кнопки нет) -->
+        <button class="btn primary" id="bk-slot-complete" type="button" style="display:none">✓ Отметить проведенным</button>
         <button class="btn ghost danger" id="bk-slot-cancel" type="button" style="display:none">✕ Отменить бронь</button>
         <button class="btn ghost" id="bk-slot-close2" type="button">Закрыть</button>
       </div>
@@ -395,6 +444,32 @@
   <!-- единый скрытый input загрузки документов (ВУ/СТС): открывается
        после явного «Заменить» (или сразу — для первой загрузки) -->
   <input type="file" id="doc-file" accept="image/jpeg,image/png" style="display:none">
+
+  <!-- Спринт 16 (16.4.2): заявка вывода СБП (мок) — POST
+       /api/instructor/payouts {amount_kop, bank, phone}; сумма ≤ balance
+       (422), активная заявка одна (409 — честный тост); подтверждение —
+       оператором в админке -->
+  <div class="backdrop" id="m-payout" role="dialog" aria-modal="true" aria-labelledby="payout-title">
+    <div class="viewer" style="width:min(440px,100%)">
+      <div class="viewer-head">
+        <div><h2 id="payout-title">Вывести деньги</h2><small id="payout-sub">СБП · заявка → подтверждение оператором</small></div>
+        <button class="close" id="payout-close" aria-label="Закрыть">×</button>
+      </div>
+      <p class="m-rep-txt" style="margin-top:4px">Перевод по СБП на моках (MVP): заявку подтверждает оператор в админке; списание с баланса — в момент подтверждения. Активная заявка может быть только одна.</p>
+      <label class="ern-label" for="payout-amount">Сумма (рубли, ≤ <span id="payout-max">0</span> ₽ доступно)</label>
+      <input class="ern-input" id="payout-amount" inputmode="numeric" value="">
+      <label class="ern-label" for="payout-bank">Банк получателя</label>
+      <select class="ern-input" id="payout-bank">
+        <option>Сбер</option><option>ВТБ</option><option>Т-Банк</option><option>Альфа-Банк</option><option>Другой банк РФ</option>
+      </select>
+      <label class="ern-label" for="payout-phone">Телефон СБП</label>
+      <input class="ern-input" id="payout-phone" placeholder="+7 …">
+      <div class="form-actions">
+        <button class="btn primary" id="payout-confirm" type="button">Отправить заявку</button>
+        <button class="btn ghost" id="payout-cancel" type="button">Отмена</button>
+      </div>
+    </div>
+  </div>
 
   <footer><span>СберАвтошкола · Кабинет инструктора</span><span>Демонстрационный интерфейс · Все данные вымышлены</span></footer>
 </main>
@@ -482,7 +557,9 @@ function navTo(name){
   // из сайдбара удалена
   var isCal=(name==='Календарь'),isStu=(name==='Мои ученики'),isCars=(name==='Мои автомобили');
   var isDocs=(name==='Профиль и документы');
-  var real=isCal||isStu||isCars||isDocs;
+  // Спринт 16 (16.4.2): «Доходы и выплаты» — реальный раздел экономики
+  var isEarn=(name==='Доходы и выплаты');
+  var real=isCal||isStu||isCars||isDocs||isEarn;
   // BUG-058 (прямива Заказчика 2026-11-04): при смене раздела закрыть
   // ВСЕ открытые модалки — ожидаются секции без модальных окон
   document.querySelectorAll('.backdrop.open').forEach(function(b){b.classList.remove('open')});
@@ -492,10 +569,12 @@ function navTo(name){
   document.getElementById('sec-students').style.display=isStu?'block':'none';
   document.getElementById('sec-cars').style.display=isCars?'block':'none';
   document.getElementById('sec-docs').style.display=isDocs?'block':'none';
+  document.getElementById('sec-earnings').style.display=isEarn?'block':'none';
   if(isCal)openCalendar();
   if(isStu)openStudents();
   if(isCars)openCars();
   if(isDocs)openDocs();
+  if(isEarn)openEarnings();
   var pp=document.getElementById('profile-panel');
   if(pp)pp.style.display='none';
   document.getElementById('page-title').textContent=name;
@@ -504,8 +583,9 @@ function navTo(name){
   // BUG-047: хеш раздела синхронизируется с табом — reload не сбрасывает
   // раздел, старые ссылки #/my-cars открывают его напрямую. Хеши
   // #/my-docs и #/bookings (прежние «Мои документы»/«Бронирования») ведут в
-  // переименованный «Профиль и документы» и «Календарь» (BUG-051; FR-74)
-  var wantHash=isCars?'#/my-cars':isDocs?'#/my-docs':'';
+  // переименованный «Профиль и документы» и «Календарь» (BUG-051; FR-74);
+  // Спринт 16: #/earnings — «Доходы и выплаты»
+  var wantHash=isCars?'#/my-cars':isDocs?'#/my-docs':isEarn?'#/earnings':'';
   if(location.hash!==wantHash){try{history.replaceState(null,'',location.pathname+location.search+(wantHash||''))}catch(e){}}
   if(!real&&name!=='Мой день')toast('Раздел «'+name+'» — демо-данные, следующий экран в концепции кабинета')
 }
@@ -2024,6 +2104,11 @@ function bkOpenSlot(b){
   el('bk-slot-confirm').style.display=confirmed?'none':'';
   el('bk-slot-reject-btn').style.display=confirmed?'none':'';
   el('bk-slot-cancel').style.display=confirmed?'':'none';
+  // Спринт 16 (16.4.2): «Отметить проведенным» — только для НАЧАВШЕГОСЯ
+  // занятия (instance_start ≤ NOW МСК; серверный гвард 409 — страховка)
+  var st=bkInstanceStartDate(b);
+  var started=!!(st&&st.getTime()<=nowMoscow().getTime());
+  el('bk-slot-complete').style.display=(confirmed&&started)?'':'none';
   el('m-bk').classList.add('open');
   document.body.style.overflow='hidden';
 }
@@ -2085,6 +2170,153 @@ el('bk-slot-close').addEventListener('click',bkCloseSlot);
 el('bk-slot-close2').addEventListener('click',bkCloseSlot);
 el('m-bk').addEventListener('click',function(e){if(e.target===this)bkCloseSlot()});
 
+// =========================================================================
+// Спринт 16 (add-wallet-economy, 16.4.2): раздел «Доходы и выплаты»
+// (мокап instructor-earnings.html). Данные — GET /api/instructor/economy
+// (цена/комиссия/balance) + GET /api/instructor/earnings (месяц по
+// ученикам + итог net) + GET /api/instructor/payouts. Деньги — целые
+// копейки; ₽ — только для показа (целочисленное деление).
+var ERN_MONTHS=['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
+var ERN_MONTHS_IN=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+function ernRub(kop){var a=Math.abs(Number(kop)||0);return ((a-(a%100))/100).toLocaleString('ru-RU')}
+function openEarnings(){
+  apiGet('/api/instructor/economy',function(res){
+    if(!res||!res.ok)return;
+    el('ern-month-net-foot').textContent='net · после комиссии платформы '+(res.commission_percent!=null?res.commission_percent:10)+'%';
+    el('ern-balance').innerHTML=ernRub(res.balance_kop)+' <small>₽</small>';
+    el('ern-commission').innerHTML=(res.commission_percent!=null?res.commission_percent:10)+'<small>%</small>';
+    var price=el('price-input');
+    if(document.activeElement!==price)price.value=(res.price_per_hour_rub==null?'':String(res.price_per_hour_rub));
+    el('payout-max').textContent=ernRub(res.balance_kop);
+  });
+  apiGet('/api/instructor/earnings',function(res){
+    if(!res||!res.ok)return;
+    var mName=ERN_MONTHS[(res.month||1)-1],mNameIn=ERN_MONTHS_IN[(res.month||1)-1];
+    el('ern-month-label').textContent=mName.charAt(0).toUpperCase()+mName.slice(1)+' '+res.year;
+    el('ern-month-name').textContent=mNameIn+' '+res.year;
+    el('ern-month-net').innerHTML=ernRub(res.total_net_kop)+' <small>₽</small>';
+    el('ern-month-gross').innerHTML=ernRub(res.total_gross_kop)+' <small>₽</small>';
+    el('ern-month-gross-foot').textContent='gross · комиссия платформы '+ernRub(res.total_fee_kop)+' ₽';
+    el('ern-total-note').textContent='Всего за месяц: '+ernRub(res.total_net_kop)+' ₽ net (gross '+ernRub(res.total_gross_kop)+' ₽, комиссия '+ernRub(res.total_fee_kop)+' ₽). Суммы в копейках в журнале — на экране в рублях.';
+    var tb=el('ern-students');
+    tb.innerHTML='';
+    var students=res.by_student||[];
+    el('ern-students-empty').style.display=students.length?'none':'block';
+    students.forEach(function(s){
+      var tr=node('tr');
+      var td1=node('td',null,s.student_full_name||('Ученик №'+s.student_id));
+      var td2=node('td','td-r',ernRub(s.net_kop)+' ₽');
+      tr.appendChild(td1);tr.appendChild(td2);
+      tb.appendChild(tr);
+    });
+  });
+  loadPayouts();
+}
+function loadPayouts(){
+  apiGet('/api/instructor/payouts',function(res){
+    if(!res||!res.ok)return;
+    var box=el('payout-list');
+    box.innerHTML='';
+    var payouts=res.payouts||[];
+    el('payout-empty').style.display=payouts.length?'none':'block';
+    payouts.forEach(function(p){
+      var row=node('div','ern-prow');
+      var div=node('div');
+      div.appendChild(node('b',null,ernRub(p.amount_kop)+' ₽'));
+      var when=String(p.paid_at||p.requested_at||'').split(' ')[0].split('-').reverse().join('.');
+      div.appendChild(node('small',null,'СБП · '+(p.bank||'—')+' · '+(p.phone||'')+' · '+when));
+      row.appendChild(div);
+      row.appendChild(node('span','ern-status '+(p.status==='paid'?'st-paid':'st-wait'),p.status==='paid'?'выплачено':'заявка'));
+      box.appendChild(row);
+    });
+  });
+}
+// цена часа: целые рубли ≥ 0; пустое поле — сброс (NULL, занятия бесплатны).
+// Подтверждение — снапшоты существующих холдов не изменились (FR-101).
+el('price-save').addEventListener('click',function(){
+  var raw=String(el('price-input').value||'').trim();
+  var payload;
+  if(raw===''){payload={price_per_hour_rub:null};}
+  else{
+    var v=parseInt(raw,10);
+    if(isNaN(v)||v<0||String(v)!==raw){toast('Цена — целые рубли, неотрицательная');return}
+    payload={price_per_hour_rub:v};
+  }
+  var btn=this;
+  btn.disabled=true;
+  apiSend('PUT','/api/instructor/price',payload,function(res){
+    btn.disabled=false;
+    if(res.status===200&&res.data&&res.data.ok){
+      var saved=res.data.price_per_hour_rub;
+      toast(saved==null
+        ?'Ставка сброшена: занятия бесплатны (брони без холда).'
+        :'Цена часа сохранена: '+ernRub(saved*100)+' ₽. Существующие холды не изменились (снапшоты).');
+    }else{
+      toast((res.data&&res.data.error)||'Не удалось сохранить цену');
+    }
+  });
+});
+// --- Заявка вывода СБП (мок) ---
+function payoutOpenModal(){
+  el('payout-amount').value='';
+  apiGet('/api/instructor/economy',function(res){
+    if(res&&res.ok)el('payout-max').textContent=ernRub(res.balance_kop);
+  });
+  el('m-payout').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function payoutCloseModal(){
+  el('m-payout').classList.remove('open');
+  document.body.style.overflow='';
+}
+el('payout-open').addEventListener('click',payoutOpenModal);
+el('payout-close').addEventListener('click',payoutCloseModal);
+el('payout-cancel').addEventListener('click',payoutCloseModal);
+el('m-payout').addEventListener('click',function(e){if(e.target===this)payoutCloseModal()});
+el('payout-confirm').addEventListener('click',function(){
+  var raw=String(el('payout-amount').value||'').trim();
+  var rubles=parseInt(raw,10);
+  if(!rubles||rubles<=0||String(rubles)!==raw){toast('Сумма — целое положительное число рублей');return}
+  var bank=el('payout-bank').value,phone=String(el('payout-phone').value||'').trim();
+  if(!phone){toast('Телефон СБП: поле обязательно');return}
+  var btn=this;
+  btn.disabled=true;
+  apiSend('POST','/api/instructor/payouts',{amount_kop:rubles*100,bank:bank,phone:phone},function(res){
+    btn.disabled=false;
+    if(res.status===200&&res.data&&res.data.ok){
+      payoutCloseModal();
+      toast('Заявка на '+ernRub(rubles*100)+' ₽ отправлена. Оператор подтвердит в админке — баланс спишется при подтверждении.');
+      loadPayouts();
+      openEarnings(); // «Доступно к выводу» — по свежему журналу
+    }else{
+      // 422 «сумма больше баланса/нет банка-телефона», 409 «активная заявка уже есть»
+      toast((res.data&&res.data.error)||'Не удалось отправить заявку');
+    }
+  });
+});
+// «Отметить проведенным»: confirmed-бронь, чей экземпляр НАЧАЛСЯ
+// (instance_start ≤ NOW МСК — тот же гвард, что на сервере)
+function bkInstanceStartDate(b){
+  if(!b||!b.lesson_date||!b.start_time)return null;
+  var p=String(b.lesson_date).split('-'),sp=String(b.start_time).split(':');
+  return new Date(+p[0],+p[1]-1,+p[2],+sp[0],+sp[1]||0,0);
+}
+el('bk-slot-complete').addEventListener('click',function(){
+  if(!bkTarget||bkTarget.status!=='confirmed')return;
+  var id=bkTarget.id;
+  var btn=this;
+  btn.disabled=true;
+  apiSend('POST','/api/instructor/bookings/'+id+'/complete',{},function(res){
+    btn.disabled=false;
+    if(res.status===200&&res.data&&res.data.ok){
+      bkApplied('Занятие отмечено проведенным. Через 24 часа без спора ученика холд придет вам (net после комиссии).');
+    }else{
+      // 409 «не confirmed/экземпляр еще не начался» — честный тост
+      toast((res.data&&res.data.error)||'Не удалось отметить занятие проведенным');
+    }
+  });
+});
+
 // Хвост старых ссылок (BUG-047): /my-cars теперь 301 на этот дашборд с
 // хешем — открываем раздел «Мои автомобили» напрямую.
 // BUG-051: прежние хеши #/my-docs и #/bookings ведут в переименованный
@@ -2094,6 +2326,8 @@ if(location.hash==='#/my-cars')navTo('Мои автомобили');
 // (механика BUG-047; раздел удален без остатков)
 if(location.hash==='#/my-docs')navTo('Профиль и документы');
 if(location.hash==='#/bookings')navTo('Календарь');
+// Спринт 16 (16.4.2): #/earnings — сразу «Доходы и выплаты»
+if(location.hash==='#/earnings')navTo('Доходы и выплаты');
 
 // Выход (FR-22): POST /api/auth/logout -> по любому ответу очистка
 // sessionStorage -> редирект на лендинг инструкторов (спринт 3, правка:

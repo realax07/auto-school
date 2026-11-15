@@ -35,6 +35,10 @@
     <button data-tab="Мои заявки" type="button"><span class="ico">✉</span>Мои заявки</button>
     <button data-goto="/instructor-choice" type="button"><span class="ico">▤</span>Выбрать инструктора</button>
     <button data-tab="Мои брони" type="button"><span class="ico">◷</span>Мои брони</button>
+    <!-- Спринт 16 (add-wallet-economy, 16.4.1): раздел «Кошелек» — ВНУТРИ
+         кабинета (BUG-047: standalone-страницы запрещены), после «Мои брони»;
+         баланс по журналу транзакций + пополнение (мок эквайринга) + история -->
+    <button data-tab="Кошелек" type="button"><span class="ico">₽</span>Кошелек</button>
   </nav>
 </aside>
 <div class="hero"><div class="frame">
@@ -214,7 +218,92 @@
       <div class="bk-actions" v-if="b.status === 'rejected'">
         <button class="bk-act retry" type="button" @click="retryBooking(b, $event.currentTarget)">↻ Повторить запрос</button>
       </div>
+      <!-- Спринт 16 (16.4.1): спор по ПРОВЕДЕННОЙ брони с холдом (МАЖ-2:
+           только тарифицированные брони; окно 24ч от «проведено» — вне
+           окна API вернет ошибку, покажем тост) -->
+      <div class="bk-actions" v-if="b.status === 'completed' && b.hold_amount_kop > 0">
+        <button class="bk-act dispute" type="button" @click="openDispute(b)">⚠ Оспорить занятие</button>
+      </div>
     </article>
+  </div>
+</div>
+
+<!-- раздел «Кошелек» (Спринт 16, add-wallet-economy 16.4.1; мокап
+     design/mocks/wallet-student.html — источник дизайна, якорь #sec-wallet):
+     балансы — SUM по журналу (GET /api/wallet: available/frozen/total),
+     «Пополнить» — модал с POST /api/wallet/topup (X-Idempotency-Key),
+     история транзакций владельца (тип/дата/описание/сумма ±) -->
+<div id="sec-wallet" style="display:none">
+  <div class="page-head">
+    <div>
+      <div class="kicker">Кошелек</div>
+      <h1>Мой кошелек</h1>
+      <p>Деньги хранятся в копейках, баланс — по журналу транзакций. При бронировании занятия сумма блокируется: она уходит из «Доступно» в «Заморожено» и возвращается, если занятие отменили.</p>
+    </div>
+    <div class="wal-legenda">Заморожено — холды ваших броней</div>
+  </div>
+
+  <div class="wal-balances" id="balances">
+    <div class="wal-bal"><small>Доступно</small><b id="b-avail">{{ rubFmt(walBalances.available_kop) }}<small>₽</small></b><div class="wal-hint">можно тратить на бронирования</div></div>
+    <div class="wal-bal frozen"><small>Заморожено</small><b id="b-frozen">{{ rubFmt(walBalances.frozen_kop) }}<small>₽</small></b><div class="wal-hint">холды броней — до релиза или возврата</div></div>
+    <div class="wal-bal"><small>Всего</small><b id="b-total">{{ rubFmt(walBalances.total_kop) }}<small>₽</small></b><div class="wal-hint">доступно + заморожено</div></div>
+  </div>
+
+  <div class="wal-actions">
+    <button class="wal-btn primary" id="topup-open" type="button">＋ Пополнить</button>
+    <button class="wal-btn ghost" id="to-bookings" type="button">Мои брони</button>
+    <span class="wal-legenda" id="wal-count">Операций: {{ walletTxs.length }}</span>
+  </div>
+
+  <div class="wal-hist-title">История транзакций</div>
+  <table class="wal-table">
+    <thead><tr><th>Дата</th><th>Тип</th><th>Описание</th><th style="text-align:right">Сумма</th></tr></thead>
+    <tbody id="hist">
+      <tr v-for="t in walletTxs" :key="String(t.id)">
+        <td class="wal-when">{{ walWhen(t.created_at) }}</td>
+        <td><span class="wal-ttype" :class="txBadge(t.type)[1]">{{ txBadge(t.type)[0] }}</span></td>
+        <td>{{ walDesc(t) }}</td>
+        <td class="wal-amount" :class="t.sign > 0 ? 'plus' : 'minus'">{{ t.sign > 0 ? '+' : '−' }} {{ rubFmt(t.amount_kop) }} ₽</td>
+      </tr>
+      <tr v-if="!walletTxs.length"><td colspan="4" class="wal-empty">Операций пока нет — пополните кошелек, чтобы забронировать занятие.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- модалка: пополнение кошелька (мок эквайринга; POST /api/wallet/topup
+     с X-Idempotency-Key — повтор той же операции не удваивает зачисление) -->
+<div class="wal-backdrop" id="m-backdrop" role="dialog" aria-modal="true" aria-labelledby="wal-topup-title">
+  <div class="wal-modal">
+    <h2 id="wal-topup-title">Пополнить кошелек</h2>
+    <div class="wal-sub">Оплата на моках эквайринга (MVP): зачисление мгновенное, реальных списаний нет.</div>
+    <div class="wal-presets">
+      <button type="button" data-r="1000">1 000 ₽</button>
+      <button type="button" class="on" data-r="3000">3 000 ₽</button>
+      <button type="button" data-r="5000">5 000 ₽</button>
+    </div>
+    <input class="wal-input" id="m-amount" inputmode="numeric" value="3000" title="Сумма в рублях, целое число">
+    <div class="wal-note">Сумма — целые рубли; зачисление происходит в копейках (× 100). Повторы той же операции не удваивают зачисление.</div>
+    <div class="wal-mactions">
+      <button class="wal-btn primary" id="m-confirm" type="button">Пополнить</button>
+      <button class="wal-btn m-close" id="m-close" type="button">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<!-- модалка: спор по проведенному занятию (POST /api/student/bookings/{id}/
+     dispute) — комментарий обязателен (кнопка заблокирована без текста,
+     прецедент BUG-046 deny); окно 24ч контролирует сервер -->
+<div class="wal-backdrop" id="m-dispute" role="dialog" aria-modal="true" aria-labelledby="wal-dispute-title">
+  <div class="wal-modal">
+    <h2 id="wal-dispute-title">Оспорить занятие</h2>
+    <div class="wal-sub" id="wal-dispute-sub">—</div>
+    <label class="wal-label" for="wal-dispute-comment">Что произошло? — обязательно</label>
+    <textarea class="wal-textarea" id="wal-dispute-comment" rows="3" placeholder="Например: инструктор отменил занятие по месту, откатал только час"></textarea>
+    <div class="wal-note">Спор открывается в течение 24 часов после отметки занятия проведенным. Замороженная сумма не распределяется, пока спор не решит оператор.</div>
+    <div class="wal-mactions">
+      <button class="wal-btn primary" id="wal-dispute-go" type="button" disabled>Открыть спор</button>
+      <button class="wal-btn m-close" id="wal-dispute-cancel" type="button">Отмена</button>
+    </div>
   </div>
 </div>
 
@@ -232,6 +321,13 @@
       <div class="row"><span>Автомобиль</span><b id="bk-car">—</b></div>
     </div>
     <div class="bk-form-note">Слот бронируется целиком (availability_id). Если инструктор отклонит запрос — слот освободится, и вы сможете отправить его снова; комментарий отказа будет виден здесь, в «Моих бронях».</div>
+    <!-- Спринт 16 (16.4.1): 402 «недостаточно средств» (холд не прошел) —
+         честное сообщение + переход в «Кошелек» для пополнения -->
+    <div class="bk-no-funds" id="bk-no-funds" style="display:none">
+      <b>Недостаточно средств</b>
+      <span id="bk-no-funds-msg">На кошельке не хватает суммы холда за это занятие.</span>
+      <button class="bk-btn primary" id="bk-go-wallet" type="button">Пополнить кошелек</button>
+    </div>
     <div class="bk-form-actions">
       <button class="bk-btn primary" id="bk-send" type="button">Отправить запрос</button>
       <button class="bk-btn ghost" data-close-book type="button">Отмена</button>
@@ -602,6 +698,8 @@ export default {
         inst.date.split('-').reverse().join('.');
       document.getElementById('bk-time').textContent = inst.start_time.slice(0, 5) + '–' + inst.end_time.slice(0, 5);
       document.getElementById('bk-car').textContent = bkCarText(bkPair.car);
+      // Спринт 16 (16.4.1): блок нехватки средств скрыт при новом открытии
+      document.getElementById('bk-no-funds').style.display = 'none';
       document.getElementById('m-book').classList.add('open');
       document.body.style.overflow = 'hidden';
     }
@@ -645,6 +743,130 @@ export default {
           toast((res.data && res.data.error) || 'Не удалось отправить запрос');
         }
         loadSlotsAndBookings();
+      });
+    }
+
+    // =====================================================================
+    // Спринт 16 (add-wallet-economy, 16.4.1): раздел «Кошелек» — балансы
+    // (SUM по журналу, GET /api/wallet), история транзакций, пополнение
+    // (мок эквайринга, POST /api/wallet/topup с X-Idempotency-Key),
+    // спор по проведенному занятию (POST …/{id}/dispute). Деньги —
+    // целые копейки, в ₽ только ДЛЯ ПОКАЗА (целочисленное деление).
+    var walBalances = ref({ available_kop: 0, frozen_kop: 0, total_kop: 0 });
+    var walletTxs = ref([]);
+    var walDisputeTarget = null;
+    var WAL_TX_BADGES = {
+      topup: ['Пополнение', 'wal-t-topup'],
+      hold: ['Холд брони', 'wal-t-hold'],
+      release: ['Оплата занятия', 'wal-t-release'],
+      refund: ['Возврат холда', 'wal-t-refund'],
+      payout: ['Выплата', 'wal-t-payout'],
+    };
+    function txBadge(type) { return WAL_TX_BADGES[type] || [type, '']; }
+    // копейки → строка ₽ БЕЗ float (NFR-33-наследование: целые остаток/деление)
+    function rubFmt(kop) {
+      var a = Math.abs(Number(kop) || 0);
+      return ((a - (a % 100)) / 100).toLocaleString('ru-RU');
+    }
+    function walWhen(iso) {
+      var s = String(iso || ''), parts = s.split(' ');
+      var d = (parts[0] || '').split('-'), t = parts[1] || '';
+      return d.length === 3 ? d[2] + '.' + d[1] + '.' + d[0] + (t ? ' ' + t.slice(0, 5) : '') : s;
+    }
+    function walDesc(t) {
+      var d = t.description || '';
+      if (t.booking_id) d += ' (бронь №' + t.booking_id + ')';
+      return d;
+    }
+    function loadWallet() {
+      localApi('/api/wallet', {}, function (res) {
+        if (handleAuthFail(res)) return;
+        if (!res.data || !res.data.ok) {
+          toast((res.data && res.data.error) || 'Не удалось загрузить кошелек');
+          return;
+        }
+        walBalances.value = {
+          available_kop: res.data.available_kop || 0,
+          frozen_kop: res.data.frozen_kop || 0,
+          total_kop: res.data.total_kop || 0,
+        };
+        walletTxs.value = res.data.transactions || [];
+      });
+    }
+    function closeTopupModal() {
+      document.getElementById('m-backdrop').classList.remove('wal-open');
+      document.body.style.overflow = '';
+    }
+    function openTopupModal() {
+      document.getElementById('bk-no-funds').style.display = 'none';
+      document.getElementById('m-backdrop').classList.add('wal-open');
+      document.body.style.overflow = 'hidden';
+    }
+    // пополнение: целые рубли → amount_kop ×100; ключ идемпотентности —
+    // свежий на каждую операцию (повтор по сети вернул бы результат первой)
+    function sendTopup(btn) {
+      var raw = String(document.getElementById('m-amount').value || '').trim();
+      var rubles = parseInt(raw, 10);
+      if (!rubles || rubles <= 0 || String(rubles) !== raw) {
+        toast('Сумма — целое положительное число рублей');
+        return;
+      }
+      btn.disabled = true;
+      var idem = (window.crypto && window.crypto.randomUUID)
+        ? window.crypto.randomUUID()
+        : 'topup-' + Date.now() + '-' + Math.floor(Math.random() * 1000000000);
+      localApi('/api/wallet/topup', {
+        method: 'POST',
+        headers: { 'X-Idempotency-Key': idem },
+        body: JSON.stringify({ amount_kop: rubles * 100 }),
+      }, function (res) {
+        btn.disabled = false;
+        if (handleAuthFail(res)) return;
+        if (res.status === 200 && res.data && res.data.ok) {
+          closeTopupModal();
+          toast('Зачислено ' + rubFmt(res.data.amount_kop) + ' ₽ (мок). Пополнение мгновенное.');
+          loadWallet();
+        } else {
+          toast((res.data && res.data.error) || 'Не удалось пополнить кошелек');
+        }
+      });
+    }
+    function openDispute(b) {
+      walDisputeTarget = b;
+      document.getElementById('wal-dispute-sub').textContent =
+        'Бронь ' + bookingTitle(b) + ' · заморожено ' + rubFmt(b.hold_amount_kop) + ' ₽';
+      document.getElementById('wal-dispute-comment').value = '';
+      document.getElementById('wal-dispute-go').disabled = true;
+      document.getElementById('m-dispute').classList.add('wal-open');
+      document.body.style.overflow = 'hidden';
+    }
+    function closeDispute() {
+      walDisputeTarget = null;
+      document.getElementById('wal-dispute-comment').value = '';
+      document.getElementById('wal-dispute-go').disabled = true;
+      document.getElementById('m-dispute').classList.remove('wal-open');
+      document.body.style.overflow = '';
+    }
+    // спор: комментарий обязателен (кнопка блокируется без текста —
+    // прецедент BUG-046 deny); 409 вне окна 24ч/уже открыт и 422 без
+    // живого холда — честный тост с текстом ошибки API
+    function sendDispute() {
+      if (!walDisputeTarget) return;
+      var comment = document.getElementById('wal-dispute-comment').value.trim();
+      if (!comment) return;
+      var btn = document.getElementById('wal-dispute-go');
+      btn.disabled = true;
+      localApi('/api/student/bookings/' + walDisputeTarget.id + '/dispute', {
+        method: 'POST', body: JSON.stringify({ comment: comment }),
+      }, function (res) {
+        btn.disabled = false;
+        if (handleAuthFail(res)) return;
+        if (res.status === 200 && res.data && res.data.ok) {
+          closeDispute();
+          toast('Спор открыт. Холд заморожен, пока оператор не примет решение.');
+        } else {
+          toast((res.data && res.data.error) || 'Не удалось открыть спор');
+        }
       });
     }
 
@@ -707,20 +929,25 @@ export default {
       function navTo(name) {
         var isReq = (name === 'Мои заявки');
         var isBk = (name === 'Мои брони');
-        document.getElementById('sec-home').style.display = (isReq || isBk) ? 'none' : 'block';
+        // Спринт 16 (16.4.1): «Кошелек» — третий реальный раздел кабинета
+        var isWal = (name === 'Кошелек');
+        document.getElementById('sec-home').style.display = (isReq || isBk || isWal) ? 'none' : 'block';
         document.getElementById('sec-requests').style.display = isReq ? 'block' : 'none';
         document.getElementById('sec-bookings').style.display = isBk ? 'block' : 'none';
+        document.getElementById('sec-wallet').style.display = isWal ? 'block' : 'none';
         document.querySelectorAll('.snav button[data-tab]').forEach(function (b) {
           b.classList.toggle('on', b.dataset.tab === name);
         });
         // BUG-047: хеш раздела синхронизируется с табом — reload не сбрасывает
-        // раздел, старые ссылки #/my-requests открывают его напрямую
-        var wantHash = isReq ? '#/my-requests' : isBk ? '#/my-bookings' : '';
+        // раздел, старые ссылки #/my-requests открывают его напрямую;
+        // Спринт 16: #/wallet — раздел «Кошелек»
+        var wantHash = isReq ? '#/my-requests' : isBk ? '#/my-bookings' : isWal ? '#/wallet' : '';
         if (location.hash !== wantHash) {
           try { history.replaceState(null, '', location.pathname + location.search + (wantHash || '')); } catch (e) {}
         }
         if (isReq) loadRequests();
         if (isBk) loadBookingsSection();
+        if (isWal) loadWallet();
       }
       document.querySelectorAll('.snav button[data-tab]').forEach(function (b) {
         b.addEventListener('click', function () { navTo(b.dataset.tab); });
@@ -730,6 +957,8 @@ export default {
       });
       if (location.hash === '#/my-requests') navTo('Мои заявки');
       if (location.hash === '#/my-bookings') navTo('Мои брони');
+      // Спринт 16 (16.4.1): старые ссылки /cabinet#/wallet — сразу «Кошелек»
+      if (location.hash === '#/wallet') navTo('Кошелек');
 
       // --- Раздел «Мои заявки»: bootstrap-привязки (данные/функции —
       //     setup-область выше: loadRequests/renderFilters/retry) ---
@@ -771,7 +1000,14 @@ export default {
       document.getElementById('m-book').addEventListener('click', function (e) {
         if (e.target === this) closeBookModal();
       });
-      document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeBookModal(); });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+          closeBookModal();
+          // Спринт 16 (16.4.1): Esc закрывает и модалки кошелька
+          closeTopupModal();
+          closeDispute();
+        }
+      });
       document.getElementById('bk-send').addEventListener('click', function () {
         if (!bkPicked) return;
         var btn = this, inst = bkPicked;
@@ -779,22 +1015,68 @@ export default {
         // бронь на КОНКРЕТНЫЙ экземпляр: availability_id + date (Спринт 10)
         localApi('/api/student/bookings', {method: 'POST', body: JSON.stringify({availability_id: inst.availability_id, date: inst.date})}, function (res) {
           btn.disabled = false;
-          closeBookModal();
-          if (handleAuthFail(res)) return;
+          if (handleAuthFail(res)) { closeBookModal(); return; }
           if (res.status === 200 && res.data && res.data.ok) {
+            closeBookModal();
             toast('Запрос отправлен (статус «на рассмотрении»). Инструктор получит его в разделе «Бронирования».');
-          } else if (res.status === 409) {
-            // NFR-8: слот уже занят (гонки/повтор на свой активный запрос)
-            toast((res.data && res.data.error) || 'Слот уже занят — выберите другой');
+          } else if (res.status === 402) {
+            // Спринт 16 (16.4.1): холд не прошел — недостаточно средств.
+            // Бронь НЕ создана (ROLLBACK); модал остаётся открытым с блоком
+            // «Пополнить кошелек» — переход в раздел для пополнения.
+            var need = res.data && res.data.need_kop, avail = res.data && res.data.available_kop;
+            document.getElementById('bk-no-funds-msg').textContent =
+              (res.data && res.data.error) ||
+              ('На кошельке не хватает суммы холда за это занятие' +
+                (need ? (' — нужно ' + rubFmt(need) + ' ₽, доступно ' + rubFmt(avail || 0) + ' ₽.') : '.'));
+            document.getElementById('bk-no-funds').style.display = 'block';
           } else {
-            // в т.ч. 422 «Слот уже начался или прошел» — сервер проверяет всегда
-            toast((res.data && res.data.error) || 'Не удалось отправить запрос');
+            closeBookModal();
+            if (res.status === 409) {
+              // NFR-8: слот уже занят (гонки/повтор на свой активный запрос)
+              toast((res.data && res.data.error) || 'Слот уже занят — выберите другой');
+            } else {
+              // в т.ч. 422 «Слот уже начался или прошел» — сервер проверяет всегда
+              toast((res.data && res.data.error) || 'Не удалось отправить запрос');
+            }
           }
           loadSlotsAndBookings();
         });
       });
       document.getElementById('bk-go-choice').addEventListener('click', function () {
         location.href = '/instructor-choice';
+      });
+
+      // =====================================================================
+      // Спринт 16 (add-wallet-economy, 16.4.1): bootstrap-привязки кошелька
+      // (данные/функции — setup-область: loadWallet/sendTopup/sendDispute).
+      document.getElementById('topup-open').addEventListener('click', openTopupModal);
+      document.getElementById('to-bookings').addEventListener('click', function () { navTo('Мои брони'); });
+      document.getElementById('m-close').addEventListener('click', closeTopupModal);
+      document.getElementById('m-backdrop').addEventListener('click', function (e) {
+        if (e.target === this) closeTopupModal();
+      });
+      document.querySelectorAll('#m-backdrop .wal-presets button').forEach(function (b) {
+        b.addEventListener('click', function () {
+          document.querySelectorAll('#m-backdrop .wal-presets button').forEach(function (x) { x.classList.remove('on'); });
+          b.classList.add('on');
+          document.getElementById('m-amount').value = b.dataset.r;
+        });
+      });
+      document.getElementById('m-confirm').addEventListener('click', function () {
+        sendTopup(this);
+      });
+      document.getElementById('wal-dispute-comment').addEventListener('input', function () {
+        document.getElementById('wal-dispute-go').disabled = !this.value.trim();
+      });
+      document.getElementById('wal-dispute-go').addEventListener('click', sendDispute);
+      document.getElementById('wal-dispute-cancel').addEventListener('click', closeDispute);
+      document.getElementById('m-dispute').addEventListener('click', function (e) {
+        if (e.target === this) closeDispute();
+      });
+      // 402 «недостаточно средств» → переход в раздел «Кошелек» (пополнение)
+      document.getElementById('bk-go-wallet').addEventListener('click', function () {
+        closeBookModal();
+        navTo('Кошелек');
       });
 
       // заглушки спринта-1 (как в мокапе, FR-6): плитки и чат не подключены;
@@ -814,6 +1096,10 @@ export default {
       bookingsList: bookingsList, gridHead: gridHead, gridRows: gridRows,
       bkStatus: bkStatus, bookingTitle: bookingTitle, bkCarText: bkCarText,
       openBookModal: openBookModal, retryBooking: retryBooking,
+      // «Кошелек» (Спринт 16, 16.4.1)
+      walBalances: walBalances, walletTxs: walletTxs,
+      rubFmt: rubFmt, walWhen: walWhen, walDesc: walDesc,
+      txBadge: txBadge, openDispute: openDispute,
     };
   },
 };

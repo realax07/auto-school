@@ -1,7 +1,11 @@
-# Compose-стек auto-school (ADR-006, задача 2.1).
-# Наружу публикуются только 80/443 nginx; app (8390) и MinIO (9000/9001) —
-# только внутренние сети (NFR-16, MIN-1). Секреты — env_file .env (вне git,
-# вне образов, INC-006); состояние — named volumes.
+# Compose-стек auto-school (ADR-006, задача 2.1; Спринт 16, add-wallet-economy
+# 16.0 — стек сокращен до двух сервисов app + nginx по решению Заказчика
+# 2026-11-14 об удалении S3-хранилища (дословная цитата — в дельте
+# specs/containerization и статусной приписке ADR-006): состояние загрузок —
+# на volume uploads, история Спринта 6 сохранена в ADR-006).
+# Наружу публикуются только 80/443 nginx; app (8390) — без публикуемых
+# портов, доступен только внутри сети frontend (NFR-16, MIN-1). Секреты —
+# env_file .env (вне git, вне образов, INC-006); состояние — named volumes.
 # Файл без deprecated `version:` ключа (compose spec v2).
 
 name: autoschool
@@ -34,7 +38,6 @@ services:
     # Порты НЕ публикуются — nginx ходит по внутренней сети frontend
     networks:
       - frontend
-      - backend
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8390/api/health', timeout=3).status == 200 else 1)"]
@@ -44,8 +47,7 @@ services:
       retries: 5
 
   nginx:
-    # pinned образ (ADR-006 п.2; digest недоступен анонимно только для minio —
-    # здесь pin tag+digest)
+    # pinned образ (ADR-006 п.2: pin tag+digest)
     image: nginx:1.29-trixie@sha256:1881968aff6f7cdcc4b888c00a11f4ce241ad7ec957e0cb4a9e19e93a3ff87ea
     ports:
       - "80:80"
@@ -58,40 +60,13 @@ services:
     depends_on:
       app:
         condition: service_healthy
-    # MIN-1: nginx ТОЛЬКО в frontend — без доступа к MinIO (backend-сеть)
     networks:
       - frontend
     restart: unless-stopped
 
-  # MinIO отключен: вендор удалил образы из Docker Hub/quay/ECR, публичных
-  # источников нет (решение 2026-10-30). app работает на volume uploads.
-  # Включение: docker compose --profile minio up -d (когда появится источник
-  # или self-host альтернатива — см. BACKLOG).
-  minio:
-    profiles: ["minio"]
-    # pinned release-тег (последний GitHub-релиз minio/minio); digest-pinning
-    # невозможен без аутентификации в registry — осознанное ограничение ADR-006
-    image: minio/minio:RELEASE.2025-10-15T17-29-55Z
-    command: server /data --console-address ":9001"
-    # Креды MINIO_ROOT_USER / MINIO_ROOT_PASSWORD — из env_file; пустые или
-    # дефолтные minioadmin запрещены (F-1: ${VAR:?} роняет compose на старте)
-    env_file: .env
-    environment:
-      MINIO_ROOT_USER: "${MINIO_ROOT_USER:?MINIO_ROOT_USER обязателен - заполни .env (не minioadmin)}"
-      MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD обязателен - заполни .env (не minioadmin)}"
-    volumes:
-      - minio-data:/data
-    # NFR-16: minio только в backend; 9000/9001 наружу не публикуются
-    # (S3-адаптер uploads.py — задача 6.3, стек готов принимать уже сейчас)
-    networks:
-      - backend
-    restart: unless-stopped
-
 networks:
   frontend:
-  backend:
 
 volumes:
   db:
   uploads:
-  minio-data:

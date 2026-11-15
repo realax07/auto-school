@@ -133,6 +133,15 @@ def instructor_application_approve(
                 " WHERE id = ?",
                 (application_id,),
             )
+            # Спринт 16 (add-wallet-economy, задача 16.1.2): строка
+            # instructors создается в ТОЙ ЖЕ транзакции approve — точка
+            # создания экономических атрибутов (commission_percent 10 —
+            # DEFAULT схемы; цена не задана). INSERT OR IGNORE — страховка
+            # от дубля (PK user_id), бэкфилл init_db не перезаписывает.
+            conn.execute(
+                "INSERT OR IGNORE INTO instructors (user_id) VALUES (?)",
+                (user_id,),
+            )
             conn.commit()
         except sqlite3.IntegrityError:
             # гонка дубля email (users.email UNIQUE, FR-16): транзакция

@@ -1,13 +1,20 @@
-"""Контейнерный контракт (change add-containerization) — статические проверки.
+"""Контейнерный контракт (change add-containerization; Спринт 16,
+add-wallet-economy 16.0 — стек сокращен до app + nginx) — статические проверки.
 
 Источник правды — approved-кейсы test-model/approved/add-containerization/
 (TC-ADD-001…017, спека specs/containerization/spec.md); находки code-review —
-code-reviews/add-containerization/review-001.md (F-1..F-7).
+code-reviews/add-containerization/review-001.md (F-1..F-7). Спринт 16
+(16.0, решение Заказчика 2026-11-14 «Закрой minio»): дельта
+specs/containerization REMOVED трехсервисный стек и ADDED «Compose-стек
+app + nginx» — сервис minio, volume minio-data, вторая сеть backend,
+${MINIO_*:?}-интерполяция и dummy .env-шаг CI удалены; контрактные
+тесты переработаны РОВНО по четырем минio-точкам инвентаря design.md.
 
 Проверяется машинно-читаемый контур БЕЗ Docker (рантайм-прогон стека — задача 5.1
-на Docker-стенде): compose YAML и сервисы, ${VAR:?}-интерполяция кредов MinIO
-(F-1), non-root/HEALTHCHECK/pin в Dockerfile, пин requirements.txt, job docker-build
-и dummy-.env шаг в CI. Трассировка TC-ADD-NNN — в docstring каждого теста (rule 6).
+на Docker-стенде): compose YAML и сервисы, отсутствие minio в compose
+(негатив), non-root/HEALTHCHECK/pin в Dockerfile, пин requirements.txt,
+job docker-build и compose-команды CI без dummy-env шага. Трассировка
+TC-ADD-NNN — в docstring каждого теста (rule 6).
 
 Модуль пропускается целиком, если репо-корень с docker-compose.yml недоступен
 (прогон tests/ внутри образа: compose/Dockerfile/CI в образ не входят —
@@ -76,48 +83,64 @@ def _compose_structural_ok() -> list:
     return services
 
 
-def test_compose_yaml_valid_and_has_services():
-    """TC-ADD-004 — compose YAML валиден; сервисы app, nginx, minio на местах.
+def test_compose_yaml_valid_and_services_exactly_app_nginx():
+    """TC-ADD-004 (ред. 16.0) — compose YAML валиден; services == {app, nginx}.
 
-    Requirement: Compose-стек app + nginx + MinIO (Scenario: Данные переживают
-    пересоздание контейнеров). Стек из трех сервисов обязателен спекой (FR-52).
+    Requirement (дельта 16.0, ADDED): Compose-стек app + nginx (Scenario:
+    В стеке ровно два сервиса и нет S3-хранилища). Трехсервисный стек
+    REMOVED решением Заказчика 2026-11-14 «Закрой minio»: сервис minio
+    ЗАПРЕЩЕН (вхождение строки — негатив, см. негативный тест ниже).
     """
     doc = _parse_compose()
     if doc is not None:
         services = set(doc["services"])
+        volumes = set(doc.get("volumes") or {})
     else:
         services = set(_compose_structural_ok())
-    assert set(services) >= {"app", "nginx", "minio"}, (
-        f"compose-стек обязан содержать сервисы app/nginx/minio, есть: {sorted(services)}"
+        volumes = set(re.findall(r"^  ([A-Za-z][A-Za-z0-9_-]*):(?:\s|$)",
+                                 _top_level_block(COMPOSE, "volumes"), re.M))
+    assert services == {"app", "nginx"}, (
+        f"compose-стек обязан быть ровно {{app, nginx}}, есть: {sorted(services)}"
+    )
+    # named volumes — только db/uploads (minio-data снят вместе с сервисом)
+    assert volumes == {"db", "uploads"}, (
+        f"volumes обязан быть ровно {{db, uploads}}, есть: {sorted(volumes)}"
+    )
+    # Сеть backend снята — одна сеть frontend
+    networks = set(_top_level_block(COMPOSE, "networks").split())
+    network_keys = set(
+        re.findall(r"^  ([A-Za-z][A-Za-z0-9_-]*):(?:\s|$)",
+                   _top_level_block(COMPOSE, "networks"), re.M)
+    )
+    assert network_keys == {"frontend"}, (
+        f"сети обязаны быть ровно {{frontend}}, есть: {sorted(network_keys)}"
     )
 
 
-def test_compose_minio_credentials_required_interpolation():
-    """TC-ADD-005 — креды MinIO через ${VAR:?}-интерполяцию (F-1, NFR-14).
+def test_compose_minio_absent():
+    """TC-ADD-005 (ред. 16.0) — НЕГАТИВ: S3-хранилище в compose отсутствует.
 
-    Requirement: Секреты вне образа и сегментация сетей (Scenario: Секреты
-    не зашиты в образ). Дефолтные minioadmin/minioadmin отсечены механикой
-    compose: пустая/отсутствующая переменная роняет `compose up`.
+    Requirement (дельта 16.0, REMOVED «Compose-стек app + nginx + MinIO» /
+    ADDED «В стеке ровно два сервиса и нет MinIO»): бывший тест
+    ${MINIO_*:?}-интерполяции заменен негативным — ни сервиса minio, ни
+    volume minio-data, ни MINIO_*-интерполяций/кредов в compose быть не
+    должно (мертвые инструктирующие цепочки недопустимы).
     """
-    minio_block = _top_level_block(COMPOSE, "services")
-    minio_block = minio_block[minio_block.index("  minio:"):]
-    assert "${MINIO_ROOT_USER:?" in minio_block, (
-        "minio: нет обязательной интерполяции ${MINIO_ROOT_USER:?…} (F-1)"
+    assert not re.search(r"^\s*minio:\s*$", COMPOSE, re.M), (
+        "сервис minio не должен присутствовать в docker-compose.yml (16.0)"
     )
-    assert "${MINIO_ROOT_PASSWORD:?" in minio_block, (
-        "minio: нет обязательной интерполяции ${MINIO_ROOT_PASSWORD:?…} (F-1)"
+    assert "minio" not in COMPOSE.lower(), (
+        "docker-compose.yml должен быть полностью очищен от minio-упоминаний "
+        "(сервис/volume/интерполяции/комментарии)"
     )
-    # Значение креда — ровно интерполяция, не вшитый литерал
-    assert re.search(
-        r'MINIO_ROOT_USER:\s*"\$\{MINIO_ROOT_USER:\?', minio_block
-    ), "MINIO_ROOT_USER должен браться из ${VAR:?}-интерполяции (F-1)"
 
 
 def test_dockerfile_non_root_healthcheck_pinned():
     """TC-ADD-001, TC-ADD-003 — non-root USER, HEALTHCHECK, pin образов.
 
     Requirement: Образ приложения (Scenarios: Сборка образа на чистой машине;
-    Версии зафиксированы; FR-51, NFR-11, NFR-12).
+    Версии зафиксированы; FR-51, NFR-11, NFR-12). Спринт 16 (16.0): пин
+    S3-образа снят из проверок вместе с сервисом; nginx — tag+digest.
     """
     user_lines = re.findall(r"^USER\s+(\S+)", DOCKERFILE, re.M)
     assert user_lines, "в Dockerfile нет USER — процесс пойдет от root (NFR-11)"
@@ -132,14 +155,10 @@ def test_dockerfile_non_root_healthcheck_pinned():
     assert arg_pins and all("@sha256:" in pin for pin in arg_pins), (
         f"базовый образ python не запинен digest'ом: {arg_pins}"
     )
-    # Pin nginx (tag+digest) и MinIO (релизный тег, не :latest) — в compose
+    # Pin nginx (tag+digest) — в compose; S3-образа в стеке больше нет
     nginx = re.search(r"image:\s*(nginx:\S+)", COMPOSE)
-    minio = re.search(r"image:\s*(minio/minio:\S+)", COMPOSE)
     assert nginx and "@sha256:" in nginx.group(1), (
         f"nginx не запинен tag+digest: {nginx and nginx.group(1)!r}"
-    )
-    assert minio and "latest" not in minio.group(1), (
-        f"MinIO на плавающем теге: {minio and minio.group(1)!r}"
     )
 
 
@@ -162,26 +181,26 @@ def test_requirements_fully_pinned():
         )
 
 
-def test_ci_docker_build_job_and_dummy_env_step():
-    """TC-ADD-014, TC-ADD-015 — CI собирает образ; dummy .env перед compose.
+def test_ci_docker_build_job_compose_without_dummy_env():
+    """TC-ADD-014, TC-ADD-015 (ред. 16.0) — CI собирает образ; dummy .env-шага нет.
 
     Requirement: CI собирает образ и гоняет тесты в контейнере (Scenarios:
-    Падающий тест красит PR; Ломающий Dockerfile красит PR; FR-56).
-    Job docker-build обязан идти после шага, создающего dummy .env
-    (MINIO_ROOT_USER/MINIO_ROOT_PASSWORD — CI-placeholder'ы, не секреты),
-    иначе ${VAR:?}-интерполяция (F-1) роняет compose-команды на раннере.
+    Падающий тест красит PR; Ломающий Dockerfile красит PR; FR-56; дельта
+    16.0 Scenario «CI собирает compose без S3-переменных»). Бывший шаг
+    создания dummy .env (placeholder-креды под ${VAR:?}-интерполяцию)
+    удален из flow.yml — compose-команды выполняются без ручных
+    переменных; тест проверяет наличие job docker-build и compose-команд
+    и ОТСУТСТВИЕ dummy-env шага перед ними.
     """
     job = re.search(r"^  docker-build:\s*$", CI_FLOW, re.M)
     assert job, "в flow.yml нет job docker-build (FR-56)"
     job_block = CI_FLOW[job.start():]
-    dummy = re.search(r"MINIO_ROOT_USER=ci-placeholder", job_block)
-    assert dummy, (
-        "в job docker-build нет шага создания dummy .env "
-        "(MINIO_ROOT_USER/MINIO_ROOT_PASSWORD=ci-placeholder)"
-    )
     first_compose = job_block.find("docker compose")
     assert first_compose != -1, "в job docker-build нет compose-команд"
-    assert dummy.start() < first_compose, (
-        "dummy .env должен создаваться ПЕРЕД compose-командами "
-        "(${VAR:?}-интерполяция читает .env на старте compose)"
+    assert "ci-placeholder" not in job_block, (
+        "dummy .env-шаг (ci-placeholder) должен быть удален из job "
+        "docker-build — compose больше не требует обязательных интерполяций"
+    )
+    assert not re.search(r"Create dummy .env", job_block), (
+        "шаг «Create dummy .env» не должен присутствовать в job docker-build"
     )
