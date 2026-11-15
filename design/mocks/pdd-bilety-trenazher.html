@@ -1,0 +1,89 @@
+<!doctype html>
+<!-- Мокап (Спринт 17, на согласование): раздел «Билеты ПДД» кабинета ученика. Канон: сайдбар, логотип только в сайдбаре. Данные/картинки — из content/pdd/ (сайт-источник). -->
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>СберАвтошкола — Билеты ПДД (мокап)</title><style>
+*{box-sizing:border-box}html,body{margin:0;min-width:320px;background:#020b13;color:#f7fbfa;font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}button{font:inherit;color:inherit;cursor:pointer}
+.cabinet{display:grid;grid-template-columns:260px 1fr;min-height:100svh}
+.side{display:flex;flex-direction:column;gap:26px;padding:26px 22px;border-right:1px solid rgba(217,239,238,.12);background:rgba(6,16,22,.55)}
+.brand{display:flex;align-items:center;gap:10px;font-size:22px;font-weight:650;letter-spacing:-1.2px}.brand em{font-style:normal;color:#55ed9c}
+.check{width:34px;height:34px;display:grid;place-items:center;border:4px solid #49ec9a;border-radius:50%;color:#58efa3;font-size:22px;font-weight:500;transform:rotate(-8deg)}
+.brand small{display:block;font-size:11px;color:#8fa3aa;font-weight:400;letter-spacing:0}
+.side-nav{display:flex;flex-direction:column;gap:6px}
+.side-nav a{display:block;padding:11px 16px;border-radius:14px;color:#c9d6da;font-size:14px;text-decoration:none}
+.side-nav a:hover{background:rgba(73,236,154,.08);color:#f7fbfa}
+.side-nav a.on{background:rgba(73,236,154,.14);color:#55ed9c;border:1px solid rgba(73,236,154,.3)}
+.side-user{margin-top:auto;display:flex;flex-direction:column;gap:10px;font-size:14px;color:#dcebe9}
+.logout{padding:8px 20px;border:1px solid #ffffff40;border-radius:999px;background:transparent;font-size:13px}
+.logout:hover{border-color:var(--green,#49ec9a)}
+.frame{padding:30px 34px 46px}
+.kicker{font-size:12px;letter-spacing:.2em;color:#8fa3aa;text-transform:uppercase}
+h1{margin:10px 0 6px;font-size:30px;font-weight:550;letter-spacing:-.02em}
+.sub{color:#93a4ac;font-size:14px;margin:0 0 24px;line-height:1.5}
+@media(max-width:850px){.cabinet{grid-template-columns:1fr}.side{flex-direction:row;align-items:center;flex-wrap:wrap;gap:14px;border-right:0;border-bottom:1px solid rgba(217,239,238,.12)}.side-nav{flex-direction:row;flex-wrap:wrap}}
+</style></head><body>
+
+<div class="cabinet">
+<aside class="side">
+  <div class="brand"><span class="check">✓</span><span><em>Сбер</em>Автошкола<small>Кабинет ученика</small></span></div>
+  <nav class="side-nav">
+    <a href="#">Главная</a>
+    <a href="#">Кошелек</a>
+    <a href="#">Мои заявки</a>
+    <a href="#">Мои брони</a>
+    <a href="#">Найти инструктора</a>
+    <a href="#" class="on">Билеты ПДД</a>
+  </nav>
+  <div class="side-user"><span class="uname">Иван Ковалёв</span><button class="logout">Выйти</button></div>
+</aside>
+<main class="frame">
+
+<div class="page-head"><div><div class="kicker">Обучение · ПДД</div><h1>Билеты ПДД — тренажер</h1>
+<p class="sub">Режим экзамена: 20 вопросов, 20 минут. Картинки вопросов — как на реальном экзамене ГИБДД.</p></div></div>
+<div class="exam-bar">
+  <div class="exam-meta"><b>Билет 1</b><span>категория A/B/M</span></div>
+  <div class="timer">⏱ <b id="tm">19:42</b></div>
+  <div class="score">Верных: <b class="g">3</b> · Ошибок: <b class="r">1</b></div>
+</div>
+<div class="q-card">
+  <div class="q-num">Вопрос 3 из 20</div>
+  <p class="q-text">Можно ли Вам остановиться в указанном месте для посадки пассажира?</p>
+  <img class="q-img" src="../../content/pdd/images/bilety/7995187s.jpg" alt="ситуация вопроса">
+  <div class="answers">
+    <button class="ans good">1. Можно. <span class="tag">Верный</span></button>
+    <button class="ans wrong">2. Можно, если Вы управляете такси.</button>
+    <button class="ans">3. Нельзя.</button>
+  </div>
+  <div class="tip"><b>Пояснение:</b> Остановка для посадки/высадки пассажира разрешена в этом месте — знак 5.16 «Место остановки автобуса» действует и для легковых автомобилей при отсутствии запрещающих условий.</div>
+</div>
+<div class="q-nav">
+  <button class="qn done-g">1</button><button class="qn done-g">2</button><button class="qn cur">3</button>
+  <button class="qn done-r">4</button><button class="qn">5</button><button class="qn">6</button><button class="qn">7</button>
+  <button class="qn">8</button><button class="qn">9</button><button class="qn">10</button><button class="qn">11</button>
+  <button class="qn">12</button><button class="qn">13</button><button class="qn">14</button><button class="qn">15</button>
+  <button class="qn">16</button><button class="qn">17</button><button class="qn">18</button><button class="qn">19</button><button class="qn">20</button>
+</div>
+<style>
+.exam-bar{display:flex;align-items:center;gap:26px;padding:14px 20px;border:1px solid rgba(227,247,245,.16);border-radius:16px;background:rgba(9,22,28,.9);margin-bottom:20px;max-width:820px}
+.exam-meta b{font-size:16px}.exam-meta span{color:#8fa3aa;font-size:13px;margin-left:10px}
+.timer{margin-left:auto;font-size:18px;color:#f7fbfa}.timer b{font-variant-numeric:tabular-nums}
+.score{font-size:14px;color:#c9d6da}.g{color:#55ed9c}.r{color:#ff7d6e}
+.q-card{max-width:820px;padding:24px;border:1px solid rgba(221,249,245,.14);border-radius:18px;background:rgba(9,22,28,.9)}
+.q-num{font-size:12px;letter-spacing:.15em;color:#8fa3aa;text-transform:uppercase;margin-bottom:10px}
+.q-text{font-size:17px;font-weight:550;margin:0 0 16px}
+.q-img{display:block;max-width:520px;width:100%;border-radius:14px;border:1px solid rgba(221,249,245,.14);background:#fff;margin-bottom:18px}
+.answers{display:flex;flex-direction:column;gap:10px}
+.ans{text-align:left;padding:14px 18px;border:1px solid rgba(227,247,245,.18);border-radius:14px;background:rgba(4,19,32,.44);font-size:14px;line-height:1.45;position:relative}
+.ans:hover{border-color:rgba(85,237,156,.55)}
+.ans.good{background:rgba(85,237,156,.16);border-color:#49ec9a;color:#c9f7df}
+.ans.wrong{background:rgba(255,125,110,.12);border-color:#ff7d6e;color:#ffd7d0}
+.ans .tag{float:right;font-size:11px;background:#72a377;color:#fff;border-radius:6px;padding:2px 8px}
+.tip{margin-top:16px;padding:14px 16px;border-radius:12px;background:rgba(255,243,223,.12);border-left:3px solid #ffb3b3;color:#dcebe9;font-size:13px;line-height:1.55}
+.q-nav{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px;max-width:820px}
+.qn{width:46px;height:40px;border:1px solid rgba(227,247,245,.18);border-radius:10px;background:rgba(4,19,32,.44);font-size:14px;color:#c9d6da}
+.qn.done-g{background:rgba(85,237,156,.2);color:#55ed9c;border-color:rgba(73,236,154,.4)}
+.qn.done-r{background:rgba(255,125,110,.16);color:#ff7d6e;border-color:rgba(255,125,110,.4)}
+.qn.cur{outline:2px solid #49ec9a;color:#f7fbfa}
+</style>
+
+</main>
+</div>
+</body></html>

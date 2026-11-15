@@ -1,0 +1,87 @@
+<!doctype html>
+<!-- Мокап (Спринт 17, на согласование): раздел «Знаки» кабинета ученика. Канон: сайдбар, логотип только в сайдбаре. Данные/картинки — из content/pdd/ (сайт-источник). -->
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>СберАвтошкола — Знаки (мокап)</title><style>
+*{box-sizing:border-box}html,body{margin:0;min-width:320px;background:#020b13;color:#f7fbfa;font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}button{font:inherit;color:inherit;cursor:pointer}
+.cabinet{display:grid;grid-template-columns:260px 1fr;min-height:100svh}
+.side{display:flex;flex-direction:column;gap:26px;padding:26px 22px;border-right:1px solid rgba(217,239,238,.12);background:rgba(6,16,22,.55)}
+.brand{display:flex;align-items:center;gap:10px;font-size:22px;font-weight:650;letter-spacing:-1.2px}.brand em{font-style:normal;color:#55ed9c}
+.check{width:34px;height:34px;display:grid;place-items:center;border:4px solid #49ec9a;border-radius:50%;color:#58efa3;font-size:22px;font-weight:500;transform:rotate(-8deg)}
+.brand small{display:block;font-size:11px;color:#8fa3aa;font-weight:400;letter-spacing:0}
+.side-nav{display:flex;flex-direction:column;gap:6px}
+.side-nav a{display:block;padding:11px 16px;border-radius:14px;color:#c9d6da;font-size:14px;text-decoration:none}
+.side-nav a:hover{background:rgba(73,236,154,.08);color:#f7fbfa}
+.side-nav a.on{background:rgba(73,236,154,.14);color:#55ed9c;border:1px solid rgba(73,236,154,.3)}
+.side-user{margin-top:auto;display:flex;flex-direction:column;gap:10px;font-size:14px;color:#dcebe9}
+.logout{padding:8px 20px;border:1px solid #ffffff40;border-radius:999px;background:transparent;font-size:13px}
+.logout:hover{border-color:var(--green,#49ec9a)}
+.frame{padding:30px 34px 46px}
+.kicker{font-size:12px;letter-spacing:.2em;color:#8fa3aa;text-transform:uppercase}
+h1{margin:10px 0 6px;font-size:30px;font-weight:550;letter-spacing:-.02em}
+.sub{color:#93a4ac;font-size:14px;margin:0 0 24px;line-height:1.5}
+@media(max-width:850px){.cabinet{grid-template-columns:1fr}.side{flex-direction:row;align-items:center;flex-wrap:wrap;gap:14px;border-right:0;border-bottom:1px solid rgba(217,239,238,.12)}.side-nav{flex-direction:row;flex-wrap:wrap}}
+</style></head><body>
+
+<div class="cabinet">
+<aside class="side">
+  <div class="brand"><span class="check">✓</span><span><em>Сбер</em>Автошкола<small>Кабинет ученика</small></span></div>
+  <nav class="side-nav">
+    <a href="#">Главная</a>
+    <a href="#">Кошелек</a>
+    <a href="#">Мои заявки</a>
+    <a href="#">Мои брони</a>
+    <a href="#">Найти инструктора</a>
+    <a href="#" class="on">Знаки</a>
+  </nav>
+  <div class="side-user"><span class="uname">Иван Ковалёв</span><button class="logout">Выйти</button></div>
+</aside>
+<main class="frame">
+
+<div class="page-head"><div><div class="kicker">Обучение · ПДД</div><h1>Дорожные знаки</h1>
+<p class="sub">8 групп · 321 знак с описаниями. Выбери группу — внутри карточки знаков и их значение.</p></div></div>
+<div class="chips">
+  <button class="chip on">Предупреждающие <b>47</b></button>
+  <button class="chip">Приоритета <b>13</b></button>
+  <button class="chip">Запрещающие <b>38</b></button>
+  <button class="chip">Предписывающие <b>24</b></button>
+  <button class="chip">Особых предписаний <b>63</b></button>
+  <button class="chip">Информационные <b>37</b></button>
+  <button class="chip">Сервиса <b>22</b></button>
+  <button class="chip">Таблички <b>77</b></button>
+</div>
+<div class="zn-grid">
+  <figure class="zn"><img src="../../content/pdd/images/znaki/1.1small.png" alt="1.1"><figcaption><b>1.1</b> Железнодорожный переезд со шлагбаумом</figcaption></figure>
+  <figure class="zn"><img src="../../content/pdd/images/znaki/1.10small.png" alt="1.10"><figcaption><b>1.10</b> Выезд на набережную</figcaption></figure>
+  <figure class="zn"><img src="../../content/pdd/images/znaki/1.11.1small.png" alt="1.11.1"><figcaption><b>1.11.1</b> Опасный поворот (правый)</figcaption></figure>
+  <figure class="zn"><img src="../../content/pdd/images/znaki/1.12.1small.png" alt="1.12.1"><figcaption><b>1.12.1</b> Опасные повороты (с первым поворотом направо)</figcaption></figure>
+  <figure class="zn"><img src="../../content/pdd/images/znaki/1.13small.png" alt="1.13"><figcaption><b>1.13</b> Крутой спуск</figcaption></figure>
+  <figure class="zn"><img src="../../content/pdd/images/znaki/1.15small.png" alt="1.15"><figcaption><b>1.15</b> Скользкая дорога</figcaption></figure>
+  <figure class="zn"><img src="../../content/pdd/images/znaki/1.17small.png" alt="1.17"><figcaption><b>1.17</b> Искусственная неровность</figcaption></figure>
+  <figure class="zn"><img src="../../content/pdd/images/znaki/1.19small.png" alt="1.19"><figcaption><b>1.19</b> Опасная обочина</figcaption></figure>
+</div>
+<div class="zn-detail">
+  <div class="zd-head"><img src="../../content/pdd/images/znaki/1.1small.png" alt="1.1"><div><div class="kicker">Знак 1.1</div><b>Железнодорожный переезд со шлагбаумом</b></div></div>
+  <p>Предупреждает о приближении к железнодорожному переезду со шлагбаумом. Водитель обязан снизить скорость и быть готовым остановиться перед шлагбаумом.</p>
+  <div class="fine">⚠ Штраф за проезд без остановки: 5000 ₽ или лишение прав 3–6 мес. (ст. 12.10)</div>
+</div>
+<style>
+.chips{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:26px}
+.chip{padding:10px 18px;border:1px solid rgba(227,247,245,.18);border-radius:999px;background:rgba(4,19,32,.44);font-size:13px;color:#c9d6da}
+.chip b{color:#55ed9c;margin-left:6px}
+.chip.on{background:rgba(73,236,154,.14);color:#55ed9c;border-color:rgba(73,236,154,.3)}
+.zn-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:16px}
+.zn{margin:0;padding:16px;border:1px solid rgba(221,249,245,.14);border-radius:18px;background:rgba(9,22,28,.9);text-align:center;transition:transform .15s,border-color .15s;cursor:pointer}
+.zn:hover{transform:translateY(-3px);border-color:rgba(85,237,156,.5)}
+.zn img{height:86px;max-width:120px;object-fit:contain;background:#fff;border-radius:10px;padding:6px}
+.zn figcaption{margin-top:12px;font-size:13px;color:#c9d6da;line-height:1.4}
+.zn figcaption b{color:#f7fbfa;margin-right:6px}
+.zn-detail{margin-top:30px;padding:22px;border:1px solid rgba(85,237,156,.25);border-radius:18px;background:rgba(9,22,28,.9);max-width:760px}
+.zd-head{display:flex;align-items:center;gap:18px;margin-bottom:12px}
+.zd-head img{height:74px;background:#fff;border-radius:12px;padding:6px}
+.zd-head b{font-size:17px}
+.zn-detail p{margin:0 0 12px;color:#c9d6da;font-size:14px;line-height:1.55}
+.fine{padding:10px 14px;border-radius:10px;background:#fff3df;color:#6b4a00;font-size:13px;border-left:3px solid #ffb3b3}
+</style>
+
+</main>
+</div>
+</body></html>

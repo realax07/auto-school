@@ -1,0 +1,98 @@
+<!doctype html>
+<!-- Мокап (Спринт 17, на согласование): раздел «Правила» кабинета ученика. Канон: сайдбар, логотип только в сайдбаре. Данные/картинки — из content/pdd/ (сайт-источник). -->
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>СберАвтошкола — Правила (мокап)</title><style>
+*{box-sizing:border-box}html,body{margin:0;min-width:320px;background:#020b13;color:#f7fbfa;font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}button{font:inherit;color:inherit;cursor:pointer}
+.cabinet{display:grid;grid-template-columns:260px 1fr;min-height:100svh}
+.side{display:flex;flex-direction:column;gap:26px;padding:26px 22px;border-right:1px solid rgba(217,239,238,.12);background:rgba(6,16,22,.55)}
+.brand{display:flex;align-items:center;gap:10px;font-size:22px;font-weight:650;letter-spacing:-1.2px}.brand em{font-style:normal;color:#55ed9c}
+.check{width:34px;height:34px;display:grid;place-items:center;border:4px solid #49ec9a;border-radius:50%;color:#58efa3;font-size:22px;font-weight:500;transform:rotate(-8deg)}
+.brand small{display:block;font-size:11px;color:#8fa3aa;font-weight:400;letter-spacing:0}
+.side-nav{display:flex;flex-direction:column;gap:6px}
+.side-nav a{display:block;padding:11px 16px;border-radius:14px;color:#c9d6da;font-size:14px;text-decoration:none}
+.side-nav a:hover{background:rgba(73,236,154,.08);color:#f7fbfa}
+.side-nav a.on{background:rgba(73,236,154,.14);color:#55ed9c;border:1px solid rgba(73,236,154,.3)}
+.side-user{margin-top:auto;display:flex;flex-direction:column;gap:10px;font-size:14px;color:#dcebe9}
+.logout{padding:8px 20px;border:1px solid #ffffff40;border-radius:999px;background:transparent;font-size:13px}
+.logout:hover{border-color:var(--green,#49ec9a)}
+.frame{padding:30px 34px 46px}
+.kicker{font-size:12px;letter-spacing:.2em;color:#8fa3aa;text-transform:uppercase}
+h1{margin:10px 0 6px;font-size:30px;font-weight:550;letter-spacing:-.02em}
+.sub{color:#93a4ac;font-size:14px;margin:0 0 24px;line-height:1.5}
+@media(max-width:850px){.cabinet{grid-template-columns:1fr}.side{flex-direction:row;align-items:center;flex-wrap:wrap;gap:14px;border-right:0;border-bottom:1px solid rgba(217,239,238,.12)}.side-nav{flex-direction:row;flex-wrap:wrap}}
+</style></head><body>
+
+<div class="cabinet">
+<aside class="side">
+  <div class="brand"><span class="check">✓</span><span><em>Сбер</em>Автошкола<small>Кабинет ученика</small></span></div>
+  <nav class="side-nav">
+    <a href="#">Главная</a>
+    <a href="#">Кошелек</a>
+    <a href="#">Мои заявки</a>
+    <a href="#">Мои брони</a>
+    <a href="#">Найти инструктора</a>
+    <a href="#" class="on">Правила</a>
+  </nav>
+  <div class="side-user"><span class="uname">Иван Ковалёв</span><button class="logout">Выйти</button></div>
+</aside>
+<main class="frame">
+
+<div class="page-head"><div><div class="kicker">Обучение · ПДД</div><h1>Правила дорожного движения</h1>
+<p class="sub">26 глав действующей редакции. Глава раскрывается по клику; пункты — полный текст.</p></div></div>
+<div class="prav-wrap">
+<div class="toc">
+  <button class="toc-item">1. Общие положения</button>
+  <button class="toc-item">2. Обязанности водителей</button>
+  <button class="toc-item">3. Применение световых сигналов</button>
+  <button class="toc-item">4. Обязанности пешеходов и пассажиров</button>
+  <button class="toc-item">5. Дорожная разметка</button>
+  <button class="toc-item">6. Дорожные сигналы светофора</button>
+  <button class="toc-item">7. Применение предупредительных сигналов</button>
+  <button class="toc-item">8. Начало движения, маневрирование</button>
+  <button class="toc-item">9. Расположение ТС на проезжей части</button>
+  <button class="toc-item on">10. Скорость движения</button>
+  <button class="toc-item">11. Обгон, опережение, встречный разъезд</button>
+  <button class="toc-item">12. Остановка и стоянка</button>
+  <button class="toc-item">13. Проезд перекрестков</button>
+  <button class="toc-item">14. Пешеходные переходы и остановки</button>
+  <button class="toc-item">15. Железнодорожные пути</button>
+  <button class="toc-item">16. Автомагистрали</button>
+  <button class="toc-item">17. Жилые зоны</button>
+  <button class="toc-item">18. Приоритет маршрутных ТС</button>
+  <button class="toc-item">19. Внешние световые приборы</button>
+  <button class="toc-item">20. Буксировка</button>
+  <button class="toc-item">21. Учебная езда</button>
+  <button class="toc-item">22. Перевозка людей</button>
+  <button class="toc-item">23. Перевозка грузов</button>
+  <button class="toc-item">24. Движение велосипедистов</button>
+  <button class="toc-item">25. Движение гужевых повозок</button>
+  <button class="toc-item">26. Основные положения, допускающие управление</button>
+</div>
+<article class="chapter">
+  <div class="kicker">Глава 10</div><h2>Скорость движения</h2>
+  <p><b>10.1</b> Водитель должен вести транспортное средство со скоростью, не превышающей установленного ограничения, учитывая при этом интенсивность движения, особенности и состояние транспортного средства и груза, дорожные и метеорологические условия, в частности видимость в направлении движения. Скорость должна обеспечивать водителю возможность постоянного контроля за движением транспортного средства для выполнения требований Правил.</p>
+  <p>При возникновении опасности для движения, которую водитель в состоянии обнаружить, он должен принять возможные меры к снижению скорости вплоть до остановки транспортного средства.</p>
+  <p><b>10.2</b> В населенных пунктах разрешается движение транспортных средств со скоростью не более 60 км/ч, а в жилых зонах, велосипедных зонах и на дворовых территориях не более 20 км/ч.</p>
+  <p><b>10.3</b> Вне населенных пунктов движение легковых автомобилей и грузовых автомобилей с разрешенной максимальной массой не более 3,5 т осуществляется со скоростью не более 90 км/ч на автомагистралях — не более 110 км/ч.</p>
+  <div class="fine">📌 Редакция — по Постановлениям Правительства РФ (ред. от 04.12.2018 N 1478 и позднейшие)</div>
+</article>
+</div>
+</div>
+<style>
+.prav-wrap{display:grid;grid-template-columns:300px 1fr;gap:30px;align-items:start}
+.prav-wrap .toc{margin-bottom:0}
+@media(max-width:1100px){.prav-wrap{grid-template-columns:1fr}}
+
+.toc{display:flex;flex-direction:column;gap:4px;position:sticky;top:20px}
+.toc-item{text-align:left;padding:9px 14px;font-size:13px;border:1px solid rgba(227,247,245,.14);border-radius:14px;background:rgba(9,22,28,.9);font-size:14px;color:#c9d6da}
+.toc-item:hover{border-color:rgba(85,237,156,.5);color:#f7fbfa}
+.toc-item.on{background:rgba(73,236,154,.14);color:#55ed9c;border-color:rgba(73,236,154,.3)}
+.chapter{padding:24px;border:1px solid rgba(221,249,245,.14);border-radius:18px;background:rgba(9,22,28,.9)}
+.chapter h2{margin:8px 0 18px;font-size:22px;font-weight:550}
+.chapter p{color:#dcebe9;font-size:14px;line-height:1.65;margin:0 0 14px}
+.chapter b{color:#55ed9c}
+.fine{margin-top:6px;padding:10px 14px;border-radius:10px;background:#fff3df;color:#6b4a00;font-size:13px;border-left:3px solid #ffb3b3}
+</style>
+
+</main>
+</div>
+</body></html>
