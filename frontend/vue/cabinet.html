@@ -43,6 +43,13 @@
     <!-- Спринт 16 (add-wallet-economy, 16.4.1): раздел «Кошелек» — ВНУТРИ
          кабинета (BUG-047), после «Мои брони» -->
     <button data-tab="Кошелек" type="button"><span class="ico">₽</span>Кошелек</button>
+    <!-- Спринт 17 (add-pdd-learning, 17.3.1): обучающие разделы ПДД —
+         4 пункта после «Кошелек» (к порядку существующих, БЕЗ
+         перегруппировки; иконки — юникод-глифы стиля кабинета) -->
+    <button data-tab="Знаки" type="button"><span class="ico">◈</span>Знаки</button>
+    <button data-tab="Правила" type="button"><span class="ico">☰</span>Правила</button>
+    <button data-tab="Билеты" type="button"><span class="ico">◉</span>Билеты</button>
+    <button data-tab="Штрафы" type="button"><span class="ico">⚠</span>Штрафы</button>
   </nav>
 </aside>
 <div class="hero"><div class="frame">
@@ -200,6 +207,20 @@
     <thead><tr><th>Дата</th><th>Тип</th><th>Описание</th><th style="text-align:right">Сумма</th></tr></thead>
     <tbody id="hist"></tbody>
   </table>
+</div>
+
+<!-- Спринт 17 (add-pdd-learning, 17.3.1): раздел «Знаки» (мокап
+     design/mocks/pdd-znaki-student.html): скелет — синхронно с App.vue;
+     динамические списки (чипы/сетка/деталь) — в lazy-компоненте
+     sections/PddSigns.vue (прецедент sec-requests, NFR-26) -->
+<div id="sec-pdd-signs" style="display:none">
+  <div class="page-head">
+    <div>
+      <div class="kicker">Обучение · ПДД</div>
+      <h1>Дорожные знаки</h1>
+      <p>8 групп · 321 знак с описаниями. Выбери группу — внутри карточки знаков и их значение.</p>
+    </div>
+  </div>
 </div>
 
 <!-- модалка: пополнение кошелька (мок эквайринга; POST /api/wallet/topup
