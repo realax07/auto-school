@@ -54,6 +54,18 @@ COPY frontend/ frontend/
 # ROOT (тот же layout, что в репозитории; bare-metal без изменений). Образ
 # +~48 МБ — принимается (design.md «Решение 1»; корпус не выборочно трепется).
 COPY content/ content/
+# Спринт 17 (CR-fix CI docker-build): сгенерированный pdd-data (задача
+# 17.2.1) в контексте сборки ОТСУТСТВУЕТ — путь gitignored, генерация
+# выполняется ТОЛЬКО на `npm run build` frontend-builder-стадии (см.
+# .dockerignore: локальная папка в контекст не попадает). Канонический путь
+# — src/pages/cabinet/pdd-data (рядом с потребителем: PddTickets.vue glob
+# '../pdd-data/…' от sections/, static import PddFines/PddRules/PddSigns;
+# pytest-гейты внутри образа читают тот же путь /app/frontend/vue/src/
+# pages/cabinet/pdd-data). Единственный источник истины — артефакт
+# builder-стадии; без этого COPY в чистом чекауте CI два гейта
+# (test_pdd_tickets_data_sharded_per_ticket_chunk,
+# test_pdd_fines_table_renders_all_corpus_rows) падают FileNotFoundError.
+COPY --from=frontend-builder /app/frontend/vue/src/pages/cabinet/pdd-data ./frontend/vue/src/pages/cabinet/pdd-data
 # Собранный фронт каркаса Vue — из node builder-этапа (Спринт 9, ADR-008);
 # локальный dist исключен .dockerignore — в образе артефакт сборки образа.
 COPY --from=frontend-builder /app/frontend/vue/dist ./frontend/vue/dist

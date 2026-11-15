@@ -24,3 +24,9 @@ node_modules/
 # (артефакт сборки ОБРАЗА) — вне контекста
 frontend/vue/node_modules/
 frontend/vue/dist/
+# Спринт 17 (CR-fix CI docker-build): сгенерированный pdd-data — ТОЛЬКО
+# артефакт `npm run build` frontend-builder-стадии (генератор 17.2.1 делает
+# полную перезапись каталога). Локальная папка (gitignored, может быть
+# stale от ранней итерации) в контекст не попадает — runtime-стадия берет
+# ее одним COPY --from=frontend-builder по каноническому пути потребителя.
+frontend/vue/src/pages/cabinet/pdd-data/
