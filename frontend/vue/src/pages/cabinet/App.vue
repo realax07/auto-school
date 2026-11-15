@@ -308,6 +308,36 @@
   <pdd-rules v-if="pddRulesVisited"></pdd-rules>
 </div>
 
+<!-- Спринт 17 (add-pdd-learning, 17.5.1): раздел «Билеты» — тренажер
+     (мокап design/mocks/pdd-bilety-trenazher.html): скелет — синхронно
+     с cabinet.html; выбор/тренировка/результат — в PddTickets.vue
+     (defineAsyncComponent, v-if="pddTicketsVisited", NFR-26) -->
+<div id="sec-pdd-tickets" style="display:none">
+  <div class="page-head">
+    <div>
+      <div class="kicker">Обучение · ПДД</div>
+      <h1>Билеты ПДД — тренажер</h1>
+      <p>Режим экзамена: 20 вопросов, 20 минут. Картинки вопросов — как на реальном экзамене ГИБДД.</p>
+    </div>
+  </div>
+  <pdd-tickets v-if="pddTicketsVisited"></pdd-tickets>
+</div>
+
+<!-- Спринт 17 (add-pdd-learning, 17.6.1): раздел «Штрафы» (мокап
+     design/mocks/pdd-shtrafi-student.html): скелет — синхронно с
+     cabinet.html; поиск/таблица — в PddFines.vue
+     (defineAsyncComponent, v-if="pddFinesVisited", NFR-26) -->
+<div id="sec-pdd-fines" style="display:none">
+  <div class="page-head">
+    <div>
+      <div class="kicker">Обучение · ПДД</div>
+      <h1>Штрафы ГИБДД</h1>
+      <p>Таблица нарушений главы 12 КоАП: статья, нарушение, наказание. Поиск — по любой колонке, без перезагрузки.</p>
+    </div>
+  </div>
+  <pdd-fines v-if="pddFinesVisited"></pdd-fines>
+</div>
+
 <!-- модалка: пополнение кошелька (мок эквайринга; POST /api/wallet/topup
      с X-Idempotency-Key — повтор той же операции не удваивает зачисление) -->
 <div class="wal-backdrop" id="m-backdrop" role="dialog" aria-modal="true" aria-labelledby="wal-topup-title">
@@ -408,6 +438,12 @@ export default {
     PddRules: defineAsyncComponent(function () {
       return import('./sections/PddRules.vue');
     }),
+    PddTickets: defineAsyncComponent(function () {
+      return import('./sections/PddTickets.vue');
+    }),
+    PddFines: defineAsyncComponent(function () {
+      return import('./sections/PddFines.vue');
+    }),
   },
   setup: function () {
     // --- сессия (sdd §10.2–10.4): токен сессии — sessionStorage, ключ
@@ -443,6 +479,8 @@ export default {
     // Спринт 17 (17.3.1): visited-загрузка lazy-секций ПДД (NFR-26)
     var pddSignsVisited = ref(false);
     var pddRulesVisited = ref(false);
+    var pddTicketsVisited = ref(false);
+    var pddFinesVisited = ref(false);
     var STATUS = {new:['На рассмотрении','st-new'],accepted:['Принята','st-acc'],denied:['Отказана','st-den']};
     // системный комментарий автозакрытия (ОВ-1) — тот же текст, что в бэкенде
     var SYSTEM_COMMENT = 'Заявка закрыта: ученик принят другим инструктором';
@@ -1000,6 +1038,13 @@ export default {
         if (signsSec) signsSec.style.display = isSigns ? 'block' : 'none';
         var rulesSec = document.getElementById('sec-pdd-rules');
         if (rulesSec) rulesSec.style.display = isRules ? 'block' : 'none';
+        // Спринт 17 (17.5.1/17.6.1): sec-pdd-tickets/sec-pdd-fines —
+        // носители появляются в этой же волне; display — только для
+        // существующих (тот же guard-паттерн)
+        var ticketsSec = document.getElementById('sec-pdd-tickets');
+        if (ticketsSec) ticketsSec.style.display = isTickets ? 'block' : 'none';
+        var finesSec = document.getElementById('sec-pdd-fines');
+        if (finesSec) finesSec.style.display = isFines ? 'block' : 'none';
         document.querySelectorAll('.snav button[data-tab]').forEach(function (b) {
           b.classList.toggle('on', b.dataset.tab === name);
         });
@@ -1024,6 +1069,8 @@ export default {
         // Спринт 17 (NFR-26): чанк секции грузится при ПЕРВОМ открытии
         if (isSigns) pddSignsVisited.value = true;
         if (isRules) pddRulesVisited.value = true;
+        if (isTickets) pddTicketsVisited.value = true;
+        if (isFines) pddFinesVisited.value = true;
       }
       document.querySelectorAll('.snav button[data-tab]').forEach(function (b) {
         b.addEventListener('click', function () { navTo(b.dataset.tab); });
@@ -1183,6 +1230,8 @@ export default {
       txBadge: txBadge, openDispute: openDispute,
       // Спринт 17 (17.3.1): visited-загрузка lazy-секций ПДД
       pddSignsVisited: pddSignsVisited, pddRulesVisited: pddRulesVisited,
+      // Спринт 17 (17.5.1/17.6.1): секции «Билеты»/«Штрафы»
+      pddTicketsVisited: pddTicketsVisited, pddFinesVisited: pddFinesVisited,
     };
   },
 };

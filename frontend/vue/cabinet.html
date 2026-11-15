@@ -237,6 +237,34 @@
   </div>
 </div>
 
+<!-- Спринт 17 (add-pdd-learning, 17.5.1): раздел «Билеты» — тренажер
+     (мокап design/mocks/pdd-bilety-trenazher.html): скелет — синхронно
+     с App.vue; выбор/тренировка/результат — в lazy-компоненте
+     sections/PddTickets.vue (прецедент sec-requests, NFR-26) -->
+<div id="sec-pdd-tickets" style="display:none">
+  <div class="page-head">
+    <div>
+      <div class="kicker">Обучение · ПДД</div>
+      <h1>Билеты ПДД — тренажер</h1>
+      <p>Режим экзамена: 20 вопросов, 20 минут. Картинки вопросов — как на реальном экзамене ГИБДД.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Спринт 17 (add-pdd-learning, 17.6.1): раздел «Штрафы» (мокап
+     design/mocks/pdd-shtrafi-student.html): скелет — синхронно с App.vue;
+     поиск/таблица — в lazy-компоненте sections/PddFines.vue
+     (прецедент sec-requests, NFR-26) -->
+<div id="sec-pdd-fines" style="display:none">
+  <div class="page-head">
+    <div>
+      <div class="kicker">Обучение · ПДД</div>
+      <h1>Штрафы ГИБДД</h1>
+      <p>Таблица нарушений главы 12 КоАП: статья, нарушение, наказание. Поиск — по любой колонке, без перезагрузки.</p>
+    </div>
+  </div>
+</div>
+
 <!-- модалка: пополнение кошелька (мок эквайринга; POST /api/wallet/topup
      с X-Idempotency-Key) -->
 <div class="wal-backdrop" id="m-backdrop" role="dialog" aria-modal="true" aria-labelledby="wal-topup-title">
