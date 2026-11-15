@@ -1,16 +1,17 @@
 # Regress add-pdd-learning — regress-final.md
 
 - change: add-pdd-learning
-- date: 2026-11-15T17:14:30+00:00
-- commit: e2f1ca3da116d81b6091734f19b378b743ec5d3c
+- date: 2026-11-15T18:07:43+00:00
+- commit: 6fed728f9a775e6d2582e5aabfda19ff9d5bba6a
 - worktree: /home/hermes-bot/.hermes/cache/scratch/wt-s17-pdd
 - verdict: PASS
 - tier: domain (эшелон 1: доменный regress)
-- duration: 710.3s
+- duration: 721.6s
 - diff source: git diff main...HEAD
 - domain map: project map test-model/regress-domains.json задана, правил нет — применен дефолт
-- changed files: 42
-- changed files: 42
+- changed files: 44
+- changed files: 44
+  - .dockerignore
   - .gitignore
   - Dockerfile
   - architecture/map.md
@@ -47,6 +48,7 @@
   - test-model/approved/add-pdd-learning/TC-S17-008.md
   - test-model/approved/add-pdd-learning/coverage.md
   - test-model/bugs/BUG-064.md
+  - test-model/regress/add-pdd-learning/regress-final.md
   - test-model/reviews/add-pdd-learning/review-001-cases.md
   - tests/unit/fixtures/pdd_logic_harness.mjs
   - tests/unit/test_pdd_generator.py
@@ -73,5 +75,5 @@
     from starlette.testclient import TestClient as TestClient  # noqa
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-555 passed, 1 warning in 708.68s (0:11:48)
+555 passed, 1 warning in 719.44s (0:11:59)
 ```
