@@ -76,21 +76,35 @@ footer{margin-top:32px;padding-top:18px;border-top:1px solid #ffffff10;display:f
 .m-actions{display:flex;gap:9px}
 .m-actions .act{flex:1}
 .m-close{background:transparent;border-color:#ffffff22;color:#b9c8ce}
+.cabinet{display:grid;grid-template-columns:260px 1fr;min-height:100svh}
+.side{display:flex;flex-direction:column;gap:26px;padding:26px 22px;border-right:1px solid rgba(217,239,238,.12);background:rgba(6,16,22,.55)}
+.side .brand{font-size:22px}
+.side-nav{display:flex;flex-direction:column;gap:6px}
+.side-nav a{display:block;padding:11px 16px;border-radius:14px;color:#c9d6da;font-size:14px;text-decoration:none}
+.side-nav a:hover{background:rgba(73,236,154,.08);color:#f7fbfa}
+.side-nav a.on{background:rgba(73,236,154,.14);color:#55ed9c;border:1px solid rgba(73,236,154,.3)}
+.side-user{margin-top:auto;display:flex;flex-direction:column;gap:10px;font-size:14px;color:#dcebe9}
+@media(max-width:850px){.cabinet{grid-template-columns:1fr}.side{flex-direction:row;align-items:center;flex-wrap:wrap;gap:14px;border-right:0;border-bottom:1px solid rgba(217,239,238,.12)}.side-nav{flex-direction:row;flex-wrap:wrap}}
 @media(max-width:850px){.frame{padding:20px 16px 36px}.crumb{display:none}h1{font-size:24px}.balances{grid-template-columns:1fr}.td-hide{display:none}}
 @media(max-width:560px){header{grid-template-columns:1fr auto}.brand{font-size:19px}.uname{display:none}}
 </style></head>
 <body>
-<div class="frame" id="sec-wallet">
-<header>
+<div class="cabinet">
+<aside class="side">
   <div class="brand"><span class="check">✓</span><span><em>Сбер</em>Автошкола<small>Кабинет ученика</small></span></div>
-  <div class="crumb">Кабинет ученика · Кошелек</div>
-  <div class="user"><span class="uname">Иван Ковалёв</span><span class="avatar">ИК</span><button class="logout">Выйти</button></div>
-</header>
-
+  <nav class="side-nav">
+    <a href="#">Главная</a>
+    <a href="#" class="on">Кошелек</a>
+    <a href="#">Мои заявки</a>
+    <a href="#">Мои брони</a>
+    <a href="#">Найти инструктора</a>
+  </nav>
+  <div class="side-user"><span class="uname">Иван Ковалёв</span><button class="logout">Выйти</button></div>
+</aside>
+<main class="frame" id="sec-wallet">
 <div class="page-head">
   <div>
     <div class="kicker">Кошелек</div>
-    <h1>Мой кошелек</h1>
     <p>Деньги хранятся в копейках, баланс — по журналу транзакций. При бронировании занятия сумма блокируется: она уходит из «Доступно» в «Заморожено» и возвращается, если занятие отменили.</p>
   </div>
   <div class="legenda">Заморожено — холды ваших броней</div>
@@ -180,4 +194,4 @@ document.getElementById('m-confirm').addEventListener('click',function(){
   toast('Зачислено '+rub(kop)+' ₽ (мок). Пополнение мгновенное.');
 });
 document.getElementById('to-bookings').addEventListener('click',function(){toast('Переход в раздел «Мои брони».')});
-</script></body></html>
+</script></main></div></body></html>
