@@ -168,7 +168,9 @@ def test_pdd_signs_fine_conditional_render():
     assert '<div v-if="selected.fine" class="fine"' in src
     # абзацы описания — отдельными <p> (замечание Заказчика: «сплошным
     # текстом… сделать более читабельным»)
-    assert 'v-for="(para, pi) in selected.descParas"' in src
+    assert 'v-for="(item, pi) in selectedDescItems"' in src
+    # табуляции/графика по смыслу: назначение — зелёная точка, исключения — красная
+    assert "zn-dot-" in src and "item.type" in src  # цвет точки по типу абзаца
     # модалка (замечание Заказчика №2): fine/desc — УСЛОВНЫЙ рендер внутри
     # zn-overlay (клик-вне/ESC/✕ закрывают — carrier e2e TC-UI-071)
     assert '@click.self="closeSign"' in src

@@ -60,7 +60,33 @@ h1{margin:10px 0 6px;font-size:30px;font-weight:550;letter-spacing:-.02em}
 </div>
 <div class="zn-overlay">
 <div class="zn-detail zn-modal">
-  <div class="zd-head"><img src="../../content/pdd/images/znaki/1.1small.png" alt="1.1"><div><div class="kicker">Знак 1.1</div><b>Железнодорожный переезд со шлагбаумом</b></div></div>
+  <button class="zn-close" title="Закрыть">×</button>
+  <div class="zd-head">
+    <img src="../content/pdd/images/znaki/1.1.gif" alt="1.1">
+    <div>
+      <div class="kicker">Знак 1.1</div>
+      <b>Железнодорожный переезд со шлагбаумом</b>
+    </div>
+  </div>
+  <div class="zn-para zn-para-info">
+    <span class="zn-dot"></span>
+    <p>Знак предупреждает о приближении к железнодорожному переезду с шлагбаумом. За пределами города или другого населённого пункта знак устанавливают на расстоянии от 150 до 300 метров до переезда. В городе знак будет ближе — на отметке от 50 до 100 метров.</p>
+  </div>
+  <div class="zn-para zn-para-info">
+    <span class="zn-dot"></span>
+    <p>Если расстояние нестандартное, оно указано на табличке дополнительной информации.</p>
+  </div>
+  <div class="zn-para zn-para-exception">
+    <span class="zn-dot zn-dot-exception"></span>
+    <p>Знак не применяется к маршрутным транспортным средствам, следующим по своим маршрутам, и к поездам, движущимся по переезду.</p>
+  </div>
+  <div class="fine">
+    <div class="fine-head"><span class="fine-ico">⚖</span> Штраф и наказание</div>
+    <p class="fine-text">Водители могут пересекать железнодорожные пути только на переездах, пропуская поезда.<br>а) Нельзя обгонять на переездах и за 100 метров до них.<br>б) На переезде останавливаться и парковаться запрещено.<br><b class="fine-sum">Штраф 1000 ₽ или лишение прав 3–6 мес.</b> (ст. 12.10)</p>
+    <a class="fine-link" href="#">все штрафы →</a>
+  </div>
+</div>
+</div>
   <p>Предупреждает о приближении к железнодорожному переезду со шлагбаумом. Водитель обязан снизить скорость и быть готовым остановиться перед шлагбаумом.</p>
   <div class="fine">⚠ Штраф за проезд без остановки: 5000 ₽ или лишение прав 3–6 мес. (ст. 12.10)</div>
   <button class="zn-close" title="Закрыть">×</button>
@@ -77,6 +103,19 @@ h1{margin:10px 0 6px;font-size:30px;font-weight:550;letter-spacing:-.02em}
 .zn img{height:86px;max-width:120px;object-fit:contain;background:#fff;border-radius:10px;padding:6px}
 .zn figcaption{margin-top:12px;font-size:13px;color:#c9d6da;line-height:1.4}
 .zn figcaption b{color:#f7fbfa;margin-right:6px}
+.zn-para{display:flex;gap:12px;align-items:flex-start;margin:0 0 12px;padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.04)}
+.zn-para p{font-size:15px;line-height:1.65;margin:0;color:#e6f0ec;flex:1}
+.zn-dot{flex:0 0 auto;width:9px;height:9px;border-radius:50%;margin-top:7px;background:#49ec9a}
+.zn-dot-exception{background:#ff7d6e}
+.zn-para-info{border-left:3px solid rgba(85,237,156,.55)}
+.zn-para-exception{border-left:3px solid #ffb3b3;background:rgba(255,179,179,.07)}
+.zn-para-exception p{color:#f4ded8}
+.fine{padding:10px 14px;border-radius:10px;background:#fff3df;color:#6b4a00;font-size:13px;border-left:3px solid #ffb3b3}
+.fine-head{display:flex;align-items:center;gap:10px;font-weight:650;font-size:14px;color:#6b4a00;margin-bottom:10px}
+.fine-ico{font-size:18px}
+.fine-text{margin:0;font-size:14px;line-height:1.6;color:#3d3427}
+.fine-sum{color:#1c6b3c;font-weight:700}
+.fine-link{margin-left:10px;color:#8a5a00}
 .zn-overlay{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(2,11,19,.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .zn-modal{position:relative;max-width:640px;width:100%;max-height:86vh;overflow:auto;margin:0;border-color:rgba(85,237,156,.35);box-shadow:0 30px 80px rgba(0,0,0,.5)}
 .zn-close{position:absolute;top:10px;right:12px;width:34px;height:34px;border-radius:50%;border:1px solid rgba(227,247,245,.25);background:rgba(4,19,32,.6);color:#c9d6da;font-size:18px;line-height:1;cursor:pointer}

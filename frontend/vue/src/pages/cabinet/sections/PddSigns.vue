@@ -49,9 +49,22 @@
           </div>
         </div>
         <template v-if="selected.desc">
-          <p v-for="(para, pi) in selected.descParas" :key="pi" data-test="pdd-desc">{{ para }}</p>
+          <div
+            v-for="(item, pi) in selectedDescItems"
+            :key="pi"
+            class="zn-para"
+            :class="'zn-para-' + item.type"
+            data-test="pdd-desc"
+          >
+            <span class="zn-dot" :class="'zn-dot-' + item.type"></span>
+            <p>{{ item.text }}</p>
+          </div>
         </template>
-        <div v-if="selected.fine" class="fine" data-test="pdd-fine">⚠ {{ selected.fine }}<a class="fine-link" href="#/pdd-fines">все штрафы →</a></div>
+        <div v-if="selected.fine" class="fine" data-test="pdd-fine">
+          <div class="fine-head"><span class="fine-ico">⚖</span> Штраф и наказание</div>
+          <p class="fine-text" v-html="fineRich"></p>
+          <a class="fine-link" href="#/pdd-fines">все штрафы →</a>
+        </div>
       </div>
     </div>
   </div>
@@ -74,6 +87,28 @@ export default {
     };
   },
   computed: {
+    // абзацы описания по смыслу (замечание Заказчика 2026-11-15: «сплошным
+    // текстом… сделать более читабельным», «табуляции, графику»):
+    // назначение — 🛈, исключения — 🚫 (красная планка + отступ)
+    selectedDescItems() {
+      if (!this.selected || !this.selected.descParas) return [];
+      return this.selected.descParas.map(function (text) {
+        var exception = /^(Знак\s+не\s+(применяется|касается)|Однако\s+действие\s+знака\s+не\s+распространяется|Исключени)/.test(text.trim());
+        return { text: text, type: exception ? 'exception' : 'info' };
+      });
+    },
+    // суммы — акцентом (экранирование до обертки; v-html только на esc+regex)
+    fineRich() {
+      if (!this.selected || !this.selected.fine) return '';
+      var esc = function (t) {
+        return String(t)
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      };
+      return esc(this.selected.fine).replace(
+        /((?:от|до)\s+)?\d[\d\u00a0 ]*(?:₽|руб\S*)/gi,
+        '<b class="fine-sum">$&</b>'
+      );
+    },
     groupSigns() {
       return this.signs.filter(function (s) { return s.group === this.activeGroup; }, this);
     },
