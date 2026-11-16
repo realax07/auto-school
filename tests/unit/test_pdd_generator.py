@@ -212,6 +212,94 @@ def test_shtrafi_rows_three_fields(generated):
     assert rows[0]["article"] == "Ст. 12.1"
 
 
+# --- strip хвостов сайта-источника (замечание Заказчика 2026-11-15 №3) -------
+
+JUNK_NEEDLES = (
+    "Поделиться",
+    "Печатать",
+    "Зарегистрироваться или войти, чтобы написать комментарий.",
+    "комментари",
+    "© 2026 ЭКЗАМЕН ПДД",
+    "Политика конфиденциальности",
+    "Пользовательское соглашение",
+    "Для автошкол",
+    "support@экзамен-пдд.рф",
+    "Написать в поддержку",
+    "ГлавнаяПДД",
+    "Назад к оглавлению",
+    "Ответить",
+)
+
+
+def test_pravila_html_free_of_source_site_chrome(generated):
+    """В html-блоках глав нет хвостов сайта-источника (замечание 3:
+    «Вот такого там быть не должно») — ни после чистки корпуса, ни при
+    повторной выгрузке (strip-лист генератора)."""
+    chapters = _load(generated, "pdd-pravila.json")
+    for c in chapters:
+        for block in c["html"]:
+            for needle in JUNK_NEEDLES:
+                assert needle not in block, (c["id"], needle, block[:60])
+
+
+def test_shtrafi_rows_free_of_source_site_chrome(generated):
+    rows = _load(generated, "pdd-shtrafi.json")
+    for r in rows:
+        joined = f"{r['article']} {r['violation']} {r['penalty']}"
+        for needle in JUNK_NEEDLES:
+            assert needle not in joined, (r["article"], needle)
+
+
+def test_generator_strips_reinjected_site_chrome(tmp_path):
+    """Strip-лист — ЗАЩИТА от повторной выгрузки: symlink-копия корпуса с
+    подмешанными в pravila-файл хвостами сайта (тизер/крошки/комментарии/
+    футер) → сборка ЗЕЛЕНАЯ, мусор в JSON не проходит (гейт strip)."""
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    for entry in ("pravila", "znaki", "shtrafi", "images", "znaki-details.json"):
+        os.symlink(CORPUS / entry, corpus / entry)
+    (corpus / "bilety").mkdir()
+    for cat in ("abm", "cd"):
+        (corpus / "bilety" / cat).mkdir()
+        for md in sorted((CORPUS / "bilety" / cat).glob("*.md")):
+            os.symlink(md, corpus / "bilety" / cat / md.name)
+    victim = corpus / "pravila" / "r17_Dvizhenie-v-zhilikh-zonakh.md"
+    text = victim.read_text(encoding="utf-8")
+    dirty = text.replace(
+        "17.4 Требования данного раздела распространяются также и на дворовые территории.\n",
+        "17.4 Требования данного раздела распространяются также и на дворовые территории.\n"
+        "\n"
+        "Поделиться\n"
+        "Печатать\n"
+        "Зарегистрироваться или войти, чтобы написать комментарий.\n"
+        "0 комментариев\n"
+        "ТестТестер01.01.27 в 10:00\n"
+        "текст комментария с сайта\n"
+        "Ответить\n"
+        "↓ 2 ответа\n"
+        "© 2026 ЭКЗАМЕН ПДД\n"
+        "Политика конфиденциальности\n"
+        "Пользовательское соглашение\n"
+        "Для автошкол\n"
+        "Контакты:\n"
+        "support@экзамен-пдд.рф\n"
+        "Написать в поддержку\n",
+    )
+    assert dirty != text
+    victim.unlink()
+    victim.write_text(dirty, encoding="utf-8")  # симлинк → обычный файл с мусором
+    out_dir = tmp_path / "out"
+    proc = run_generator(out_dir, content_dir=corpus)
+    assert proc.returncode == 0, f"генератор упал на грязном корпусе:\n{proc.stderr}"
+    chapters = _load(out_dir, "pdd-pravila.json")
+    c17 = next(c for c in chapters if c["id"] == 17)
+    for block in c17["html"]:
+        for needle in JUNK_NEEDLES:
+            assert needle not in block, (needle, block[:60])
+    # контент не пострадал: последний пункт главы на месте
+    assert any("17.4" in b for b in c17["html"])
+
+
 # --- идемпотентность и манифест ---------------------------------------------
 
 
@@ -277,3 +365,32 @@ def test_build_fails_on_missing_ticket_image(tmp_path):
     assert "bilet-01.md" in combined
     assert "definitely_missing.jpg" in combined
     assert not out_dir.exists() or not any(out_dir.iterdir())  # dist не собирается
+
+
+def test_znaki_desc_paras_split(generated):
+    """Замечание Заказчика 2026-11-15 (читабельность): desc разбит на
+    абзацы descParas (источник \n\n); у каждого знака с desc — непустой
+    массив без «сплошного текста»."""
+    from test_pdd_generator import _load
+
+    data = _load(generated, "pdd-znaki.json")
+    signs = data["signs"]
+    for s in signs:
+        if s.get("desc"):
+            assert isinstance(s.get("descParas"), list) and s["descParas"], s["number"]
+            assert "\n\n" not in "\n".join(s["descParas"]), s["number"]
+
+
+def test_znaki_fine_lines_split(generated):
+    """Замечание Заказчика (жёлтая карточка «сплошным текстом»): fine —
+    строками (вводный абзац + перечни а)/б)/в)); у знаков с fine массив
+    непуст и без переводов строк внутри элементов."""
+    from test_pdd_generator import _load
+
+    data = _load(generated, "pdd-znaki.json")
+    signs = data["signs"]
+    for s in signs:
+        if s.get("fine"):
+            assert isinstance(s.get("fineLines"), list) and s["fineLines"], s["number"]
+            for line in s["fineLines"]:
+                assert "\n" not in line, s["number"]

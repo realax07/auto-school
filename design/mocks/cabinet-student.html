@@ -37,13 +37,35 @@ header{display:flex;justify-content:flex-end;align-items:center;height:45px;marg
 .tile .go{position:absolute;right:24px;bottom:20px;font-size:22px;color:#55ed9c;font-weight:200}
 .soon{position:absolute;right:22px;top:22px;font-size:11px;letter-spacing:.1em;color:#7d939a;border:1px solid rgba(125,147,154,.35);border-radius:999px;padding:4px 12px}
 footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.12);display:flex;justify-content:space-between;font-size:13px;color:#7d939a}
+.cabinet{display:grid;grid-template-columns:260px 1fr;min-height:100svh}
+.side{padding:25px 17px;border-right:1px solid rgba(234,255,249,.12);background:rgba(4,16,24,.72);display:flex;flex-direction:column;gap:26px}
+.side-brand{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:700;letter-spacing:-.04em;padding:0 8px}
+.snav{display:grid;gap:5px}
+.snav button{border:1px solid transparent;background:transparent;color:#aab8c0;text-align:left;padding:12px;border-radius:12px;font-size:13px;display:flex;align-items:center;gap:12px}
+.snav button.on{color:#8ff2b5;background:#143023;border-color:#286445}
+.snav button:hover{background:rgba(255,255,255,.05)}
+.snav{overflow-y:auto}
+.side-user{margin-top:auto;display:flex;flex-direction:column;gap:10px;align-items:flex-start;font-size:14px;color:#dcebe9}
+.side-user .logout{padding:7px 18px;font-size:12px}
 @media(max-width:760px){header{justify-content:flex-end}.greet b{font-size:28px}.prompt{font-size:15px;height:60px}.quick{overflow-x:auto}.quick button{flex:0 0 auto}}
 </style></head><body>
+<div class="cabinet">
+<aside class="side">
+  <div class="side-brand"><span class="check">✓</span><div><em>Сбер</em>Автошкола<small>Кабинет ученика</small></div></div>
+  <nav class="snav">
+    <button class="on" type="button"><span class="ico">⌂</span>Главная</button>
+    <button type="button"><span class="ico">✉</span>Мои заявки</button>
+    <button type="button"><span class="ico">▤</span>Выбрать инструктора</button>
+    <button type="button"><span class="ico">◷</span>Мои брони</button>
+    <button type="button"><span class="ico">₽</span>Кошелек</button>
+    <button type="button"><span class="ico">◈</span>Знаки</button>
+    <button type="button"><span class="ico">☰</span>Правила</button>
+    <button type="button"><span class="ico">◉</span>Билеты</button>
+    <button type="button"><span class="ico">⚠</span>Штрафы</button>
+  </nav>
+  <div class="side-user"><span class="uname">Иван Иванов</span><button class="logout">Выйти</button></div>
+</aside>
 <div class="hero"><div class="frame">
-<header>
-  <div class="user"><span class="uname">Иван Иванов</span><button class="logout">Выйти</button></div>
-</header>
-
 <div class="greet">ЛИЧНЫЙ КАБИНЕТ<b>Добро пожаловать, Иван!</b></div>
 
 <!-- чат-бар (как на главной) -->
@@ -84,4 +106,5 @@ document.querySelectorAll('.tile,.quick button,.send,.logout').forEach(function(
   b.addEventListener('click',function(){alert('Заглушка: сервис появится в следующем спринте');});
 });
 </script>
+</div>
 </body></html>

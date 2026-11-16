@@ -4683,25 +4683,22 @@ def test_tc_ui_059_student_cabinet_single_logo_no_crumbs(page, server):
     expect(page.locator(".side-brand")).to_be_visible()
     assert page.locator("header .brand").count() == 0
     assert page.get_by_text("Личный кабинет · Ученик").count() == 0
-    # «Выйти» на месте (шапка не пустая)
-    expect(page.locator("header .logout")).to_be_visible()
+    # «Выйти» на месте — в САЙДБАРЕ снизу (замечание Заказчика 2026-11-15 №4:
+    # учётка перенесена из шапки в нижний левый угол сайдбара)
+    expect(page.locator(".side-user .logout")).to_be_visible()
 
     # подстраница «Выбор инструктора»: те же инварианты + крошка убрана
     page.goto(f"{server}/instructor-choice")
     expect(page.locator(".side-brand")).to_be_visible()
     assert page.locator("header .brand").count() == 0
     assert page.get_by_text("Кабинет ученика · Выбор инструктора").count() == 0
-    expect(page.locator("header #logout")).to_be_visible()
-    # BUG-062: плитки-аватара в шапке «Выбора инструктора» больше нет —
-    # шапка = ФИО + «Выйти»
-    assert page.locator("header .avatar").count() == 0
-    # BUG-061: блок пользователя прижат К ПРАВОМУ краю шапки (как во всех
-    # кабинетах), а не слева (регресс single-child header space-between)
-    box = page.locator("header .user").bounding_box()
-    frame_x = page.locator(".frame").bounding_box()["x"]
-    frame_w = page.locator(".frame").bounding_box()["width"]
-    right_gap = frame_x + frame_w - (box["x"] + box["width"])
-    assert right_gap < 40, f"блок пользователя не у правого края (зазор {right_gap}px)"
+    # учётка — в САЙДБАРЕ снизу (замечание №4), прижата к нижнему краю
+    # сайдбара (margin-top:auto); BUG-061/BUG-062 (шапка) не применимы —
+    # шапки на подстранице больше нет
+    box = page.locator(".side-user").bounding_box()
+    side = page.locator(".side").bounding_box()
+    bottom_gap = side["y"] + side["height"] - (box["y"] + box["height"])
+    assert bottom_gap < 40, f"учётка не у нижнего края сайдбара (зазор {bottom_gap}px)"
 
 
 def test_tc_ui_060_cabinet_tiles_no_v_kabinete_tag(page, server):
@@ -4897,11 +4894,13 @@ def test_tc_ui_070a_pdd_hash_opens_section_directly(page, server):
 def test_tc_ui_071_pdd_signs_group_grid_detail_back(page, server):
     """TC-UI-071 (Спринт 17, add-pdd-learning 17.7.2): раздел «Знаки» —
     чипы 8 групп со счётчиками корпуса, сетка карточек активной группы
-    (47 у «Предупреждающих», 77 у «Таблички»-t8), клик карточки → деталь
+    (47 у «Предупреждающих», 77 у «Таблички»-t8), клик карточки → МОДАЛЬНОЕ окно поверх страницы (замечание Заказчика
+    2026-11-15 №2: overlay + блюр фона, ✕/ESC/клик-вне закрывают;
+    перенос носителя — дизайн-изменение по прямой директиве)
     (kicker «Знак N.N», название, группа, описание, блок штрафа при
-    наличии записи), «назад к группе» возвращает сетку; блок штрафа
-    отсутствует у знака без записи fine (1.18), блок описания — у 5.33.1
-    (допуск корпуса). Изображения — /pdd-assets/znaki (200)."""
+    наличии записи); блок штрафа отсутствует у знака без записи fine
+    (1.18), блок описания — у 5.33.1 (допуск корпуса). Изображения —
+    /pdd-assets/znaki (200)."""
     _seed_session(page, "session_token", _student_token(server))
     page.goto(f"{server}/cabinet#/pdd-signs")
 
@@ -4922,20 +4921,22 @@ def test_tc_ui_071_pdd_signs_group_grid_detail_back(page, server):
     expect(page.locator('[data-test="pdd-detail"] .kicker')).to_have_text("Знак 1.1")
     expect(page.locator('[data-test="pdd-detail"] b').first).to_have_text(
         "Железнодорожный переезд со шлагбаумом")
-    expect(page.locator('[data-test="pdd-desc"]')).to_be_visible()
+    expect(page.locator('[data-test="pdd-desc"]').first).to_be_visible()
     expect(page.locator('[data-test="pdd-fine"]')).to_be_visible()
 
-    # «назад к группе» — деталь скрыта, сетка на месте
-    page.locator('[data-test="pdd-back"]').click()
-    expect(page.locator('[data-test="pdd-detail"]')).to_have_count(0)
+    # ESC закрывает модалку — сетка на месте (замечание №2: модальное окно)
+    page.keyboard.press("Escape")
+    expect(page.locator('[data-test="pdd-modal"]')).to_have_count(0)
     expect(page.locator('[data-test="pdd-grid"] .zn')).to_have_count(47)
 
     # знак без записи штрафа (1.18) — fine-блок НЕ рендерится
     page.locator('[data-test="pdd-grid"] .zn', has_text="1.18").first.click()
     expect(page.locator('[data-test="pdd-detail"]')).to_be_visible()
     expect(page.locator('[data-test="pdd-fine"]')).to_have_count(0)
-    expect(page.locator('[data-test="pdd-desc"]')).to_be_visible()
-    page.locator('[data-test="pdd-back"]').click()
+    expect(page.locator('[data-test="pdd-desc"]').first).to_be_visible()
+    # клик по бэкдропу (вне карточки) — закрытие модалки
+    page.locator('[data-test="pdd-modal"]').click(position={"x": 5, "y": 5})
+    expect(page.locator('[data-test="pdd-modal"]')).to_have_count(0)
 
     # группа «Таблички» (формат t8 «## | N.N») — 77 карточек
     page.locator('[data-test="pdd-chip-t8"]').click()

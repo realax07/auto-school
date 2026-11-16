@@ -25,8 +25,11 @@
 <body>
 <div id="app">
 <div class="app">
-<!-- BUG-047: единый сайдбар ученика; «Выбрать инструктора» — активный раздел,
-     остальные пункты ведут в кабинет (отдельной кнопки «← В кабинет» больше нет) -->
+<!-- BUG-047: единый сайдбар ученика; «Выбрать инструктора» — активный раздел.
+     Замечание Заказчика 2026-11-15 №1: канонический ЕДИНЫЙ список ученического
+     сайдбара — тот же состав и порядок, что в кабинете (cabinet.html .snav):
+     при переходах между страницами сайдбар не меняется. Ссылки ведут в
+     кабинет по хешам разделов (#/… роутятся App.vue при загрузке) -->
 <aside class="side">
   <div class="side-brand"><span class="check">✓</span><div><em>Сбер</em>Автошкола<small>Кабинет ученика</small></div></div>
   <nav class="snav">
@@ -34,12 +37,15 @@
     <a href="/cabinet#/my-requests"><span class="ico">✉</span>Мои заявки</a>
     <a class="on" href="/instructor-choice"><span class="ico">▤</span>Выбрать инструктора</a>
     <a href="/cabinet#/my-bookings"><span class="ico">◷</span>Мои брони</a>
+    <a href="/cabinet#/wallet"><span class="ico">₽</span>Кошелек</a>
+    <a href="/cabinet#/pdd-signs"><span class="ico">◈</span>Знаки</a>
+    <a href="/cabinet#/pdd-rules"><span class="ico">☰</span>Правила</a>
+    <a href="/cabinet#/pdd-tickets"><span class="ico">◉</span>Билеты</a>
+    <a href="/cabinet#/pdd-fines"><span class="ico">⚠</span>Штрафы</a>
   </nav>
+  <div class="side-user"><span class="uname" id="uname">…</span><button class="logout" id="logout">Выйти</button></div>
 </aside>
 <div class="frame">
-<header>
-  <div class="user"><span class="uname" id="uname">…</span><button class="logout" id="logout">Выйти</button></div>
-</header>
 
 <div class="page-head">
   <div class="kicker">Выбор инструктора</div>

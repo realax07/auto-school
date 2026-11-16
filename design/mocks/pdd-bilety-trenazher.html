@@ -42,6 +42,7 @@ h1{margin:10px 0 6px;font-size:30px;font-weight:550;letter-spacing:-.02em}
   <div class="exam-meta"><b>Билет 1</b><span>категория A/B/M</span></div>
   <div class="timer">⏱ <b id="tm">19:42</b></div>
   <div class="score">Верных: <b class="g">3</b> · Ошибок: <b class="r">1</b></div>
+  <button class="tk-reset" title="Сбросить ответы, таймер и прогресс">Сбросить</button>
 </div>
 <div class="q-card">
   <div class="q-num">Вопрос 3 из 20</div>
@@ -62,6 +63,8 @@ h1{margin:10px 0 6px;font-size:30px;font-weight:550;letter-spacing:-.02em}
   <button class="qn">16</button><button class="qn">17</button><button class="qn">18</button><button class="qn">19</button><button class="qn">20</button>
 </div>
 <style>
+.tk-reset{margin-left:18px;padding:9px 20px;border:1px solid rgba(255,125,110,.45);border-radius:999px;background:transparent;font-size:13px;color:#ff9d90}
+.tk-reset:hover{border-color:#ff7d6e;color:#ffd7d0}
 .exam-bar{display:flex;align-items:center;gap:26px;padding:14px 20px;border:1px solid rgba(227,247,245,.16);border-radius:16px;background:rgba(9,22,28,.9);margin-bottom:20px;max-width:820px}
 .exam-meta b{font-size:16px}.exam-meta span{color:#8fa3aa;font-size:13px;margin-left:10px}
 .timer{margin-left:auto;font-size:18px;color:#f7fbfa}.timer b{font-variant-numeric:tabular-nums}
