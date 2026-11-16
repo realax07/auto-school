@@ -58,10 +58,13 @@ h1{margin:10px 0 6px;font-size:30px;font-weight:550;letter-spacing:-.02em}
   <figure class="zn"><img src="../../content/pdd/images/znaki/1.17small.png" alt="1.17"><figcaption><b>1.17</b> Искусственная неровность</figcaption></figure>
   <figure class="zn"><img src="../../content/pdd/images/znaki/1.19small.png" alt="1.19"><figcaption><b>1.19</b> Опасная обочина</figcaption></figure>
 </div>
-<div class="zn-detail">
+<div class="zn-overlay">
+<div class="zn-detail zn-modal">
   <div class="zd-head"><img src="../../content/pdd/images/znaki/1.1small.png" alt="1.1"><div><div class="kicker">Знак 1.1</div><b>Железнодорожный переезд со шлагбаумом</b></div></div>
   <p>Предупреждает о приближении к железнодорожному переезду со шлагбаумом. Водитель обязан снизить скорость и быть готовым остановиться перед шлагбаумом.</p>
   <div class="fine">⚠ Штраф за проезд без остановки: 5000 ₽ или лишение прав 3–6 мес. (ст. 12.10)</div>
+  <button class="zn-close" title="Закрыть">×</button>
+</div>
 </div>
 <style>
 .chips{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:26px}
@@ -74,6 +77,9 @@ h1{margin:10px 0 6px;font-size:30px;font-weight:550;letter-spacing:-.02em}
 .zn img{height:86px;max-width:120px;object-fit:contain;background:#fff;border-radius:10px;padding:6px}
 .zn figcaption{margin-top:12px;font-size:13px;color:#c9d6da;line-height:1.4}
 .zn figcaption b{color:#f7fbfa;margin-right:6px}
+.zn-overlay{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(2,11,19,.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.zn-modal{position:relative;max-width:640px;width:100%;max-height:86vh;overflow:auto;margin:0;border-color:rgba(85,237,156,.35);box-shadow:0 30px 80px rgba(0,0,0,.5)}
+.zn-close{position:absolute;top:10px;right:12px;width:34px;height:34px;border-radius:50%;border:1px solid rgba(227,247,245,.25);background:rgba(4,19,32,.6);color:#c9d6da;font-size:18px;line-height:1;cursor:pointer}
 .zn-detail{margin-top:30px;padding:22px;border:1px solid rgba(85,237,156,.25);border-radius:18px;background:rgba(9,22,28,.9);max-width:760px}
 .zd-head{display:flex;align-items:center;gap:18px;margin-bottom:12px}
 .zd-head img{height:74px;background:#fff;border-radius:12px;padding:6px}

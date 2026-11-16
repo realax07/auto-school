@@ -10,7 +10,16 @@
      (native lazy)/desc/fine). Блок штрафа — УСЛОВНЫЙ рендер по корпусу
      (fine у 166/321); у 5.33.1/5.34.1 desc пуст — блок описания не
      рендерится (гейт-допуск генератора). Кросс-ссылка fine-блока —
-     #/pdd-fines (design «Решение 4»). -->
+     #/pdd-fines (design «Решение 4»).
+     Замечание Заказчика 2026-11-15 №2: деталь знака — МОДАЛЬНОЕ окно
+     ПОВЕРХ страницы (было: блок внизу .zn-detail): fixed overlay с блюром
+     фона (backdrop-filter: blur(8px) + затемнение — канон модалок входа
+     LoginModal/RegisterModal, мокап-источник обновлен тем же решением),
+     центрированная карточка zn-detail/zn-modal (крупная картинка знака,
+     номер+название, описание, блок штрафа при наличии). Закрытие: ✕,
+     ESC, клик по бэкдропу (@click.self); на время модалки скролл страницы
+     заблокирован (document.body.style.overflow — прецедент модалок
+     кабинета в App.vue). -->
 <template>
   <div>
     <div class="chips" data-test="pdd-chips">
@@ -25,18 +34,23 @@
         <figcaption><b>{{ s.number }}</b> {{ s.name }}</figcaption>
       </figure>
     </div>
-    <div v-if="selected" class="zn-detail" data-test="pdd-detail">
-      <div class="zd-head">
-        <img :src="selected.image" :alt="selected.number">
-        <div>
-          <div class="kicker">Знак {{ selected.number }}</div>
-          <b>{{ selected.name }}</b>
-          <small class="zn-group">{{ groupName(selected.group) }}</small>
+    <!-- модалка детали знака (замечание 2026-11-15 №2): overlay поверх
+         страницы; клик по карточке НЕ закрывает (@click.self), по бэкдропу —
+         закрывает; ✕/ESC — тоже (watch selected + onKeydown) -->
+    <div v-if="selected" class="zn-overlay" data-test="pdd-modal" @click.self="closeSign">
+      <button type="button" class="zn-close" data-test="pdd-close" aria-label="Закрыть" title="Закрыть" @click="closeSign">×</button>
+      <div class="zn-detail zn-modal" data-test="pdd-detail" role="dialog" aria-modal="true" :aria-label="'Знак ' + selected.number">
+        <div class="zd-head">
+          <img :src="selected.image" :alt="selected.number">
+          <div>
+            <div class="kicker">Знак {{ selected.number }}</div>
+            <b>{{ selected.name }}</b>
+            <small class="zn-group">{{ groupName(selected.group) }}</small>
+          </div>
         </div>
+        <p v-if="selected.desc" data-test="pdd-desc">{{ selected.desc }}</p>
+        <div v-if="selected.fine" class="fine" data-test="pdd-fine">⚠ {{ selected.fine }}<a class="fine-link" href="#/pdd-fines">все штрафы →</a></div>
       </div>
-      <p v-if="selected.desc" data-test="pdd-desc">{{ selected.desc }}</p>
-      <div v-if="selected.fine" class="fine" data-test="pdd-fine">⚠ {{ selected.fine }}<a class="fine-link" href="#/pdd-fines">все штрафы →</a></div>
-      <button type="button" class="zn-back" data-test="pdd-back" @click="closeSign">← назад к группе</button>
     </div>
   </div>
 </template>
@@ -62,7 +76,27 @@ export default {
       return this.signs.filter(function (s) { return s.group === this.activeGroup; }, this);
     },
   },
+  watch: {
+    // модалка: ESC-закрытие + блокировка скролла страницы, пока открыта
+    // (снятие блокировки — и при закрытии, и при размонтировании чанка)
+    selected(open) {
+      if (open) {
+        document.addEventListener('keydown', this.onKeydown);
+        document.body.style.overflow = 'hidden';
+      } else {
+        document.removeEventListener('keydown', this.onKeydown);
+        document.body.style.overflow = '';
+      }
+    },
+  },
+  beforeUnmount() {
+    document.removeEventListener('keydown', this.onKeydown);
+    document.body.style.overflow = '';
+  },
   methods: {
+    onKeydown(e) {
+      if (e.key === 'Escape') this.closeSign();
+    },
     selectGroup(id) {
       this.activeGroup = id;
       this.selected = null;

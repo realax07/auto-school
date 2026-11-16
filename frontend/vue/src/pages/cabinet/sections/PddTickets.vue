@@ -37,6 +37,7 @@
         <div class="exam-meta"><b>Билет {{ ticketNumber }}</b><span>{{ catTitle(category) }}</span></div>
         <div class="timer">⏱ <b data-test="pdd-timer">{{ clockText }}</b></div>
         <div class="score" data-test="pdd-score">Верных: <b class="g">{{ score.good }}</b> · Ошибок: <b class="r">{{ score.wrong }}</b></div>
+        <button type="button" class="tk-reset" data-test="pdd-reset" @click="resetExam" title="Сбросить ответы, таймер и прогресс">Сбросить</button>
         <button type="button" class="tk-finish" data-test="pdd-finish" @click="finish">Сдать</button>
       </div>
       <div v-if="questions.length" class="q-card" data-test="pdd-q-card">
@@ -144,6 +145,21 @@ export default {
     },
     // выбор билета: JSON билета — lazy-чанк по билету (глоб-карта выше);
     // чанк тянется при ПЕРВОМ выборе билета и кэшируется модулем
+    // сброс экзамена (замечание Заказчика 2026-11-15): ответы, таймер,
+    // прогресс — в ноль; возврат к списку билетов
+    resetExam() {
+      this.stopTimer();
+      this.picked = [];
+      this.cur = 0;
+      this.clock = EXAM_SECONDS;
+      this.finished = false;
+      this.questions = [];
+      this.loading = false;
+      this.loadError = false;
+      this.ticketId = null;
+      this.ticketNumber = 0;
+      this.category = '';
+    },
     startTicket(id) {
       if (this.loading) return;
       var loader = TICKET_CHUNKS['../pdd-data/pdd-bilety-' + id + '.json'];

@@ -149,9 +149,12 @@ def test_pdd_signs_mockup_fragments_in_component():
         'class="zn"',
         'loading="lazy"',
         '<figcaption><b>{{ s.number }}</b> {{ s.name }}</figcaption>',
-        '<div v-if="selected" class="zn-detail"',
+        '<div v-if="selected" class="zn-overlay" data-test="pdd-modal" @click.self="closeSign">',
+        '<div class="zn-detail zn-modal" data-test="pdd-detail" role="dialog" aria-modal="true"',
         '<div class="zd-head">',
         '<div class="kicker">Знак {{ selected.number }}</div>',
+        'data-test="pdd-close"',
+        "if (e.key === 'Escape') this.closeSign();",
     ]
     for fragment in fragments:
         assert fragment in src, fragment
@@ -164,7 +167,9 @@ def test_pdd_signs_fine_conditional_render():
     src = signs_source()
     assert '<div v-if="selected.fine" class="fine"' in src
     assert '<p v-if="selected.desc"' in src
-    assert '← назад к группе' in src  # возврат к группе
+    # модалка (замечание Заказчика №2): fine/desc — УСЛОВНЫЙ рендер внутри
+    # zn-overlay (клик-вне/ESC/✕ закрывают — carrier e2e TC-UI-071)
+    assert '@click.self="closeSign"' in src
 
 
 def test_pdd_signs_counters_match_corpus_and_mockup():
