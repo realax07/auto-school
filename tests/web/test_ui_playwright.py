@@ -4921,7 +4921,7 @@ def test_tc_ui_071_pdd_signs_group_grid_detail_back(page, server):
     expect(page.locator('[data-test="pdd-detail"] .kicker')).to_have_text("Знак 1.1")
     expect(page.locator('[data-test="pdd-detail"] b').first).to_have_text(
         "Железнодорожный переезд со шлагбаумом")
-    expect(page.locator('[data-test="pdd-desc"]')).to_be_visible()
+    expect(page.locator('[data-test="pdd-desc"]').first).to_be_visible()
     expect(page.locator('[data-test="pdd-fine"]')).to_be_visible()
 
     # ESC закрывает модалку — сетка на месте (замечание №2: модальное окно)
@@ -4933,7 +4933,7 @@ def test_tc_ui_071_pdd_signs_group_grid_detail_back(page, server):
     page.locator('[data-test="pdd-grid"] .zn', has_text="1.18").first.click()
     expect(page.locator('[data-test="pdd-detail"]')).to_be_visible()
     expect(page.locator('[data-test="pdd-fine"]')).to_have_count(0)
-    expect(page.locator('[data-test="pdd-desc"]')).to_be_visible()
+    expect(page.locator('[data-test="pdd-desc"]').first).to_be_visible()
     # клик по бэкдропу (вне карточки) — закрытие модалки
     page.locator('[data-test="pdd-modal"]').click(position={"x": 5, "y": 5})
     expect(page.locator('[data-test="pdd-modal"]')).to_have_count(0)

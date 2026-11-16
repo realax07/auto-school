@@ -314,6 +314,9 @@ function buildZnaki() {
     }
     const fine = String(rec.fine || '').trim();
     sign.desc = desc;
+    // замечание Заказчика 2026-11-15 («сплошным текстом… сделать более
+    // читабельным»): абзацы источника — отдельными элементами массива
+    sign.descParas = desc.split(/\n{2,}/).map((x) => x.trim()).filter(Boolean);
     sign.fine = fine === '' ? null : fine;
     // img/long записи ИГНОРИРУЮТСЯ (img пуст у всех 321, long — мусор источника)
   }

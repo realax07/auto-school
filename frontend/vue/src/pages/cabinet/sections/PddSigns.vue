@@ -48,7 +48,9 @@
             <small class="zn-group">{{ groupName(selected.group) }}</small>
           </div>
         </div>
-        <p v-if="selected.desc" data-test="pdd-desc">{{ selected.desc }}</p>
+        <template v-if="selected.desc">
+          <p v-for="(para, pi) in selected.descParas" :key="pi" data-test="pdd-desc">{{ para }}</p>
+        </template>
         <div v-if="selected.fine" class="fine" data-test="pdd-fine">⚠ {{ selected.fine }}<a class="fine-link" href="#/pdd-fines">все штрафы →</a></div>
       </div>
     </div>

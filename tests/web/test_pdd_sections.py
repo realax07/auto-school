@@ -166,7 +166,9 @@ def test_pdd_signs_fine_conditional_render():
     у 5.33.1/5.34.1 — блок описания тоже условный."""
     src = signs_source()
     assert '<div v-if="selected.fine" class="fine"' in src
-    assert '<p v-if="selected.desc"' in src
+    # абзацы описания — отдельными <p> (замечание Заказчика: «сплошным
+    # текстом… сделать более читабельным»)
+    assert 'v-for="(para, pi) in selected.descParas"' in src
     # модалка (замечание Заказчика №2): fine/desc — УСЛОВНЫЙ рендер внутри
     # zn-overlay (клик-вне/ESC/✕ закрывают — carrier e2e TC-UI-071)
     assert '@click.self="closeSign"' in src

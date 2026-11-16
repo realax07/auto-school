@@ -365,3 +365,17 @@ def test_build_fails_on_missing_ticket_image(tmp_path):
     assert "bilet-01.md" in combined
     assert "definitely_missing.jpg" in combined
     assert not out_dir.exists() or not any(out_dir.iterdir())  # dist не собирается
+
+
+def test_znaki_desc_paras_split(generated):
+    """Замечание Заказчика 2026-11-15 (читабельность): desc разбит на
+    абзацы descParas (источник \n\n); у каждого знака с desc — непустой
+    массив без «сплошного текста»."""
+    from test_pdd_generator import _load
+
+    data = _load(generated, "pdd-znaki.json")
+    signs = data["signs"]
+    for s in signs:
+        if s.get("desc"):
+            assert isinstance(s.get("descParas"), list) and s["descParas"], s["number"]
+            assert "\n\n" not in "\n".join(s["descParas"]), s["number"]
