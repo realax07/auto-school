@@ -90,6 +90,11 @@ export default defineConfig({
             return pkg;
           }
           if (id.includes("/src/shared/")) return "shared";
+          // Замечание Заказчика 2026-11-16: общий модуль сайдбара ученика
+          // (src/components/StudentSidebar.vue) — тоже СВОЙ код страниц в
+          // чанке 'shared' (правила наследуют /src/shared/ — ADR-008 п.3):
+          // кабинет и instructor-choice получают один и тот же чанк.
+          if (id.includes("/src/components/")) return "shared";
         },
       },
     },
