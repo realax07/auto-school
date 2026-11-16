@@ -414,3 +414,5 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
 .fines td{font-size:13.5px}
 
 .cabinet{display:grid;grid-template-columns:260px 1fr;min-height:100svh}
+
+.zn-modal .fine .fine-text{color:#3d3427 !important;font-size:14px;line-height:1.6}
