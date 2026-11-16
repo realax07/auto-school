@@ -34,12 +34,11 @@
     <a href="/cabinet#/pdd-rules"><span class="ico">☰</span>Правила</a>
     <a href="/cabinet#/pdd-tickets"><span class="ico">◉</span>Билеты</a>
     <a href="/cabinet#/pdd-fines"><span class="ico">⚠</span>Штрафы</a>
-  </nav>
+    </nav>
+  <div class="side-user"><span class="uname" id="uname">…</span><button class="logout" id="logout">Выйти</button></div>
 </aside>
 <div class="frame">
-<header>
-  <div class="user"><span class="uname" id="uname">…</span><button class="logout" id="logout">Выйти</button></div>
-</header>
+
 
 <div class="page-head">
   <div class="kicker">Выбор инструктора</div>

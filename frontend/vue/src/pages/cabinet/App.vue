@@ -47,11 +47,10 @@
     <button data-tab="Билеты" type="button"><span class="ico">◉</span>Билеты</button>
     <button data-tab="Штрафы" type="button"><span class="ico">⚠</span>Штрафы</button>
   </nav>
+  <div class="side-user"><span class="uname">Иван Иванов</span><button class="logout">Выйти</button></div>
 </aside>
 <div class="hero"><div class="frame">
-<header>
-  <div class="user"><span class="uname">Иван Иванов</span><button class="logout">Выйти</button></div>
-</header>
+<header></header>
 
 <!-- раздел «Главная» (единственный контент кабинета до BUG-047) -->
 <div id="sec-home">
