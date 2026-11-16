@@ -64,8 +64,8 @@
 // getToken/clearSession/toLogin — единый паттерн кабинетов; fioOf —
 // из shared/utils.js (FR-5, дословный перенос js/shared/utils.js).
 import { ref } from 'vue';
-import { api, getToken, clearSession, toLogin } from '../../shared/api.js';
-import { fioOf } from '../../shared/utils.js';
+import { api, getToken, clearSession, toLogin } from '../shared/api.js';
+import { fioOf } from '../shared/utils.js';
 
 export default {
   name: 'StudentSidebar',

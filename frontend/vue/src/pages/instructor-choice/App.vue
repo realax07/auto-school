@@ -13,30 +13,19 @@
      (класс .empty содержит display:none — v-show здесь не эквивалент);
      fetchSeq-гонка фильтров, sent-кэш («✓ Заявка отправлена»), 409-тост
      БЕЗ кэширования (review-001 #14), сортировка localeCompare 'ru',
-     empty-состояние, logout, сайдбар ученика — дословно.
-     Гвард без токена → toLogin; ФИО (#uname из /api/auth/me) — FR-5. -->
+     empty-состояние — дословно; сайдбар — ОТДЕЛЬНЫЙ МОДУЛЬ StudentSidebar
+     (замечание Заказчика 2026-11-16): ФИО (#uname) и «Выйти» — wiring
+     внутри компонента (страница больше не тянет /me и logout сама).
+     Гвард без токена → toLogin. -->
 <template>
 <div class="app">
-<!-- BUG-047: единый сайдбар ученика; «Выбрать инструктора» — активный раздел.
-     Замечание Заказчика 2026-11-15 №1: канонический ЕДИНЫЙ список ученического
-     сайдбара — тот же состав и порядок, что в кабинете (cabinet.html .snav):
-     при переходах между страницами сайдбар не меняется. Ссылки ведут в
-     кабинет по хешам разделов (#/… роутятся App.vue при загрузке) -->
-<aside class="side">
-  <div class="side-brand"><span class="check">✓</span><div><em>Сбер</em>Автошкола<small>Кабинет ученика</small></div></div>
-  <nav class="snav">
-    <a href="/cabinet"><span class="ico">⌂</span>Главная</a>
-    <a href="/cabinet#/my-requests"><span class="ico">✉</span>Мои заявки</a>
-    <a class="on" href="/instructor-choice"><span class="ico">▤</span>Выбрать инструктора</a>
-    <a href="/cabinet#/my-bookings"><span class="ico">◷</span>Мои брони</a>
-    <a href="/cabinet#/wallet"><span class="ico">₽</span>Кошелек</a>
-    <a href="/cabinet#/pdd-signs"><span class="ico">◈</span>Знаки</a>
-    <a href="/cabinet#/pdd-rules"><span class="ico">☰</span>Правила</a>
-    <a href="/cabinet#/pdd-tickets"><span class="ico">◉</span>Билеты</a>
-    <a href="/cabinet#/pdd-fines"><span class="ico">⚠</span>Штрафы</a>
-    </nav>
-  <div class="side-user"><span class="uname" id="uname">…</span><button class="logout" id="logout">Выйти</button></div>
-</aside>
+<!-- Замечание Заказчика 2026-11-16: сайдбар — ОТДЕЛЬНЫЙ МОДУЛЬ
+     StudentSidebar.vue (физически один элемент на всех ученических
+     страницах); активный пункт — props activeTab=«Выбрать инструктора»;
+     ссылки на разделы кабинета компонент ведет по каноническим хешам
+     (#/… роутятся App.vue кабинета при загрузке); ФИО/«Выйти» — wiring
+     внутри компонента (GET /api/auth/me, POST /api/auth/logout). -->
+<student-sidebar active-tab="Выбрать инструктора"></student-sidebar>
 <div class="frame">
 
 
@@ -147,11 +136,19 @@
 // toast/expWord — из vue/src/shared/utils.js; el() не переносится —
 // карточки рендерятся реактивным списком (интерполяция = текстовые узлы).
 import { onMounted, reactive, ref, computed } from 'vue';
-import { api, toLogin, clearSession, getToken } from '../../shared/api.js';
+import { api, toLogin, getToken } from '../../shared/api.js';
 import { toast, expWord } from '../../shared/utils.js';
+// Замечание Заказчика 2026-11-16: сайдбар — ОТДЕЛЬНЫЙ МОДУЛЬ (общий чанк
+// shared — vite.config.mjs manualChunks /src/components/); ФИО (#uname) и
+// «Выйти» — wiring ВНУТРИ StudentSidebar (страница больше не тянет /me и
+// logout сама — ClearSession ушел вместе с ними)
+import StudentSidebar from '../../components/StudentSidebar.vue';
 
 export default {
   name: 'InstructorChoiceApp',
+  // Единый сайдбар ученика (физически один элемент, активный — «Выбрать
+  // инструктора»)
+  components: { StudentSidebar },
   setup: function () {
     // --- поля карточки (реальный шейп GET /api/student/instructors,
     //     backend/student_marketplace.py; code-review review-001 #2/#5:
@@ -234,14 +231,10 @@ export default {
 
     onMounted(function(){
       // --- сессия ученика (единый паттерн кабинета, sdd §10.2–10.3) ---
+      // Замечание Заказчика 2026-11-16: guard страницы — только токен;
+      // ФИО (FR-5, было #uname из /api/auth/me) и «Выйти» (FR-8) — wiring
+      // ВНУТРИ StudentSidebar (компонент шлет их сам)
       if(!getToken()){toLogin()}
-      // ФИО ученика (FR-5)
-      api('/api/auth/me',{},function(res){
-        if(res.status===401||res.status===403||!res.data||!res.data.ok){toLogin();return}
-        var u=res.data.user||{};
-        var fio=[u.surname,u.name,u.patronymic].filter(Boolean).join(' ');
-        if(fio){document.getElementById('uname').textContent=fio;}
-      });
 
       function segBind(id,key){
         var box=document.getElementById(id);
@@ -265,12 +258,7 @@ export default {
       }
       document.getElementById('reset').addEventListener('click',reset);
       document.getElementById('empty-reset').addEventListener('click',reset);
-      // «Выйти»: POST /api/auth/logout -> очистка -> главная (к модалке входа)
-      document.getElementById('logout').addEventListener('click',function(){
-        fetch('/api/auth/logout',{method:'POST',headers:{'X-Session-Token':getToken()||''}})
-          .catch(function(){})
-          .then(function(){clearSession();location.href='/';});
-      });
+      // «Выйти»/ФИО — wiring внутри StudentSidebar (замечание 2026-11-16)
       if(getToken())loadInstructors();
     });
 

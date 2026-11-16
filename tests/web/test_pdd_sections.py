@@ -4,8 +4,12 @@ add-pdd-learning, задачи 17.3.2/17.4.2 — прецедент test_cabinet
 Секции «Знаки» (#/pdd-signs) и «Правила» (#/pdd-rules) переносят
 классы/структуру/стили СОГЛАСОВАННЫХ мокапов design/mocks/pdd-znaki-
 student.html и pdd-pravila-student.html (источник дизайна). Носители:
-- CABINET = frontend/vue/cabinet.html (скелет sec-pdd-* + 4 кнопки .snav);
+- CABINET = frontend/vue/cabinet.html (скелет sec-pdd-*; сайдбар — pre-boot
+  пустой контейнер, разметка .snav — в компоненте);
 - APP = src/pages/cabinet/App.vue (navTo/hash/visited, разметка синхронна);
+- SIDEBAR = src/components/StudentSidebar.vue — единый модуль сайдбара
+  (замечание Заказчика 2026-11-16): канонические 9 пунктов .snav живут
+  ТУТ, страницы-носители подключают компонент без дублей разметки;
 - SIGNS/RULES = sections/PddSigns.vue, PddRules.vue (динамические списки);
 - STYLES = src/pages/cabinet/styles.css (стили мокапов — дословно,
   новые правила только добавлены в конце — design-guard);
@@ -24,6 +28,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 CABINET = ROOT / "frontend" / "vue" / "cabinet.html"
 APP = ROOT / "frontend" / "vue" / "src" / "pages" / "cabinet" / "App.vue"
+SIDEBAR = ROOT / "frontend" / "vue" / "src" / "components" / "StudentSidebar.vue"
 SIGNS = ROOT / "frontend" / "vue" / "src" / "pages" / "cabinet" / "sections" / "PddSigns.vue"
 RULES = ROOT / "frontend" / "vue" / "src" / "pages" / "cabinet" / "sections" / "PddRules.vue"
 TICKETS = ROOT / "frontend" / "vue" / "src" / "pages" / "cabinet" / "sections" / "PddTickets.vue"
@@ -76,20 +81,21 @@ def corpus_chapter_count() -> int:
 # --- 17.3: сайдбар/хеши/скелеты (общий блок интеграции) ----------------------
 
 
-def test_pdd_sidebar_buttons_after_wallet_in_both_carriers():
-    """4 кнопки .snav после «Кошелек» (без перегруппировки существующих) —
-    в обоих носителях разметки."""
+def test_pdd_sidebar_buttons_after_wallet_in_sidebar_module():
+    """4 кнопки .snav после «Кошелек» (без перегруппировки) — в каноническом
+    списке модуля StudentSidebar.vue (замечание 2026-11-16: сайдбар —
+    ОТДЕЛЬНЫЙ МОДУЛЬ; страницы-носители подключают компонент без дублей)."""
     buttons = [
-        '<button data-tab="Знаки" type="button"><span class="ico">◈</span>Знаки</button>',
-        '<button data-tab="Правила" type="button"><span class="ico">☰</span>Правила</button>',
-        '<button data-tab="Билеты" type="button"><span class="ico">◉</span>Билеты</button>',
-        '<button data-tab="Штрафы" type="button"><span class="ico">⚠</span>Штрафы</button>',
+        '<button type="button" :class="{ on: isActive(\'Знаки\') }" data-tab="Знаки"',
+        '<button type="button" :class="{ on: isActive(\'Правила\') }" data-tab="Правила"',
+        '<button type="button" :class="{ on: isActive(\'Билеты\') }" data-tab="Билеты"',
+        '<button type="button" :class="{ on: isActive(\'Штрафы\') }" data-tab="Штрафы"',
     ]
-    for carrier in (cabinet_html(), app_source()):
-        wallet_pos = carrier.index('<button data-tab="Кошелек"')
-        for b in buttons:
-            pos = carrier.index(b)
-            assert pos > wallet_pos, f"кнопка не после «Кошелек»: {b}"
+    src = SIDEBAR.read_text(encoding="utf-8")
+    wallet_pos = src.index("isActive('Кошелек')")
+    for b in buttons:
+        pos = src.index(b)
+        assert pos > wallet_pos, f"кнопка не после «Кошелек»: {b}"
 
 
 def test_pdd_hashes_and_navto_wiring():
@@ -523,14 +529,18 @@ def test_pdd_four_section_skeletons_in_both_carriers():
 def test_pdd_snav_nine_items_order():
     """Сайдбар — 9 пунктов (design «Решение 3»): 8 data-tab + data-goto;
     обучающие ПДД — после «Кошелек» в порядке Знаки→Правила→Билеты→Штрафы
-    (без перегруппировки существующих)."""
-    for carrier in (cabinet_html(), app_source()):
-        nav = carrier.split('<nav class="snav">')[1].split("</nav>")[0]
-        buttons = re.findall(r'data-(?:tab|goto)="([^"]+)"', nav)
-        assert buttons == [
-            "Главная", "Мои заявки", "/instructor-choice", "Мои брони",
-            "Кошелек", "Знаки", "Правила", "Билеты", "Штрафы",
-        ], buttons
+    (без перегруппировки). Носитель — StudentSidebar.vue (единый модуль,
+    замечание 2026-11-16); страницы-носители дубликатов не содержат."""
+    src = SIDEBAR.read_text(encoding="utf-8")
+    nav = src.split('<nav class="snav">')[1].split("</nav>")[0]
+    buttons = re.findall(r'data-(?:tab|goto)="([^"]+)"', nav)
+    assert buttons == [
+        "Главная", "Мои заявки", "/instructor-choice", "Мои брони",
+        "Кошелек", "Знаки", "Правила", "Билеты", "Штрафы",
+    ], buttons
+    # разметка .snav — ровно в одном месте (в модуле), дублей на страницах нет
+    assert '<nav class="snav">' not in cabinet_html()
+    assert '<nav class="snav">' not in app_source()
 
 
 def test_pdd_four_hashes_bootstrap_in_app():
