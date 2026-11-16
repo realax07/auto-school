@@ -172,7 +172,7 @@ def test_pdd_signs_fine_conditional_render():
     # табуляции/графика по смыслу: назначение — зелёная точка, исключения — красная
     assert "zn-dot-" in src and "item.type" in src  # цвет точки по типу абзаца
     # штраф — строками с табуляцией перечней (замечание: «сплошной текст»)
-    assert 'fineLines' in src and 'fineIsItem' in src
+    assert 'fineRenderLines' in src
     # модалка (замечание Заказчика №2): fine/desc — УСЛОВНЫЙ рендер внутри
     # zn-overlay (клик-вне/ESC/✕ закрывают — carrier e2e TC-UI-071)
     assert '@click.self="closeSign"' in src
