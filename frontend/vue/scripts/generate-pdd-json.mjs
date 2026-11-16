@@ -205,7 +205,18 @@ function buildPravila() {
       }
     }
     if (cur.length) blocks.push(cur);
-    const html = blocks.map((b) => `<p>${b.map(escHtml).join('<br>')}</p>`);
+    const html = blocks.map((b) => {
+      const inner = b
+        .map((line) => {
+          const t = escHtml(line);
+          // «(в ред. …)» — служебная строка редакции, приглушенно
+          if (/^\(в ред\./.test(line)) return `<span class="amend">${t}</span>`;
+          // «10.1 текст…» — номер пункта как визуальный якорь
+          return t.replace(/^(\d+(?:\.\d+)*)\s/, '<b class="pnum">$1</b> ');
+        })
+        .join('<br>');
+      return `<p>${inner}</p>`;
+    });
     chapters.push({ id: parseInt(name.slice(1), 10), title, html });
   }
   return chapters;

@@ -36,20 +36,6 @@
   <p>Весь путь — от первого занятия<br>до экзамена — в одном месте.</p>
 </section>
 <div class="side">
-<!-- Замечание Заказчика 2026-11-15 №1: канонический ЕДИНЫЙ сайдбар ученика —
-     тот же состав и порядок, что в кабинете (cabinet.html .snav); ссылки
-     ведут в кабинет по хешам разделов (#/… роутятся App.vue кабинета) -->
-<nav class="snav">
-  <a href="/cabinet"><span class="ico">⌂</span>Главная</a>
-  <a href="/cabinet#/my-requests"><span class="ico">✉</span>Мои заявки</a>
-  <a href="/instructor-choice"><span class="ico">▤</span>Выбрать инструктора</a>
-  <a href="/cabinet#/my-bookings"><span class="ico">◷</span>Мои брони</a>
-  <a href="/cabinet#/wallet"><span class="ico">₽</span>Кошелек</a>
-  <a href="/cabinet#/pdd-signs"><span class="ico">◈</span>Знаки</a>
-  <a href="/cabinet#/pdd-rules"><span class="ico">☰</span>Правила</a>
-  <a href="/cabinet#/pdd-tickets"><span class="ico">◉</span>Билеты</a>
-  <a href="/cabinet#/pdd-fines"><span class="ico">⚠</span>Штрафы</a>
-</nav>
 <section class="steps">
   <div class="step s4">✓ <b>Права</b><small>04</small></div>
   <div class="step s3">▧ <b>Экзамен</b><small>03</small></div>

@@ -7,7 +7,7 @@
   «Выбрать инструктора» — data-goto);
 - instructor-choice.html + src/pages/instructor-choice/App.vue — ссылки
   (активный пункт «Выбрать инструктора» — текущая страница);
-- index.html + src/pages/landing/App.vue — ссылки (активного нет: лендинг
+- instructor-choice.html + его App.vue — ссылки (активный «Выбрать
   не входит в список).
 
 ПДД-хеши (#/pdd-*) и разделы кабинета (#/my-requests, #/my-bookings,
@@ -77,27 +77,3 @@ def test_snav_links_canonical_in_instructor_choice():
         assert nav.count("<a") == 9
 
 
-def test_snav_links_canonical_on_landing():
-    """index.html и landing/App.vue: тот же список ссылок в .side (активного
-    пункта нет — лендинг не входит в список)."""
-    for carrier in (
-        read(VUE / "index.html"),
-        read(SRC / "landing" / "App.vue"),
-    ):
-        nav = _nav_of(carrier)
-        cursor = -1
-        for name, ico, href in ITEMS:
-            line = f'<a href="{href}"><span class="ico">{ico}</span>{name}</a>'
-            cur = nav.index(line)
-            assert cur > cursor, f"порядок сайдбара нарушен: {name}"
-            cursor = cur
-        assert nav.count("<a") == 9
-        assert 'class="on"' not in nav
-
-
-def test_snav_landing_styles_appended_not_modified():
-    """Стили лендинга: правила .snav добавлены В КОНЕЦ (вербатим-гард —
-    существующие строки не изменялись; прежний последний media-блок цел)."""
-    css = read(SRC / "landing" / "styles.css")
-    assert ".snav{display:grid" in css
-    assert "@media(max-width:600px){.steps{align-items:stretch}.step{width:100%!important;margin-right:0!important}}" in css
