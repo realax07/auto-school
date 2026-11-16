@@ -91,6 +91,7 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
 .act.review:hover{background:#14332266}
 .no-req{display:none;border:1px dashed rgba(234,255,249,.22);border-radius:19px;padding:46px 20px;text-align:center;color:#8fa0a9}
 .no-req b{display:block;font-size:15px;color:#c9d6db;margin-bottom:8px}
+.no-req .no-req-text{display:block;font-size:14px;color:#c9d6db;margin-bottom:18px;line-height:1.5}
 .no-req button{margin-top:16px;border:1px solid #2b9c62;background:#123524;color:#c9ffdd;border-radius:11px;padding:10px 18px;font-size:12px}
 .toast{position:fixed;bottom:22px;right:22px;max-width:360px;background:#143323;border:1px solid #367b50;color:#b5f8cc;padding:13px 16px;border-radius:13px;font-size:12px;box-shadow:0 10px 40px #0008;display:none;z-index:20}
 .toast.show{display:block}

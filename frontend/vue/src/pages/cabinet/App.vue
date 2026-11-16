@@ -136,7 +136,7 @@
       </div>
     </article>
   </div>
-  <div class="no-req" id="noreq" :style="{display: viewReqs.length ? 'none' : 'block'}"><b>Заявок пока нет</b>Найдите инструктора в каталоге и подайте первую заявку.<button id="go-catalog" type="button">Перейти к выбору инструктора</button></div>
+  <div class="no-req" id="noreq" :style="{display: viewReqs.length ? 'none' : 'block'}"><b>Заявок пока нет</b><span class="no-req-text">Найдите инструктора в каталоге и подайте первую заявку.</span><button id="go-catalog" type="button">Перейти к выбору инструктора</button></div>
 </div>
 
 <!-- раздел «Мои брони» (Спринт 5, change add-booking-docs; мокап
