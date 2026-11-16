@@ -379,3 +379,18 @@ def test_znaki_desc_paras_split(generated):
         if s.get("desc"):
             assert isinstance(s.get("descParas"), list) and s["descParas"], s["number"]
             assert "\n\n" not in "\n".join(s["descParas"]), s["number"]
+
+
+def test_znaki_fine_lines_split(generated):
+    """Замечание Заказчика (жёлтая карточка «сплошным текстом»): fine —
+    строками (вводный абзац + перечни а)/б)/в)); у знаков с fine массив
+    непуст и без переводов строк внутри элементов."""
+    from test_pdd_generator import _load
+
+    data = _load(generated, "pdd-znaki.json")
+    signs = data["signs"]
+    for s in signs:
+        if s.get("fine"):
+            assert isinstance(s.get("fineLines"), list) and s["fineLines"], s["number"]
+            for line in s["fineLines"]:
+                assert "\n" not in line, s["number"]

@@ -318,6 +318,9 @@ function buildZnaki() {
     // читабельным»): абзацы источника — отдельными элементами массива
     sign.descParas = desc.split(/\n{2,}/).map((x) => x.trim()).filter(Boolean);
     sign.fine = fine === '' ? null : fine;
+    // замечание Заказчика 2026-11-15 («сплошной текст» в жёлтой карточке):
+    // строки штрафа отдельно — вводный абзац + перечни а)/б)/в) табуляцией
+    sign.fineLines = fine === '' ? [] : fine.split('\n').map((x) => x.trim()).filter(Boolean);
     // img/long записи ИГНОРИРУЮТСЯ (img пуст у всех 321, long — мусор источника)
   }
   // биекция в ОБЕ стороны: номера group-md == номера details

@@ -62,7 +62,13 @@
         </template>
         <div v-if="selected.fine" class="fine" data-test="pdd-fine">
           <div class="fine-head"><span class="fine-ico">⚖</span> Штраф и наказание</div>
-          <p class="fine-text" v-html="fineRich"></p>
+          <p
+            v-for="(line, li) in fineLines"
+            :key="li"
+            class="fine-line"
+            :class="{ 'fine-item': fineIsItem(line) }"
+            v-html="line"
+          ></p>
           <a class="fine-link" href="#/pdd-fines">все штрафы →</a>
         </div>
       </div>
@@ -98,6 +104,24 @@ export default {
       });
     },
     // суммы — акцентом (экранирование до обертки; v-html только на esc+regex)
+    // строки штрафа: экранирование + суммы акцентом; перечни а)/б)/в)
+    // (и 1./2./3.) — отдельными строками с табуляцией (замечание Заказчика)
+    fineLines() {
+      if (!this.selected || !this.selected.fineLines) return [];
+      var esc = function (t) {
+        return String(t)
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      };
+      return this.selected.fineLines.map(function (line) {
+        return esc(line).replace(
+          /((?:от|до)\s+)?\d[\d\u00a0 ]*(?:₽|руб\S*)/gi,
+          '<b class="fine-sum">$&</b>'
+        );
+      });
+    },
+    fineIsItem(line) {
+      return /^[а-дё]\)|^\d\.\s|^\d\)/.test(line);
+    },
     fineRich() {
       if (!this.selected || !this.selected.fine) return '';
       var esc = function (t) {
