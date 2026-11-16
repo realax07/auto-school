@@ -36,6 +36,15 @@
 // Для тестов генератора (tests/unit/test_pdd_generator.py, негативный
 // мини-фикстурой) каталоги переопределяются env: PDD_CONTENT_DIR /
 // PDD_OUT_DIR. Прод-пути — по умолчанию от корня репозитория.
+//
+// Спринт 17 fix (замечание Заказчика 2026-11-15 №3): strip-лист хвостов
+// сайта-источника («Поделиться», «Печатать», «Зарегистрироваться или войти,
+// чтобы написать комментарий.», «N комментариев», футер «© 2026 ЭКЗАМЕН
+// ПДД … Написать в поддержку», крошки «ГлавнаяПДД»/«Главная», «← Назад к
+// оглавлению», блоки комментариев «юзер+дата … Ответить», «↓ N ответ»,
+// обрезанные тизеры «…»). Применяется при парсинге pravila/shtrafi —
+// повторная выгрузка не притащит мусор в JSON; гейт внизу сборки падает,
+// если мусор все же проник в выдачу.
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -65,6 +74,78 @@ function dieIfFailed(stage) {
     console.error('Сборка прервана: content/pdd правится только перегенерацией (вне S17).');
     process.exit(1);
   }
+}
+
+// --- strip-лист хвостов сайта-источника (замечание Заказчика 2026-11-15 №3) ---
+const STRIP_EXACT = new Set([
+  'ГлавнаяПДД',
+  'Главная',
+  '← Назад к оглавлению',
+  'Поделиться',
+  'Печатать',
+  'Зарегистрироваться или войти, чтобы написать комментарий.',
+  '© 2026 ЭКЗАМЕН ПДД',
+  'Политика конфиденциальности',
+  'Пользовательское соглашение',
+  'Для автошкол',
+  'Контакты:',
+  'Написать в поддержку',
+]);
+const STRIP_RES = [
+  // NB: \w в JS не матчит кириллицу — только \S (прецедент: «комментариев»)
+  /^\d+\s+комментари\S*\s*$/,           // «0 комментариев», «1 комментарий»
+  /^↓\s*\d+\s+ответ\S*\s*$/,            // сворачивалка ветки ответов
+  /^\S+\d{2}\.\d{2}\.\d{2} в \d{2}:\d{2}$/, // автор комментария + дата
+  /support@экзамен-пдд\.рф/,            // почта поддержки в любой строке
+];
+// обрезанный тизер источника («…движение пешеходов р...») — многоточие в конце
+const STRIP_TEASER = (l) => l.trimEnd().endsWith('...');
+const STRIP_NEEDLES = [...STRIP_EXACT].filter((s) => s !== 'Главная');
+
+function isSiteChromeLine(line) {
+  const s = line.trim();
+  if (!s) return false;
+  if (STRIP_EXACT.has(s)) return true;
+  if (STRIP_TEASER(line)) return true;
+  return STRIP_RES.some((re) => re.test(s));
+}
+
+// Построчный strip + блоки комментариев (автор+дата → до «Ответить» включительно).
+function stripSiteChrome(lines) {
+  const out = [];
+  let inComment = false;
+  for (const line of lines) {
+    if (inComment) {
+      if (line.trim() === 'Ответить') inComment = false;
+      continue;
+    }
+    if (/^\S+\d{2}\.\d{2}\.\d{2} в \d{2}:\d{2}$/.test(line.trim())) {
+      inComment = true;
+      continue;
+    }
+    if (!isSiteChromeLine(line)) out.push(line);
+  }
+  return out;
+}
+
+// Гейт: мусор источника не должен проникнуть в выдачу (pravila html + shtrafi).
+function gateNoSiteChrome(pravilaChapters, shtrafiRows) {
+  const hits = [];
+  for (const c of pravilaChapters) {
+    for (const block of c.html) {
+      for (const needle of STRIP_NEEDLES) {
+        if (block.includes(needle)) hits.push(`pravila/${c.id}: «${needle}»`);
+      }
+    }
+  }
+  for (const r of shtrafiRows) {
+    for (const needle of STRIP_NEEDLES) {
+      if (`${r.article} ${r.violation} ${r.penalty}`.includes(needle)) {
+        hits.push(`shtrafi ${r.article}: «${needle}»`);
+      }
+    }
+  }
+  if (hits.length) fail(`хвосты сайта-источника в выдаче: ${hits.join('; ')}`);
 }
 
 // --- экранирование HTML для сгенерированных полей (v-html ТОЛЬКО для них) ---
@@ -98,7 +179,8 @@ function buildPravila() {
   }
   const chapters = [];
   for (const name of files) {
-    const lines = readFileSync(path.join(dir, name), 'utf8').split('\n');
+    // strip хвостов сайта-источника ДО парсинга (замечание 2026-11-15 №3)
+    const lines = stripSiteChrome(readFileSync(path.join(dir, name), 'utf8').split('\n'));
     const h1Idxs = lines.reduce((acc, l, i) => (l.startsWith('# ') ? acc.concat(i) : acc), []);
     if (h1Idxs.length !== 1) {
       fail(`pravila/${name}: строк H1 ${h1Idxs.length}, ожидается ровно одна`);
@@ -374,7 +456,7 @@ function buildShtrafi() {
     fail(`shtrafi: файлов ${files.length}, ожидается 1`);
     return [];
   }
-  const lines = readFileSync(path.join(dir, files[0]), 'utf8').split('\n');
+  const lines = stripSiteChrome(readFileSync(path.join(dir, files[0]), 'utf8').split('\n'));
   const headerIdx = lines.findIndex((l) => l.replace(/\r$/, '') === 'Пункт КоАП\tНарушение\tНаказание');
   if (headerIdx === -1) {
     fail('shtrafi: заголовок таблицы «Пункт КоАП\\tНарушение\\tНаказание» не найден');
@@ -407,6 +489,9 @@ const shtrafi = buildShtrafi();
 dieIfFailed('shtrafi');
 const bilety = buildBilety();
 dieIfFailed('bilety');
+// strip-гейт (замечание 2026-11-15 №3): хвосты источника не в выдаче
+gateNoSiteChrome(pravila, shtrafi);
+dieIfFailed('strip-gate');
 
 rmSync(OUT_DIR, { recursive: true, force: true });
 mkdirSync(OUT_DIR, { recursive: true });
