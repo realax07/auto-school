@@ -12,3 +12,10 @@
    в тексте чекбокса (target="_blank"). */
 .reg-check{display:flex;gap:9px;align-items:flex-start;font-size:13px;line-height:1.55;color:#a9bcc0;margin-top:16px}.reg-check input{accent-color:var(--acc);margin-top:2px;flex:none}.reg-check a{color:var(--acc2);text-decoration:underline;text-underline-offset:3px}
 @media(max-width:1500px){.frame{margin:0 6.5%}.brand{font-size:25px}.intro h1{font-size:clamp(66px,6.25vw,94px)}}/* nav скрывается на 901–1200 — зафиксированное решение (review-001 BUG-050 MINOR-1; на main был порог 900) */@media(max-width:1200px){nav{display:none}.quick{overflow-x:auto}.quick button{flex:0 0 auto!important}}@media(max-width:900px){.road:before,.road:after{left:70%}.frame{margin:0;padding:24px}.brand{font-size:21px}.check{width:31px;height:31px;font-size:21px;border-width:3px}nav{display:none}.auth{gap:8px}.login{padding:9px 23px}.hero-grid{grid-template-columns:1fr;gap:44px;margin-top:44px}.side{width:auto;min-width:0}.intro{max-width:none}.intro h1{font-size:55px}.intro p{font-size:17px;max-width:420px}.assistant{padding:17px;border-radius:26px}.prompt{font-size:15px;height:61px}.send{width:45px;height:45px}.ai-head{margin-bottom:11px}.feature{grid-template-columns:1fr}.feature-icon{display:none}footer{grid-template-columns:1fr 1fr;gap:15px;padding-top:15px}.feature b{font-size:13px}.feature p{font-size:11px}.tagline{padding-left:15px;font-size:13px}.arrow{font-size:22px;margin-top:3px}}@media(max-width:600px){.steps{align-items:stretch}.step{width:100%!important;margin-right:0!important}}
+/* Спринт 17 fix (замечание Заказчика 2026-11-15 №1): канонический сайдбар
+   ученика на лендинге — классы 1в1 кабинета (.snav, cabinet.html); стили
+   локальные для лендинга, существующие правила НЕ изменялись (вербатим-гард) */
+.snav{display:grid;gap:5px;margin-bottom:40px}
+.snav a{display:flex;align-items:center;gap:12px;border:1px solid #ffffff12;background:#071016b8;color:#aab8c0;text-align:left;padding:11px 14px;border-radius:12px;font-size:13px;text-decoration:none}
+.snav a .ico{width:20px;text-align:center;font-size:16px}
+.snav a:hover{color:#f7fbfa;background:#ffffff09;border-color:#ffffff22}
