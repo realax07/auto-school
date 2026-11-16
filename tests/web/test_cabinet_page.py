@@ -11,6 +11,10 @@ ADR-008), кабинет обслуживается входом каркаса 
   легаси + вербатим-комментарий wiring);
 - APP = src/pages/cabinet/App.vue (wiring — плоский JS в onMounted,
   реактивные списки — design.md «Границы правок тестов»);
+- SIDEBAR = src/components/StudentSidebar.vue — единый модуль сайдбара
+  (замечание Заказчика 2026-11-16): разметка side/snav/side-user и wiring
+  ФИО/«Выйти» переехали сюда; единица wiring страницы = вход + компонент
+  + utils (фрагменты мокапа сайдбара проверяются по совокупности);
 - UTILS = src/shared/utils.js (fioOf/fmtDate — дословный перенос
   js/shared/utils.js, задача 4.2; аналогично frontend_source, который
   следовал импортам легаси-модуля транзитивно: единица wiring включала
@@ -30,6 +34,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 CABINET = ROOT / "frontend" / "vue" / "cabinet.html"
 APP = ROOT / "frontend" / "vue" / "src" / "pages" / "cabinet" / "App.vue"
+SIDEBAR = ROOT / "frontend" / "vue" / "src" / "components" / "StudentSidebar.vue"
 UTILS = ROOT / "frontend" / "vue" / "src" / "shared" / "utils.js"
 STYLES = ROOT / "frontend" / "vue" / "src" / "pages" / "cabinet" / "styles.css"
 MOCKUP = ROOT / "design" / "mocks" / "cabinet-student.html"
@@ -40,12 +45,15 @@ def cabinet_html() -> str:
 
 
 def cabinet_source() -> str:
-    """Единица wiring страницы: вход + компонент + общие хелперы
+    """Единица wiring страницы: вход + КОМПОНЕНТ сайдбара + общие хелперы
     (аналог frontend_source("cabinet.html"), который включал подключенные
-    ES-модули легаси транзитивно — js/shared/utils.js был в единице)."""
+    ES-модули легаси транзитивно — js/shared/utils.js был в единице).
+    Замечание Заказчика 2026-11-16: сайдбар — отдельный модуль
+    StudentSidebar.vue, ФИО/«Выйти» — wiring внутри компонента."""
     return "\n".join([
         cabinet_html(),
         APP.read_text(encoding="utf-8"),
+        SIDEBAR.read_text(encoding="utf-8"),
         UTILS.read_text(encoding="utf-8"),
     ])
 
@@ -91,16 +99,19 @@ def test_cab_page_structure_matches_mockup_verbatim():
     """FR-9: структурные фрагменты мокапа перенесены дословно — заголовок,
     разметка hero/frame, крошка, футер (посимвольно); все строки стилей
     мокапа — дословно (носитель — styles.css страницы каркаса, прецедент
-    С14 §TC-FR19D-007); плитки — дословно (три <button class="tile">)."""
+    С14 §TC-FR19D-007); плитки — дословно (три <button class="tile">).
+    Замечание Заказчика 2026-11-16: фрагменты САЙДБАРА переехали в модуль
+    StudentSidebar.vue — сверяются с модулем (структура 1:1: статичное
+    «Иван Иванов» мокапа стало реактивным {{ uname }}, у кнопки —
+    type/@click wiring; прецедент «Границы правок тестов», перенос
+    носителя без ослабления — мокап-фрагмент остается сверенным)."""
     html = cabinet_source()
+    sidebar = SIDEBAR.read_text(encoding="utf-8")
     mockup = MOCKUP.read_text(encoding="utf-8")
     fragments = [
         "<!doctype html>",
         '<html lang="ru">',
         "<title>СберАвтошкола — Кабинет ученика (мокап)</title>",
-        '<aside class="side">',
-        '<div class="side-brand"><span class="check">✓</span><div><em>Сбер</em>Автошкола<small>Кабинет ученика</small></div></div>',
-        '<div class="side-user"><span class="uname">Иван Иванов</span><button class="logout">Выйти</button></div>',
         '<div class="hero"><div class="frame">',
         '<div class="greet">ЛИЧНЫЙ КАБИНЕТ<b>Добро пожаловать, Иван!</b></div>',
         '<section class="assistant">',
@@ -112,14 +123,31 @@ def test_cab_page_structure_matches_mockup_verbatim():
         assert fragment in html, fragment
         assert fragment in mockup, f"фрагмент не из мокапа: {fragment}"
 
+    # сайдбар: мокап-фрагменты — в мокапе, компонентные — в модуле 1:1
+    side_fragments = [
+        ('<aside class="side">', '<aside class="side">'),
+        ('<div class="side-brand"><span class="check">✓</span><div><em>Сбер</em>Автошкола<small>Кабинет ученика</small></div></div>',
+         '<div class="side-brand"><span class="check">✓</span><div><em>Сбер</em>Автошкола<small>Кабинет ученика</small></div></div>'),
+        ('<div class="side-user"><span class="uname">Иван Иванов</span><button class="logout">Выйти</button></div>',
+         '<div class="side-user"><span class="uname">{{ uname }}</span><button class="logout" type="button" @click="logout">Выйти</button></div>'),
+    ]
+    for mock_frag, comp_frag in side_fragments:
+        assert mock_frag in mockup, mock_frag
+        assert comp_frag in sidebar, comp_frag
+
     # все CSS-правила мокапа — дословно (блочные строки <style>;
-    # носитель — styles.css страницы каркаса, перенос 1:1 из легаси)
+    # носитель — styles.css страницы каркаса, перенос 1:1 из легаси).
+    # Замечание Заказчика 2026-11-16: CSS-строки САЙДБАРА (.side*/.snav*)
+    # переехали в модуль StudentSidebar.vue (scoped, 1:1) — сверяются с ним.
     mockup_css = mockup.split("<style>", 1)[1].split("</style>", 1)[0]
     page_css = STYLES.read_text(encoding="utf-8")
     for line in mockup_css.splitlines():
         if not line.strip():
             continue
-        assert line in page_css, f"CSS-строка мокапа изменена/удалена: {line[:60]}"
+        if line.lstrip().startswith((".side", ".snav")):
+            assert line in sidebar, f"CSS-строка мокапа (сайдбар) изменена/удалена в StudentSidebar.vue: {line[:60]}"
+        else:
+            assert line in page_css, f"CSS-строка мокапа изменена/удалена: {line[:60]}"
 
     # плитки — дословно (три <button class="tile"> из мокапа)
     mockup_tiles = mockup.split('<div class="tiles">', 1)[1].split("</div>", 1)[0]
@@ -158,13 +186,14 @@ def test_cab_wiring_401_redirect_to_landing():
 
 
 def test_cab_wiring_fio_substitution():
-    """FR-5: 200 → подстановка ФИО: uname = «{surname} {name} {patronymic}»,
-    greet = «Добро пожаловать, {name}!» (sdd §10.3). Спринт 15: wiring — в
-    App.vue (fioOf — из vue/src/shared/utils.js, дословный перенос)."""
+    """FR-5: 200 → подстановка ФИО: uname = «{surname} {name} {patronymic}»
+    (wiring ВНУТРИ StudentSidebar.vue: fioOf из vue/src/shared/utils.js,
+    реактивный uname), greet = «Добро пожаловать, {name}!» — App.vue по
+    событию @me сайдбара (sdd §10.3)."""
     src = cabinet_source()
     assert "surname" in src and "name" in src and "patronymic" in src
     assert "Добро пожаловать, " in src
-    assert "querySelector('.uname')" in src
+    assert "uname.value = fio" in src
     assert "querySelector('.greet b')" in src
 
 

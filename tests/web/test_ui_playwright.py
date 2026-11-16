@@ -1209,12 +1209,14 @@ def test_back_links_lead_to_role_home(page, server):
         (base / "vue" / "src" / "pages" / "instructor-dashboard" / "App.vue").read_text(encoding="utf-8"),
     ])
     # Спринт 15 (change add-vue-s15-final-migration, задача 5.1): носители
-    # cab/choice — входы каркаса Vue + App.vue (легаси cabinet.html и
-    # instructor-choice.html удалены — замена монолита целиком; фрагменты
-    # data-tab/sec-bookings/href — дословно в разметке обоих носителей)
+    # cab — вход каркаса Vue + App.vue (легаси cabinet.html удален — замена
+    # монолита целиком). Замечание Заказчика 2026-11-16: разметка .snav
+    # (data-tab «Мои заявки»/«Мои брони») — в МОДУЛЕ StudentSidebar.vue,
+    # единица сайдбара = вход + App.vue + модуль
     cab = "\n".join([
         (base / "vue" / "cabinet.html").read_text(encoding="utf-8"),
         (base / "vue" / "src" / "pages" / "cabinet" / "App.vue").read_text(encoding="utf-8"),
+        (base / "vue" / "src" / "components" / "StudentSidebar.vue").read_text(encoding="utf-8"),
     ])
     assert 'data-tab="Мои автомобили"' in dash, "нет раздела «Мои автомобили» в дашборде"
     # BUG-051: «Мои документы» переименована в «Профиль и документы»
@@ -1238,14 +1240,16 @@ def test_back_links_lead_to_role_home(page, server):
     assert 'data-tab="Мои заявки"' in cab, "нет раздела «Мои заявки» в кабинете"
     assert 'data-tab="Мои брони"' in cab, "нет раздела «Мои брони» в кабинете"
     assert 'id="sec-bookings"' in cab, "секция «Мои брони» должна быть внутри кабинета"
-    # Спринт 15 (change add-vue-s15-final-migration, задача 5.1): носитель
-    # choice — вход каркаса Vue + App.vue (легаси instructor-choice.html
-    # удален; href="/cabinet" в сайдбаре ученика — дословно, якорь TC-UI-019)
+    # Спринт 15: носитель choice — вход каркаса Vue + App.vue. Замечание
+    # 2026-11-16: возврат в кабинет — навигация модуля StudentSidebar
+    # (location.href = '/cabinet' + канонический хеш раздела), pre-boot
+    # instructor-choice.html ссылок-дублей не содержит
     choice = "\n".join([
         (base / "vue" / "instructor-choice.html").read_text(encoding="utf-8"),
         (base / "vue" / "src" / "pages" / "instructor-choice" / "App.vue").read_text(encoding="utf-8"),
+        (base / "vue" / "src" / "components" / "StudentSidebar.vue").read_text(encoding="utf-8"),
     ])
-    assert 'href="/cabinet"' in choice, "instructor-choice: нет возврата в /cabinet"
+    assert "location.href = '/cabinet'" in choice, "instructor-choice: нет возврата в /cabinet"
     review = (base / "vue" / "review-form.html").read_text(encoding="utf-8")
     assert 'href="/my-requests"' in review, \
         "review-form: нет кнопки «Назад к заявкам» (/my-requests → 301 в кабинет)"

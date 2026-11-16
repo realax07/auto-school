@@ -286,18 +286,25 @@ def test_generator_strips_reinjected_site_chrome(tmp_path):
         "Написать в поддержку\n",
     )
     assert dirty != text
-    victim.unlink()
-    victim.write_text(dirty, encoding="utf-8")  # симлинк → обычный файл с мусором
-    out_dir = tmp_path / "out"
-    proc = run_generator(out_dir, content_dir=corpus)
-    assert proc.returncode == 0, f"генератор упал на грязном корпусе:\n{proc.stderr}"
-    chapters = _load(out_dir, "pdd-pravila.json")
-    c17 = next(c for c in chapters if c["id"] == 17)
-    for block in c17["html"]:
-        for needle in JUNK_NEEDLES:
-            assert needle not in block, (needle, block[:60])
-    # контент не пострадал: последний пункт главы на месте
-    assert any("17.4" in b for b in c17["html"])
+    # BUG-067: victim — через symlink-«копию» это РЕАЛЬНЫЙ файл корпуса
+    # content/pdd/pravila; мутация в try/finally — тест обязан восстановить
+    # оригинал (иначе грязное дерево после гейта, прецедент d9e7353).
+    try:
+        victim.unlink()
+        victim.write_text(dirty, encoding="utf-8")  # симлинк → обычный файл с мусором
+        out_dir = tmp_path / "out"
+        proc = run_generator(out_dir, content_dir=corpus)
+        assert proc.returncode == 0, f"генератор упал на грязном корпусе:\n{proc.stderr}"
+        chapters = _load(out_dir, "pdd-pravila.json")
+        c17 = next(c for c in chapters if c["id"] == 17)
+        for block in c17["html"]:
+            for needle in JUNK_NEEDLES:
+                assert needle not in block, (needle, block[:60])
+        # контент не пострадал: последний пункт главы на месте
+        assert any("17.4" in b for b in c17["html"])
+    finally:
+        victim.unlink(missing_ok=True)
+        victim.write_text(text, encoding="utf-8")
 
 
 # --- идемпотентность и манифест ---------------------------------------------

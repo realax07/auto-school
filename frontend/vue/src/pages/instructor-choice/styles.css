@@ -20,7 +20,7 @@ header{display:flex;justify-content:flex-end;align-items:center;height:48px;marg
 .uname{font-size:13px;color:#d6e4e2}
 .logout{padding:8px 20px;border:1px solid #ffffff40;border-radius:999px;background:transparent;font-size:13px}
 .logout:hover{border-color:var(--green)}
-.page-head{margin:30px 0 22px}
+.page-head{margin:0 0 22px}
 .kicker{font-size:10px;color:#79eaa5;text-transform:uppercase;letter-spacing:.18em}
 .page-head h1{font-size:30px;letter-spacing:-.05em;font-weight:600;margin:9px 0 8px}
 .page-head p{font-size:13px;color:var(--muted);margin:0}
@@ -88,6 +88,12 @@ footer{margin-top:34px;padding-top:18px;border-top:1px solid #ffffff10;display:f
    Заказчика: кабинеты — единый лейаут сайдбар слева / контент справа).
    Классы 1в1 из кабинета ученика (cabinet.html .side/.snav). */
 .app{display:grid;grid-template-columns:236px minmax(0,1fr);min-height:100vh}
+/* Замечание Заказчика №2 (2026-11-16): контент к верху — верхний отступ
+   правой колонки = паддинг .frame (26px, отступ логотипа 25px). В grid
+   auto-маргины сильнее align-self: `margin:auto` вертикально центрировал
+   .frame в ячейке строки (frameTop≈71px при коротком контенте) — по
+   блоку оставляем горизонтальное центрирование, верх прижат к 0. */
+.app>.frame{margin:0 auto}
 .side{padding:25px 17px;border-right:1px solid #ffffff12;background:#071016b8;display:flex;flex-direction:column;gap:26px}
 .side-brand{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:700;letter-spacing:-.04em;padding:0 8px}
 .side-brand em{font-style:normal;color:var(--green)}

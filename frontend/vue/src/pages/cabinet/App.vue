@@ -26,31 +26,17 @@
      nowMoscow/fioOf; el/initials не переносятся — инициалы инлайном). -->
 <template>
 <div class="app">
-<aside class="side">
-  <div class="side-brand"><span class="check">✓</span><div><em>Сбер</em>Автошкола<small>Кабинет ученика</small></div></div>
-  <!-- BUG-047: примитивная навигация ученика; активный раздел подсвечивается.
-       Спринт 5: добавлен раздел «Мои брони» (booking-student.html) -->
-  <nav class="snav">
-    <button class="on" data-tab="Главная" type="button"><span class="ico">⌂</span>Главная</button>
-    <button data-tab="Мои заявки" type="button"><span class="ico">✉</span>Мои заявки</button>
-    <button data-goto="/instructor-choice" type="button"><span class="ico">▤</span>Выбрать инструктора</button>
-    <button data-tab="Мои брони" type="button"><span class="ico">◷</span>Мои брони</button>
-    <!-- Спринт 16 (add-wallet-economy, 16.4.1): раздел «Кошелек» — ВНУТРИ
-         кабинета (BUG-047: standalone-страницы запрещены), после «Мои брони»;
-         баланс по журналу транзакций + пополнение (мок эквайринга) + история -->
-    <button data-tab="Кошелек" type="button"><span class="ico">₽</span>Кошелек</button>
-    <!-- Спринт 17 (add-pdd-learning, 17.3.1): обучающие разделы ПДД —
-         4 пункта после «Кошелек» (к порядку существующих, БЕЗ
-         перегруппировки; иконки — юникод-глифы стиля кабинета) -->
-    <button data-tab="Знаки" type="button"><span class="ico">◈</span>Знаки</button>
-    <button data-tab="Правила" type="button"><span class="ico">☰</span>Правила</button>
-    <button data-tab="Билеты" type="button"><span class="ico">◉</span>Билеты</button>
-    <button data-tab="Штрафы" type="button"><span class="ico">⚠</span>Штрафы</button>
-  </nav>
-  <div class="side-user"><span class="uname">Иван Иванов</span><button class="logout">Выйти</button></div>
-</aside>
+<!-- Замечание Заказчика 2026-11-16: сайдбар — ОТДЕЛЬНЫЙ МОДУЛЬ
+     StudentSidebar.vue (физически один элемент на всех ученических
+     страницах): логотип/канонические 9 пунктов/учётка внизу слева; ФИО и
+     «Выйти» — wiring ВНУТРИ компонента (GET /api/auth/me, POST
+     /api/auth/logout). Активный пункт — props curTab; клик таба —
+     @tab="navTo" (существующий механизм разделов и хешей). -->
+<student-sidebar :active-tab="curTab" @tab="navTo" @me="onMe"></student-sidebar>
+<!-- Замечание Заказчика №2 (2026-11-16): пустой <header> (наследник шапки
+     мокапа, 45px+8px вертикали) убран — контент правой колонки начинается
+     у верха, отступ = паддинг .frame (26px, синхронно с мокапом). -->
 <div class="hero"><div class="frame">
-<header></header>
 
 <!-- раздел «Главная» (единственный контент кабинета до BUG-047) -->
 <div id="sec-home">
@@ -136,7 +122,7 @@
       </div>
     </article>
   </div>
-  <div class="no-req" id="noreq" :style="{display: viewReqs.length ? 'none' : 'block'}"><b>Заявок пока нет</b>Найдите инструктора в каталоге и подайте первую заявку.<button id="go-catalog" type="button">Перейти к выбору инструктора</button></div>
+  <div class="no-req" id="noreq" :style="{display: viewReqs.length ? 'none' : 'block'}"><b>Заявок пока нет</b><span class="no-req-text">Найдите инструктора в каталоге и подайте первую заявку.</span><button id="go-catalog" type="button">Перейти к выбору инструктора</button></div>
 </div>
 
 <!-- раздел «Мои брони» (Спринт 5, change add-booking-docs; мокап
@@ -420,17 +406,23 @@
 // (токен, слушатели, стартовые загрузки) — реактивный порт вместо
 // императивных биндингов на отсутствующий DOM.
 // Токен — sessionStorage 'session_token' (свой clearSession/toLogin —
-// как legacy); toast/fmtDate/nowMoscow/fioOf — из vue/src/shared/utils.js
-// (дословные переносы С14/С15); fetch-логика — локальная (как legacy).
+// как legacy); toast/fmtDate/nowMoscow — из vue/src/shared/utils.js
+// (дословные переносы С14/С15; fioOf переехал в StudentSidebar вместе с
+// ФИО-замечанием 2026-11-16); fetch-логика — локальная (как legacy).
 import { onMounted, ref, computed, defineAsyncComponent } from 'vue';
-import { toast, fmtDate, nowMoscow, fioOf } from '../../shared/utils.js';
+import { toast, fmtDate, nowMoscow } from '../../shared/utils.js';
+// Замечание Заказчика 2026-11-16: сайдбар — ОТДЕЛЬНЫЙ МОДУЛЬ (общий чанк
+// shared — vite.config.mjs manualChunks /src/components/)
+import StudentSidebar from '../../components/StudentSidebar.vue';
 
 export default {
   name: 'CabinetApp',
-  // Спринт 17 (add-pdd-learning, 17.3.1): секции обучения ПДД — lazy-чанки
+  // Единый сайдбар ученика (физически один элемент; ФИО/«Выйти» — внутри)
+  // + Спринт 17 (add-pdd-learning, 17.3.1): секции обучения ПДД — lazy-чанки
   // (NFR-26): defineAsyncComponent + v-if="pdd*-Visited" в шаблоне — чанк
   // грузится при ПЕРВОМ открытии раздела и остается смонтированным.
   components: {
+    StudentSidebar,
     PddSigns: defineAsyncComponent(function () {
       return import('./sections/PddSigns.vue');
     }),
@@ -470,6 +462,22 @@ export default {
     function handleAuthFail(res){
       if(res.status===401||res.status===403){toLogin();return true}
       return false;
+    }
+
+    // --- сайдбар (StudentSidebar): активный таб + greet из @me ------------
+    // Замечание Заказчика 2026-11-16: активный пункт сайдбара — props
+    // curTab (истина последней инстанции: кабинет роутит разделы через
+    // history.replaceState — hashchange не fireится, location-производная
+    // протухла бы внутри SPA). navTo обновляет curTab; клики табов приходят
+    // событием @tab от компонента (клик по «Выбрать инструктора» компонент
+    // обрабатывает сам — переход на /instructor-choice).
+    var curTab = ref('Главная');
+    // greet «Добро пожаловать, {name}!» — по событию @me компонента сайдбара
+    // (ФИО/учетка сайдбара компонент тянет сам; FR-5 остался единой точкой
+    // /api/auth/me — дубль запроса страницы убран)
+    function onMe(u) {
+      var el = document.querySelector('.greet b');
+      if (el) el.textContent = 'Добро пожаловать, ' + u.name + '!';
     }
 
     // --- раздел «Мои заявки» — реактивные данные (el()-отрисовка → v-for) ---
@@ -959,63 +967,20 @@ export default {
       });
     }
 
-    onMounted(function(){
-      // Bootstrap-привязки к СУЩЕСТВУЮЩИМ элементам (после монтирования):
-      // токен, ФИО, слушатели, стартовые загрузки. Все функции объявлены в
-      // setup-области выше — шаблон вызывает их напрямую (реактивный порт).
-
-      // GET /api/auth/me (X-Session-Token): 200 -> подстановка ФИО (FR-5)
-      try { token = sessionStorage.getItem(TOKEN_KEY); } catch (e) { token = null; }
-      if (!token) {
-        toLogin();
-      } else {
-        fetch('/api/auth/me', { headers: { 'X-Session-Token': token } })
-          .then(function (r) {
-            return r.json().then(function (d) { return { status: r.status, data: d }; });
-          })
-          .then(function (res) {
-            if (res.status === 401 || !res.data || !res.data.ok) { toLogin(); return; }
-            var u = res.data.user || {};
-            var fio = fioOf(u);
-            document.querySelector('.uname').textContent = fio;
-            document.querySelector('.greet b').textContent = 'Добро пожаловать, ' + u.name + '!';
-          })
-          .catch(function () { /* сеть: остаемся на странице без подстановки */ });
-      }
-
-      // «Выйти» -> POST /api/auth/logout -> очистка sessionStorage ->
-      // редирект на главную (FR-8); редирект после любого ответа (design, поток 3)
-      document.querySelector('.logout').addEventListener('click', function () {
-        fetch('/api/auth/logout', {
-          method: 'POST',
-          headers: { 'X-Session-Token': token || '' }
-        })
-          .catch(function () {})
-          .then(function () {
-            clearSession();
-            location.href = '/';
-          });
-      });
-
-      // Плитка «Найти водителя» (спринт 3, change add-instructor-student-loop):
-      // переход в раздел «Выбор инструктора» (страница /instructor-choice —
-      // по решению BUG-047 остается отдельной целевой страницей)
-      var tileInstructor = document.getElementById('tile-instructor');
-      if (tileInstructor) {
-        tileInstructor.addEventListener('click', function () {
-          location.href = '/instructor-choice';
-        });
-      }
-
-      // =====================================================================
-      // BUG-047: единый лейаут кабинета — переключение разделов «Главная» /
-      // «Мои заявки»; «Выбрать инструктора» — переход на /instructor-choice.
-      // Спринт 5 (change add-booking-docs): раздел «Мои брони» — тоже ВНУТРИ
-      // кабинета (BUG-047-прецедент: standalone-страницы запрещены).
-      // Активный пункт сайдбара подсвечивается. Хвост старых ссылок:
-      // /my-requests теперь 301 на /cabinet#/my-requests — хеш открывает
-      // раздел напрямую.
-      function navTo(name) {
+    // =====================================================================
+    // BUG-047: единый лейаут кабинета — переключение разделов «Главная» /
+    // «Мои заявки»; «Выбрать инструктора» — переход на /instructor-choice.
+    // Спринт 5 (change add-booking-docs): раздел «Мои брони» — тоже ВНУТРИ
+    // кабинета (BUG-047-прецедент: standalone-страницы запрещены).
+    // Активный пункт сайдбара подсвечивается. Хвост старых ссылок:
+    // /my-requests теперь 301 на /cabinet#/my-requests — хеш открывает
+    // раздел напрямую.
+    // Замечание Заказчика 2026-11-16: navTo — ВЫШЕ onMounted (setup-область):
+    // шаблон вызывает его напрямую как обработчик @tab StudentSidebar.
+    function navTo(name) {
+        // Замечание Заказчика 2026-11-16: активный пункт сайдбара — props
+        // curTab компонента StudentSidebar (подсветка — :class в компоненте)
+        curTab.value = name;
         var isReq = (name === 'Мои заявки');
         var isBk = (name === 'Мои брони');
         // Спринт 16 (16.4.1): «Кошелек» — третий реальный раздел кабинета
@@ -1044,9 +1009,9 @@ export default {
         if (ticketsSec) ticketsSec.style.display = isTickets ? 'block' : 'none';
         var finesSec = document.getElementById('sec-pdd-fines');
         if (finesSec) finesSec.style.display = isFines ? 'block' : 'none';
-        document.querySelectorAll('.snav button[data-tab]').forEach(function (b) {
-          b.classList.toggle('on', b.dataset.tab === name);
-        });
+        // Замечание Заказчика 2026-11-16: подсветка активного пункта — в
+        // StudentSidebar (props curTab); прежний classList-цикл по .snav
+        // button удален вместе с локальным aside
         // BUG-047: хеш раздела синхронизируется с табом — reload не сбрасывает
         // раздел, старые ссылки #/my-requests открывают его напрямую;
         // Спринт 16: #/wallet — раздел «Кошелек»;
@@ -1071,12 +1036,34 @@ export default {
         if (isTickets) pddTicketsVisited.value = true;
         if (isFines) pddFinesVisited.value = true;
       }
-      document.querySelectorAll('.snav button[data-tab]').forEach(function (b) {
-        b.addEventListener('click', function () { navTo(b.dataset.tab); });
-      });
-      document.querySelectorAll('.snav button[data-goto]').forEach(function (b) {
-        b.addEventListener('click', function () { location.href = b.dataset.goto; });
-      });
+
+    onMounted(function(){
+      // Bootstrap-привязки к СУЩЕСТВУЮЩИМ элементам (после монтирования):
+      // токен, слушатели, стартовые загрузки. Все функции объявлены в
+      // setup-области выше — шаблон вызывает их напрямую (реактивный порт).
+      // Замечание Заказчика 2026-11-16: ФИО (.uname) и «Выйти» — wiring
+      // ВНУТРИ StudentSidebar (компонент тянет /api/auth/me сам и шлет
+      // @me — greet обновляет onMe выше); клики .snav — тоже компонент
+      // (@tab="navTo", «Выбрать инструктора» — переход внутри компонента).
+
+      // GET /api/auth/me: guard страницы — без токена редирект на главную
+      // (FR-7); подстановка ФИО/greet — событие @me сайдбара (выше)
+      try { token = sessionStorage.getItem(TOKEN_KEY); } catch (e) { token = null; }
+      if (!token) {
+        toLogin();
+      }
+
+      // Плитка «Найти водителя» (спринт 3, change add-instructor-student-loop):
+      // переход в раздел «Выбор инструктора» (страница /instructor-choice —
+      // по решению BUG-047 остается отдельной целевой страницей)
+      var tileInstructor = document.getElementById('tile-instructor');
+      if (tileInstructor) {
+        tileInstructor.addEventListener('click', function () {
+          location.href = '/instructor-choice';
+        });
+      }
+
+      // хеш-бутстрап BUG-047/Спринт 16/17: старые ссылки открывают раздел
       if (location.hash === '#/my-requests') navTo('Мои заявки');
       if (location.hash === '#/my-bookings') navTo('Мои брони');
       // Спринт 16 (16.4.1): старые ссылки /cabinet#/wallet — сразу «Кошелек»
@@ -1231,6 +1218,9 @@ export default {
       pddSignsVisited: pddSignsVisited, pddRulesVisited: pddRulesVisited,
       // Спринт 17 (17.5.1/17.6.1): секции «Билеты»/«Штрафы»
       pddTicketsVisited: pddTicketsVisited, pddFinesVisited: pddFinesVisited,
+      // Замечание Заказчика 2026-11-16: сайдбар (StudentSidebar) — активный
+      // таб + обработчики событий компонента
+      curTab: curTab, navTo: navTo, onMe: onMe,
     };
   },
 };

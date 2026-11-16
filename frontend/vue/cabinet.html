@@ -36,28 +36,13 @@
 </head><body>
 <div id="app">
 <div class="app">
-<aside class="side">
-  <div class="side-brand"><span class="check">✓</span><div><em>Сбер</em>Автошкола<small>Кабинет ученика</small></div></div>
-  <!-- BUG-047: примитивная навигация ученика; активный раздел подсвечивается.
-       Спринт 5: добавлен раздел «Мои брони» (booking-student.html) -->
-  <nav class="snav">
-    <button class="on" data-tab="Главная" type="button"><span class="ico">⌂</span>Главная</button>
-    <button data-tab="Мои заявки" type="button"><span class="ico">✉</span>Мои заявки</button>
-    <button data-goto="/instructor-choice" type="button"><span class="ico">▤</span>Выбрать инструктора</button>
-    <button data-tab="Мои брони" type="button"><span class="ico">◷</span>Мои брони</button>
-    <!-- Спринт 16 (add-wallet-economy, 16.4.1): раздел «Кошелек» — ВНУТРИ
-         кабинета (BUG-047), после «Мои брони» -->
-    <button data-tab="Кошелек" type="button"><span class="ico">₽</span>Кошелек</button>
-    <!-- Спринт 17 (add-pdd-learning, 17.3.1): обучающие разделы ПДД —
-         4 пункта после «Кошелек» (к порядку существующих, БЕЗ
-         перегруппировки; иконки — юникод-глифы стиля кабинета) -->
-    <button data-tab="Знаки" type="button"><span class="ico">◈</span>Знаки</button>
-    <button data-tab="Правила" type="button"><span class="ico">☰</span>Правила</button>
-    <button data-tab="Билеты" type="button"><span class="ico">◉</span>Билеты</button>
-    <button data-tab="Штрафы" type="button"><span class="ico">⚠</span>Штрафы</button>
-  </nav>
-  <div class="side-user"><span class="uname">Иван Иванов</span><button class="logout">Выйти</button></div>
-</aside>
+<!-- Замечание Заказчика 2026-11-16: сайдбар — ОТДЕЛЬНЫЙ МОДУЛЬ
+     src/components/StudentSidebar.vue (физически один элемент, монтируется
+     поверх #app). Здесь — минимальный pre-boot: грид-колонка сайдбара
+     зарезервирована до гидрации, дублированной разметки и вспышки НЕТ.
+     Разметка/стили/ФИО/«Выйти» — в компоненте (носители тестов:
+     test_sidebar_unified.py, test_cabinet_page.py). -->
+<aside class="side" aria-hidden="true"></aside>
 <div class="hero"><div class="frame">
 
 <!-- раздел «Главная» (единственный контент кабинета до BUG-047) -->
@@ -118,7 +103,7 @@
   </div>
 
   <div class="list" id="list"></div>
-  <div class="no-req" id="noreq"><b>Заявок пока нет</b>Найдите инструктора в каталоге и подайте первую заявку.<button id="go-catalog" type="button">Перейти к выбору инструктора</button></div>
+  <div class="no-req" id="noreq"><b>Заявок пока нет</b><span class="no-req-text">Найдите инструктора в каталоге и подайте первую заявку.</span><button id="go-catalog" type="button">Перейти к выбору инструктора</button></div>
 </div>
 
 <!-- раздел «Мои брони» (Спринт 5, change add-booking-docs; мокап
