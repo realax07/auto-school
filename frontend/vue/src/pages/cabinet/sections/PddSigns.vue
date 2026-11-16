@@ -63,11 +63,11 @@
         <div v-if="selected.fine" class="fine" data-test="pdd-fine">
           <div class="fine-head"><span class="fine-ico">⚖</span> Штраф и наказание</div>
           <p
-            v-for="(line, li) in fineLines"
+            v-for="(line, li) in fineRenderLines"
             :key="li"
             class="fine-line"
-            :class="{ 'fine-item': fineIsItem(line) }"
-            v-html="line"
+            :class="line.itemCls"
+            v-html="line.html"
           ></p>
           <a class="fine-link" href="#/pdd-fines">все штрафы →</a>
         </div>
@@ -106,32 +106,21 @@ export default {
     // суммы — акцентом (экранирование до обертки; v-html только на esc+regex)
     // строки штрафа: экранирование + суммы акцентом; перечни а)/б)/в)
     // (и 1./2./3.) — отдельными строками с табуляцией (замечание Заказчика)
-    fineLines() {
+    fineRenderLines() {
       if (!this.selected || !this.selected.fineLines) return [];
       var esc = function (t) {
         return String(t)
           .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
       };
-      return this.selected.fineLines.map(function (line) {
-        return esc(line).replace(
+      return this.selected.fineLines.map(function (raw) {
+        var line = raw.trim();
+        var isItem = /^[а-дё]\)|^\d\.\s|^\d\)/.test(line);
+        var html = esc(line).replace(
           /((?:от|до)\s+)?\d[\d\u00a0 ]*(?:₽|руб\S*)/gi,
           '<b class="fine-sum">$&</b>'
         );
+        return { html: html, itemCls: isItem ? 'fine-item' : '' };
       });
-    },
-    fineIsItem(line) {
-      return /^[а-дё]\)|^\d\.\s|^\d\)/.test(line);
-    },
-    fineRich() {
-      if (!this.selected || !this.selected.fine) return '';
-      var esc = function (t) {
-        return String(t)
-          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-      };
-      return esc(this.selected.fine).replace(
-        /((?:от|до)\s+)?\d[\d\u00a0 ]*(?:₽|руб\S*)/gi,
-        '<b class="fine-sum">$&</b>'
-      );
     },
     groupSigns() {
       return this.signs.filter(function (s) { return s.group === this.activeGroup; }, this);
