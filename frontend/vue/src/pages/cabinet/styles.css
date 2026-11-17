@@ -432,7 +432,7 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
      логотипа сайдбара ~25px — С17/С18-бриф, «на всех ширинах»). */
 @media(max-width:760px){
   aside.side{display:none}
-  .frame{padding:26px 16px 88px}
+  .frame{padding:84px 16px 88px} /* 84 = fixed top-bar 58px + отступ логотипа 26px */
   footer{padding-bottom:6px}
 }
 

@@ -229,7 +229,7 @@ export default {
 <style scoped>
 /* Компактный таб-бар (мокап mobile-home.html .tabs/.tab, высота 54px ≤64px
    спеки; палитра — дизайн-система кабинета: #55ed9c/#020b13-семейство). */
-.mtop{position:fixed;top:0;max-width:390px;margin:0 auto;z-index:55;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:rgba(6,14,20,.96);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-bottom:1px solid rgba(148,163,164,.12)}
+.mtop{position:fixed;top:0;left:0;right:0;z-index:55;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:rgba(6,14,20,.96);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-bottom:1px solid rgba(148,163,164,.12)}
 .mtop-brand{font-size:14px;font-weight:700}.mtop-brand em{font-style:normal;color:#34d399}
 .mtop-ava{width:32px;height:32px;border-radius:50%;background:#123524;color:#34d399;display:grid;place-items:center;font-size:11px;font-weight:700;border:1px solid rgba(52,211,153,.35);cursor:pointer;padding:0}
 .mtabs{position:fixed;left:0;right:0;bottom:0;z-index:60;height:54px;display:flex;background:rgba(6,14,20,.96);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-top:1px solid rgba(148,163,164,.14);padding:0 4px}

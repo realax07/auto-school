@@ -111,7 +111,9 @@ footer{margin-top:34px;padding-top:18px;border-top:1px solid #ffffff10;display:f
    MobileTabBar.vue (высота 54px): резервируем место под ним. Desktop
    (>760px) не меняется. */
 @media(max-width:760px){
-  .ic-wrap{grid-template-columns:1fr}
+  .app{grid-template-columns:1fr}
+  .layout{grid-template-columns:1fr}
+  aside.filters{display:none}
   aside.side{display:none}
   .app>.frame{padding-bottom:88px}
 }
