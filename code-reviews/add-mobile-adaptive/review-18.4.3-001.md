@@ -31,7 +31,7 @@ pytest tests/web/test_ui_playwright.py -k s18_ -q (LD_LIBRARY_PATH=pw-libs)
 - check:budgets OK (14 страниц); openspec validate --all --strict — 27/27.
 ### 3. Regress-full — OK
 - pytest tests/unit tests/web -q на финальном дереве — green
-  (число в отчете волны 18.4); flow_check — без ошибок.
+  (число в отчете волны 18.4); flow_check — J10-остаток (11 задач до независимого CR, погашен итер.002 approve).
 
 ## Вердикт: approve
 

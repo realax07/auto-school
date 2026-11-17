@@ -5268,6 +5268,17 @@ def test_s18_mobile_geometry_hit_targets(page, server):
     mtop_box = page.locator(".mtop").bounding_box()
     assert mtop_box and abs(mtop_box["y"]) <= 1, f"mtop не прилип: y={mtop_box['y'] if mtop_box else '?'}"
 
+    # MIN-4 а (e2e-замеры итер.004): scrollWidth instructor-choice ≤390
+    page.goto(f"{server}/instructor-choice")
+    page.wait_for_timeout(1200)
+    assert page.evaluate("document.documentElement.scrollWidth") <= 390, "горизонтальный скролл на choice"
+    # choice: контент не под fixed top-bar — frame top = top-bar низ (58px)
+    ft = page.evaluate("Math.round((document.querySelector('.frame')||document.querySelector('.hero')).getBoundingClientRect().top)")
+    assert 56 <= ft <= 90, f"choice frame top={ft}"
+    # MIN-4 б: геометрия видимых кнопок на разделах с данными
+    # (.act/.bk-act появляются в карточках заявок/броней — покрыто
+    #  test_pdd_sections::test_mobile_topbar + geometry wal-btn выше)
+
 
 def test_s18_mobile_login_bottomsheet_tabbar_cabinet(browser, server):
     """TC-UI-077 (Спринт 18, add-mobile-adaptive 18.4.2): мобильный сценарий
