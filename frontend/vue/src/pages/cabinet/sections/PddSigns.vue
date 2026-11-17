@@ -69,7 +69,7 @@
             :class="line.itemCls"
             v-html="line.html"
           ></p>
-          <a class="fine-link" href="#/pdd-fines">все штрафы →</a>
+          <a class="fine-link" href="#/pdd-fines" @click="closeSign">все штрафы →</a>
         </div>
       </div>
     </div>
@@ -139,7 +139,13 @@ export default {
       }
     },
   },
+  mounted() {
+    // переход по hash (например «все штрафы →») уводит из раздела — модалку закрыть
+    this._hashClose = function () { if (location.hash !== '#/pdd-signs') this.closeSign(); }.bind(this);
+    window.addEventListener('hashchange', this._hashClose);
+  },
   beforeUnmount() {
+    window.removeEventListener('hashchange', this._hashClose);
     document.removeEventListener('keydown', this.onKeydown);
     document.body.style.overflow = '';
   },
