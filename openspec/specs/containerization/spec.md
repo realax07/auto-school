@@ -143,7 +143,7 @@ deploy/nginx-autoschool.conf) MUST остаться рабочим без изм
 - **WHEN** режим переключается
 - **THEN** изменяются только окружение и конфигурации (env, compose, nginx-конфиг), код backend/ и frontend/ не меняется, оба режима описаны в документации репозитория
 
-### Requirement: Compose-стек app + nginx
+### Requirement: Compose-стек из двух сервисов (app + nginx)
 
 Репозиторий MUST содержать docker-compose-стек из ДВУХ сервисов: app
 (образ из Dockerfile) и nginx (reverse proxy: статика и /api/* на app,
