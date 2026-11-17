@@ -1,0 +1,51 @@
+<!doctype html>
+<!-- Мокап мобильной версии (Спринт 18-дизайн, на согласование): Знаки (группы+модалка).
+     390px, тёмная тема, top-bar + чип-навигация, контент одноколоночный.
+     Учётка/ФИО — в top-bar справа (инициалы); сайдбар desktop не дублируется — навигация чипами под top-bar. -->
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Знаки (группы+модалка) — мобайл</title><style>
+*{box-sizing:border-box}html,body{margin:0;background:#020b13;color:#f7fbfa;font-family:Inter,ui-sans-serif,-apple-system,"Segoe UI",sans-serif;font-size:14px}
+.top{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#04101aee;backdrop-filter:blur(10px);border-bottom:1px solid rgba(217,239,238,.1)}
+.brand{font-size:16px;font-weight:650;letter-spacing:-.5px}.brand em{font-style:normal;color:#55ed9c}
+.ava{width:30px;height:30px;border-radius:50%;background:radial-gradient(circle,#4af196,#06754d);display:grid;place-items:center;font-size:11px;font-weight:600;color:#04101a}
+.chips{position:sticky;top:51px;z-index:49;display:flex;gap:6px;overflow-x:auto;padding:10px 12px;background:#04101aee;backdrop-filter:blur(10px);scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;padding:7px 14px;border-radius:999px;border:1px solid rgba(227,247,245,.16);background:rgba(9,22,28,.9);color:#c9d6da;font-size:12px;white-space:nowrap}
+.chip.on{background:#143023;color:#8ff2b5;border-color:#286445}
+.wrap{padding:16px 14px 40px}
+.kicker{font-size:10px;letter-spacing:.18em;color:#8fa3aa;text-transform:uppercase}
+h1{margin:8px 0 6px;font-size:22px;font-weight:600;letter-spacing:-.02em}
+.sub{color:#93a4ac;font-size:13px;line-height:1.5;margin:0 0 18px}
+.card{padding:16px;border:1px solid rgba(221,249,245,.14);border-radius:16px;background:rgba(9,22,28,.92);margin-bottom:12px}
+.btn{display:block;width:100%;padding:13px;border:0;border-radius:14px;background:#49ec9a;color:#04101a;font-weight:650;font-size:14px;text-align:center;text-decoration:none}
+.btn.ghost{background:transparent;border:1px solid rgba(234,255,249,.25);color:#dcebe9;font-weight:500}
+.btn.danger{background:transparent;border:1px solid rgba(255,125,110,.5);color:#ff9d90}
+.pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px}
+.pill.new{background:rgba(255,176,15,.15);color:#ffc46b}.pill.acc{background:rgba(73,236,154,.15);color:#55ed9c}.pill.den{background:rgba(255,125,110,.15);color:#ff9d90}
+.muted{color:#8fa3aa;font-size:12px}
+.row{display:flex;align-items:center;gap:10px}
+input,textarea,select{width:100%;padding:12px 14px;border-radius:12px;border:1px solid rgba(227,247,245,.18);background:rgba(9,22,28,.9);color:#f7fbfa;font-size:14px;outline:none}
+label{display:block;margin:12px 0 6px;font-size:12px;color:#8fa3aa}
+</style></head><body>
+<div class="top"><div class="brand"><em>Сбер</em>Автошкола</div><div class="ava">ДС</div></div>
+<div class="wrap">
+  <div class="kicker">Обучение · ПДД</div><h1>Дорожные знаки</h1>
+  <p class="sub">8 групп · 321 знак. Выбери группу.</p>
+</div>
+<div class="chips">
+  <span class="chip on">Предупреждающие 47</span><span class="chip">Приоритета 13</span><span class="chip">Запрещающие 38</span><span class="chip">Предписывающие 24</span>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 14px">
+  <div class="card" style="text-align:center;margin:0;padding:12px"><img src="../../content/pdd/images/znaki/1.1small.png" style="height:64px;background:#fff;border-radius:8px;padding:4px"><div style="font-size:12px;margin-top:8px"><b>1.1</b><div class="muted" style="line-height:1.3">Ж/д переезд со шлагбаумом</div></div></div>
+  <div class="card" style="text-align:center;margin:0;padding:12px"><img src="../../content/pdd/images/znaki/1.10small.png" style="height:64px;background:#fff;border-radius:8px;padding:4px"><div style="font-size:12px;margin-top:8px"><b>1.10</b><div class="muted" style="line-height:1.3">Выезд на набережную</div></div></div>
+  <div class="card" style="text-align:center;margin:0;padding:12px"><img src="../../content/pdd/images/znaki/1.13small.png" style="height:64px;background:#fff;border-radius:8px;padding:4px"><div style="font-size:12px;margin-top:8px"><b>1.13</b><div class="muted" style="line-height:1.3">Крутой спуск</div></div></div>
+  <div class="card" style="text-align:center;margin:0;padding:12px"><img src="../../content/pdd/images/znaki/1.15small.png" style="height:64px;background:#fff;border-radius:8px;padding:4px"><div style="font-size:12px;margin-top:8px"><b>1.15</b><div class="muted" style="line-height:1.3">Скользкая дорога</div></div></div>
+</div>
+<div style="position:fixed;inset:0;z-index:80;background:rgba(2,11,19,.6);backdrop-filter:blur(8px);display:flex;align-items:flex-end">
+  <div class="card" style="margin:0;border-radius:18px 18px 0 0;width:100%;max-height:82vh;overflow:auto">
+    <div class="row"><img src="../../content/pdd/images/znaki/1.1small.png" style="height:64px;background:#fff;border-radius:10px;padding:4px"><div><div class="kicker">Знак 1.1</div><b>Железнодорожный переезд со шлагбаумом</b></div><div style="margin-left:auto;font-size:18px;color:#8fa3aa">✕</div></div>
+    <p style="font-size:14px;line-height:1.6;color:#e6f0ec">Предупреждает о приближении к ж/д переезду со шлагбаумом. За городом устанавливают на расстоянии 150–300 м, в городе — 50–100 м.</p>
+    <div class="card" style="background:#fff3df;border-color:#e8cf9e;margin:12px 0 0;padding:12px"><b style="color:#6b4a00">⚖ Штраф и наказание</b><p style="font-size:13px;line-height:1.55;color:#3d3427;margin:8px 0 0">Проезд без остановки: <b style="color:#1c6b3c">5000 ₽ или лишение прав 3–6 мес.</b> (ст. 12.10)</p></div>
+  </div>
+</div>
+</body></html>
