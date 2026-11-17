@@ -115,7 +115,7 @@ footer{margin-top:34px;padding-top:18px;border-top:1px solid #ffffff10;display:f
   .layout{grid-template-columns:1fr}
   aside.filters{display:none}
   aside.side{display:none}
-  .app>.frame{padding-bottom:88px}
+  .app>.frame{padding:84px 16px 88px}
 }
 
 /* учётка в сайдбаре (замечание Заказчика №4: нижний левый угол) */

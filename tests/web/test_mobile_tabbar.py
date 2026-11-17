@@ -137,7 +137,7 @@ def test_cabinet_integrates_tabbar_sidebar_hidden_le760():
     assert "mtabs" not in preboot and "mtab" not in preboot
     css = read(SRC / "cabinet" / "styles.css")
     assert "@media(max-width:760px){\n  aside.side{display:none}" in css
-    assert ".frame{padding:26px 16px 88px}" in css
+    assert ".frame{padding:84px 16px 88px}" in css  # Спринт 18: fixed top-bar 58px + отступ лого 26px
 
 
 def test_instructor_choice_integrates_tabbar_without_duplicate():
