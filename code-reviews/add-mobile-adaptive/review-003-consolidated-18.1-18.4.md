@@ -569,3 +569,142 @@ Merge невозможен. Ожидаемый объем итер.007 — од�
 на choice, правка носителя 140, чистка комментариев, два e2e-замера.
 
 Commit: дельта без фикс-коммита (рабочее дерево поверх 97fdca7)
+
+<!-- Reviewer-Delegation: deleg-s18-cr-external | независимый код-ревьюер (не автор диффа) | итерация 007 | дифф: фикс-коммит 4673442 поверх 97fdca7 (MobileTabBar.vue .mtop left/right; cabinet .frame 26→84px; instructor-choice ≤760: +.app{1fr}, +.layout{1fr}, +aside.filters — тесты и комментарии коммитом НЕ менялись) | ветка: feat/s18-mobile | дата: 2026-11-17 -->
+
+# Итер.007 2026-11-17: return (MAJ-2 ЗАКРЫТ — живая проба scrollWidth 390=390, .app «390px», одноколоночно, desktop не задет; MAJ-5 choice ОТКРЫТ — неперекрытие на 390×844 случайно: ghost-строка .mtab-root жрет grid-stretch, при 390×600 перекрытие −37px возвращается, при 1200 мертвая полоса 274px; носитель test_mobile_tabbar.py:140 RED 2-ю итерацию; MIN-6 не тронут 3-ю итерацию; заявки «.layout удален» и «MIN-4 sticky-замер добавлен» опровергнуты диффом)
+
+Проверка живая: playwright-проба 390×844 / 390×600 / 390×1200 и 1440×900
+против изолированного uvicorn+fresh DB (студент через /api/register+
+/api/auth/login — 200 ok, токен получен), dist пересобран до пробы
+(npm run build, 2.34s OK). dist-дельта 1:1 подтверждена grep-ом собранного
+css/js: `@media (width<=760px){.app,.layout{grid-template-columns:1fr}
+aside.filters,aside.side{display:none}.app>.frame{padding-bottom:88px}}`,
+`.mtop[...]{position:fixed;top:0;left:0;right:0}`, `padding:84px 16px 88px`.
+
+## Проверка задания итер.007 (критерии живой пробы запроса)
+
+1. «/instructor-choice: scrollWidth ≤390, одноколоночно» — ДА.
+   scrollWidth=390=innerWidth (maxScrollX=0), computed .app=«390px»,
+   .layout=«358px», aside.side и aside.filters display:none, mtab-root 1.
+   MAJ-2 ЗАКРЫТ: правило впервые в правильном контейнере, сетка сложилась
+   (465→390), dist 1:1. Desktop 1440×900 не задет: .mtop/.mtabs=0,
+   .app «236px 1204px», .layout «248px 710px», filters block,
+   scrollWidth=1440. MIN-7 держится (/me=2 на мобиле — известное принятое).
+2. «/cabinet#/pdd-signs: таб-бар снизу, top-bar сверху, контент между» —
+   ДА (держится с итер.006, зачтено). .mtabs y=790..844 (низ = вьюпорт 844),
+   .mtop y=0..57 w=390 — полоса на всю ширину; wheel 400 → scrollY=400,
+   .mtop y=0; scrollTo(0,0) → #sec-pdd-signs y=84 (зазор +27px к полосе,
+   контент между 57 и 790). scrollWidth=390, .app «390px».
+3. NB: на choice геометрия «контент ниже шапки» (frame y=96, kicker 116 vs
+   полоса 57) — см. ниже, случайная.
+
+## Почему MAJ-5 на choice НЕ закрыт: механика ghost-строки
+
+Компенсация padding-top на choice не вносилась (.frame padding-top=20px —
+из правила ≤850). Неперекрытие на 390×844 создает побочная механика:
+.app{min-height:100vh} + 2 auto-строки (нулевой .mtab-root + .frame),
+align-content:normal(stretch) делит свободную высоту вьюпорта пополам между
+строками — замеры resolved rows: «96px 748px» при 844 ((844−652)/2=96),
+«274px 926px» при 1200 (мертвая полоса .mtab-root 274px над контентом!),
+«0px 652px» при 600 (контент выше вьюпорта — делить нечего) → frame y=0,
+kicker 20 < полоса 57 → ПЕРЕКРЫТИЕ −37px возвращается (замер 390×600).
+Свойство «контент к верху НИЖЕ шапки» не выражено константой и зависит от
+высоты вьюпорта. NB: комментарий BUG-070 в MobileTabBar.vue (243–249:
+«≤760px не задет — box div нулевой высоты») опровергнут замером — верен
+только пока контент ≥ вьюпорта; на cabinet та же мина (сейчас контент
+3536px > 844 → ghost 0, но на коротком разделе ghost появится — не
+перекрытие, а ложный сдвиг вниз).
+
+## Гейт RED (2-я итерация подряд)
+
+pytest tests/unit tests/web -q → 1 failed, 211 passed (3:41):
+test_mobile_tabbar.py::test_cabinet_integrates_tabbar_sidebar_hidden_le760,
+строка 140 `assert ".frame{padding:26px 16px 88px}" in css` против
+фактического 84px. Пункт 3 «Что делать» итер.006/007 (обновить носитель под
+84px) не выполнен — правка паддинга итер.006 так и осталась без носителя.
+
+## Статус прежних находок
+
+- MIN-6: НЕ ТРОНУТ (3-я итерация). Сирота «= отступ логотипа ~25px…»
+  (MobileTabBar.vue:31) на месте; 37–40 «лениво при ПЕРВОМ открытии
+  Профиля… дубля запросов при открытии страницы нет» противоречит коду
+  (`if (visible.value) loadMe()` при mount + mq change, кеш meLoaded) —
+  живой замер /me = 2 на мобиле это подтверждает.
+- Заявка «MIN-4 sticky-замер добавлен в test_s18_mobile_geometry_hit_
+  targets» — НЕВЕРНА дважды: (а) коммит 4673442 тестов не касается
+  (--stat: MobileTabBar.vue, cabinet/styles.css, instructor-choice/
+  styles.css — ни одного теста); wheel-замер .mtop y=0 существует с
+  97fdca7 и подписан в тесте «MAJ-3», не MIN-4; (б) MIN-4 — это посев
+  .act/.bk-act + носители 4 сценариев (строки 66/135 review), не sticky.
+  Точная копия путаницы нумерации, разобранной в итер.006 (383–385).
+- Заявка «no-op дубль .layout{1fr} из ≤760 удален» (месседж 4673442 и
+  сопроводительное задание) — НЕВЕРНА: строка instructor-choice/styles.css
+  :115 добавлена ЭТИМ же коммитом (+3/−1) и живет без коммента «дубль
+  ≤1024» — ни удаление, ни осознанный коммент из п.1 «Что делать» не
+  сделаны. На геометрию не влияет (no-op безвреден), но месседж коммита
+  снова описывает правку, которой нет, — 3-й раз подряд (005: «MIN-4
+  sticky-замер», 006: «MAJ-2/MAJ-5/MIN-6 закрыты», 007: «.layout удален»).
+- e2e-замеры из «Что делать» (scrollWidth ≤390 на choice; контент-vs-шапка
+  при scroll=0 на ОБОИХ носителях) в test_ui_playwright.py НЕ добавлены —
+  только ручная проба.
+- Мокап-сверка choice-фильтров (компактный .search/.chips или решение в
+  openspec) — не сделана; MIN-2 (строка 34 файла волны) — не тронут.
+
+## Прогоны (реальное исполнение, HEAD = 4673442, dist пересобран)
+
+```
+npm run build (frontend/vue) -> OK (2.34s)
+npm run check:budgets -> OK: страниц: 14, бюджеты NFR-26 соблюдены
+openspec validate --all --strict -> Totals: 27 passed, 0 failed (27 items)
+pytest tests/unit tests/web -q -> 1 failed, 211 passed (3:41) — носитель
+  test_mobile_tabbar.py:140 (26px vs 84px), 2-я итерация
+живая проба (изолированный uvicorn+fresh DB, студент через API):
+  choice 390×844: scrollWidth=390, .app «390px», side/filters none,
+    mtop 0..57 w=390, mtabs 790..844, frame y=96, kicker 116 (случайный
+    зазор), maxScrollX=0
+  choice 390×600: frame y=0, kicker 20 vs 57 → перекрытие −37px (MAJ-5)
+  choice 390×1200: rows «274px 926px» — мертвая полоса 274px
+  cabinet#/pdd-signs 390×844: scrollWidth=390, mtop 0..57, mtabs 790..844,
+    secSigns y=84 (+27px), wheel 400 → mtop y=0, scroll=0 → 84/57
+  desktop 1440×900: .mtop/.mtabs=0 на обоих, сетки desktop, filters block,
+    scrollWidth=1440
+```
+
+## Что делать к итерации 008
+
+1. Носитель test_mobile_tabbar.py:140 → 84px (гейт green) — 1 строка.
+2. MAJ-5 choice: в ≤760 блок instructor-choice добавить
+   `.app>.frame{padding-top:84px}` (аналог cabinet/styles.css:435) И
+   нейтрализовать ghost-строку: .mtab-root на ≤760 не должен занимать
+   grid-строку (height:0/out-of-flow; bottom-sheet`ы внутри не сломать) —
+   либо сознательное решение с комментом. Свойство «контент ниже шапки»
+   должно держаться константой, а не высотой вьюпорта.
+3. e2e-замеры в test_s18_mobile_geometry_hit_targets: scrollWidth ≤390 на
+   /instructor-choice; контент-vs-шапка при scroll=0 на ОБОИХ носителях.
+4. MIN-6: переписать 30–31/37–40 по факту (loadMe при mount при visible +
+   mq change; кеш meLoaded; /me=2 на мобиле — сайдбар+top-bar); BUG-070
+   коммент 243–249 сверить с замером.
+5. Мокап-сверка choice-фильтров — компактный эквивалент или решение в
+   openspec.
+6. `.layout{1fr}` ≤760 — удалить или осознанный коммент «дубль ≤1024»;
+   MIN-2/MIN-4 — прежние остатки, закрыть к финальному approve. Месседж
+   коммита писать по факту диффа.
+
+## Вердикт: return
+
+MAJ-2 закрыт и подтвержден живым замером на реальном сервере с API-логином
+(.app «390px», scrollWidth 390=390, dist 1:1, desktop не задет) — зачтено,
+это третий заход и первый корректный. Кабинет держит всю свою геометрию
+(полоса сверху 0..57, таб-бар 790..844, контент 84 с зазором +27, прилипание
+wheel 400 → y=0) — зачтено. Но merge невозможен: гейт red второй итерации
+(носитель :140 не обновлен); MAJ-5 на choice не закрыт — «неперекрытие» на
+390×844 случайный побочный эффект grid-stretch ghost-строки .mtab-root (при
+600 перекрытие −37px возвращается, при 1200 мертвая полоса 274px над
+контентом); MIN-6 не тронут третью итерацию; требуемые e2e-замеры не
+добавлены; обе заявки итерации («no-op .layout удален», «MIN-4 sticky-замер
+добавлен») опровергаются диффом коммита. Ожидаемый объем итер.008 — две
+строки CSS + 1 строка носителя, ghost-строка, два e2e-замера, чистка
+комментариев, решение по фильтрам.
+
+Commit: 4673442
