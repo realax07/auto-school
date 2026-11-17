@@ -1,130 +1,114 @@
 <!doctype html>
-<!-- Мокап мобильной версии v2 (Спринт 18, на согласование): Тренажер билетов. -->
 <html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Тренажер билетов — мобайл</title><style>
-*{box-sizing:border-box}html,body{margin:0;background:#04080d;color:#eef4f2;font-family:Inter,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
-.phone{max-width:390px;margin:0 auto;min-height:100vh;background:
- radial-gradient(900px 420px at 85% -8%,rgba(73,236,154,.13),transparent 60%),
- radial-gradient(700px 380px at 0% 12%,rgba(38,110,150,.14),transparent 55%),#04080d;
- padding-bottom:92px;position:relative}
-.top{position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;padding:14px 20px 10px;
- background:linear-gradient(180deg,#04080dF2,#04080dE6 70%,transparent);backdrop-filter:blur(14px)}
-.brand{font-size:15px;font-weight:750;letter-spacing:-.3px}.brand em{font-style:normal;color:#4ade80}
-.ava{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#4ade80,#0e7a4a);display:grid;place-items:center;font-size:12px;font-weight:700;color:#03130a;box-shadow:0 0 14px rgba(74,222,128,.35)}
-.h1{font-size:30px;font-weight:800;letter-spacing:-.8px;margin:8px 0 4px}
-.h1 .g{color:#4ade80}
-.sub{color:#8b9aa6;font-size:14px;line-height:1.5;margin:0 0 20px}
-.pad{padding:0 20px}
-.sect{display:flex;align-items:center;justify-content:space-between;margin:26px 4px 12px}
-.sect b{font-size:17px;font-weight:700;letter-spacing:-.2px}
-.sect a{color:#4ade80;font-size:13px;text-decoration:none;font-weight:600}
-.card{background:linear-gradient(180deg,#101a24,#0b131c);border:1px solid rgba(148,180,170,.1);border-radius:20px;padding:16px;margin-bottom:12px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
-.hero{background:linear-gradient(135deg,#0e2a1e 0%,#0b1a24 55%,#0d1f2d 100%);border:1px solid rgba(74,222,128,.25);border-radius:24px;padding:20px;box-shadow:0 16px 44px rgba(0,0,0,.45),0 0 40px rgba(74,222,128,.08) inset}
-.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:15px;border:0;border-radius:16px;background:linear-gradient(135deg,#4ade80,#22c55e);color:#03130a;font-weight:750;font-size:15px;cursor:pointer;box-shadow:0 8px 24px rgba(74,222,128,.25)}
-.btn.ghost{background:rgba(255,255,255,.05);color:#dcebe9;border:1px solid rgba(148,180,170,.18);box-shadow:none;font-weight:600}
-.btn.danger{background:rgba(255,90,70,.1);color:#ff8a78;border:1px solid rgba(255,125,110,.35);box-shadow:none;font-weight:600}
-.pill{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:600}
-.pill.g{background:rgba(74,222,128,.14);color:#4ade80}.pill.y{background:rgba(250,204,21,.12);color:#facc15}.pill.r{background:rgba(248,113,113,.12);color:#f87171}.pill.n{background:rgba(148,180,170,.12);color:#9db0a8}
-.mut{color:#7e8f9a;font-size:12.5px;line-height:1.45}
+*{box-sizing:border-box}html,body{margin:0;background:#060b10;color:#e9eff1;font-family:Inter,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+.app{max-width:390px;margin:0 auto;min-height:100vh;background:#060b10;position:relative;padding-bottom:64px}
+.tb{position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:rgba(6,11,16,.92);backdrop-filter:blur(12px)}
+.tb .lg{font-size:14px;font-weight:700}.tb .lg em{font-style:normal;color:#34d399}
+.tb .av{width:30px;height:30px;border-radius:50%;background:#123524;color:#34d399;display:grid;place-items:center;font-size:11px;font-weight:700;border:1px solid rgba(52,211,153,.35)}
+/* компактный таб-бар */
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:60;max-width:390px;margin:0 auto;height:54px;background:rgba(8,14,20,.96);backdrop-filter:blur(14px);border-top:1px solid rgba(148,163,164,.12);display:flex}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:#5b6b76;font-size:9px;font-weight:600;text-decoration:none}
+.tab svg{opacity:.85}
+.tab.on{color:#34d399}.tab.on svg{stroke:#34d399;filter:drop-shadow(0 0 6px rgba(52,211,153,.45))}
+.pad{padding:14px 16px 0}
+.h{font-size:20px;font-weight:750;letter-spacing:-.3px;margin:2px 0 12px}
+.se{font-size:11px;font-weight:700;letter-spacing:.08em;color:#64748b;text-transform:uppercase;margin:20px 2px 10px}
+.c{background:#0d151d;border:1px solid rgba(148,163,164,.1);border-radius:14px;padding:14px;margin-bottom:10px}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;border:0;border-radius:12px;background:#10b981;color:#04211a;font-weight:700;font-size:14px;cursor:pointer}
+.btn.gh{background:#13202b;color:#cbd5e1;border:1px solid rgba(148,163,164,.16)}
+.btn.dn{background:#1a1216;color:#f87171;border:1px solid rgba(248,113,113,.35)}
+.pill{display:inline-flex;align-items:center;padding:3px 9px;border-radius:999px;font-size:10.5px;font-weight:700}
+.pill.g{background:rgba(16,185,129,.14);color:#34d399}.pill.y{background:rgba(245,158,11,.13);color:#fbbf24}.pill.r{background:rgba(239,68,68,.12);color:#f87171}.pill.b{background:rgba(96,165,250,.13);color:#60a5fa}.pill.n{background:rgba(100,116,139,.15);color:#94a3b8}
+.mt{color:#64748b;font-size:12px;line-height:1.45}
 .row{display:flex;align-items:center;gap:12px}
-.grow{flex:1}
-input,textarea{width:100%;padding:14px 16px;border-radius:14px;border:1px solid rgba(148,180,170,.16);background:#0b131c;color:#eef4f2;font-size:15px;outline:none}
-input:focus{border-color:rgba(74,222,128,.5)}
-label{display:block;margin:16px 2px 7px;font-size:12px;font-weight:600;color:#8b9aa6;text-transform:uppercase;letter-spacing:.06em}
-/* таб-бар */
-.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:60;max-width:390px;margin:0 auto;height:76px;padding:8px 8px 18px;
- background:linear-gradient(180deg,rgba(11,19,28,.94),rgba(4,8,13,.98));backdrop-filter:blur(18px);border-top:1px solid rgba(148,180,170,.1);
- display:grid;grid-template-columns:repeat(5,1fr)}
-.tab{display:flex;flex-direction:column;align-items:center;gap:3px;color:#5f7280;font-size:9.5px;font-weight:600;text-decoration:none}
-.tab.on{color:#4ade80}
-.tab.on svg{filter:drop-shadow(0 0 8px rgba(74,222,128,.5))}
-/* списки */
-.li{display:flex;align-items:center;gap:14px;padding:13px 0;border-bottom:1px solid rgba(148,180,170,.08)}
-.li:last-child{border-bottom:0}
-.ic{flex:0 0 auto;width:44px;height:44px;border-radius:14px;display:grid;place-items:center}
-.ic.g{background:rgba(74,222,128,.12);color:#4ade80}.ic.y{background:rgba(250,204,21,.12);color:#facc15}.ic.r{background:rgba(248,113,113,.12);color:#f87171}.ic.b{background:rgba(96,165,250,.12);color:#60a5fa}
-.li b{font-size:14.5px;font-weight:650}.li .mut{margin-top:2px}
-.li .amt{margin-left:auto;font-weight:700;font-size:15px}
-.plus{color:#4ade80}.minus{color:#f87171}
-.chev{margin-left:auto;color:#3d4d59}
-/* чипы-фильтры */
-.seg{display:flex;gap:8px;overflow-x:auto;padding:2px 20px 14px;scrollbar-width:none}
-.seg::-webkit-scrollbar{display:none}
-.seg span{flex:0 0 auto;padding:8px 16px;border-radius:999px;background:#0b131c;border:1px solid rgba(148,180,170,.14);color:#9db0a8;font-size:12.5px;font-weight:600}
-.seg span.on{background:rgba(74,222,128,.16);color:#4ade80;border-color:rgba(74,222,128,.4)}
-/* модалка-шит */
-.sheet-wrap{position:fixed;inset:0;z-index:80;background:rgba(2,6,10,.62);backdrop-filter:blur(10px);display:flex;align-items:flex-end}
-.sheet{width:100%;max-width:390px;margin:0 auto;background:#0d1620;border-radius:24px 24px 0 0;padding:12px 20px 30px;box-shadow:0 -20px 60px rgba(0,0,0,.6)}
-.grab{width:40px;height:4px;border-radius:4px;background:rgba(148,180,170,.3);margin:4px auto 14px}
-.sh-t{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
-.sh-t b{font-size:18px;font-weight:750}
-.x{width:30px;height:30px;border-radius:50%;background:rgba(148,180,170,.12);color:#9db0a8;display:grid;place-items:center;font-size:14px}
-/* календарь-неделя */
-.week{display:flex;gap:6px;margin:4px 0 14px}
-.day{flex:1;text-align:center;padding:10px 0 8px;border-radius:14px;background:#0b131c;border:1px solid rgba(148,180,170,.08)}
-.day .d{font-size:10px;color:#7e8f9a;text-transform:uppercase}
-.day .n{font-size:17px;font-weight:700;margin-top:3px}
-.day.on{background:linear-gradient(160deg,rgba(74,222,128,.2),rgba(74,222,128,.08));border-color:rgba(74,222,128,.45)}
-.day.on .d{color:#4ade80}
-/* слоты */
-.slot{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-radius:14px;margin-bottom:8px;font-size:13.5px;font-weight:600}
-.slot.free{background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.35);color:#bfe9cf}
-.slot.busy{background:rgba(148,180,170,.06);color:#5f7280;text-decoration:line-through}
-.slot.mine{background:rgba(250,204,21,.08);border:1px solid rgba(250,204,21,.3);color:#fde68a}
-.slot .st{font-size:11px;font-weight:600;opacity:.85}
-/* сетка знаков */
-.zgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 20px}
-.zc{background:#fff;border-radius:16px;padding:12px 10px;text-align:center;border:1px solid rgba(148,180,170,.1)}
-.zc img{height:64px;object-fit:contain}
-.zc b{display:block;font-size:12px;color:#0b131c;margin-top:6px}
-.zc .n{font-size:11px;color:#5f7280;line-height:1.3;margin-top:2px}
-/* вопрос тренажера */
-.qimg{width:100%;border-radius:16px;background:#fff;display:block;margin:14px 0}
-.opt{display:flex;align-items:flex-start;gap:12px;width:100%;text-align:left;padding:14px 16px;border-radius:16px;border:1px solid rgba(148,180,170,.16);background:#0b131c;color:#dcebe9;font-size:14px;line-height:1.45;margin-bottom:8px}
-.opt .k{flex:0 0 auto;width:24px;height:24px;border-radius:8px;background:rgba(148,180,170,.12);display:grid;place-items:center;font-size:12px;font-weight:700}
-.opt.good{border-color:rgba(74,222,128,.6);background:rgba(74,222,128,.1)}
-.opt.good .k{background:#4ade80;color:#03130a}
-.opt.bad{border-color:rgba(248,113,113,.55);background:rgba(248,113,113,.08)}
-.opt.bad .k{background:#f87171;color:#fff}
-.expl{background:rgba(74,222,128,.06);border:1px solid rgba(74,222,128,.2);border-radius:16px;padding:14px 16px;font-size:13px;line-height:1.55;color:#bfe3cf;margin-top:4px}
-.expl b{color:#4ade80}
-.qnav{display:grid;grid-template-columns:repeat(10,1fr);gap:6px;margin-top:16px}
-.qn{height:34px;border-radius:10px;display:grid;place-items:center;font-size:12px;font-weight:700;background:#0b131c;color:#5f7280;border:1px solid rgba(148,180,170,.1)}
-.qn.g{background:rgba(74,222,128,.18);color:#4ade80;border-color:transparent}
-.qn.cur{outline:2px solid #4ade80;color:#eef4f2}
-/* прочее */
-.fab{position:fixed;right:20px;bottom:100px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#4ade80,#22c55e);display:grid;place-items:center;box-shadow:0 12px 30px rgba(74,222,128,.35);z-index:30}
-.search{display:flex;align-items:center;gap:10px;background:#0b131c;border:1px solid rgba(148,180,170,.14);border-radius:14px;padding:12px 16px;margin:0 20px 16px;color:#5f7280}
-.stars{color:#facc15;font-size:18px;letter-spacing:2px}
+input,textarea,select{width:100%;padding:12px 14px;border-radius:12px;border:1px solid rgba(148,163,164,.16);background:#0d151d;color:#e9eff1;font-size:14px;outline:none}
+input:focus{border-color:#10b981}
+label{display:block;margin:14px 2px 6px;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em}
+.search{display:flex;align-items:center;gap:10px;background:#0d151d;border:1px solid rgba(148,163,164,.14);border-radius:12px;padding:11px 14px;margin:0 16px 14px;color:#64748b;font-size:13.5px}
+.chips{display:flex;gap:7px;overflow-x:auto;padding:0 16px 12px;scrollbar-width:none}.chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;padding:7px 13px;border-radius:10px;background:#0d151d;border:1px solid rgba(148,163,164,.14);color:#94a3b8;font-size:12px;font-weight:600;white-space:nowrap}
+.chip.on{background:rgba(16,185,129,.14);color:#34d399;border-color:rgba(16,185,129,.4)}
+.li{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(148,163,164,.07)}
+.li:last-child{border-bottom:0;padding-bottom:0}
+.av{flex:0 0 auto;width:40px;height:40px;border-radius:12px;background:#13202b;display:grid;place-items:center;font-size:12px;font-weight:700;color:#94a3b8}
+.li b{font-size:13.5px;font-weight:650}
+.li .m{font-size:11.5px;color:#64748b;margin-top:2px}
+.li .amt{margin-left:auto;font-weight:750;font-size:13.5px}
+.up{color:#34d399}.dn{color:#f87171}.am{color:#fbbf24}
+.st{margin-left:auto}
+.fab{position:fixed;right:16px;bottom:76px;width:52px;height:52px;border-radius:16px;background:#10b981;display:grid;place-items:center;box-shadow:0 10px 26px rgba(16,185,129,.35);z-index:30}
+.sheet-w{position:fixed;inset:0;z-index:80;background:rgba(3,7,11,.6);backdrop-filter:blur(10px);display:flex;align-items:flex-end}
+.sheet{width:100%;max-width:390px;margin:0 auto;background:#0d151d;border-radius:18px 18px 0 0;padding:10px 18px 26px}
+.grab{width:38px;height:4px;border-radius:4px;background:#2d3d49;margin:6px auto 12px}
+.sh-t{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.sh-t b{font-size:16px;font-weight:750}
+.x{width:28px;height:28px;border-radius:50%;background:#1a2631;color:#94a3b8;display:grid;place-items:center;font-size:13px}
+.week{display:flex;gap:6px;margin:0 0 12px}
+.day{flex:1;text-align:center;padding:8px 0 7px;border-radius:10px;background:#0d151d}
+.day .d{font-size:9px;color:#64748b;text-transform:uppercase}
+.day .n{font-size:15px;font-weight:700;margin-top:2px}
+.day.on{background:rgba(16,185,129,.14);border:1px solid rgba(16,185,129,.4)}
+.day.on .d{color:#34d399}
+.slot{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-radius:12px;margin-bottom:7px;font-size:12.5px;font-weight:650}
+.slot.f{background:rgba(16,185,129,.1);color:#a7f3d0}
+.slot.b{background:#111a22;color:#52606d;text-decoration:line-through}
+.slot.m{background:rgba(251,191,36,.08);color:#fcd34d}
+.zgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px}
+.zc{background:#fff;border-radius:14px;padding:10px 8px;text-align:center}
+.zc img{height:56px;object-fit:contain}
+.zc b{display:block;font-size:11.5px;color:#0b131c;margin-top:6px}
+.zc .n{font-size:10.5px;color:#52606d;line-height:1.3;margin-top:2px}
+.sh{position:fixed;inset:0;z-index:80;background:rgba(3,7,11,.6);backdrop-filter:blur(10px);display:flex;align-items:flex-end}
+.shb{width:100%;max-width:390px;margin:0 auto;background:#0d151d;border-radius:18px 18px 0 0;padding:10px 18px 26px}
+.grab{width:38px;height:4px;border-radius:4px;background:#2d3d49;margin:6px auto 12px}
+.sh-t{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.sh-t b{font-size:16px;font-weight:750}
+.x{width:28px;height:28px;border-radius:50%;background:#1a2631;color:#94a3b8;display:grid;place-items:center;font-size:13px}
+.qimg{width:100%;border-radius:14px;background:#fff;display:block;margin:12px 0}
+.opt{display:flex;align-items:flex-start;gap:11px;width:100%;text-align:left;padding:13px 14px;border-radius:12px;border:1px solid rgba(148,163,164,.16);background:#0d151d;color:#dbe4ea;font-size:13.5px;line-height:1.45;margin-bottom:8px}
+.opt .k{flex:0 0 auto;width:22px;height:22px;border-radius:7px;background:rgba(148,163,164,.14);display:grid;place-items:center;font-size:11px;font-weight:700}
+.opt.g{border-color:rgba(16,185,129,.55);background:rgba(16,185,129,.08)}
+.opt.g .k{background:#10b981;color:#04211a}
+.opt.b2{border-color:rgba(239,68,68,.5);background:rgba(239,68,68,.06)}
+.opt.b2 .k{background:#ef4444;color:#fff}
+.expl{background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.22);border-radius:12px;padding:12px 14px;font-size:12.5px;line-height:1.5;color:#9db8ad;margin-top:2px}
+.expl b{color:#34d399}
+.qnav{display:grid;grid-template-columns:repeat(10,1fr);gap:5px;margin-top:14px}
+.qn{height:32px;border-radius:9px;display:grid;place-items:center;font-size:11px;font-weight:700;background:#0d151d;color:#52606d}
+.qn.g{background:rgba(16,185,129,.16);color:#34d399}
+.qn.cur{outline:2px solid #10b981;color:#e9eff1}
+.bal{background:linear-gradient(140deg,#0d2b21,#0b1a24 60%,#0d1f2d);border:1px solid rgba(16,185,129,.28);border-radius:18px;padding:18px}
+.bal .l{font-size:10px;font-weight:700;letter-spacing:.12em;color:#6ee7b7}
+.bal .v{font-size:34px;font-weight:800;letter-spacing:-.5px;margin:6px 0 10px}
+.bal .p{display:flex;gap:6px}
+.fine-c{background:#0d151d;border:1px solid rgba(148,163,164,.14);border-radius:14px;padding:14px;margin-top:10px}
 </style></head><body>
-<div class="top"><div class="brand"><em>Сбер</em>Автошкола</div><div class="ava">ДС</div></div>
-<div class="phone">
+<div class="app">
+<div class="tb"><div class="lg"><em>Сбер</em>Автошкола</div><div class="av">ДС</div></div>
 
 <div class="pad">
-  <div class="row" style="justify-content:space-between;margin-bottom:14px">
-    <div><b style="font-size:15px">Билет 1</b><div class="mut">категория A/B/M</div></div>
-    <div class="row" style="gap:8px"><span class="pill y"> 19:42</span><span class="pill r">Сбросить</span></div>
+  <div class="row" style="justify-content:space-between;margin-bottom:12px">
+    <div><b style="font-size:14px">Билет 1</b><div class="mt">категория A/B/M</div></div>
+    <div class="row" style="gap:6px"><span class="pill y">⏱ 19:42</span><span class="pill r">Сбросить</span></div>
   </div>
-  <div class="row" style="justify-content:space-between;margin-bottom:8px"><b style="font-size:15px">Вопрос 3 из 20</b><span class="mut">✓ 2 · ✗ 0</span></div>
+  <div class="row" style="justify-content:space-between;margin-bottom:8px"><b style="font-size:14px">Вопрос 3 из 20</b><span class="mt">✓ 2 · ✗ 0</span></div>
 </div>
 <div class="pad" style="padding-top:0">
-<div class="card" style="padding:14px">
-  <p style="font-size:15px;font-weight:600;margin:0">Можно ли Вам остановиться в указанном месте для посадки пассажира?</p>
+<div class="c" style="padding:12px">
+  <p style="font-size:14px;font-weight:650;margin:0">Можно ли Вам остановиться в указанном месте для посадки пассажира?</p>
   <img class="qimg" src="../../../content/pdd/images/bilety/7995187s.jpg" alt="ситуация">
 </div>
 </div>
-<div class="pad" style="padding-top:0">
-  <div class="opt good"><span class="k">✓</span><span>1. Можно.</span></div>
-  <div class="opt bad"><span class="k">2</span><span>2. Можно, если Вы управляете такси.</span></div>
+<div style="padding:0 16px">
+  <div class="opt g"><span class="k">✓</span><span>1. Можно.</span></div>
+  <div class="opt b2"><span class="k">2</span><span>2. Можно, если Вы управляете такси.</span></div>
   <div class="opt"><span class="k">3</span><span>3. Нельзя.</span></div>
-  <div class="expl"><b>Пояснение:</b> остановка для посадки разрешена в месте знака 5.16 «Место остановки автобуса» — при отсутствии запрещающих условий.</div>
-</div>
-<div class="pad"><div class="qnav">
-  <span class="qn g">1</span><span class="qn g">2</span><span class="qn cur">3</span><span class="qn">4</span><span class="qn">5</span><span class="qn">6</span><span class="qn">7</span><span class="qn">8</span><span class="qn">9</span><span class="qn">10</span><span class="qn">11</span><span class="qn">12</span><span class="qn">13</span><span class="qn">14</span><span class="qn">15</span><span class="qn">16</span><span class="qn">17</span><span class="qn">18</span><span class="qn">19</span><span class="qn">20</span>
-</div>
-<button class="btn" style="margin-top:16px">Завершить экзамен</button>
+  <div class="expl"><b>Пояснение:</b> остановка для посадки разрешена в месте знака 5.16 — при отсутствии запрещающих условий.</div>
+  <div class="qnav">
+    <span class="qn g">1</span><span class="qn g">2</span><span class="qn cur">3</span><span class="qn">4</span><span class="qn">5</span><span class="qn">6</span><span class="qn">7</span><span class="qn">8</span><span class="qn">9</span><span class="qn">10</span><span class="qn">11</span><span class="qn">12</span><span class="qn">13</span><span class="qn">14</span><span class="qn">15</span><span class="qn">16</span><span class="qn">17</span><span class="qn">18</span><span class="qn">19</span><span class="qn">20</span>
+  </div>
 </div>
 
-</div>
-<div class="tabbar"><a class="tab" href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="None" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h5v-6h4v6h5V9.5"/></svg>Главная</a><a class="tab" href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="None" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Записи</a><a class="tab on" href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M20 18v3H6.5"/></svg>Обучение</a><a class="tab" href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="None" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="14" rx="3"/><path d="M3 10h18M16 15h2"/></svg>Кошелек</a><a class="tab" href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="None" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Профиль</a></div>
-</body></html>
+<div class="tabs"><a class="tab" href="#"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="None" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h5v-6h4v6h5V9.5"/></svg>Главная</a><a class="tab" href="#"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="None" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Записи</a><a class="tab on" href="#"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="None" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M20 18v3H6.5"/></svg>Обучение</a><a class="tab" href="#"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="None" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="14" rx="3"/><path d="M3 10h18M16 15h2"/></svg>Кошелек</a><a class="tab" href="#"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="None" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Профиль</a></div>
+</div></body></html>
