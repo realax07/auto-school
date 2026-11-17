@@ -418,3 +418,22 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
 .zn-modal .fine .fine-line.fine-item{margin-left:26px;padding-left:12px;position:relative}
 .zn-modal .fine .fine-line.fine-item::before{content:"▸";position:absolute;left:0;color:#1c6b3c}
 .zn-modal .fine .fine-line:last-child{margin-bottom:0}
+
+/* =========================================================================
+   Спринт 18 (change add-mobile-adaptive, задачи 18.1.1/18.1.2): МОБИЛЬНАЯ
+   АДАПТАЦИЯ кабинета (≤760px). Правила ТОЛЬКО добавлены в конце файла
+   (design-guard test_cabinet_page: строки мокапа не изменяются); desktop
+   (>760px) не меняется — носители e2e 84 защищают.
+   - desktop-сайдбар скрыт (media в StudentSidebar.vue) — прячется и пустой
+     pre-boot <aside class="side"> носителя (флеша/дырки в гриде нет);
+   - вместо сайдбара снизу — таб-бар MobileTabBar.vue (высота 54px):
+     резервируем место под ним в конце страницы;
+   - верхний отступ контента сохранен = паддинг .frame 26px (отступ
+     логотипа сайдбара ~25px — С17/С18-бриф, «на всех ширинах»). */
+@media(max-width:760px){
+  aside.side{display:none}
+  .frame{padding:26px 16px 88px}
+  footer{padding-bottom:6px}
+}
+
+

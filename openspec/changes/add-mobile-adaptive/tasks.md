@@ -1,8 +1,8 @@
 # Tasks: add-mobile-adaptive
 
 ## 18.1 Таб-бар + сокрытие сайдбара (<760px)
-- [ ] 18.1.1 Компонент MobileTabBar.vue: 5 разделов (SVG-иконки+подписи), показ при matchMedia ≤760px; активный по текущему табу/хешу; интеграция в cabinet App.vue и instructor-choice
-- [ ] 18.1.2 Сокрытие desktop-сайдбара на ≤760px (styles.css + StudentSidebar.vue media) — сайдбар уходит, таб-бар появляется; носители кабинета адаптированы
+- [x] 18.1.1 Компонент MobileTabBar.vue: 5 разделов (SVG-иконки+подписи), показ при matchMedia ≤760px; активный по текущему табу/хешу; интеграция в cabinet App.vue и instructor-choice
+- [x] 18.1.2 Сокрытие desktop-сайдбара на ≤760px (styles.css + StudentSidebar.vue media) — сайдбар уходит, таб-бар появляется; носители кабинета адаптированы
 
 ## 18.2 Адаптив кабинета
 - [ ] 18.2.1 Главная/Кошелек: баланс-карта, кнопки, история — карточками (styles.css media ≤760px)

@@ -33,6 +33,10 @@
      /api/auth/logout). Активный пункт — props curTab; клик таба —
      @tab="navTo" (существующий механизм разделов и хешей). -->
 <student-sidebar :active-tab="curTab" @tab="navTo" @me="onMe"></student-sidebar>
+<!-- Спринт 18 (add-mobile-adaptive, 18.1.1): мобильный таб-бар снизу —
+     показ ≤760px (matchMedia внутри компонента), активный по curTab;
+     клик таба — тот же @tab="navTo" (SPA-механика разделов без изменений). -->
+<mobile-tab-bar :active-tab="curTab" @tab="navTo"></mobile-tab-bar>
 <!-- Замечание Заказчика №2 (2026-11-16): пустой <header> (наследник шапки
      мокапа, 45px+8px вертикали) убран — контент правой колонки начинается
      у верха, отступ = паддинг .frame (26px, синхронно с мокапом). -->
@@ -414,6 +418,10 @@ import { toast, fmtDate, nowMoscow } from '../../shared/utils.js';
 // Замечание Заказчика 2026-11-16: сайдбар — ОТДЕЛЬНЫЙ МОДУЛЬ (общий чанк
 // shared — vite.config.mjs manualChunks /src/components/)
 import StudentSidebar from '../../components/StudentSidebar.vue';
+// Спринт 18 (add-mobile-adaptive, 18.1.1): мобильный таб-бар (общий чанк
+// shared — vite.config.mjs manualChunks /src/components/); показ ≤760px,
+// активный по curTab, клик таба — тот же navTo
+import MobileTabBar from '../../components/MobileTabBar.vue';
 
 export default {
   name: 'CabinetApp',
@@ -423,6 +431,8 @@ export default {
   // грузится при ПЕРВОМ открытии раздела и остается смонтированным.
   components: {
     StudentSidebar,
+    // Спринт 18 (18.1.1): мобильный таб-бар снизу (≤760px)
+    MobileTabBar,
     PddSigns: defineAsyncComponent(function () {
       return import('./sections/PddSigns.vue');
     }),
@@ -762,7 +772,7 @@ export default {
             bkInstances.forEach(function (s) {
               if (s.date === iso && s.start_time === row[0] && s.end_time === row[1]) inst = s;
             });
-            var cell = { cls: 'bk-slot off', title: '', disabled: true, inst: null };
+            var cell = { cls: 'bk-slot off', title: '', disabled: true, inst: null, lab: '' };
             if (inst) {
               // состояния бэкенда free/busy/pending → классы мокапа free/taken/mine;
               // прошедший/начавшийся экземпляр (начало ≤ NOW, МСК) — просмотр
