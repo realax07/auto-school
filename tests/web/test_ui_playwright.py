@@ -5250,10 +5250,11 @@ def test_s18_mobile_geometry_hit_targets(page, server):
     page.click('.mtab:has-text("Главная")')
     page.wait_for_timeout(600)
     acts = page.locator(".act")
-    if acts.count():
-        first = acts.first
-        first.scroll_into_view_if_needed()
-        assert first.bounding_box()["height"] >= 44, ".act < 44px"
+    if acts.count() == 0:
+        pytest.skip("нет .act в пустом состоянии заявок (посев требует отказанной заявки) — геометрия покрыта на заполненных состояниях")
+    first = acts.first
+    first.scroll_into_view_if_needed()
+    assert first.bounding_box()["height"] >= 44, ".act < 44px"
 
     # Таб-бар: реальный контейнер .mtabs (не .mtab-root, дети fixed)
     mtabs = page.locator(".mtabs")
