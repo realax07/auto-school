@@ -1,7 +1,11 @@
 # admin-transactions Specification
 
 ## Purpose
-TBD - created by archiving change add-wallet-economy. Update Purpose after archive.
+
+Операторский раздел «Транзакции»: полный журнал операций экономики
+(фильтры по типу/роли/пользователю/дате), баланс компании (накопленные
+комиссии), комиссии каждого инструктора за год, подтверждение заявок на
+выплату и решения по спорам между учеником и инструктором.
 
 ## Requirements
 

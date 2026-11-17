@@ -1,7 +1,13 @@
 # learning Specification
 
 ## Purpose
-TBD - created by archiving change add-pdd-learning. Update Purpose after archive.
+
+Обучающие разделы ПДД в кабинете ученика: «Знаки» (8 групп, 321 знак,
+модалка детали с описанием и блоком штрафа), «Правила» (26 глав,
+оглавление/глава), «Билеты» — тренажер (80 билетов × 20 вопросов,
+таймер 20:00, однократная фиксация, пояснения), «Штрафы» (таблица +
+поиск). Контент — build-time JSON из корпуса content/pdd; картинки —
+статикой /pdd-assets (traversal-гварды).
 
 ## Requirements
 

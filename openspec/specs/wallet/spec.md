@@ -1,7 +1,12 @@
 # wallet Specification
 
 ## Purpose
-TBD - created by archiving change add-wallet-economy. Update Purpose after archive.
+
+Кошельки ученика и инструктора: баланс и операции деньгами продукта.
+Журнал транзакций (append-only, типы topup/hold/release/refund/payout) —
+единственный источник остатков; все суммы в целых копейках. Ученик видит
+«Доступно»/«Заморожено» и историю; инструктор — баланс и заработанное.
+Баланс всегда равен сумме журнала, отрицательные значения недостижимы.
 
 ## Requirements
 

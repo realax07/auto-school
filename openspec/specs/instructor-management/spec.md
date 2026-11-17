@@ -1,7 +1,11 @@
 # instructor-management Specification
 
 ## Purpose
-TBD - created by archiving change add-wallet-economy. Update Purpose after archive.
+
+Управление инструкторами со стороны продукта: цена часа занятия
+(меняет сам инструктор в кабинете; снапшот фиксируется в брони) и
+комиссия платформы (процент 0–100, задается оператором каждому
+инструктору; релиз делит gross floor-методом, хвост — комиссии).
 
 ## Requirements
 

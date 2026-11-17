@@ -1,7 +1,12 @@
 # codebase-structure Specification
 
 ## Purpose
-TBD - created by archiving change add-code-domain-folders. Update Purpose after archive.
+
+Доменная структура кода (Спринт 13): backend — app.py (страницы/роуты) +
+core (config/db/guards/uploads) + auth/instructor/student/policy;
+frontend — vue-каркас по страницам (S15: единый вход, PDD-разделы —
+lazy-чанки кабинета). Точки входа backend.app:app и create_app()
+неприкосновенны; границы доменов — без циклических импортов.
 
 ## Requirements
 
