@@ -17,4 +17,4 @@
 ## 18.4 Носители, e2e, закрытие
 - [x] 18.4.1 Носители: test_cabinet_page/test_pdd_sections/test_sidebar_unified — медиа-адаптация не ломает desktop-фрагменты; новый носитель mobile-tabbar
 - [x] 18.4.2 e2e: мобильный вьюпорт 390 — ключевые сценарии (вход→кабинет→табы→модалки) green; desktop 84 не тронуты
-- [x] 18.4.3 Карта: строка/блок «Мобильная адаптация»; budgets desktop без изменений; strict 26/26; regress-full green
+- [x] 18.4.3 Карта: строка/блок «Мобильная адаптация»; budgets desktop без изменений; strict 27/27; regress-full green

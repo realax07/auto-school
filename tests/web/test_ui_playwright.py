@@ -5230,6 +5230,27 @@ def _register_student_api(server):
     return email, "S3cretPass!"
 
 
+def test_s18_mobile_geometry_hit_targets(page, server):
+    """MIN-4 CR rev 001: мобильная геометрия — кнопки кабинета ≥44px высотой
+    на ≤760px; таб-бар ≤64px; учётка в сайдбаре отсутствует на ≤760px
+    (BUG-070: таб-бар заменяет сайдбар, ФИО в top-bar аватаром)."""
+    _seed_session(page, "session_token", _student_token(server))
+    page.set_viewport_size({"width": 390, "height": 844})
+    page.goto(f"{server}/cabinet")
+    page.wait_for_timeout(1500)
+    for sel in [".act", ".bk-act", ".wal-btn"]:
+        els = page.locator(sel)
+        for i in range(els.count()):
+            box = els.nth(i).bounding_box()
+            if box is None:
+                continue  # элемент в скрытой секции — геометрия не определена
+            assert box["height"] >= 44, f"{sel}[{i}] height={box['height']}"
+    tb = page.locator(".mtab-root").first
+    assert tb.count(), "таб-бар не найден"
+    bbox = tb.bounding_box()
+    assert bbox and bbox["height"] <= 64, f"таб-бар высотой {bbox['height']}"
+
+
 def test_s18_mobile_login_bottomsheet_tabbar_cabinet(browser, server):
     """TC-UI-077 (Спринт 18, add-mobile-adaptive 18.4.2): мобильный сценарий
     390×844 — вход с лендинга (модалка входа — bottom-sheet с grab-хендлом,

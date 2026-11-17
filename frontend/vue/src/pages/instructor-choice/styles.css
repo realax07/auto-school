@@ -103,7 +103,6 @@ footer{margin-top:34px;padding-top:18px;border-top:1px solid #ffffff10;display:f
 .snav a .ico{width:20px;text-align:center;font-size:16px}
 .snav a.on{color:#8ff2b5;background:#143023;border-color:#286445}
 .snav a:hover{background:#ffffff09}
-@media(max-width:760px){.app{grid-template-columns:1fr}.side{flex-direction:row;align-items:center;padding:10px 14px;border-right:0;border-bottom:1px solid #ffffff12}.snav{display:flex;overflow:auto;gap:5px}.snav a{white-space:nowrap;padding:9px 10px;font-size:11px}.snav a .ico{display:none}}
 
 /* Спринт 18 (add-mobile-adaptive, 18.1.2): на ≤760px desktop-сайдбар
    СКРЫВАЕТСЯ (media в StudentSidebar.vue) — прячется и pre-boot
