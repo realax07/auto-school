@@ -466,7 +466,7 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
   .req-top{gap:10px}
   .status{margin-left:0;order:3}
   .actions{gap:8px}
-  .act{flex:1 1 auto;padding:13px 16px;min-height:44px;font-size:12.5px}
+  .act{flex:1 1 auto;padding:13px 16px;min-height:44px !important;font-size:12.5px}
   .no-req{padding:38px 14px}
 }
 /* --- 18.2.3: «Мои брони» — неделя-полоса (пн–вс видима целиком) +
@@ -496,7 +496,7 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
   .bk-car-card{padding:12px}
   .bk-car-photo{width:100%}
   .bk-req{padding:14px;border-radius:15px}
-  .bk-actions .bk-act{flex:1 1 auto;padding:13px 16px;min-height:44px}
+  .bk-actions .bk-act{flex:1 1 auto;padding:13px 16px;min-height:44px !important}
 }
 /* --- 18.2.1 (Кошелек): балансы — карточки столбиком, история транзакций —
      карточки вместо таблицы (мокап mobile-wallet.html .li/.amt: бейдж типа
@@ -506,7 +506,7 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
   .wal-bal{padding:15px 16px 13px;border-radius:15px}
   .wal-bal b{font-size:28px;margin-top:7px}
   .wal-actions{gap:8px}
-  .wal-actions .wal-btn{flex:1 1 auto;padding:13px 16px;min-height:44px}
+  .wal-actions .wal-btn{flex:1 1 auto;padding:13px 16px;min-height:44px !important}
   .wal-table{display:block}
   .wal-table thead{display:none}
   .wal-table tbody{display:grid;gap:10px}
