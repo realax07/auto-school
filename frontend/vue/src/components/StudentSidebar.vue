@@ -160,7 +160,7 @@ export default {
 <style scoped>
 /* 1:1 из src/pages/cabinet/styles.css (канон кабинета; строки мокапа в
    page-CSS носителей не трогаются — design-guard test_cabinet_page). */
-.side{padding:25px 17px;border-right:1px solid rgba(234,255,249,.12);background:rgba(4,16,24,.72);display:flex;flex-direction:column;gap:26px}
+.side{position:sticky;top:0;height:100svh;padding:25px 17px;border-right:1px solid rgba(234,255,249,.12);background:rgba(4,16,24,.72);display:flex;flex-direction:column;gap:26px;overflow:hidden}
 .side-brand{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:700;letter-spacing:-.04em;padding:0 8px}
 .side-brand em{font-style:normal;color:#55ed9c}
 .side-brand small{display:block;font-size:9px;color:#7d939a;letter-spacing:.12em;text-transform:uppercase;margin-top:3px}

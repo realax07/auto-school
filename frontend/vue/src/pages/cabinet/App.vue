@@ -1063,16 +1063,19 @@ export default {
         });
       }
 
-      // хеш-бутстрап BUG-047/Спринт 16/17: старые ссылки открывают раздел
-      if (location.hash === '#/my-requests') navTo('Мои заявки');
-      if (location.hash === '#/my-bookings') navTo('Мои брони');
-      // Спринт 16 (16.4.1): старые ссылки /cabinet#/wallet — сразу «Кошелек»
-      if (location.hash === '#/wallet') navTo('Кошелек');
-      // Спринт 17 (17.3.1): старые ссылки /cabinet#/pdd-* — сразу раздел
-      if (location.hash === '#/pdd-signs') navTo('Знаки');
-      if (location.hash === '#/pdd-rules') navTo('Правила');
-      if (location.hash === '#/pdd-tickets') navTo('Билеты');
-      if (location.hash === '#/pdd-fines') navTo('Штрафы');
+      // хеш-бутстрап BUG-047/Спринт 16/17/замечание 2026-11-16: ссылки вида
+      // /cabinet#/pdd-* работают И вживую (hashchange), а не только при загрузке
+      function routeHash() {
+        if (location.hash === '#/my-requests') navTo('Мои заявки');
+        else if (location.hash === '#/my-bookings') navTo('Мои брони');
+        else if (location.hash === '#/wallet') navTo('Кошелек');
+        else if (location.hash === '#/pdd-signs') navTo('Знаки');
+        else if (location.hash === '#/pdd-rules') navTo('Правила');
+        else if (location.hash === '#/pdd-tickets') navTo('Билеты');
+        else if (location.hash === '#/pdd-fines') navTo('Штрафы');
+      }
+      routeHash();
+      window.addEventListener('hashchange', routeHash);
 
       // --- Раздел «Мои заявки»: bootstrap-привязки (данные/функции —
       //     setup-область выше: loadRequests/renderFilters/retry) ---
