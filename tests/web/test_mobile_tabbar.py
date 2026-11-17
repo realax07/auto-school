@@ -29,6 +29,11 @@ TC-UI-079 (1440×900, регресс BUG-070) — кейсы
 test-model/new/add-mobile-adaptive/; этот носитель закрепляет структуру
 и wiring компонента для тех же требований дельты
 specs/mobile-adaptive/spec.md.
+
+J66-разметка (конвенция S16 — образец tests/api/test_qa_s16_money.py):
+каждый тест несет approved-ID партии TC-S18-001…008 в docstring — маппинг
+по таблице «кейс ↔ сценарий ↔ автоматизация» coverage.md
+(test-model/approved/add-mobile-adaptive/, review-001 8/8 approved).
 """
 import re
 from pathlib import Path
@@ -63,9 +68,9 @@ def mock_tab_paths() -> list[str]:
 
 
 def test_mtabs_five_tabs_canonical_in_component():
-    """Таб-бар — ровно 5 кнопок с подписями спеки (порядок мокапа v3);
-    у каждой — SVG-иконка; шиты «Обучение»/«Профиль» открывает
-    таб-бар (отдельные страниц-дублей нет)."""
+    """TC-S18-001 (компактный таб-бар): ровно 5 кнопок с подписями спеки
+    (порядок мокапа v3); у каждой — SVG-иконка; шиты «Обучение»/«Профиль»
+    открывает таб-бар (отдельные страниц-дублей нет)."""
     nav = tabbar_template().split('<nav v-if="visible"', 1)[1].split("</nav>", 1)[0]
     labels = re.findall(r"<span>([^<]+)</span>", nav)
     assert labels == TABS, labels
@@ -74,8 +79,8 @@ def test_mtabs_five_tabs_canonical_in_component():
 
 
 def test_mtabs_icons_verbatim_from_mobile_mock():
-    """SVG-иконки — дословно из мокапа mobile-home.html (каждый path d="…"
-    мокапа присутствует в компоненте, порядок сохранен)."""
+    """TC-S18-001: SVG-иконки — дословно из мокапа mobile-home.html (каждый
+    path d="…" мокапа присутствует в компоненте, порядок сохранен)."""
     src = read(TABBAR)
     component_paths = re.findall(r'<path d="([^"]+)"', src)
     mock_paths = mock_tab_paths()
@@ -87,7 +92,9 @@ def test_mtabs_icons_verbatim_from_mobile_mock():
 
 
 def test_mtabs_mobile_only_matchmedia_and_css_guard():
-    """Показ ТОЛЬКО ≤760px — двойная защита: matchMedia('(max-width:760px)')
+    """TC-S18-001/008 (008 — desktop-страховка, регресс BUG-070; live-инвариант
+    1440×900 — TC-UI-079): показ ТОЛЬКО ≤760px — двойная защита:
+    matchMedia('(max-width:760px)')
     (задача 18.1.1) + CSS-страховка @media(min-width:761px){.mtabs
     {display:none!important}}; высота таб-бара 54px ≤ 64px спеки."""
     src = read(TABBAR)
@@ -97,7 +104,7 @@ def test_mtabs_mobile_only_matchmedia_and_css_guard():
 
 
 def test_mtabs_setup_bindings_exposed():
-    """BUG-068-регресс: все вызываемые из шаблона функции (`openTab` на 4
+    """TC-S18-001 (регресс BUG-068): все вызываемые из шаблона функции (`openTab` на 4
     табах, `openProfile`, `closeSheet`, `pickEdu`, `logout`) — в возвращаемом
     объекте setup (иначе клики падают TypeError в рантайме, сборка это не
     ловит)."""
@@ -108,7 +115,7 @@ def test_mtabs_setup_bindings_exposed():
 
 
 def test_mtabs_sheets_edu_profile_and_wiring_self_contained():
-    """Шиты — bottom-sheet с grab-хендлом: «Обучение» — 4 раздела ПДД
+    """TC-S18-001/004: шиты — bottom-sheet с grab-хендлом: «Обучение» — 4 раздела ПДД
     (сохранение действий desktop-сайдбара), «Профиль» — ФИО + «Выйти»;
     wiring учетки внутри компонента (GET /api/auth/me с X-Session-Token —
     FR-5, лениво при первом открытии; 401/403/!ok → toLogin — FR-7;
@@ -126,10 +133,11 @@ def test_mtabs_sheets_edu_profile_and_wiring_self_contained():
 
 
 def test_cabinet_integrates_tabbar_sidebar_hidden_le760():
-    """Кабинет: <mobile-tab-bar :active-tab="curTab" @tab="navTo"> (SPA-emit —
+    """TC-S18-001/002/005: кабинет: <mobile-tab-bar :active-tab="curTab" @tab="navTo"> (SPA-emit —
     механика разделов/хешей не меняется); pre-boot cabinet.html БЕЗ
     .mtabs; media ≤760px в styles.css прячет desktop-сайдбар (aside.side)
-    и резервирует место под таб-баром (.frame снизу 88px ≥ 54px)."""
+    и резервирует место под таб-баром (.frame снизу 88px ≥ 54px);
+    005: .frame сверху 84px = fixed top-bar 58px + отступ логотипа 26px)."""
     app = read(SRC / "cabinet" / "App.vue")
     assert '<mobile-tab-bar :active-tab="curTab" @tab="navTo">' in app
     assert app.count("<mobile-tab-bar") == 1
@@ -141,7 +149,7 @@ def test_cabinet_integrates_tabbar_sidebar_hidden_le760():
 
 
 def test_instructor_choice_integrates_tabbar_without_duplicate():
-    """«Выбрать инструктора»: <mobile-tab-bar active-tab="Выбрать
+    """TC-S18-001/007: «Выбрать инструктора»: <mobile-tab-bar active-tab="Выбрать
     инструктора"> — активен домик (мокап mobile-choice.html .tab on);
     pre-boot instructor-choice.html БЕЗ таб-бара."""
     app = read(SRC / "instructor-choice" / "App.vue")
@@ -152,7 +160,7 @@ def test_instructor_choice_integrates_tabbar_without_duplicate():
 
 
 def test_mtabs_single_source_across_repo():
-    """Разметка таб-бара физически в одном модуле: класс-маркер .mtabs
+    """TC-S18-001/007: разметка таб-бара физически в одном модуле: класс-маркер .mtabs
     встречается в vue-носителях только в MobileTabBar.vue (стили — scoped
     в компоненте; styles.css кабинета таб-бар не дублирует)."""
     carriers = list(VUE.glob("*.html")) + list((VUE / "src").rglob("*.vue")) \

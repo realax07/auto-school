@@ -5239,7 +5239,11 @@ def test_s18_mobile_login_bottomsheet_tabbar_cabinet(browser, server):
     таб-бар 54px снизу (мокапы .tabs); «Записи» → «Мои брони» (хеш,
     подсветка), «Обучение» → шит с 4 разделами ПДД → «Билеты», «Кошелек» →
     модалка пополнения — bottom-sheet, «Профиль» → шит с ФИО и «Выйти».
-    Реальный бэкенд."""
+    Реальный бэкенд.
+    Кейсы партии (approved, coverage.md): TC-S18-001 (таб-бар, сайдбар
+    скрыт), TC-S18-002 (#sec-wallet), TC-S18-003 (#sec-bookings + хеш
+    #/my-bookings), TC-S18-004 (bottom-sheet входа/пополнения, регресс
+    BUG-069)."""
     email, password = _register_student_api(server)
     page, ctx = _mobile_page(browser)
     try:
@@ -5328,7 +5332,8 @@ def test_s18_mobile_tickets_trainer_grid_390(browser, server):
     на 390×844 — выбор билета, exam-bar переносится, вопрос и варианты во
     всю ширину контента, навигатор вопросов — сетка ровно 10 колонок клеток
     (мокап mobile-pdd-tickets.html .qnav repeat(10,1fr)), клик верного
-    ответа — пояснение и статус done-g. Реальный бэкенд."""
+    ответа — пояснение и статус done-g. Реальный бэкенд.
+    Кейс партии (approved): TC-S18-006 (тренажер на 390px)."""
     token = _student_token(server)
     page, ctx = _mobile_page(browser, token)
     try:
@@ -5373,7 +5378,9 @@ def test_s18_desktop_tabbar_hidden_and_fines_table_intact(browser, server):
     """TC-UI-079 (Спринт 18, 18.4.1/18.4.2 — desktop-инвариант): на 1440×900
     таб-бар скрыт (CSS-страховка min-width:761px), desktop-сайдбар с 9
     пунктами на месте, штрафы — таблица с шапкой из 3 колонок (18.3.1
-    НЕ тронула desktop-фрагменты), сетка знаков — прежний auto-fill."""
+    НЕ тронула desktop-фрагменты), сетка знаков — прежний auto-fill.
+    Кейсы партии (approved): TC-S18-008 (desktop-регресс, BUG-070),
+    TC-S18-005 (desktop-грид контента не сжат)."""
     token = _student_token(server)
     ctx = browser.new_context(viewport={"width": 1440, "height": 900})
     page = ctx.new_page()
@@ -5414,7 +5421,8 @@ def test_s18_desktop_tabbar_hidden_and_fines_table_intact(browser, server):
 
 
 def test_mobile_topbar_initials_visible(page, server):
-    """MAJ-1 итер.003: top-bar с инициалами пользователя на мобильной
+    """TC-S18-001/005 (правочный носитель MAJ-1 — плановый TC-UI ID не имеет,
+    coverage.md). MAJ-1 итер.003: top-bar с инициалами пользователя на мобильной
     ширине (спека mobile-adaptive: «top-bar (инициалы)»; мокапы class="tb")."""
     _seed_session(page, "session_token", _student_token(server))
     page.set_viewport_size({"width": 390, "height": 844})
@@ -5427,7 +5435,8 @@ def test_mobile_topbar_initials_visible(page, server):
     assert len(txt) >= 2, f"инициалы пусты: {txt!r}"
 
 def test_s18_mobile_geometry_hit_targets(page, server):
-    """MIN-4 CR rev 001 (исправлен по ре-ревью: прежний тест был вакуумным —
+    """TC-S18-002/003/005/007 (правочный носитель MIN-4/MAJ-3 — плановый
+    TC-UI ID не имеет, coverage.md). MIN-4 CR rev 001 (исправлен по ре-ревью: прежний тест был вакуумным —
     мерил скрытые элементы). Геометрия меряется на ВИДИМЫХ элементах после
     переключения на соответствующий раздел: кнопки ≥44px, таб-бар ≤64px."""
     _seed_session(page, "session_token", _student_token(server))
