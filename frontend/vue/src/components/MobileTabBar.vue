@@ -35,11 +35,10 @@
      .shb/.grab — mobile-login/mobile-book-slot/mobile-dispute; тот же
      язык, что у модалок кабинета).
 
-     Wiring учетки — как в StudentSidebar (самодостаточность): ФИО —
-     GET /api/auth/me с X-Session-Token из sessionStorage (FR-5, fioOf),
-     лениво при ПЕРВОМ открытии «Профиля» (кабинет и так тянет /me через
-     сайдбар — дубля запросов при открытии страницы нет); 401/403/!ok →
-     toLogin (FR-7). «Выйти» — POST /api/auth/logout → очистка сессии →
+     Wiring учетки — самодостаточность (данные Hermes ядру не нужны):
+     ФИО — GET /api/auth/me при mount (для top-bar-инициалов и Профиля),
+     кеш meLoaded; 401/403/!ok → toLogin (FR-7). «Выйти» — POST
+     /api/auth/logout → очистка сессии →
      редирект на главную (FR-8, design поток 3). -->
 <template>
 <div class="mtab-root">
