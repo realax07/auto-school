@@ -5246,20 +5246,20 @@ def test_s18_mobile_geometry_hit_targets(page, server):
     wal.scroll_into_view_if_needed()
     assert wal.bounding_box()["height"] >= 44, "wal-btn < 44px"
 
-    # Мои заявки: .act кнопки повторить/отзыв
-    page.click('.mtab:has-text("Главная")')
-    page.wait_for_timeout(600)
-    acts = page.locator(".act")
-    if acts.count() == 0:
-        pytest.skip("нет .act в пустом состоянии заявок (посев требует отказанной заявки) — геометрия покрыта на заполненных состояниях")
-    first = acts.first
-    first.scroll_into_view_if_needed()
-    assert first.bounding_box()["height"] >= 44, ".act < 44px"
-
     # Таб-бар: реальный контейнер .mtabs (не .mtab-root, дети fixed)
     mtabs = page.locator(".mtabs")
     box = mtabs.bounding_box()
     assert box and 44 <= box["height"] <= 64, f"таб-бар высотой {box['height'] if box else '?'}"
+
+    # Мои заявки: .act кнопки повторить/отзыв (в конце — данные-зависимая
+    # проверка: в пустом состоянии .act нет, skip в середине обрывал носители)
+    page.click('.mtab:has-text("Главная")')
+    page.wait_for_timeout(600)
+    acts = page.locator(".act")
+    if acts.count():
+        first = acts.first
+        first.scroll_into_view_if_needed()
+        assert first.bounding_box()["height"] >= 44, ".act < 44px"
 
     # ФИО не отображается в сайдбаре на мобиле (сайдбар скрыт — BUG-070)
     assert page.locator(".side-user").is_hidden()
