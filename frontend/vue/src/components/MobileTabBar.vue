@@ -42,6 +42,10 @@
      редирект на главную (FR-8, design поток 3). -->
 <template>
 <div class="mtab-root">
+<div v-if="visible" class="mtop" data-test="mtop">
+  <div class="mtop-brand"><em>Сбер</em>Автошкола</div>
+  <button type="button" class="mtop-ava" data-test="mtop-ava" aria-label="Профиль" @click="openProfile">{{ initials }}</button>
+</div>
 <nav v-if="visible" class="mtabs" aria-label="Мобильная навигация">
   <!-- 5 разделов спеки mobile-adaptive; SVG-иконки — дословно из мокапов -->
   <button type="button" class="mtab" :class="{ on: active === 'Главная' }" @click="openTab('Главная')">
@@ -172,8 +176,7 @@ export default {
     var meLoaded = ref(false);
     // ФИО — лениво при первом открытии шита (страница и так тянет /me
     // через StudentSidebar — дубля запроса при открытии страницы нет)
-    function openProfile() {
-      sheet.value = 'profile';
+    function loadMe() {
       if (meLoaded.value) return;
       meLoaded.value = true;
       if (!getToken()) { toLogin(); return; }
@@ -183,6 +186,13 @@ export default {
         if (fio) uname.value = fio;
       });
     }
+    function openProfile() {
+      sheet.value = 'profile';
+      loadMe();
+    }
+    // MAJ-1 итер.003: инициалы в top-bar — ФИО грузится при монтировании
+    // компонента (видно на КАЖДОМ разделе, не только в Профиле)
+    loadMe();
     var initials = computed(function () {
       return (uname.value || '').split(' ').slice(0, 2).map(function (w) { return (w[0] || '').toUpperCase(); }).join('');
     });
@@ -215,6 +225,9 @@ export default {
 <style scoped>
 /* Компактный таб-бар (мокап mobile-home.html .tabs/.tab, высота 54px ≤64px
    спеки; палитра — дизайн-система кабинета: #55ed9c/#020b13-семейство). */
+.mtop{position:sticky;top:0;z-index:55;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:rgba(6,14,20,.96);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-bottom:1px solid rgba(148,163,164,.12)}
+.mtop-brand{font-size:14px;font-weight:700}.mtop-brand em{font-style:normal;color:#34d399}
+.mtop-ava{width:32px;height:32px;border-radius:50%;background:#123524;color:#34d399;display:grid;place-items:center;font-size:11px;font-weight:700;border:1px solid rgba(52,211,153,.35);cursor:pointer;padding:0}
 .mtabs{position:fixed;left:0;right:0;bottom:0;z-index:60;height:54px;display:flex;background:rgba(6,14,20,.96);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-top:1px solid rgba(148,163,164,.14);padding:0 4px}
 .mtab{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:none;border:0;color:#6b7f8a;font-size:9px;font-weight:600;padding:6px 0 5px}
 .mtab svg{opacity:.85;flex:none}

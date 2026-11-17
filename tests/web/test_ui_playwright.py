@@ -5443,3 +5443,17 @@ def test_s18_desktop_tabbar_hidden_and_fines_table_intact(browser, server):
         assert zn_cols > 2, zn_cols
     finally:
         ctx.close()
+
+
+def test_mobile_topbar_initials_visible(page, server):
+    """MAJ-1 итер.003: top-bar с инициалами пользователя на мобильной
+    ширине (спека mobile-adaptive: «top-bar (инициалы)»; мокапы class="tb")."""
+    _seed_session(page, "session_token", _student_token(server))
+    page.set_viewport_size({"width": 390, "height": 844})
+    page.goto(f"{server}/cabinet#/pdd-signs")
+    page.wait_for_timeout(1800)
+    ava = page.locator('[data-test="mtop-ava"]')
+    assert ava.count() == 1, "top-bar с инициалами отсутствует"
+    assert ava.is_visible(), "инициалы в top-bar не видны"
+    txt = ava.text_content().strip()
+    assert len(txt) >= 2, f"инициалы пусты: {txt!r}"

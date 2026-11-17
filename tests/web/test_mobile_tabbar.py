@@ -160,3 +160,5 @@ def test_mtabs_single_source_across_repo():
     hits = sorted(str(p.relative_to(ROOT)) for p in carriers
                   if ".mtabs" in read(p))
     assert hits == ["frontend/vue/src/components/MobileTabBar.vue"], hits
+
+
