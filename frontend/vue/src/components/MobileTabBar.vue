@@ -246,7 +246,8 @@ export default {
    row2-col1: контент сжимался до ширины сайдбара (236px, .zn-grid — одна
    колонка). Поймала e2e TC-UI-079 (геометрия сетки знаков). Страховка:
    корневой div >760px ячейку не генерирует; ≤760px не задет (внутри
-   fixed .mtabs — box div нулевой высоты). */
+   fixed .mtabs — сам бар fixed, высота корня — grid-stretch
+   min-height:100vh, не характеристика бара). */
 @media(min-width:761px){.mtab-root{display:none!important}}
 /* bottom-sheet с grab-хендлом и блюром (язык мокапов .shb/.grab) */
 .mtab-backdrop{position:fixed;inset:0;z-index:80;background:rgba(3,7,11,.6);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);display:flex;align-items:flex-end}
