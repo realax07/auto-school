@@ -14,6 +14,20 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4 (J64.17: по SHA)
 
+      # Сборка каркаса ПЕРЕД pytest (зеркало Dockerfile frontend-builder и
+      # bare-metal FR-57): маршрут /instructors/pending отдает Vue dist,
+      # pdd-страницы — pdd-data; оба каталога gitignored и существуют
+      # только после npm run build (build = generate-pdd-json.mjs +
+      # vite build). Без этого шага тесты страниц получают 404.
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4 (J64.17: по SHA)
+        with:
+          node-version: 22
+
+      - name: Build Vue frontend (frontend/vue)
+        run: |
+          cd frontend/vue && npm ci --no-audit --no-fund && npm run build
+
       - name: Set up Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5 (J64.17: по SHA)
         with:
@@ -169,3 +183,28 @@ jobs:
 # зависит от job flow — pytest независим от flow_check. Историческая краснота flow_check
 # на main (5 самоссылочных ошибок пакета add-deterministic-flow, гигиена P0.6) вычищена:
 # main зелен. Красный job flow на PR — дефект ветки/этапности, не фон.
+
+  # Задача 4.1 (add-containerization, FR-56): сборка образа на каждый PR —
+  # БЕЗ пуша в registry — и прогон backend-pytest ВНУТРИ собранного образа
+  # (тот же digest, что поставка; MAJ-1 design.md). Механика — та же, что
+  # scripts/container_test.sh: tests/ read-only монтированием, временная БД
+  # /tmp вне томов. Failure сборки/тестов красит PR. Спринт 16
+  # (add-wallet-economy 16.0, решение Заказчика 2026-11-14 об удалении
+  # S3-хранилища из стека — дословная цитата в дельте specs/containerization):
+  # dummy .env-шаг снят — compose больше не держит обязательных интерполяций
+  # (${VAR:?}); секреты app читает из env_file при compose run, а
+  # container_test.sh создает временный .env на чистой машине сам.
+  # Существующие job — без изменений.
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4 (J64.17: по SHA)
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f  # v3 (J64.17: по SHA)
+
+      - name: Build image
+        run: docker compose build app
+
+      - name: Run backend tests inside the built image
+        run: bash scripts/container_test.sh
