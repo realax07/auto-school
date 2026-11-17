@@ -53,7 +53,7 @@ TC-UI-077…079 + top-bar initials + geometry, медиа-гарды desktop-ф�
   card-top ellipsis (af4dab0, итер.012);
 - unit (логика С17 не менялась): `tests/unit/test_pdd_tickets_logic.py`
   (fmtClock/decClock/timeUp/fixAnswer — таймер 20:00, фиксация однократная),
-  `tests/unit/test_pdd_generator.py` (14 — корпус: билеты 80×20, знаки
+  `tests/unit/test_pdd_generator.py` (19 — корпус: билеты 80×20, знаки
   8 групп/321, whitelist изображений 1094);
 - гейты приемки (не pytest): `npm run build && npm run check:budgets` —
   budgets 14 страниц (MobileTabBar — в графах cabinet/instructor-choice);
@@ -109,7 +109,7 @@ TC-UI-077…079 + top-bar initials + geometry, медиа-гарды desktop-ф�
 - целостный вид карточек кошелька/заявок/броней и полосы дней со слотами
   на живых данных (компоновка машинно закрыта фактами styles.css и
   видимостью секций в e2e; статусы «свободно/занято/ваш запрос» —
-  content-строки :486-490);
+  content-строки :490-492);
 - блюр фона bottom-sheet и шиты «Оспорить»/«деталь знака» с данными
   (единый media-паттерн :526-блока);
 - линейная проба «отступ логотипа ~26px на всех ширинах» в кабинете
