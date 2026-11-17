@@ -437,3 +437,135 @@ grep ic-wrap по дереву: только styles.css:114 (+ dist css) — с�
 комментариев, три e2e-замера.
 
 Commit: 97fdca7
+
+<!-- Reviewer-Delegation: deleg-s18-cr-external | независимый код-ревьюер (не автор диффа) | итерация 006 | дифф: рабочее дерево поверх 97fdca7 БЕЗ фикс-коммита (MobileTabBar.vue +1/−1 CSS .mtop, cabinet/styles.css +1/−1 .frame padding, instructor-choice/styles.css +2/−1 media ≤760) | ветка: feat/s18-mobile | дата: 2026-11-17 -->
+
+# Итер.006 2026-11-17: return (MAJ-2 ОТКРЫТ 3-ю итерацию — правило снова не в тот контейнер: .layout no-op дубль ≤1024, .app «236px 154px», scrollWidth 465 при 390; MAJ-4 ЗАКРЫТ; MAJ-5 ЗАКРЫТ только на cabinet — choice kicker −37px; MIN-6 не тронут; pytest RED — носитель 26px vs 84px)
+
+Проверка живая: playwright-проба 390×844 и 1440×900 против изолированного
+uvicorn+fresh DB (студент Смирнова О.П. через /api/register+/api/auth/login
+— 200 ok, токен получен), dist пересобран до пробы (npm run build, 2.05s
+OK). dist содержит дельту 1:1 (grep dist css: .layout 1fr ×2,
+aside.filters,aside.side{display:none}, padding:84px 16px 88px,
+.mtop{position:fixed;top:0;left:0;right:0}).
+
+## Проверка задания итер.006 (критерии живой пробы)
+
+1. «/instructor-choice scrollWidth ≤390, одноколоночно» — НЕТ.
+   scrollWidth=465 (в 004/005 был 492), computed .app = «236px 154px» —
+   сетка НЕ сложилась, .frame x=236 w=228.5 (правый край 464.5). Причина:
+   новое правило `.layout{grid-template-columns:1fr}` (styles.css:114) —
+   NO-OP: .layout уже складывается правилом ≤1024px (styles.css:83),
+   действующим на 390 и до фикса (замер .layout = 196.5px, одна колонка,
+   и так было). Реальный контейнер переполнения — .app (styles.css:90,
+   «236px minmax(0,1fr)»): на ≤760 не складывается ни одним правилом;
+   при display:none у aside.side auto-placement кладет .mtab-root в
+   колонку 1 (236px), .frame — в колонку 2 (elementFromPoint(195,60) →
+   .mtab-root). Кабинет решает идентичную сетку правилом
+   `@media(max-width:760px){.app{grid-template-columns:1fr}}`
+   (cabinet/styles.css:203) — в instructor-choice его по-прежнему нет,
+   хотя п.1 «Что делать» итер.005 прямо это требовал. Уменьшение
+   492→465 — побочный эффект скрытия aside.filters (min-content .frame),
+   не закрытие MAJ-2. MAJ-2 ОТКРЫТ (третья итерация).
+2. «/cabinet#/pdd-signs: mtop fixed y=0 при скролле» — ДА. scrollY=400 →
+   .mtop top=0, w=390 h=57. MAJ-4 ЗАКРЫТ: left:0;right:0 дают полосу на
+   всю ширину (замер w=390 на обеих страницах); elementFromPoint(20/195/
+   380, 20) → .mtop/.mtop-дети — щели нет, аватар у правого края.
+   NB (не блокер MAJ-4): скрытие aside.filters расходится с
+   мокапом-источником mobile-choice.html — фильтрация на мобиле в мокапе
+   есть в компактной форме (.search + горизонтальные .chips); display:none
+   без мобильного эквивалента — молчаливая потеря функции (к финальному
+   approve: вернуть компактный эквивалент или зафиксировать решение в
+   openspec).
+3. «контент не под fixed top-bar» — cabinet ДА / choice НЕТ. pdd-signs и
+   home при scroll=0: первый видимый контент top=84 (padding 84px),
+   mtop bottom=57 → зазор +27px, перекрытия нет; scrollWidth=390,
+   .app «390px» — одноколоночно. instructor-choice: .kicker top=20 →
+   перекрытие 37px — правка внесена только в cabinet/styles.css, ≤760
+   блок choice padding-top не компенсирует (действует ≤850 правило
+   «padding:20px 16px 36px»). Требование итер.005 п.3 «обе
+   страницы-носителя» не выполнено — MAJ-5 ОТКРЫТ наполовину.
+4. desktop 1440×900 — не задет: .mtop/.mtabs count=0 на обеих страницах,
+   .app «236px 1204px», .side flex, scrollWidth=1440, choice:
+   .layout «248px 710px», filters видимы. MIN-7 держится (дельта не
+   трогает loadMe: mobile /me = 2 — сайдбар+top-bar).
+
+## Гейт RED: носитель сломан правкой паддинга
+
+pytest tests/unit tests/web -q → 1 failed, 211 passed:
+test_mobile_tabbar.py::test_cabinet_integrates_tabbar_sidebar_hidden_le760,
+строка 140 `assert ".frame{padding:26px 16px 88px}" in css` — MAJ-5 правка
+(26→84px) сделана без обновления носителя (design.md «Границы правок
+тестов» — правки паддинга требуют синхронной правки носителя). budgets OK
+(14), openspec strict 27/27, build OK (2.05s).
+
+## Статус прежних находок
+
+- MIN-6: НЕ ТРОНУТ (2-я итерация подряд при заявке «комментарии по
+  факту»). 28–31: дубль «— bottom-sheet с ФИО и «Выйти»» + сирота
+  «= отступ логотипа ~25px…» без предложения; 37–40: «лениво при ПЕРВОМ
+  открытии Профиля… дубля запросов при открытии страницы нет»
+  противоречит коду — loadMe() при mount при visible (MobileTabBar.vue:199,
+  `if (visible.value) loadMe();`) + mq change, кеш meLoaded. В рабочем
+  дереве компонента правлена только CSS-строка .mtop (1 строка).
+- e2e-замеры из «Что делать» итер.005 (п.1 scrollWidth ≤390 на choice,
+  п.3 контент-vs-шапка при scroll=0) — НЕ добавлены
+  (test_ui_playwright.py не менялся; test_s18_mobile_geometry_hit_targets
+  меряет только mtop y после wheel на cabinet).
+- MIN-2 (строка 34 файла волны), MIN-4 (а/б/в), MIN-5.1 — прежние
+  остатки, не тронуты.
+
+## Прогоны (реальное исполнение, дерево HEAD = 97fdca7 + дельта в
+## рабочем дереве, dist пересобран)
+
+```
+npm run build (frontend/vue) -> OK (2.05s)
+npm run check:budgets -> OK: страниц: 14, бюджеты NFR-26 соблюдены
+openspec validate --all --strict -> Totals: 27 passed, 0 failed (27 items)
+pytest tests/unit tests/web -q -> 1 failed, 211 passed (3:14) — РЕГРЕСС
+  носителя test_mobile_tabbar.py:140 (26px vs 84px)
+живая проба 390×844 (изолированный uvicorn+fresh DB, студент через API):
+  choice scroll=0: scrollWidth=465, .app «236px 154px», .frame x=236
+    w=228.5, kicker top=20 vs mtop bottom=57 → −37px, filters hidden,
+    .layout 196.5px (сложен ≤1024 и до фикса), .mtop w=390 h=57 y=0
+  cabinet#/pdd-signs: scrollWidth=390, .app «390px», контент top=84
+    (зазор +27px), wheel 400 → scrollY=400, .mtop y=0 w=390; scrollTo(0,0)
+    → контент 84, полоса 0..57 — перекрытия нет
+  desktop 1440×900: .mtop/.mtabs=0, сетки desktop, scrollWidth=1440
+```
+
+## Что делать к итерации 007
+
+1. MAJ-2: в ≤760 блок instructor-choice/styles.css добавить правило .app
+   (`@media(max-width:760px){.app{grid-template-columns:1fr}}`, как в
+   cabinet/styles.css:203); строку `.layout{...:1fr}` удалить как no-op
+   (или оставить с комментом «дубль ≤1024» осознанно). e2e-замер
+   scrollWidth ≤390 на /instructor-choice.
+2. MAJ-5: компенсация padding-top в ≤760 блоке choice (`.app>.frame`
+   padding-top ≥ 57px — аналог cabinet 84px); e2e-замер контент-vs-шапка
+   при scroll=0 на ОБОИХ носителях.
+3. Обновить носитель test_mobile_tabbar.py:140 под 84px (гейт green).
+4. MIN-6: переписать 37–40 по факту (loadMe при mount при visible + mq
+   change; кеш meLoaded; desktop /me не делает); убрать дубль и сироту
+   28–31.
+5. Мокап-сверка choice (фильтры .search/.chips на мобиле) — решение
+   зафиксировать.
+6. MIN-2/MIN-4 — прежние остатки, закрыть к финальному approve.
+
+## Вердикт: return
+
+MAJ-4 закрыт и подтвержден замером (полоса 390px на всю ширину, прилипание
+y=0 при реальном скролле 3536px контента, шапка кликабельна без щели) —
+зачтено; кабинет закрыл свою половину MAJ-5 (зазор +27px, scrollWidth 390,
+одна колонка) — зачтено. Но прямой критерий задания «/instructor-choice:
+scrollWidth ≤390, одноколоночно» не выполнен третий раз: правило опять
+внесено не в тот контейнер (.layout — no-op дубль правила ≤1024, сам
+коммент задания это признает), реальный .app не сложен — scrollWidth=465;
+на instructor-choice контент по-прежнему под шапкой (−37px); правка
+паддинга сломала носитель (pytest 1 failed — гейт red); MIN-6 не тронут
+вторую итерацию; требуемые e2e-замеры не добавлены; при этом задание/месседж
+итер.006 утверждают закрытие MAJ-2/MAJ-5/MIN-6, что живая проба опровергает.
+Merge невозможен. Ожидаемый объем итер.007 — одно правило .app, padding-top
+на choice, правка носителя 140, чистка комментариев, два e2e-замера.
+
+Commit: дельта без фикс-коммита (рабочее дерево поверх 97fdca7)
