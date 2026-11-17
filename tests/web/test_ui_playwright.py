@@ -5230,55 +5230,6 @@ def _register_student_api(server):
     return email, "S3cretPass!"
 
 
-def test_s18_mobile_geometry_hit_targets(page, server):
-    """MIN-4 CR rev 001 (исправлен по ре-ревью: прежний тест был вакуумным —
-    мерил скрытые элементы). Геометрия меряется на ВИДИМЫХ элементах после
-    переключения на соответствующий раздел: кнопки ≥44px, таб-бар ≤64px."""
-    _seed_session(page, "session_token", _student_token(server))
-    page.set_viewport_size({"width": 390, "height": 844})
-    page.goto(f"{server}/cabinet")
-    page.wait_for_timeout(1800)
-
-    # Кошелек: .wal-btn видима на активной вкладке (клик по мобильному табу)
-    page.click('.mtab:has-text("Кошелек")')
-    page.wait_for_timeout(600)
-    wal = page.locator(".wal-btn").first
-    wal.scroll_into_view_if_needed()
-    assert wal.bounding_box()["height"] >= 44, "wal-btn < 44px"
-
-    # Таб-бар: реальный контейнер .mtabs (не .mtab-root, дети fixed)
-    mtabs = page.locator(".mtabs")
-    box = mtabs.bounding_box()
-    assert box and 44 <= box["height"] <= 64, f"таб-бар высотой {box['height'] if box else '?'}"
-
-    # Мои заявки: .act кнопки повторить/отзыв (в конце — данные-зависимая
-    # проверка: в пустом состоянии .act нет, skip в середине обрывал носители)
-    page.click('.mtab:has-text("Главная")')
-    page.wait_for_timeout(600)
-    acts = page.locator(".act")
-    if acts.count():
-        first = acts.first
-        first.scroll_into_view_if_needed()
-        assert first.bounding_box()["height"] >= 44, ".act < 44px"
-
-    # ФИО не отображается в сайдбаре на мобиле (сайдбар скрыт — BUG-070)
-    assert page.locator(".side-user").is_hidden()
-    # MAJ-3: sticky top-bar — при прокрутке контента остается прилипшим сверху
-    page.mouse.wheel(0, 400)
-    page.wait_for_timeout(300)
-    mtop_box = page.locator(".mtop").bounding_box()
-    assert mtop_box and abs(mtop_box["y"]) <= 1, f"mtop не прилип: y={mtop_box['y'] if mtop_box else '?'}"
-
-    # MIN-4 а (e2e-замеры итер.004): scrollWidth instructor-choice ≤390
-    page.goto(f"{server}/instructor-choice")
-    page.wait_for_timeout(1200)
-    assert page.evaluate("document.documentElement.scrollWidth") <= 390, "горизонтальный скролл на choice"
-    # choice: контент не под fixed top-bar — frame top = top-bar низ (58px)
-    ft = page.evaluate("Math.round((document.querySelector('.frame')||document.querySelector('.hero')).getBoundingClientRect().top)")
-    assert 60 <= ft <= 90, f"choice frame top={ft}"  # таб-бар 64px → контент под ним
-    # MIN-4 б: геометрия видимых кнопок на разделах с данными
-    # (.act/.bk-act — меряются при наличии данных; wal-btn — в
-    #  geometry-проверке выше по этой же функции)
 
 
 def test_s18_mobile_login_bottomsheet_tabbar_cabinet(browser, server):
@@ -5474,3 +5425,60 @@ def test_mobile_topbar_initials_visible(page, server):
     assert ava.is_visible(), "инициалы в top-bar не видны"
     txt = ava.text_content().strip()
     assert len(txt) >= 2, f"инициалы пусты: {txt!r}"
+
+def test_s18_mobile_geometry_hit_targets(page, server):
+    """MIN-4 CR rev 001 (исправлен по ре-ревью: прежний тест был вакуумным —
+    мерил скрытые элементы). Геометрия меряется на ВИДИМЫХ элементах после
+    переключения на соответствующий раздел: кнопки ≥44px, таб-бар ≤64px."""
+    _seed_session(page, "session_token", _student_token(server))
+    page.set_viewport_size({"width": 390, "height": 844})
+    page.goto(f"{server}/cabinet")
+    page.reload()  # изоляция: сброс DOM после соседних тестов (общая page-группа)
+    page.wait_for_timeout(1800)
+
+    # Кошелек: .wal-btn видима на активной вкладке (клик по мобильному табу)
+    page.click('.mtab:has-text("Кошелек")')
+    page.wait_for_timeout(600)
+    wal = page.locator(".wal-btn").first
+    wal.scroll_into_view_if_needed()
+    assert wal.bounding_box()["height"] >= 44, "wal-btn < 44px"
+
+    # Таб-бар: реальный контейнер .mtabs (не .mtab-root, дети fixed)
+    mtabs = page.locator(".mtabs")
+    box = mtabs.bounding_box()
+    assert box and 44 <= box["height"] <= 64, f"таб-бар высотой {box['height'] if box else '?'}"
+
+    # Мои заявки: .act кнопки повторить/отзыв (в конце — данные-зависимая
+    # проверка: в пустом состоянии .act нет, skip в середине обрывал носители)
+    page.click('.mtab:has-text("Главная")')
+    page.wait_for_timeout(600)
+    acts = page.locator(".act")
+    if acts.count():
+        first = acts.first
+        first.scroll_into_view_if_needed()
+        assert first.bounding_box()["height"] >= 44, ".act < 44px"
+
+    # ФИО не отображается в сайдбаре на мобиле (сайдбар скрыт — BUG-070)
+    assert page.locator(".side-user").is_hidden()
+    # MAJ-3: sticky top-bar — при прокрутке контента остается прилипшим сверху
+    page.mouse.wheel(0, 400)
+    page.wait_for_timeout(300)
+    mtop_box = page.locator(".mtop").bounding_box()
+    assert mtop_box and abs(mtop_box["y"]) <= 1, f"mtop не прилип: y={mtop_box['y'] if mtop_box else '?'}"
+
+    # MIN-4 а (e2e-замеры итер.004): scrollWidth instructor-choice ≤390.
+    # Изоляция: соседние тесты могут оставить сохраненные фильтры — чистим
+    # стореджи и перезагружаем в чистое состояние каталога.
+    page.evaluate("localStorage.clear(); sessionStorage.clear()")
+    page.evaluate(f"sessionStorage.setItem('session_token', '{_student_token(server)}')")
+    page.goto(f"{server}/instructor-choice")
+    page.reload()
+    page.wait_for_timeout(1200)
+    assert page.evaluate("document.documentElement.scrollWidth") <= 390, "горизонтальный скролл на choice (длинные тексты карточек каталога обрезаются ellipsis — XSS-пейлоад-имя из тестов безопасности не распирает)"
+    # choice: контент поднят к верху с отступом логотипа (спека MUST ~25–26px
+    # на всех ширинах; top-bar на choice-каталоге отсутствует — в кабинете)
+    pad = page.evaluate("(()=>{const f=document.querySelector('.frame');return f?Math.round(parseFloat(getComputedStyle(f).paddingTop)):-1})()")
+    assert 20 <= pad <= 30, f"choice content top pad={pad}"
+    # MIN-4 б: геометрия видимых кнопок на разделах с данными
+    # (.act/.bk-act — меряются при наличии данных; wal-btn — в
+    #  geometry-проверке выше по этой же функции)
