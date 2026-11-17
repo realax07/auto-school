@@ -40,6 +40,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+import factory_paths as fp  # noqa: E402  (J64.5: пути машины — только оттуда)
 
 FACTORY = Path(__file__).resolve().parent.parent
 
@@ -64,6 +65,8 @@ PROTECTED_PATHS = tuple(
         "contracts/",
         "AGENTS.md",
         "agents/README.md",
+        "agents/roles.json",  # J65.1: реестр ролей — источник политики зон
+        "test-model/test-layout.json",  # J66: строгость раскладки тестов
     )
     if p not in [x.strip() for x in __import__("os").environ.get("PM_PROTECTED_EXCLUDE", "").split(",") if x.strip()]
 )
@@ -130,11 +133,20 @@ def check_commit(repo: Path, commit: str) -> list[str]:
         )
 
     for f in files:
-        if f.startswith(ROLE_PROMPT_PREFIX) and not f.endswith(ALLOWED_EXTENSIONS_IN_ROLES):
+        if (f.startswith(ROLE_PROMPT_PREFIX) and f != "agents/roles.json"
+                and not f.endswith(ALLOWED_EXTENSIONS_IN_ROLES)):
             problems.append(
                 f"{commit}: {f} — не-документный файл в agents/ вне зоны ПМ (J3)"
             )
     return problems
+
+
+# Завершенные записи реестра (зона снята: принята и закрыта / освобождена) —
+# история, в проверку повтора пары не идут. Перечисляются именно они, а не
+# живые: запись с неизвестным или пустым статусом остается в проверке
+# (fail-closed; ревью J65.10 review-001). Ни один из них не держит зону
+# (session_check.ZONE_HOLDING) — тест TC-J65-REF-005.
+FINISHED_STATUSES = ("closed", "released")
 
 
 def check_sessions(path: Path) -> list[str]:
@@ -148,12 +160,18 @@ def check_sessions(path: Path) -> list[str]:
 
     seen: dict[tuple[str, str], str] = {}
     for i, s in enumerate(data.get("sessions", [])):
+        live = s.get("status") not in FINISHED_STATUSES
         label = f"sessions[{i}] ({s.get('delegation_id', '?')})"
         for field in REQUIRED_SESSION_FIELDS:
             if not s.get(field):
                 problems.append(f"{label}: отсутствует обязательное поле '{field}' (J2)")
         project, owner = s.get("project", ""), s.get("owner_pm", "")
-        if project and owner:
+        # Повтор пары — только среди живых записей (J65.10): закрытая или
+        # освобожденная сессия — история, не второй ПМ проекта. Раньше
+        # пакетный раннер (owner_pm=package_runner на все стадии) получал
+        # FAIL на finish dev-стадии, если до нее в проекте закрылась любая
+        # другая стадия. Запись без status (формат J2) — живая.
+        if project and owner and live:
             key = (project, owner)
             if key in seen and seen[key] != s.get("delegation_id"):
                 problems.append(
@@ -184,7 +202,7 @@ def load_pm_projects(sessions_path: Path) -> tuple[set[str], list[str]]:
         project = s.get("project", "")
         if not project or project == CONVEYOR_PROJECT:
             continue
-        candidate = Path.home() / project
+        candidate = fp.projects_root() / project
         if candidate.is_dir() and (candidate / ".git").exists():
             repos.add(str(candidate))
     return repos, problems
@@ -235,15 +253,12 @@ MERGE_TASK_RE = re.compile(
 
 def review_approve_date(text: str) -> str | None:
     """Вердикт approve + дата из review-файла (формат agents/code_reviewer_agent.md)."""
-    # повторяем семантику flow_check.parse_verdict без импорта (скрипт самодостаточен)
-    verdict = None
-    for m in re.finditer(r"^#{1,4}\s*Вердикт\s*:?\s*(.+)$", text, re.I | re.M):
-        v = m.group(1).strip().strip("*").strip().lower()
-        if re.search(r"\b(return|доработк\w*)\b", v, re.I):
-            verdict = "return"
-        elif re.search(r"\b(approve|approved|одобрен\w*)\b", v, re.I):
-            verdict = "approve"
-    if verdict != "approve":
+    # Единый парсер вердикта — flow_check.parse_verdict (J65.4: прежняя копия
+    # семантики расходилась — не знала «одобрить»/«вернуть», «не одобрить»,
+    # нумерованные заголовки). flow_check копируется в проект вместе с этим
+    # скриптом (factory_init COPY_FILES).
+    import flow_check
+    if flow_check.parse_verdict(text) != "approve":
         return None
     dm = re.search(r"Дата\s*[:\*]*\s*(\d{4}-\d{2}-\d{2})", text, re.I)
     return dm.group(1) if dm else None
@@ -292,7 +307,7 @@ def main() -> int:
     ap.add_argument("--repo", default=str(FACTORY), help="git-репозиторий для --commits")
     ap.add_argument("--commits", help="коммит(ы) через запятую")
     ap.add_argument("--sessions", nargs="?", const=str(
-        Path.home() / ".hermes/state/active_sessions.json"),
+        fp.registry_path()),
         help="путь к active_sessions.json")
     ap.add_argument("--product-commits", metavar="RANGE",
         help="git-диапазон (например origin/main..main или A..B) в продуктовом "
@@ -322,7 +337,7 @@ def main() -> int:
             require_review=args.require_review)
     if args.all_projects:
         sessions_path = Path(args.sessions).expanduser() if args.sessions else (
-            Path.home() / ".hermes/state/active_sessions.json")
+            fp.registry_path())
         repos, registry_problems = load_pm_projects(sessions_path)
         if not args.sessions:
             # при явном --sessions реестр уже проверен выше — не дублируем

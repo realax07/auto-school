@@ -30,20 +30,26 @@ import json
 import sys
 import time
 from pathlib import Path
+import factory_paths as fp  # noqa: E402  (J64.5: пути машины — только оттуда)
 
-REGISTRY_DB = Path.home() / ".hermes" / "state.db"   # async_delegations — платформенный факт
-FLOWCTL_STATE = Path.home() / ".hermes" / "state" / "flowctl_state.json"
-INCIDENTS = Path.home() / ".hermes" / "state" / "delegate_bypass_incidents.json"
-PM_NUDGE_STATE = Path.home() / ".hermes" / "state" / "delegate_watchdog_pm_nudge.json"
-ACK_STATE = Path.home() / ".hermes" / "state" / "delegate_watchdog_ack.json"
+try:   # J65.6: устройство данных Hermes знает только исполнитель hermes
+    from executors import hermes as _hermes
+except ImportError:   # копия без пакета executors: реестра нет (см. load_delegations)
+    _hermes = None
+# async_delegations — платформенный факт; путь — у адаптера
+REGISTRY_DB = _hermes.EXECUTOR.registry_db() if _hermes is not None else None
+FLOWCTL_STATE = fp.state_dir() / "flowctl_state.json"
+INCIDENTS = fp.state_dir() / "delegate_bypass_incidents.json"
+PM_NUDGE_STATE = fp.state_dir() / "delegate_watchdog_pm_nudge.json"
+ACK_STATE = fp.state_dir() / "delegate_watchdog_ack.json"
 # GATED_MAP: платформенные delegation_id, диспатченные ЧЕРЕЗ ворота. Gate start
 # генерирует свой correlation/delegation-id ДО диспатча (circular: платформенный
 # id появляется только в ответе delegate_task), поэтому прямое сопоставление
 # невозможно. ПМ после диспатча вписывает пару platform_id → correlation_id.
 # Ложный STALE на легитимную делегацию (прецедент deleg_d47a77a2, 2026-10-04)
 # без этого маппинга: platform id не входит в gated-множество → «забыт finish».
-GATED_MAP_STATE = Path.home() / ".hermes" / "state" / "delegate_gate_gated_map.json"
-PM_INSTRUCTION_STATE = Path.home() / ".hermes" / "state" / "pm_instruction.txt"
+GATED_MAP_STATE = fp.state_dir() / "delegate_gate_gated_map.json"
+PM_INSTRUCTION_STATE = fp.state_dir() / "pm_instruction.txt"
 GRACE_SECONDS = 120  # делегациям младше 2 минут даем время на prepare (гонка старт)
 # Анти-рекурсия (требование Заказчика 2026-10-04): [PM-INSTRUCTION] доставляется
 # ПМ как OUT-OF-BAND; ПМ в ответе может триггерить новые делегации → новый
@@ -70,33 +76,17 @@ def load(path):
 
 def load_delegations() -> list[dict] | None:
     """Все делегации из async_delegations (пишется платформой при каждом
-    delegate_task — независимо от воли агента)."""
-    import sqlite3
-    if not REGISTRY_DB.exists():
+    delegate_task — независимо от воли агента). Источник — исполнитель hermes
+    (scripts/executors/hermes.py, J65.5/J65.6); пакета executors нет (копия
+    до J65.5) — реестр недоступен, прогон пропускается с WARN."""
+    if _hermes is None:
+        print("WARN: нет пакета scripts/executors — реестр делегаций недоступен "
+              "(обнови копию ядра: factory_init)", file=sys.stderr)
         return None
-    try:
-        conn = sqlite3.connect(f"file:{REGISTRY_DB}?mode=ro", uri=True)
-        conn.row_factory = sqlite3.Row
-        rows = conn.execute(
-            "SELECT delegation_id, parent_session_id, state, delivery_state,"
-            " dispatched_at, completed_at FROM async_delegations"
-        ).fetchall()
-        conn.close()
-    except sqlite3.Error as e:
-        print(f"WARN: state.db недоступен ({e})", file=sys.stderr)
-        return None
-    out = []
-    for r in rows:
-        out.append({"delegation_id": r["delegation_id"], "state": r["state"],
-                    "delivery_state": r["delivery_state"],
-                    "dispatched_at": r["dispatched_at"],
-                    "completed_at": r["completed_at"],
-                    "parent_session_id": r["parent_session_id"]})
-    return out
-
+    return _hermes.EXECUTOR.delegations(REGISTRY_DB)
 
 def _baseline_path() -> Path:
-    return Path.home() / ".hermes" / "state" / "delegate_gate_baseline.json"
+    return fp.state_dir() / "delegate_gate_baseline.json"
 
 
 def _scan(delegations, flow, gated_map=None, baseline=None, now=None):
@@ -187,12 +177,32 @@ def _scan(delegations, flow, gated_map=None, baseline=None, now=None):
     return bypasses, stale
 
 
+def executor_bypasses() -> list[dict]:
+    """J65.5: обход исполнителей-процессов (pi, stub, …) — запуск вне живой
+    резервации (executor_watchdog). Копия в проекте без пакета исполнителей —
+    пусто (вотчдог работает экземпляром фабрики)."""
+    try:
+        import executor_watchdog
+    except ImportError:
+        return []
+    try:
+        registry, journal = executor_watchdog.default_paths()
+        return executor_watchdog.scan(registry, journal)
+    except Exception as exc:   # сломанный исполнитель не роняет сверку Hermes
+        print(f"WARN: сверка исполнителей не выполнена ({exc!r})", file=sys.stderr)
+        return []
+
+
 def main() -> int:
+    proc_bypasses = executor_bypasses()
     delegations = load_delegations()
     flow = load(FLOWCTL_STATE)
     if delegations is None or flow is None:
-        print("clean: реестры недоступны/пусты — сверка невозможна")
-        return 0
+        if not proc_bypasses:
+            print("clean: реестры недоступны/пусты — сверка невозможна")
+            return 0
+        # Hermes на машине нет — сверяются только исполнители-процессы
+        delegations, flow = [], flow or {"runs": {}}
 
     # Платформенные id, диспатченные через ворота (маппинг ведет ПМ после
     # диспатча — см. GATED_MAP_STATE): эквивалентны gated. Значение map —
@@ -201,6 +211,7 @@ def main() -> int:
 
     bypasses, stale = _scan(delegations, flow, gated_map=gated_map,
                             baseline=load(_baseline_path()))
+    bypasses += proc_bypasses
 
     report = {"checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
               "bypass": bypasses, "stale_finish": stale}
