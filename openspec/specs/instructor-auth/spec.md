@@ -37,15 +37,11 @@ FR-13).
 ### Requirement: Роутинг после входа по статусу
 
 После успешной проверки пароля система MUST направлять пользователя по
-состоянию его учетной записи/заявки: пользователь существует (заявка
-approved) → кабинет инструктора /instructor/dashboard; заявка waiting →
-экран ожидания /instructors/pending; заявка deny → экран отказа
-/instructors/rejected с причиной. Контракт ответа логина (route/reason)
-и запись причины в sessionStorage «instructor_rejected_reason» ДО
-редиректа MUST не изменяться.
-
-Источник: FR-13; решение Заказчика 2026-11-09 (кабинет вместо
-заглушки — фактическое поведение с Спринта 2.2, sdd.md).
+состоянию учетной записи/заявки: approved → /instructor/dashboard;
+waiting → /instructors/pending; deny → /instructors/rejected с причиной.
+Контракт ответа логина (route/reason) и запись причины в sessionStorage
+«instructor_rejected_reason» ДО редиректа MUST не изменяться
+(FR-13, Спринт 2.2).
 
 #### Scenario: Пользователь найден — заглушка кабинета
 
