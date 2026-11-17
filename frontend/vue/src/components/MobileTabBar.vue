@@ -41,7 +41,7 @@
      toLogin (FR-7). «Выйти» — POST /api/auth/logout → очистка сессии →
      редирект на главную (FR-8, design поток 3). -->
 <template>
-<div>
+<div class="mtab-root">
 <nav v-if="visible" class="mtabs" aria-label="Мобильная навигация">
   <!-- 5 разделов спеки mobile-adaptive; SVG-иконки — дословно из мокапов -->
   <button type="button" class="mtab" :class="{ on: active === 'Главная' }" @click="openTab('Главная')">
@@ -202,6 +202,9 @@ export default {
 
     return {
       visible: visible, active: active,
+      // BUG-068: openTab отсутствовал в возвращаемых bindings setup — клики
+      // по табам падали TypeError в рантайме (носитель e2e TC-UI-077 ловит)
+      openTab: openTab,
       EDU: EDU, sheet: sheet, closeSheet: closeSheet, pickEdu: pickEdu,
       uname: uname, initials: initials, openProfile: openProfile, logout: logout,
     };
@@ -220,6 +223,14 @@ export default {
 /* CSS-страховка показа только ≤760px (дубль matchMedia): desktop (>760px)
    не меняется — носители e2e 84 защищают */
 @media(min-width:761px){.mtabs{display:none!important}}
+/* BUG-070 (18.4): корневой div компонента (класс .mtab-root) Vue
+   монтирует ПРЯМО в .app кабинета (grid 236px+1fr, без host-элемента) —
+   на desktop пустой div занимал ячейку row1-col2, сдвигая .hero в
+   row2-col1: контент сжимался до ширины сайдбара (236px, .zn-grid — одна
+   колонка). Поймала e2e TC-UI-079 (геометрия сетки знаков). Страховка:
+   корневой div >760px ячейку не генерирует; ≤760px не задет (внутри
+   fixed .mtabs — box div нулевой высоты). */
+@media(min-width:761px){.mtab-root{display:none!important}}
 /* bottom-sheet с grab-хендлом и блюром (язык мокапов .shb/.grab) */
 .mtab-backdrop{position:fixed;inset:0;z-index:80;background:rgba(3,7,11,.6);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);display:flex;align-items:flex-end}
 .mtab-sheet{width:100%;max-height:80vh;overflow:auto;background:#0d161e;border:1px solid rgba(148,163,164,.16);border-bottom:0;border-radius:18px 18px 0 0;padding:10px 18px 26px}

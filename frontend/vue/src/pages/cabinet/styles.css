@@ -524,7 +524,20 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
      и блюром фона (мокапы mobile-book-slot/mobile-dispute/mobile-pdd-
      sign-detail .shb/.grab); поля и кнопки — без изменений --- */
 @media(max-width:760px){
-  .backdrop,.wal-backdrop{place-items:end center;padding:0}
+  /* BUG-069: модалки кабинета НЕ пробивали таб-бар повышением z-index
+     бэкдропа (30→70): .frame — стекинг-контекст (position:relative;
+     z-index:1), бэкдроп paints на УРОВНЕ .frame (1 < 60 таб-бара) — .mtab
+     перехватывал клики по кнопкам шита (e2e TC-UI-077). Вариант «поднять
+     сам .frame до 70» отвергнут рантайм-проверкой: ВЕСЬ контент frame
+     (без общего bottom-padding) начинал перехватывать клики ТАБОВ при
+     скролле. Решение — в ≤760px снять контекст (.frame{z-index:auto})
+     и поднять бэкдропы над таб-баром в КОРНЕВОМ контексте (70 > 60):
+     шит ПОКРЫВАЕТ таб-бар (мокапы mobile-*.html: sheet поверх tabs).
+     Другие z-слои .frame на mobile: zn-overlay 80 (> 60 — деталь знака
+     поверх таб-бара), тост 20 (геометрически выше таб-бара, bottom:70px).
+     Desktop не меняется (.frame z-index:1 сохранен). */
+  .frame{z-index:auto}
+  .backdrop,.wal-backdrop{place-items:end center;padding:0;z-index:70}
   .wal-modal,.bk-modal,.zn-modal{width:100%;max-width:none;border-radius:18px 18px 0 0;border-left:0;border-right:0;border-bottom:0;padding:10px 18px 26px}
   .wal-modal:before,.bk-modal:before,.zn-modal:before{content:"";display:block;width:38px;height:4px;border-radius:4px;background:#2d3d49;margin:6px auto 14px}
   .zn-overlay{align-items:flex-end;padding:0}
