@@ -22,8 +22,9 @@ failed → closed. Смена статуса несет evidence и причин
 зон активных сессий того же repo → ZONE_CONFLICT: ровно одна сессия владеет
 путем. P0.3: резервация требует policy_version — редакцию политики зон роли
 (ROLE_ZONE_POLICY; сужение выполняет flowctl prepare до резервации); версия
-хранится в записи и попадает в verdict finish (ZONE_POLICY_MISMATCH при
-расхождении редакций).
+хранится в записи для аудита. J65.2: рядом — role_zone_digest, отпечаток
+зоны своей роли; finish сверяет его (ZONE_POLICY_MISMATCH при изменении зоны
+своей роли; правка чужой роли сессию не задевает).
 
 Usage:
     python3 scripts/session_check.py reserve --registry PATH --repo PATH \
@@ -109,14 +110,6 @@ def change_id_problem(change_id: str) -> str | None:
             "без слэшей и '..'")
 
 
-def _fnmatch_segments(pattern: str, path: str) -> bool:
-    """fnmatch посегментно: '*' внутри сегмента не переходит через '/'."""
-    psegs, usegs = pattern.split("/"), path.split("/")
-    if len(psegs) != len(usegs):
-        return False
-    return all(fnmatch.fnmatchcase(u, p) for p, u in zip(psegs, usegs))
-
-
 def glob_matches(pattern: str, rel: str) -> bool:
     """Glob-семантика зон (тесты ТЗ 04: вложенные пути, префиксы, symlink).
 
@@ -131,32 +124,37 @@ def glob_matches(pattern: str, rel: str) -> bool:
     path = canonical(rel)
     if not pat or not path:
         return False
-    if pat == "**":
-        return True
     if any(ch in pat for ch in "*?["):
-        if _fnmatch_segments(pat, path):
-            return True
-        if pat.endswith("/**") and (
-            path == pat[:-3] or path.startswith(pat[:-3] + "/")
-        ):
-            return True
-        if "**/" in pat or "/**" in pat:
-            head, _, tail = pat.partition("**")
-            # '**' → любое число сегментов (включая ноль).
-            head_prefix = head.rstrip("/")
-            if head_prefix and not (
-                path == head_prefix or path.startswith(head_prefix + "/")
-            ):
-                return False
-            rest = path[len(head_prefix):].lstrip("/")
-            tail_seg = tail.lstrip("/")
-            if not tail_seg:
-                return True
-            return any(
-                _fnmatch_segments(tail_seg, "/".join(rest.split("/")[n:]))
-                for n in range(len(rest.split("/")) + 1)
-            )
-        return False
+        # Посегментная рекурсия (та же семантика, что _pattern_matches_pattern):
+        # '**' — любое число сегментов, включая ноль; '*', '?', '[...]' —
+        # внутри одного сегмента. Прежняя реализация сравнивала префикс перед
+        # '**' буквально: 'openspec/changes/*/specs/**' не матчил
+        # 'openspec/changes/x/specs/a/spec.md' (СА не мог запросить конкретный
+        # spec.md — ревью J65.10 review-002), а 'a/**/*' матчил сам 'a'.
+        usegs = path.split("/")
+        # путь с '..', '.' или пустым сегментом зоной не матчится (canonical
+        # их не схлопывает; ревью glob-matches review-001)
+        if any(u in ("", ".", "..") for u in usegs):
+            return False
+        psegs: list[str] = []
+        for seg in pat.split("/"):
+            if seg and not (seg == "**" and psegs and psegs[-1] == "**"):
+                psegs.append(seg)   # '//' и подряд '**' схлопываются
+        memo: dict[tuple[int, int], bool] = {}
+
+        def rec(i: int, j: int) -> bool:   # O(|pat|·|path|) с memo
+            key = (i, j)
+            if key not in memo:
+                if i == len(psegs):
+                    memo[key] = j == len(usegs)
+                elif psegs[i] == "**":
+                    memo[key] = rec(i + 1, j) or (j < len(usegs) and rec(i, j + 1))
+                else:
+                    memo[key] = (j < len(usegs)
+                                 and fnmatch.fnmatchcase(usegs[j], psegs[i])
+                                 and rec(i + 1, j + 1))
+            return memo[key]
+        return rec(0, 0)
     return path == pat or path.startswith(pat + "/")
 
 def zone_holds(zone_patterns: list, rel: str) -> bool:
@@ -405,6 +403,24 @@ def git_toplevel(repo: Path) -> str | None:
     return out.strip() if rc == 0 else None
 
 
+def git_main_root(repo: Path) -> str | None:
+    """Корень основного дерева репозитория (общий для всех его worktree):
+    зоны записи принадлежат репозиторию, не дереву — сессия в worktree и
+    делегация в основном клоне делят одно пространство зон."""
+    rc, out, _ = git(repo, "rev-parse", "--path-format=absolute",
+                     "--git-common-dir")
+    if rc == 0 and out.strip():
+        common = Path(out.strip())
+        if common.name == ".git":
+            return str(common.parent)
+        # J64.14: bare-репозиторий (или --separate-git-dir) — common-dir не
+        # `.git`; общий для всех worktree ключ — сам common-dir (откат к
+        # toplevel давал каждому worktree свой «репозиторий» и ломал ZONE_CONFLICT).
+        if common.is_dir() and (common / "HEAD").is_file():
+            return str(common)
+    return git_toplevel(repo)
+
+
 def git_branch(repo: Path) -> str | None:
     rc, out, _ = git(repo, "rev-parse", "--abbrev-ref", "HEAD")
     return out.strip() if rc == 0 else None
@@ -511,10 +527,12 @@ def reserve(req: dict, registry_path: Path | str) -> dict:
                 "details": problems, "delegation_id": req.get("delegation_id", "")}
 
     repo = Path(req["repo"])
-    toplevel = git_toplevel(repo)
+    toplevel = git_main_root(repo)
     if toplevel:
         req = dict(req)
-        req["repo"] = toplevel  # канонический repo — base сравнения зон
+        # канонический repo — base сравнения зон: основной клон, даже если
+        # передан путь его worktree (снимок фактов берется из дерева сессии)
+        req["repo"] = toplevel
 
     lock = _acquire_lock(registry_path)
     try:
@@ -539,14 +557,19 @@ def reserve(req: dict, registry_path: Path | str) -> dict:
                 "role": req["role"], "project": req["project"],
                 "owner_pm": req["owner_pm"], "repo": req.get("repo"),
                 "paths": sorted(zone_patterns),
-                "policy_version": req.get("policy_version"),
+                # J65.2: редакция — по зоне своей роли; policy_version
+                # реестра целиком — только при легаси-записи без отпечатка
+                "policy": (req.get("role_zone_digest")
+                           if mine.get("role_zone_digest")
+                           else req.get("policy_version")),
                 "worktree": req.get("worktree"), "branch": req.get("branch"),
             }
             payload_old = {
                 "role": mine.get("role"), "project": mine.get("project"),
                 "owner_pm": mine.get("owner_pm"), "repo": mine.get("repo"),
                 "paths": sorted(mine.get("zones") or mine.get("paths") or []),
-                "policy_version": mine.get("policy_version"),
+                "policy": (mine.get("role_zone_digest")
+                           or mine.get("policy_version")),
                 "worktree": mine.get("worktree"), "branch": mine.get("branch"),
             }
             if payload_new == payload_old:
@@ -595,6 +618,9 @@ def reserve(req: dict, registry_path: Path | str) -> dict:
             "repo": req.get("repo"),
             "zones": zone_patterns,
             "policy_version": req.get("policy_version"),
+            # J65.2: отпечаток зоны своей роли — сверяется на finish
+            # (резервация без поля — легаси, сверка по покрытию политикой).
+            "role_zone_digest": req.get("role_zone_digest"),
             "worktree": req.get("worktree"),
             "branch": req.get("branch"),
             "base_sha": req.get("base_sha"),

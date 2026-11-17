@@ -40,7 +40,9 @@ prepare/run/finish/status/reconcile — исполнение разрешенн�
   СУЗИТЬ. Запрос пути вне политики роли — отказ (ZONE_OUTSIDE_POLICY) с
   перечнем недопустимых путей; сужение прозрачно (в выводе — фактические
   суженные зоны и policy_version). finish сверяет diff ИМЕННО с суженной
-  (политико-валидной) зоной; реестр хранит policy_version для аудита.
+  (политико-валидной) зоной; реестр хранит policy_version для аудита и
+  role_zone_digest (J65.2) — отпечаток зоны своей роли, который finish
+  сверяет: изменилась зона своей роли — ZONE_POLICY_MISMATCH, чужой — нет.
 - Никакого авто-push/merge/deploy и авто-старта фаз: только исполнение
   разрешенного; этапные ворота Заказчика — check_action
   (HUMAN_APPROVAL_REQUIRED, контракт §10).
@@ -68,6 +70,7 @@ Usage:
         [--pm-require-review] [--pr-id ID] [--log-dir D] [--report-dir D]
         [--registry PATH] [--state PATH] [--audit PATH] [--json]
     flowctl.py status [--correlation-id ID] [--registry PATH] [--state PATH]
+    flowctl.py gates-stats [--state PATH] [--since D] [--until D] [--json]  (J65.9)
     flowctl.py phase --repo PATH --project ID --flow N --scope S
         [--registry PATH] [--state PATH]
     flowctl.py reconcile [--repo PATH] [--delegation-id ID]
@@ -78,6 +81,8 @@ Usage:
         [--final] [--xdist N] [--suggest-baseline] [--timeout SEC] [--json]
     flowctl.py integrate <repo> [--cid ID] [--base REF] [--registry PATH]
         [--json]
+    flowctl.py gc [--repo PATH] [--registry PATH] [--apply] [--deep]
+        [--min-age-hours N] [--json]
 
 Exit codes: 0 — успех/ALLOW/accepted (run/prepare — разрешено; regress —
 PASS); 1 — DENY/STALE_SNAPSHOT/returned (regress — FAIL); 2 — UNKNOWN/ошибка
@@ -88,7 +93,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -100,12 +107,14 @@ if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
 import flow_mode  # noqa: E402
+import flow_ids  # noqa: E402  (J65.3: грамматика scope)
 import flow_state  # noqa: E402
 import flow_transition as ft  # noqa: E402
 import gate_runner as gr  # noqa: E402
 import pm_bounds_check as pmb  # noqa: E402  (Н14: J3-префиксы защищенных путей)
 import role_zone_policy as rzp  # noqa: E402
 import session_check as sc  # noqa: E402
+import factory_paths as fp  # noqa: E402  (J64.5: пути машины — только оттуда)
 
 OUTPUT_SCHEMA = "flowctl-output/1"
 STATE_SCHEMA = "flowctl-state/1"
@@ -170,18 +179,9 @@ def ambiguous_field_hints(scope: dict) -> list[str]:
         return [f"flow={flow!r} вне допустимых 1–5 "
                 "(ожидается целое число 1–5)"]
     hints: list[str] = []
-    if flow in (2, 3) and not flow_state.BUG_ID_RE.match(change):
+    if not flow_ids.valid_scope(flow, change):
         hints.append(f"scope={change} не соответствует формату "
-                     f"Флоу {flow} (BUG-NNN, например BUG-042)")
-    elif flow == 1 and not flow_state.CHANGE_ID_RE.match(change):
-        hints.append(f"scope={change} не соответствует формату Флоу 1 "
-                     "(kebab-case change-id, например add-widget)")
-    elif flow == 4 and not flow_state.CHORE_RE.match(change):
-        hints.append(f"scope={change} не соответствует формату Флоу 4 "
-                     "([chore])")
-    elif flow == 5 and not flow_state.CHANGE_ID_RE.match(change):
-        hints.append(f"scope={change} не соответствует формату Флоу 5 "
-                     "(change-id)")
+                     f"Флоу {flow} ({flow_ids.SCOPE_HINTS[flow]})")
     return hints
 
 
@@ -297,7 +297,7 @@ def state_write_locked(path: Path, data: dict, mutate) -> None:
 
 def default_state_path(registry: str | None) -> Path:
     base = Path(registry) if registry else (
-        Path.home() / ".hermes" / "state" / "active_sessions.json"
+        fp.registry_path()
     )
     return base.parent / "flowctl_state.json"
 
@@ -567,7 +567,7 @@ def cmd_prepare(args) -> int:
         print(f"FLOWCTL-ERROR: не git-репозиторий: {repo}", file=sys.stderr)
         return 2
     registry_path = Path(args.registry) if args.registry else (
-        Path.home() / ".hermes" / "state" / "active_sessions.json")
+        fp.registry_path())
     correlation = args.correlation_id or uuid.uuid4().hex
     delegation_id = f"deleg-{correlation[:16]}"
 
@@ -809,6 +809,7 @@ def cmd_prepare(args) -> int:
         "owner_pm": args.owner_pm,
         "paths": zones,
         "policy_version": policy_version,
+        "role_zone_digest": narrowed["role_zone_digest"],
         "worktree": worktree,
         "branch": derived_branch,
         "base_sha": _git_head(base_tree),
@@ -864,6 +865,7 @@ def cmd_prepare(args) -> int:
                         "owner_pm": args.owner_pm,
                         "paths": zones,
                         "policy_version": policy_version,
+                        "role_zone_digest": narrowed["role_zone_digest"],
                         "worktree": worktree,
                         "branch": derived_branch,
                         "base_sha": _git_head(base_tree),
@@ -955,6 +957,10 @@ def cmd_prepare(args) -> int:
         "actor_role": args.role,
         "task_id": args.task,
         "scope": snapshot2["scope"],
+        # J64.14: корень основного репозитория (общий для worktree) — phase
+        # находит запись по клону и после сноса worktree пакета.
+        "repo_root": sc.git_main_root(Path(snapshot2["scope"].get("repo") or repo))
+        or str(repo),
         "prepared_digest": snapshot2["snapshot_digest"],
         "zones": zones,
         "policy_version": policy_version,
@@ -1160,6 +1166,40 @@ def cmd_finish(args) -> int:
             "note": "вердикт уже вынесен; повтор не выполняется",
         }, args.as_json)
         return {"accepted": 0, "returned": 1}[record["status"]]
+    # J64.14: проверка реестра ДО --pm-resume: закрытая резервация не
+    # переоткрывается и запись цикла не уходит в running впустую.
+    registry_path = Path(record["registry"])
+    # Резервация уже вне ZONE_HOLDING (closed/released — например,
+    # provisional-стадия, закрытая package_runner после коммита): повторный
+    # finish зону не переоткрывает — реестр — источник факта (контракт §13).
+    reg_data, reg_err = sc.registry_load(registry_path)
+    reg_session = None if reg_err else next(
+        (s for s in reg_data.get("sessions", [])
+         if isinstance(s, dict)
+         and s.get("delegation_id") == record.get("delegation_id")), None)
+    if reg_session is not None and reg_session.get("status") in (
+            "closed", "released"):
+        _emit({
+            "schema_version": OUTPUT_SCHEMA, "command": "finish",
+            "correlation_id": args.correlation_id, "verdict": "blocked",
+            "registry_status": reg_session.get("status"),
+            "note": f"резервация {record.get('delegation_id')} уже "
+                    f"{reg_session.get('status')!r} — finish не переоткрывает "
+                    "зону; новая работа — новый prepare",
+        }, args.as_json)
+        return 2
+
+    # J64.14: отчет — до --pm-resume: запись не уходит в running впустую.
+    report_path = Path(args.report) if args.report else None
+    if report_path is None or not report_path.is_file():
+        _emit({
+            "schema_version": OUTPUT_SCHEMA, "command": "finish",
+            "correlation_id": args.correlation_id, "verdict": "blocked",
+            "note": "агентский отчет (указатель на файлы) не найден — "
+                    "приемка без отчета не проводится",
+        }, args.as_json)
+        return 2
+
     if record["status"] not in ("running", "provisional"):
         # Повторная приемка blocked-сессии — только по явному решению ПМ
         # (--pm-resume): сценарий «blocked по конфигурационной ошибке
@@ -1199,19 +1239,10 @@ def cmd_finish(args) -> int:
             }, args.as_json)
             return 2
 
-    report_path = Path(args.report) if args.report else None
-    if report_path is None or not report_path.is_file():
-        _emit({
-            "schema_version": OUTPUT_SCHEMA, "command": "finish",
-            "correlation_id": args.correlation_id, "verdict": "blocked",
-            "note": "агентский отчет (указатель на файлы) не найден — "
-                    "приемка без отчета не проводится",
-        }, args.as_json)
-        return 2
 
-    registry_path = Path(record["registry"])
     worktree = Path(record["worktree"]) if record.get("worktree") else Path(
         record["scope"]["repo"])
+
 
     # 0) P0.2: обязательные gates — из политики (DEFAULT_GATES точки запуска
     #    + машинные ворота этапа из STAGE_TABLE), НЕ из флагов. --gates может
@@ -1271,21 +1302,29 @@ def cmd_finish(args) -> int:
                     ((session or {}).get("zones")
                      or (session or {}).get("paths") or [])]
     stored_policy_version = (session or {}).get("policy_version")
+    stored_role_digest = (session or {}).get("role_zone_digest")
     # P0.3: зона резервации должна подтверждаться политикой роли —
     # сверяется именно суженная (политико-валидная) зона, а не исходная
-    # просьба --path; расхождение редакции политики — дефект аудита.
+    # просьба --path.
+    # J65.2: редакция сверяется по отпечатку зоны СВОЕЙ роли, а не по
+    # версии реестра целиком: правка зоны чужой роли (или описаний) не
+    # роняет активную сессию; любое изменение зоны своей роли — дефект.
+    # Легаси-резервация без отпечатка — только сверка покрытия ниже.
     current_policy = rzp.narrow_zones(record.get("actor_role"), stored_zones)
-    policy_stale = bool(stored_policy_version) and \
-        stored_policy_version != rzp.policy_version()
+    current_role_digest = rzp.role_zone_digest(record.get("actor_role"))
+    policy_stale = bool(stored_role_digest) and \
+        stored_role_digest != current_role_digest
     policy_invalid = bool(stored_zones) and (
         not current_policy["zones"] or current_policy["violations"])
     if policy_stale or policy_invalid:
         defects.append({
             "source": "zone", "code": "ZONE_POLICY_MISMATCH",
             "detail": "зона резервации не подтверждается текущей политикой "
-                      f"роли «{record.get('actor_role')}» (policy_version "
-                      f"резервации: {stored_policy_version or '—'}; текущая: "
-                      f"{rzp.policy_version()}; непокрытые запросы: "
+                      f"роли «{record.get('actor_role')}» (зона роли в "
+                      f"резервации: {stored_role_digest or '— (легаси)'}; "
+                      f"текущая: {current_role_digest}; policy_version "
+                      f"резервации: {stored_policy_version or '—'}; "
+                      f"непокрытые запросы: "
                       f"{', '.join(current_policy['violations']) or '—'}); "
                       "политика: " + rzp.POLICY_SOURCE,
         })
@@ -1459,6 +1498,7 @@ def cmd_finish(args) -> int:
                      "violations": zone_res.get("violations", []),
                      "zones": stored_zones,
                      "policy_version": stored_policy_version,
+                     "role_zone_digest": stored_role_digest,
                      "policy_confirmed": not (policy_stale or policy_invalid)},
             "gates": {"overall": gate_report["overall"],
                       "report_ref": gate_report.get("report_ref"),
@@ -1516,19 +1556,36 @@ def cmd_phase(args) -> int:
         repo_resolved = str(Path(args.repo).resolve(strict=True))
     except OSError:
         repo_resolved = str(args.repo)
+    # J64.14: записи раннера несут scope.repo = worktree пакета, а phase
+    # спрашивают по клону — сравнение по корню основного репозитория
+    # (session_check.git_main_root: общий для всех worktree).
+    keys: dict[str, str] = {}
+
+    def _repo_key(raw: str) -> str:
+        if raw not in keys:
+            p = Path(raw)
+            root = sc.git_main_root(p) if p.is_dir() else None
+            try:
+                keys[raw] = root or str(p.resolve())
+            except OSError:
+                keys[raw] = raw
+        return keys[raw]
+
+    want = _repo_key(repo_resolved)
     best = None
     best_ts = ""
     completed: list[str] = []
     for rec in state.get("runs", {}).values():
         if not isinstance(rec, dict):
             continue
-        sc = rec.get("scope") or {}
-        if sc.get("change") != args.scope or sc.get("flow") != args.flow:
+        scope_ = rec.get("scope") or {}
+        if scope_.get("change") != args.scope or scope_.get("flow") != args.flow:
             continue
-        if args.project and sc.get("project") != args.project:
+        if args.project and scope_.get("project") != args.project:
             continue
-        rec_repo = sc.get("repo")
-        if rec_repo and str(Path(rec_repo)) != repo_resolved:
+        rec_repo = scope_.get("repo")
+        if rec_repo and str(Path(rec_repo)) != repo_resolved \
+                and (rec.get("repo_root") or _repo_key(str(rec_repo))) != want:
             continue
         ts = rec.get("finished_at") or rec.get("created_at") or ""
         if best is None or ts > best_ts:
@@ -1561,7 +1618,7 @@ def cmd_status(args) -> int:
     runs = [r for cid, r in sorted(state["runs"].items())
             if not args.correlation_id or cid == args.correlation_id]
     registry_path = Path(args.registry) if args.registry else (
-        Path.home() / ".hermes" / "state" / "active_sessions.json")
+        fp.registry_path())
     reg = sc.status(registry_path)
     _emit({
         "schema_version": OUTPUT_SCHEMA, "command": "status",
@@ -1582,7 +1639,7 @@ def cmd_status(args) -> int:
 
 def cmd_reconcile(args) -> int:
     registry_path = Path(args.registry) if args.registry else (
-        Path.home() / ".hermes" / "state" / "active_sessions.json")
+        fp.registry_path())
     state_path = Path(args.state) if args.state else default_state_path(
         args.registry)
     res = sc.reconcile(
@@ -1647,6 +1704,50 @@ RELEASE_ELIGIBLE = ("reserved", "needs_attention")
 RELEASE_DEFAULT_REASON = "явное решение ПМ: сброс сессии без штатного выхода"
 
 
+CLOSE_RECORD_STATUSES = ("accepted",)
+
+
+def cmd_close(args) -> int:
+    """J64.14: закрыть принятую сессию: запись цикла accepted, резервация
+    finished → closed. Иное (running, needs_attention, provisional,
+    returned) — отказ: зона держится до разбора, закрывать нечего."""
+    registry_path = Path(args.registry) if args.registry else fp.registry_path()
+    state_path = Path(args.state) if args.state else default_state_path(
+        args.registry)
+    record = state_load(state_path)["runs"].get(args.correlation_id)
+
+    def _out(closed: bool, note: str, rc: int, **extra) -> int:
+        _emit({"schema_version": OUTPUT_SCHEMA, "command": "close",
+               "correlation_id": args.correlation_id, "closed": closed,
+               "note": note, **extra}, args.as_json)
+        return rc
+
+    if record is None:
+        return _out(False, "нет записи цикла для этого correlation ID", 2)
+    if record.get("status") not in CLOSE_RECORD_STATUSES:
+        return _out(False, f"запись цикла {record.get('status')!r} — закрывается "
+                           "только accepted (приемка ПМ)", 1,
+                    record_status=record.get("status"))
+    reason = (args.reason or "").strip() or "ПМ: сессия принята, зона освобождена"
+    tr = registry_transition(registry_path, record.get("delegation_id", ""),
+                             "closed", reason, f"flowctl close {args.correlation_id}",
+                             expect_from="finished")
+    if not tr.get("ok"):
+        if tr.get("current_status") == "closed":
+            return _out(True, "уже closed", 0, idempotent=True)
+        return _out(False, f"резервация не закрыта: {tr.get('reason')} "
+                           f"({'; '.join(map(str, tr.get('details') or []))})", 1)
+
+    def _mark(st: dict) -> None:
+        r = st["runs"].get(args.correlation_id)
+        if r is not None:
+            r.setdefault("lifecycle", {}).setdefault("history", []).append(
+                {"at": gr.utcnow_iso(), "event": "close", "reason": reason,
+                 "registry": "finished → closed"})
+    state_write_locked(state_path, state_load(state_path), _mark)
+    return _out(True, reason, 0, delegation_id=record.get("delegation_id"))
+
+
 def cmd_release(args) -> int:
     cid = (args.correlation_id_opt or args.correlation_pos or "").strip()
     if (args.correlation_id_opt and args.correlation_pos
@@ -1660,7 +1761,7 @@ def cmd_release(args) -> int:
         return 2
     reason = (args.reason or "").strip() or RELEASE_DEFAULT_REASON
     registry_path = Path(args.registry) if args.registry else (
-        Path.home() / ".hermes" / "state" / "active_sessions.json")
+        fp.registry_path())
     state_path = Path(args.state) if args.state else default_state_path(
         args.registry)
     state = state_load(state_path)
@@ -2403,7 +2504,7 @@ def cmd_integrate(args) -> int:
         print(f"FLOWCTL-ERROR: не git-репозиторий: {repo}", file=sys.stderr)
         return 2
     registry_path = Path(args.registry).expanduser() if args.registry else (
-        Path.home() / ".hermes" / "state" / "active_sessions.json")
+        fp.registry_path())
     data, err = sc.registry_load(registry_path)
     if err:
         # fail-closed: не умеем проверить отсутствие активных сессий —
@@ -2502,6 +2603,518 @@ def cmd_integrate(args) -> int:
                    "ветка локальная, не пушится отсюда"},
           args.as_json)
     return 0
+
+
+# ---------------------------------------------------------------------- gc
+# J55: механическая чистка веток/worktrees/стендов/tmp. Принцип J51: механика
+# в скрипте, dry-run по умолчанию, --apply исполняет. Четыре категории
+# (backlog/J55-gc-этап-архивации-2026-10-19.md):
+#   1. Ветки — ТОЛЬКО --merged origin/main по всем ремоутам проекта;
+#      незакрытые (имеют уникальные коммиты) вне досягаемости по построению.
+#   2. Worktrees — сессии done/closed реестра (completed/finished/released)
+#      → снос; остальные (running/needs_attention/…) → только список,
+#      решает ПМ.
+#   3. Docker — контейнеры/сети test/stand-префиксов, Exited > 24ч → rm;
+#      тома — ТОЛЬКО с --deep (данные руками); прод-префиксы вне досягаемости.
+#   4. /tmp — известные префиксы (deleg-*, стенды, пробы) по возрасту > 24ч;
+#      бэкапы НЕ удаляются никогда (перенос в /var/backups — отдельное
+#      решение, sudo).
+# НЕ трогается никогда: regress-артефакты (провенанс ворот merge),
+# code-reviews, archive/, backlog/, MAP.md — gc не пишет в рабочее дерево
+# репозитория вообще, только ветки/worktrees/внешние ресурсы.
+
+GC_SCHEMA = "flowctl-gc/1"
+GC_MIN_AGE_HOURS = 24
+# Docker: только тестовые префиксы; прод (ekotov-wiki-par-*, game-portal,
+# 3x-ui, …) не начинается с test/stand- — вне досягаемости по построению.
+GC_DOCKER_PREFIXES = ("test", "stand-")
+# /tmp: признаки gc-мусора — делегации, стенды, пробы.
+GC_TMP_SIGNS = ("deleg-", "stand", "probe")
+# Бэкапы не авто-удаляются никогда (J55: перенос в /var/backups — отдельно).
+GC_TMP_BACKUP_MARK = "backup"
+# done/closed-статусы реестра сессий → worktree под снос; остальные —
+# только список (решение ПМ).
+# J64.14: closed — штатный итог стадии раннера и `flowctl close`; worktree
+# недокатанного пакета держит маркер раннера (gc_runner_guard).
+GC_WORKTREE_DONE = ("completed", "finished", "released", "closed")
+
+
+def gc_branch_candidates(remote_branches: list[str],
+                         merged: set[str]) -> list[str]:
+    """Юнит (J55, категория 1): кандидаты на снос — только удаленные ветки,
+    ПОЛНОСТЬЮ смерженные в origin/main (механика `git branch -r --merged`).
+    Незакрытая ветка (уникальные коммиты) в merged не попадает — вне
+    досягаемости по построению. main/HEAD исключаются всегда; символические
+    ref-сокращения без «remote/branch» (например «origin» = origin/HEAD)
+    ветками не считаются."""
+    keep = {"main", "master", "HEAD"}
+    out: list[str] = []
+    for rb in remote_branches or []:
+        if "/" not in rb:
+            continue  # символическое сокращение (origin/HEAD → «origin»)
+        short = rb.split("/", 1)[1]
+        if short in keep:
+            continue
+        if rb in merged:
+            out.append(rb)
+    return sorted(out)
+
+
+GC_RUNNER_MARKER = "package-runner.json"
+
+
+def gc_runner_guard(worktree: Path) -> str | None:
+    """J64.14: worktree пакета раннера не сносится, пока пакет не докатан:
+    маркер package-runner.json в git-dir worktree указывает на state пакета;
+    нет finished_at (или state нечитаем) — причина отказа, иначе None."""
+    r = subprocess.run(["git", "-C", str(worktree), "rev-parse",
+                        "--path-format=absolute", "--git-dir"],
+                       capture_output=True, text=True)
+    if r.returncode != 0 or not r.stdout.strip():
+        return None
+    marker = Path(r.stdout.strip()) / GC_RUNNER_MARKER
+    if not marker.is_file():
+        return None
+    try:
+        spath = Path(json.loads(marker.read_text(encoding="utf-8"))["state"])
+        state = json.loads(spath.read_text(encoding="utf-8"))
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        return f"пакет раннера: state не прочитан ({exc}) — решает ПМ"
+    if not state.get("finished_at"):
+        return f"пакет раннера не докатан (state {spath}) — решает ПМ"
+    return None
+
+
+def gc_classify_worktree(session: dict, wt_exists: bool) -> tuple[str, str]:
+    """Юнит (J55, категория 2): (категория, причина) для worktree-записи
+    реестра. done/closed → remove (если путь еще существует); остальные
+    статусы — list_only (решает ПМ), НЕ трогаем."""
+    status = str((session or {}).get("status") or "")
+    wt = (session or {}).get("worktree")
+    if not wt:
+        return "skip", "в записи нет worktree"
+    if status in GC_WORKTREE_DONE:
+        return ("remove", f"сессия {status} (done/closed)") if wt_exists \
+            else ("gone", f"сессия {status}; пути уже нет")
+    return "list_only", f"статус {status!r} — не закрыт, решает ПМ"
+
+
+def gc_classify_container(name: str, state: str, age_h: float | None,
+                          prefixes: tuple[str, ...] = GC_DOCKER_PREFIXES,
+                          min_age_h: float = GC_MIN_AGE_HOURS,
+                          ) -> tuple[str, str]:
+    """Юнит (J55, категория 3): контейнер — (категория, причина).
+    Только test/stand-префиксы; только Exited; только старше min_age."""
+    if not any(name.startswith(p) for p in prefixes):
+        return "skip", "вне gc-префиксов (прод не трогается)"
+    if state != "exited":
+        return "skip", f"state={state} (только Exited)"
+    if age_h is None:
+        return "skip", "возраст неизвестен (FinishedAt не читается)"
+    if age_h < min_age_h:
+        return "skip", f"свежий ({age_h:.1f}ч < {min_age_h}ч)"
+    return "remove", f"Exited {age_h:.0f}ч"
+
+
+def gc_classify_network(name: str, age_h: float | None, attached: int,
+                        prefixes: tuple[str, ...] = GC_DOCKER_PREFIXES,
+                        min_age_h: float = GC_MIN_AGE_HOURS,
+                        ) -> tuple[str, str]:
+    """Юнит (J55, категория 3): сеть — только gc-префикс, старше min_age
+    и БЕЗ подключенных контейнеров."""
+    if not any(name.startswith(p) for p in prefixes):
+        return "skip", "вне gc-префиксов"
+    if attached:
+        return "skip", f"подключено контейнеров: {attached}"
+    if age_h is None:
+        return "skip", "возраст неизвестен (CreatedAt не читается)"
+    if age_h < min_age_h:
+        return "skip", f"свежая ({age_h:.1f}ч < {min_age_h}ч)"
+    return "remove", f"пустая, {age_h:.0f}ч"
+
+
+def gc_classify_tmp(name: str, age_h: float | None,
+                    signs: tuple[str, ...] = GC_TMP_SIGNS,
+                    min_age_h: float = GC_MIN_AGE_HOURS,
+                    ) -> tuple[str, str]:
+    """Юнит (J55, категория 4): /tmp-запись — (категория, причина).
+    Бэкапы НЕ трогаются никогда (проверка прежде признаков); дальше —
+    известные признаки (deleg-*/стенды/пробы) и возраст > min_age."""
+    if GC_TMP_BACKUP_MARK in name.lower():
+        return "keep", "бэкап — не трогается никогда (J55)"
+    if not any(s in name for s in signs):
+        return "skip", "вне gc-префиксов"
+    if age_h is None:
+        return "skip", "возраст неизвестен (mtime не читается)"
+    if age_h < min_age_h:
+        return "skip", f"свежий ({age_h:.1f}ч < {min_age_h}ч)"
+    return "remove", f"{age_h:.0f}ч"
+
+
+def gc_classify_volume(name: str,
+                       prefixes: tuple[str, ...] = GC_DOCKER_PREFIXES,
+                       ) -> tuple[str, str]:
+    """Юнит (J55, категория 3): том — кандидат только по gc-префиксу;
+    удаляется ТОЛЬКО с --deep (данные руками)."""
+    if not any(name.startswith(p) for p in prefixes):
+        return "skip", "вне gc-префиксов"
+    return "candidate", "том: снос только с --deep"
+
+
+def _gc_docker_lines(*docker_args: str) -> list[dict] | None:
+    """`docker <args> --format {{json .}}` → список JSON-объектов строк.
+    docker недоступен/ошибся → None (категория честно деградирует,
+    не молчаливый пропуск)."""
+    proc = subprocess.run(
+        ["docker", *docker_args, "--format", "{{json .}}"],
+        capture_output=True, text=True,
+    )
+    if proc.returncode != 0:
+        return None
+    out: list[dict] = []
+    for ln in proc.stdout.splitlines():
+        ln = ln.strip()
+        if not ln:
+            continue
+        try:
+            obj = json.loads(ln)
+        except ValueError:
+            continue
+        if isinstance(obj, dict):
+            out.append(obj)
+    return out
+
+
+def _gc_iso_age_hours(iso: str | None, now: float | None = None,
+                      ) -> float | None:
+    """Возраст в часах от ISO-метки docker (FinishedAt/CreatedAt); Z-суффикс
+    и пустые значения («0001-01-01T00:00:00Z» у живых контейнеров) → None."""
+    if not iso or iso.startswith("0001-01-01"):
+        return None
+    now = time.time() if now is None else now
+    try:
+        ts = time.mktime(
+            time.strptime(iso.replace("Z", "+0000"), "%Y-%m-%dT%H:%M:%S%z"))
+    except ValueError:
+        return None
+    return max(0.0, (now - ts) / 3600.0)
+
+
+def gc_collect_branches(repo: Path) -> tuple[list[str], set[str], str]:
+    """Факты по веткам: (все удаленные ветки, смерженные в origin/main,
+    диагностика). Ремоут без main — merged пуст."""
+    proc = subprocess.run(
+        ["git", "-C", str(repo), "branch", "-r",
+         "--format=%(refname:short)"],
+        capture_output=True, text=True,
+    )
+    if proc.returncode != 0:
+        return [], set(), f"git branch -r: {proc.stderr.strip()}"
+    branches = [ln.strip() for ln in proc.stdout.splitlines() if ln.strip()]
+    proc_m = subprocess.run(
+        ["git", "-C", str(repo), "branch", "-r", "--merged", "origin/main",
+         "--format=%(refname:short)"],
+        capture_output=True, text=True,
+    )
+    if proc_m.returncode != 0:
+        return branches, set(), (
+            f"нет origin/main (git branch -r --merged: "
+            f"{proc_m.stderr.strip()}) — ветки не тронуты")
+    merged = {ln.strip() for ln in proc_m.stdout.splitlines() if ln.strip()}
+    return branches, merged, "origin/main"
+
+
+def gc_collect_docker() -> tuple[dict | None, str]:
+    """Факты docker: контейнеры (кандидаты Exited), сети, тома. docker
+    недоступен → (None, причина)."""
+    containers_raw = _gc_docker_lines("ps", "-a")
+    if containers_raw is None:
+        return None, "docker ps недоступен — категория пропущена (не молча)"
+    containers: list[dict] = []
+    for line in containers_raw:
+        name = line.get("Names") or line.get("Name") or ""
+        state = str(line.get("State") or "").lower()
+        # Точный возраст только для Exited (inspect FinishedAt, ISO);
+        # живым контейнерам gc возраст не нужен.
+        age_h = None
+        if state == "exited":
+            insp = subprocess.run(
+                ["docker", "inspect", "-f", "{{.State.FinishedAt}}", name],
+                capture_output=True, text=True,
+            )
+            if insp.returncode == 0:
+                age_h = _gc_iso_age_hours(insp.stdout.strip())
+        containers.append({"name": name, "state": state, "age_h": age_h})
+
+    networks: list[dict] = []
+    nets_raw = _gc_docker_lines("network", "ls")
+    if nets_raw is not None:
+        for line in nets_raw:
+            name = line.get("Name") or ""
+            age_h = None
+            attached = -1
+            insp = subprocess.run(
+                ["docker", "network", "inspect", name],
+                capture_output=True, text=True,
+            )
+            if insp.returncode == 0:
+                try:
+                    net = json.loads(insp.stdout)[0]
+                    created = net.get("Created")
+                    if isinstance(created, str):
+                        age_h = _gc_iso_age_hours(created)
+                    attached = len(net.get("Containers") or {})
+                except (ValueError, IndexError, KeyError):
+                    pass
+            networks.append({"name": name, "age_h": age_h,
+                             "attached": attached})
+
+    volumes: list[dict] = []
+    vols_raw = _gc_docker_lines("volume", "ls")
+    if vols_raw is not None:
+        volumes = [{"name": line.get("Name") or ""} for line in vols_raw]
+
+    return ({"containers": containers, "networks": networks,
+             "volumes": volumes}, "docker ok")
+
+
+def gc_collect_tmp(root: str = "/tmp", now: float | None = None,
+                   ) -> list[dict]:
+    """Факты /tmp: записи ПЕРВОГО уровня (вглубь не трогаем) с возрастом
+    по mtime. Ошибки чтения записи — skip, не молчаливый кандидат."""
+    now = time.time() if now is None else now
+    out: list[dict] = []
+    try:
+        names = sorted(os.listdir(root))
+    except OSError as exc:
+        return [{"name": f"<{root} нечитаем: {exc}>", "path": None,
+                 "age_h": None}]
+    for name in names:
+        path = os.path.join(root, name)
+        try:
+            age_h = max(0.0, (now - os.lstat(path).st_mtime) / 3600.0)
+        except OSError:
+            age_h = None
+        out.append({"name": name, "path": path, "age_h": age_h})
+    return out
+
+
+def gc_plan(args) -> dict:
+    """Сбор плана gc по 4 категориям (чистый сбор + классификация; без
+    side effects — исполнение в cmd_gc)."""
+    repo = Path(args.repo).expanduser().resolve() if args.repo else None
+    min_age = float(getattr(args, "min_age_hours", GC_MIN_AGE_HOURS))
+    plan: dict = {
+        "repo": str(repo) if repo else None,
+        "min_age_hours": min_age,
+        "protected_note": "regress-артефакты, code-reviews, archive/, "
+                          "backlog/, MAP.md не трогаются (J55)",
+    }
+
+    # 1) Ветки: только --merged origin/main (по всем ремоутам).
+    if repo is not None and repo.is_dir() and _git_head(repo):
+        branches, merged, merged_src = gc_collect_branches(repo)
+        plan["branches"] = {
+            "remove": gc_branch_candidates(branches, merged),
+            "merged_source": merged_src,
+            "total_remote": len(branches),
+        }
+    else:
+        plan["branches"] = {"remove": [], "merged_source": None,
+                            "total_remote": 0,
+                            "note": "репо не указан/не git — категория пропущена"}
+
+    # 2) Worktrees: done/closed-сессии реестра → снос; остальные — список.
+    registry_path = Path(args.registry).expanduser() if args.registry else (
+        fp.registry_path())
+    remove_wt: list[dict] = []
+    list_only: list[dict] = []
+    wt_note = ""
+    data, err = sc.registry_load(registry_path)
+    if err:
+        wt_note = f"реестр нечитаем ({err}) — категория пропущена (не молча)"
+    else:
+        sessions = [s for s in data.get("sessions", []) if isinstance(s, dict)]
+        # J64.14: worktree, который делит хоть одна не-done сессия (стадии
+        # пакета раннера в общем дереве), не сносится.
+        held = {str(Path(s["worktree"])) for s in sessions
+                if s.get("worktree")
+                and str(s.get("status") or "") not in GC_WORKTREE_DONE}
+        for s in sessions:
+            if repo is not None and not _session_in_repo(s, repo):
+                continue
+            cat, reason = gc_classify_worktree(
+                s, bool(s.get("worktree")) and Path(s["worktree"]).exists())
+            if cat == "remove":
+                wt_path = str(Path(s["worktree"]))
+                guard = (f"worktree делит активная сессия" if wt_path in held
+                         else gc_runner_guard(Path(wt_path)))
+                if guard:
+                    cat, reason = "list_only", guard
+            row = {"delegation_id": s.get("delegation_id"),
+                   "status": s.get("status"), "worktree": s.get("worktree"),
+                   "reason": reason}
+            if cat == "remove":
+                remove_wt.append(row)
+            elif cat == "list_only":
+                list_only.append(row)
+    plan["worktrees"] = {"remove": remove_wt, "list_only": list_only,
+                         "registry": str(registry_path), "note": wt_note}
+
+    # 3) Docker: контейнеры/сети по префиксам и возрасту; тома — список
+    #    (снос только --deep).
+    docker, docker_note = gc_collect_docker()
+    dcat: dict = {"note": docker_note}
+    if docker is None:
+        dcat["unavailable"] = True
+    else:
+        for key, classify in (
+                ("containers", lambda d: gc_classify_container(
+                    d["name"], d["state"], d["age_h"], min_age_h=min_age)),
+                ("networks", lambda d: gc_classify_network(
+                    d["name"], d["age_h"], d["attached"], min_age_h=min_age)),
+        ):
+            rm, skip = [], []
+            for d in docker[key]:
+                cat, reason = classify(d)
+                (rm if cat == "remove" else skip).append(
+                    {**d, "reason": reason})
+            dcat[key] = {"remove": rm, "skipped": skip}
+        vol_cand, vol_skip = [], []
+        for v in docker["volumes"]:
+            cat, reason = gc_classify_volume(v["name"])
+            (vol_cand if cat == "candidate" else vol_skip).append(
+                {**v, "reason": reason})
+        dcat["volumes"] = {"candidates": vol_cand, "skipped": vol_skip,
+                           "note": "тома удаляются ТОЛЬКО с --deep "
+                                   "(данные — руками, J55)"}
+    plan["docker"] = dcat
+
+    # 4) /tmp: deleg-*/стенды/пробы по возрасту; бэкапы — keep всегда.
+    rm_t, keep_t, skip_t = [], [], []
+    for entry in gc_collect_tmp():
+        cat, reason = gc_classify_tmp(entry["name"], entry["age_h"],
+                                      min_age_h=min_age)
+        row = {**entry, "reason": reason}
+        if cat == "remove":
+            rm_t.append(row)
+        elif cat == "keep":
+            keep_t.append(row)
+        else:
+            skip_t.append(row)
+    plan["tmp"] = {"remove": rm_t, "keep": keep_t, "skipped": skip_t,
+                   "root": "/tmp"}
+    return plan
+
+
+def gc_apply(plan: dict, deep: bool = False) -> tuple[list[str], list[str]]:
+    """Исполнение плана (--apply). Возвращает (выполненные, ошибки).
+    Порядок категорий: ветки → worktrees → docker → /tmp. Тома — только
+    с deep=True."""
+    done: list[str] = []
+    errors: list[str] = []
+
+    for rb in (plan.get("branches") or {}).get("remove", []):
+        remote, _, branch = rb.partition("/")
+        repo = plan.get("repo")
+        proc = subprocess.run(
+            ["git", "-C", str(repo), "push", remote, "--delete", branch],
+            capture_output=True, text=True,
+        )
+        if proc.returncode == 0:
+            done.append(f"branch: {rb} (push {remote} --delete)")
+        else:
+            errors.append(f"branch {rb}: {proc.stderr.strip()}")
+
+    for row in (plan.get("worktrees") or {}).get("remove", []):
+        wt = row.get("worktree")
+        repo = plan.get("repo")
+        proc = subprocess.run(
+            ["git", "-C", str(repo), "worktree", "remove", "--force",
+             str(wt)],
+            capture_output=True, text=True,
+        )
+        if proc.returncode == 0:
+            done.append(f"worktree: {wt} ({row.get('delegation_id')})")
+        else:
+            errors.append(
+                f"worktree {wt}: {proc.stderr.strip()} "
+                f"(снеси руками: rm -rf {wt} && git worktree prune)")
+
+    docker = plan.get("docker") or {}
+    if not docker.get("unavailable"):
+        for c in (docker.get("containers") or {}).get("remove", []):
+            proc = subprocess.run(["docker", "rm", c["name"]],
+                                  capture_output=True, text=True)
+            (done if proc.returncode == 0 else errors).append(
+                f"docker rm {c['name']}" if proc.returncode == 0
+                else f"docker rm {c['name']}: {proc.stderr.strip()}")
+        for n in (docker.get("networks") or {}).get("remove", []):
+            proc = subprocess.run(["docker", "network", "rm", n["name"]],
+                                  capture_output=True, text=True)
+            (done if proc.returncode == 0 else errors).append(
+                f"docker network rm {n['name']}" if proc.returncode == 0
+                else f"docker network rm {n['name']}: {proc.stderr.strip()}")
+        if deep:
+            for v in (docker.get("volumes") or {}).get("candidates", []):
+                proc = subprocess.run(["docker", "volume", "rm", v["name"]],
+                                      capture_output=True, text=True)
+                (done if proc.returncode == 0 else errors).append(
+                    f"docker volume rm {v['name']}" if proc.returncode == 0
+                    else f"docker volume rm {v['name']}: "
+                         f"{proc.stderr.strip()}")
+
+    for row in (plan.get("tmp") or {}).get("remove", []):
+        path = row.get("path")
+        try:
+            p = Path(path)
+            if p.is_dir() and not p.is_symlink():
+                shutil.rmtree(p)
+            elif p.exists() or p.is_symlink():
+                p.unlink()
+            done.append(f"tmp: {path} ({row['name']})")
+        except OSError as exc:
+            errors.append(f"tmp {path}: {exc}")
+    return done, errors
+
+
+def cmd_gc(args) -> int:
+    """J55: dry-run по умолчанию (печать плана), --apply исполняет."""
+    plan = gc_plan(args)
+    apply_mode = bool(getattr(args, "apply", False))
+    deep = bool(getattr(args, "deep", False))
+    counts = {
+        "branches": len(plan["branches"]["remove"]),
+        "worktrees": len(plan["worktrees"]["remove"]),
+        "docker_containers": len((plan["docker"].get("containers")
+                                  or {}).get("remove", []))
+        if not plan["docker"].get("unavailable") else 0,
+        "docker_networks": len((plan["docker"].get("networks")
+                                or {}).get("remove", []))
+        if not plan["docker"].get("unavailable") else 0,
+        "docker_volumes": len((plan["docker"].get("volumes")
+                               or {}).get("candidates", []))
+        if not plan["docker"].get("unavailable") else 0,
+        "tmp": len(plan["tmp"]["remove"]),
+    }
+    payload = {
+        "schema_version": GC_SCHEMA, "command": "gc",
+        "dry_run": not apply_mode, "deep": deep,
+        "plan": plan, "counts": counts,
+        "note": ("dry-run: ничего не удалено; --apply исполняет план"
+                 if not apply_mode else
+                 "apply: тома сносились только с --deep"
+                 if deep else "apply: тома НЕ тронуты (нужен --deep, J55)"),
+    }
+    if not apply_mode:
+        _emit(payload, args.as_json)
+        return 0
+    done, errors = gc_apply(plan, deep=deep)
+    payload["applied"] = done
+    payload["errors"] = errors
+    payload["note"] += f"; выполнено: {len(done)}, ошибок: {len(errors)}"
+    _emit(payload, args.as_json)
+    return 1 if errors else 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -2622,6 +3235,43 @@ def main(argv: list[str] | None = None) -> int:
     p_fin.add_argument("--json", action="store_true", dest="as_json")
     p_fin.set_defaults(func=cmd_finish)
 
+    # J64.14: делегация Hermes после приемки и вливания — освобождение зоны
+    # (finished → closed); у стадий раннера это делает сам раннер.
+    p_cl = sub.add_parser(
+        "close", help="закрыть принятую сессию: finished → closed (зона свободна)")
+    p_cl.add_argument("correlation_id")
+    p_cl.add_argument("--reason", default=None,
+                      help="основание (например, «влито PR #N»)")
+    p_cl.add_argument("--registry", default=None)
+    p_cl.add_argument("--state", default=None)
+    p_cl.add_argument("--json", action="store_true", dest="as_json")
+    p_cl.set_defaults(func=cmd_close)
+
+    # J65.9: статистика срабатываний гейтов и кодов отказа (дисциплина роста
+    # ворот) — по уже существующим отчетам gate_runner, state и логу энфорсера.
+    # Нет модуля (старая копия в проекте) — отказывает только эта подкоманда,
+    # не весь flowctl (dry-run энфорсера).
+    p_gs = sub.add_parser(
+        "gates-stats", help="сколько раз срабатывал каждый гейт и код отказа (J65.9)")
+    try:
+        import gates_stats  # noqa: E402
+    except ImportError as exc:
+        gs_error = str(exc)
+        # те же флаги, что у gates_stats.add_arguments — понятная ошибка, а не
+        # «unrecognized arguments» argparse
+        for flag in ("--state", "--since", "--until", "--reports", "--enforcer-log"):
+            p_gs.add_argument(flag, default=None)
+        p_gs.add_argument("--json", action="store_true", dest="as_json")
+
+        def _gates_stats_missing(_args) -> int:
+            print(f"FLOWCTL-ERROR: gates-stats недоступен — нет gates_stats.py "
+                  f"рядом с flowctl ({gs_error})", file=sys.stderr)
+            return 2
+        p_gs.set_defaults(func=_gates_stats_missing)
+    else:
+        gates_stats.add_arguments(p_gs)
+        p_gs.set_defaults(func=gates_stats.run)
+
     p_st = sub.add_parser("status", help="состояние циклов и сессий")
     p_st.add_argument("--correlation-id", default=None)
     p_st.add_argument("--registry", default=None)
@@ -2727,6 +3377,27 @@ def main(argv: list[str] | None = None) -> int:
                        help="путь к active_sessions.json (fixture в тестах)")
     p_int.add_argument("--json", action="store_true", dest="as_json")
     p_int.set_defaults(func=cmd_integrate)
+
+    # J55: механическая чистка веток/worktrees/стендов/tmp — dry-run по
+    # умолчанию, --apply исполняет; regress-артефакты/бэкапы не трогаются.
+    p_gc = sub.add_parser(
+        "gc", help="чистка merged-веток/worktrees закрытых сессий/стендов/"
+                   "tmp (J55; dry-run по умолчанию)")
+    p_gc.add_argument("--repo", default=None,
+                      help="репозиторий (ветки/worktrees); без него — только "
+                           "docker/tmp-категории")
+    p_gc.add_argument("--registry", default=None,
+                      help="путь к active_sessions.json (fixture в тестах)")
+    p_gc.add_argument("--apply", action="store_true",
+                      help="исполнить план (по умолчанию — dry-run, печать)")
+    p_gc.add_argument("--deep", action="store_true",
+                      help="также сносить docker-ТОМА gc-префиксов "
+                           "(данные — руками; без --deep тома только список)")
+    p_gc.add_argument("--min-age-hours", type=float, default=GC_MIN_AGE_HOURS,
+                      help="порог возраста контейнеров/сетей/tmp, ч "
+                           f"(default: {GC_MIN_AGE_HOURS})")
+    p_gc.add_argument("--json", action="store_true", dest="as_json")
+    p_gc.set_defaults(func=cmd_gc)
 
     args = ap.parse_args(argv)
 
