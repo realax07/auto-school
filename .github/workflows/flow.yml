@@ -22,6 +22,12 @@ jobs:
       - name: Install pytest
         run: python -m pip install --upgrade pip pytest==9.2.0  # J64.17: версия закреплена
 
+      # Спринт 17 fix: тесты tests/ импортируют bcrypt/fastapi (conftest,
+      # app) — зависимости приложения ставятся до прогона; pytest остается
+      # на закрепленной J64.17 версии (переустановка после requirements).
+      - name: Install app requirements
+        run: python -m pip install -r requirements.txt
+
       # GITHUB_EVENT_PATH удаляется на уровне процесса (env -u): Actions
       # всегда указывает эту переменную, а pr_validate/gate_runner трактуют
       # её наличие как «PR-контекст есть» — тогда негативные тесты
