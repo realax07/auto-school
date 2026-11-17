@@ -27,7 +27,7 @@
      Билеты/Штрафы): все разделы С17 остаются доступными с одной кнопки
      (сохранение действий desktop-версии). «Профиль» — bottom-sheet с
      инициалами, ФИО и «Выйти» (спека: ФИО и «Выйти» доступны через раздел
-     «Профиль»; top-bar не добавляем — верхний отступ контента всех страниц
+     «Профиль» — bottom-sheet с ФИО и «Выйти». Top-bar добавлен (MAJ-1 итер.003/004): fixed полоса сверху — бренд + аватар-инициалы из /me при mount на мобильных ширинах (MIN-7); клик по аватару — Профиль-шит.
      = отступ логотипа ~25px на всех ширинах, С18-бриф/С17).
 
      Sheets — bottom-sheet с grab-хендлом и блюром фона (язык мокапов
@@ -119,7 +119,11 @@ export default {
     if (typeof window.matchMedia === 'function') {
       var mq = window.matchMedia('(max-width:760px)');
       visible.value = mq.matches;
-      var onMq = function (e) { visible.value = e.matches; if (!e.matches) closeSheet(); };
+      var onMq = function (e) {
+        visible.value = e.matches;
+        if (!e.matches) closeSheet();
+        else loadMe(); // MIN-7: выход на мобильную ширину — инициалы догружаются
+      };
       if (mq.addEventListener) mq.addEventListener('change', onMq);
       else if (mq.addListener) mq.addListener(onMq);
     }
@@ -174,8 +178,8 @@ export default {
     // --- «Профиль»: ФИО + «Выйти» (спека mobile-adaptive) ---
     var uname = ref('');
     var meLoaded = ref(false);
-    // ФИО — лениво при первом открытии шита (страница и так тянет /me
-    // через StudentSidebar — дубля запроса при открытии страницы нет)
+    // ФИО — грузится при mount для top-bar (MIN-7: только при visible);
+    // openProfile переиспользует кеш
     function loadMe() {
       if (meLoaded.value) return;
       meLoaded.value = true;
@@ -190,9 +194,9 @@ export default {
       sheet.value = 'profile';
       loadMe();
     }
-    // MAJ-1 итер.003: инициалы в top-bar — ФИО грузится при монтировании
-    // компонента (видно на КАЖДОМ разделе, не только в Профиле)
-    loadMe();
+    // MAJ-1 итер.003 + MIN-7 итер.004: инициалы в top-bar; грузим только
+    // на мобильных ширинах (visible) — desktop не делает лишний /me
+    if (visible.value) loadMe();
     var initials = computed(function () {
       return (uname.value || '').split(' ').slice(0, 2).map(function (w) { return (w[0] || '').toUpperCase(); }).join('');
     });
@@ -225,7 +229,7 @@ export default {
 <style scoped>
 /* Компактный таб-бар (мокап mobile-home.html .tabs/.tab, высота 54px ≤64px
    спеки; палитра — дизайн-система кабинета: #55ed9c/#020b13-семейство). */
-.mtop{position:sticky;top:0;z-index:55;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:rgba(6,14,20,.96);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-bottom:1px solid rgba(148,163,164,.12)}
+.mtop{position:fixed;top:0;max-width:390px;margin:0 auto;z-index:55;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:rgba(6,14,20,.96);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-bottom:1px solid rgba(148,163,164,.12)}
 .mtop-brand{font-size:14px;font-weight:700}.mtop-brand em{font-style:normal;color:#34d399}
 .mtop-ava{width:32px;height:32px;border-radius:50%;background:#123524;color:#34d399;display:grid;place-items:center;font-size:11px;font-weight:700;border:1px solid rgba(52,211,153,.35);cursor:pointer;padding:0}
 .mtabs{position:fixed;left:0;right:0;bottom:0;z-index:60;height:54px;display:flex;background:rgba(6,14,20,.96);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-top:1px solid rgba(148,163,164,.14);padding:0 4px}

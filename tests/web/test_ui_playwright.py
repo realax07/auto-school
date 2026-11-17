@@ -5262,6 +5262,11 @@ def test_s18_mobile_geometry_hit_targets(page, server):
 
     # ФИО не отображается в сайдбаре на мобиле (сайдбар скрыт — BUG-070)
     assert page.locator(".side-user").is_hidden()
+    # MAJ-3: sticky top-bar — при прокрутке контента остается прилипшим сверху
+    page.mouse.wheel(0, 400)
+    page.wait_for_timeout(300)
+    mtop_box = page.locator(".mtop").bounding_box()
+    assert mtop_box and abs(mtop_box["y"]) <= 1, f"mtop не прилип: y={mtop_box['y'] if mtop_box else '?'}"
 
 
 def test_s18_mobile_login_bottomsheet_tabbar_cabinet(browser, server):
