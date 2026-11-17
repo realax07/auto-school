@@ -436,4 +436,99 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
   footer{padding-bottom:6px}
 }
 
+/* --- 18.2.1: «Главная» — одноколоночные плитки, компактный чат-бар;
+     отступ сверху сохранен (.frame 26px = отступ логотипа, см. выше) --- */
+@media(max-width:760px){
+  .tiles{grid-template-columns:1fr;gap:13px}
+  .tile{min-height:0;padding:18px 18px 16px;border-radius:20px}
+  .tile-icon{width:48px;height:48px;border-radius:14px;font-size:23px;margin-bottom:12px}
+  .tile b{font-size:17px}
+  .greet b{font-size:23px}
+  .assistant{margin:18px 0 24px;padding:15px 15px 13px;border-radius:24px}
+  .ai-head{gap:12px;margin:0 2px 12px}
+  .avatar{width:44px;height:44px}
+  .prompt{height:54px;font-size:14px;padding:0 10px 0 16px;border-radius:28px}
+  .send{width:40px;height:40px;font-size:24px;flex:none}
+  .quick{gap:8px;margin-top:12px}
+  .quick button{height:48px;padding:0 14px;font-size:12px}
+  .services-title{margin:0 0 12px}
+}
+/* подпись слота — только на мобильной неделе-полосе (ниже); desktop
+   показывает прежнюю пустую ячейку со статусом в :after */
+.bk-slot-lab{display:none}
+
+/* --- 18.2.2: «Мои заявки» — компактные карточки; пустое состояние —
+     кнопка под текстом (.no-req уже вертикальный блок — сверено) --- */
+@media(max-width:760px){
+  .filters{flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px}
+  .filters button{flex:0 0 auto}
+  .req{padding:14px;border-radius:15px}
+  .req-top{gap:10px}
+  .status{margin-left:0;order:3}
+  .actions{gap:8px}
+  .act{flex:1 1 auto;padding:12px 16px;font-size:12.5px}
+  .no-req{padding:38px 14px}
+}
+/* --- 18.2.3: «Мои брони» — неделя-полоса (пн–вс видима целиком) +
+     слоты вертикальным списком с состояниями (мокап mobile-bookings.html
+     .week/.day/.slot); навигация недель сохраняется (bk-nav) --- */
+@media(max-width:760px){
+  .bk-pair{padding:13px 14px}
+  .bk-cal{padding:14px;border-radius:16px}
+  .bk-cal-head{flex-direction:column;align-items:stretch}
+  .bk-nav{flex-wrap:wrap}
+  .bk-grid{display:flex;flex-wrap:wrap;gap:6px}
+  .bk-corner,.bk-tlabel{display:none}
+  .bk-dh{flex:1 1 0;min-width:0;padding:7px 2px}
+  .bk-dh b{font-size:13px}
+  .bk-dh small{font-size:8px}
+  .bk-week-empty{flex:1 1 100%}
+  .bk-slot{flex:1 1 100%;height:auto;min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;font-size:12px;text-align:left}
+  .bk-slot.off{display:none}          /* пустые ячейки матрицы в список не выводятся */
+  .bk-slot .bk-slot-lab{display:inline;font-weight:650}
+  .bk-slot:after{margin-left:auto;white-space:nowrap}
+  .bk-slot.free:after{content:"свободно — тап для брони"}
+  .bk-slot.taken:after{content:"занято"}
+  .bk-slot.mine:after{content:"ваш запрос"}
+  .bk-legend{gap:10px}
+  .bk-hint{font-size:10px}
+  .bk-sect-head{margin:20px 0 11px}
+  .bk-car-card{padding:12px}
+  .bk-car-photo{width:100%}
+  .bk-req{padding:14px;border-radius:15px}
+  .bk-actions .bk-act{flex:1 1 auto;padding:12px 16px}
+}
+/* --- 18.2.1 (Кошелек): балансы — карточки столбиком, история транзакций —
+     карточки вместо таблицы (мокап mobile-wallet.html .li/.amt: бейдж типа
+     + сумма в строке, ниже описание и дата; без горизонтального скролла) --- */
+@media(max-width:760px){
+  .wal-balances{gap:10px;margin:14px 0 4px}
+  .wal-bal{padding:15px 16px 13px;border-radius:15px}
+  .wal-bal b{font-size:28px;margin-top:7px}
+  .wal-actions{gap:8px}
+  .wal-actions .wal-btn{flex:1 1 auto;padding:12px 16px}
+  .wal-table{display:block}
+  .wal-table thead{display:none}
+  .wal-table tbody{display:grid;gap:10px}
+  .wal-table tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;border:1px solid rgba(234,255,249,.16);border-radius:14px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:12px 14px}
+  .wal-table td{display:block;padding:0;border:0;font-size:12.5px}
+  .wal-table tbody tr:nth-child(odd) td{background:transparent}
+  .wal-table td:nth-child(2){order:1}
+  .wal-table td.wal-amount{order:2;text-align:right;font-size:14px}
+  .wal-table td:nth-child(3){order:3;grid-column:1/-1;line-height:1.5}
+  .wal-table td.wal-when{order:4;grid-column:1/-1;white-space:normal;font-size:11px}
+  .wal-table td.wal-empty{order:0;grid-column:1/-1;color:#7f929d}
+}
+/* --- спека mobile-adaptive: модалки (пополнение, бронь, оспорить, деталь
+     знака) на мобильных ширинах — bottom-sheet с grab-хендлом (::before)
+     и блюром фона (мокапы mobile-book-slot/mobile-dispute/mobile-pdd-
+     sign-detail .shb/.grab); поля и кнопки — без изменений --- */
+@media(max-width:760px){
+  .backdrop,.wal-backdrop{place-items:end center;padding:0}
+  .wal-modal,.bk-modal,.zn-modal{width:100%;max-width:none;border-radius:18px 18px 0 0;border-left:0;border-right:0;border-bottom:0;padding:10px 18px 26px}
+  .wal-modal:before,.bk-modal:before,.zn-modal:before{content:"";display:block;width:38px;height:4px;border-radius:4px;background:#2d3d49;margin:6px auto 14px}
+  .zn-overlay{align-items:flex-end;padding:0}
+  .toast{bottom:70px;left:12px;right:12px;max-width:none}
+}
+
 

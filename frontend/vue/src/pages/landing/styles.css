@@ -12,3 +12,12 @@
    в тексте чекбокса (target="_blank"). */
 .reg-check{display:flex;gap:9px;align-items:flex-start;font-size:13px;line-height:1.55;color:#a9bcc0;margin-top:16px}.reg-check input{accent-color:var(--acc);margin-top:2px;flex:none}.reg-check a{color:var(--acc2);text-decoration:underline;text-underline-offset:3px}
 @media(max-width:1500px){.frame{margin:0 6.5%}.brand{font-size:25px}.intro h1{font-size:clamp(66px,6.25vw,94px)}}/* nav скрывается на 901–1200 — зафиксированное решение (review-001 BUG-050 MINOR-1; на main был порог 900) */@media(max-width:1200px){nav{display:none}.quick{overflow-x:auto}.quick button{flex:0 0 auto!important}}@media(max-width:900px){.road:before,.road:after{left:70%}.frame{margin:0;padding:24px}.brand{font-size:21px}.check{width:31px;height:31px;font-size:21px;border-width:3px}nav{display:none}.auth{gap:8px}.login{padding:9px 23px}.hero-grid{grid-template-columns:1fr;gap:44px;margin-top:44px}.side{width:auto;min-width:0}.intro{max-width:none}.intro h1{font-size:55px}.intro p{font-size:17px;max-width:420px}.assistant{padding:17px;border-radius:26px}.prompt{font-size:15px;height:61px}.send{width:45px;height:45px}.ai-head{margin-bottom:11px}.feature{grid-template-columns:1fr}.feature-icon{display:none}footer{grid-template-columns:1fr 1fr;gap:15px;padding-top:15px}.feature b{font-size:13px}.feature p{font-size:11px}.tagline{padding-left:15px;font-size:13px}.arrow{font-size:22px;margin-top:3px}}@media(max-width:600px){.steps{align-items:stretch}.step{width:100%!important;margin-right:0!important}}
+/* Спринт 18 (add-mobile-adaptive, спека mobile-adaptive): модалки входа/
+   регистрации на мобильных ширинах — bottom-sheet с grab-хендлом (::before)
+   и блюром фона (мокап mobile-login.html .shb/.grab); desktop без изменений */
+@media(max-width:760px){
+  .overlay{place-items:end center}
+  .overlay .modal{width:100%;max-width:none;border-radius:18px 18px 0 0;border-left:0;border-right:0;border-bottom:0;padding:22px 18px 28px;max-height:86vh;overflow:auto}
+  .overlay .modal:before{content:"";display:block;width:38px;height:4px;border-radius:4px;background:#2d3d49;margin:0 auto 16px}
+  .modal .row{grid-template-columns:1fr}
+}

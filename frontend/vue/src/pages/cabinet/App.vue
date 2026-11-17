@@ -189,7 +189,7 @@
       <div class="bk-week-empty" v-if="!gridRows.length">На выбранной неделе слотов нет — листайте другие недели.</div>
       <template v-for="row in gridRows" :key="row.key">
         <span class="bk-tlabel">{{ row.label }}</span>
-        <button v-for="(cell, ix) in row.cells" :key="row.key + '-' + ix" type="button" :class="cell.cls" :title="cell.title" :disabled="cell.disabled" @click="cell.inst ? openBookModal(cell.inst) : null"></button>
+        <button v-for="(cell, ix) in row.cells" :key="row.key + '-' + ix" type="button" :class="cell.cls" :title="cell.title" :disabled="cell.disabled" @click="cell.inst ? openBookModal(cell.inst) : null"><span class="bk-slot-lab">{{ cell.lab }}</span></button>
       </template>
     </div>
     <div class="bk-hint">Бронь ставится на конкретную дату экземпляра — слот целиком. Будущие слоты кликабельны; прошедшие и уже начавшиеся — только просмотр. Повторяющиеся слоты инструктора показаны в каждой неделе, разовые — только на своей дате. Занятые слоты скрыты от раскрытия, кем занято. Если слот займут раньше вас, вернётся ошибка «Слот уже занят» — выберите другой.</div>
@@ -786,7 +786,14 @@ export default {
                       : inst.state === 'free' ? 'свободно, нажмите для брони'
                       : inst.state === 'pending' ? 'ваш запрос на рассмотрении' : 'занято');
               var clickable = (inst.state === 'free' && !past);
-              cell = { cls: 'bk-slot ' + cls + (past ? ' past' : ''), title: title, disabled: !clickable, inst: clickable ? inst : null };
+              // Спринт 18 (18.2.3): короткая подпись слота «Пн 17.11 · 16:00–18:00»
+              // — видима только на мобильной неделе-полосе (.bk-slot-lab,
+              // styles.css media ≤760px); desktop показывает пустую ячейку
+              // со статусом в :after — раскладка не меняется
+              var lab = (BK_DAYS[inst.weekday] ? BK_DAYS[inst.weekday] + ' ' : '') +
+                inst.date.slice(8, 10) + '.' + inst.date.slice(5, 7) + ' · ' +
+                inst.start_time.slice(0, 5) + '–' + inst.end_time.slice(0, 5);
+              cell = { cls: 'bk-slot ' + cls + (past ? ' past' : ''), title: title, disabled: !clickable, inst: clickable ? inst : null, lab: lab };
             }
             cells.push(cell);
           }
