@@ -1,7 +1,13 @@
 # mobile-adaptive Specification
 
 ## Purpose
-TBD - created by archiving change add-mobile-adaptive. Update Purpose after archive.
+
+Мобильная адаптивность: единый канон ≤760px для всех ученических и
+админских страниц — компактный top-bar (бренд + инициалы из /me),
+скрытие десктопного сайдбара, нижний таб-бар с разделами и Профиль-шитом,
+карточки вместо таблиц, безопасные hit-targets (≥44px), отсутствие
+горизонтального переполнения (scrollWidth ≤390 на reference-вьюпорте).
+Канон зафиксирован мокапами design/mocks/mobile (21 экран, mobile-index).
 
 ## Requirements
 
