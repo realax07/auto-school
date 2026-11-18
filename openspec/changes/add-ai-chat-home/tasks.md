@@ -1,0 +1,47 @@
+# Tasks: add-ai-chat-home
+
+## 19.1 СА-пакет (приемка — ПМ; СА чекбоксы не ставит)
+- [ ] 19.1.1 Пакет openspec/changes/add-ai-chat-home/ (proposal/design/specs/tasks/research) + раздел трассировки sdd.md §34; openspec validate --all --strict — 0 ошибок
+- [ ] 19.1.2 Ревью архитектора → return→фиксы→approve (по факту приемки ПМ ставит галочку и PLAN)
+
+## 19.2 Backend: API чата, история, retention, тесты
+- [ ] 19.2.1 [code] Доменный модуль backend/ai/ (адаптер-провайдер за контрактом): POST /api/ai/chat (auth X-Session-Token, 401, {message}→{reply}), GET /api/ai/chat/history (14 дней); include_router в backend/app.py
+- [ ] 19.2.2 [code] История чата в SQLite: таблица ai_messages (user_id, role, text, created_at) в схеме backend/core/db.py; параметризованный SQL; изоляция по user_id
+- [ ] 19.2.3 [code] Временная реализация ассистента — сессия hermes (`hermes chat -q`, oneshot): системный промпт «ГигаЧат — помощник по обучению ПДД» + темы (ПДД, дорожные ситуации в России, ГИБДД), знания content/pdd + интернет; таймаут ≤30 с, ошибка/таймаут → человеческий текст; секреты/argv не в логах
+- [ ] 19.2.4 [code] Retention 14 дней — серверная механика: DELETE старше 14 дней при чтении истории (опционально — чистка на lifespan)
+- [ ] 19.2.5 [tests] Тесты tests/api/test_s19_ai_chat.py: TC-S19-001… в docstring с трассировкой на Requirements specs/ai-chat/spec.md (API/401/изоляция/retention/темы) — прецедент test_s16_backend.py
+
+## 19.3 Frontend: «Главная» = ИИ-чат по макетам (от бэкенд-коммита 19.2)
+- [ ] 19.3.1 [code] Замена #sec-home по макетам (обе версии): удаление .quick и .services-title/.tiles и .greet; spark, «Добрый день!», подсказка, композер (плейсхолдер дословно), «+» disabled с подписью «Скоро», рабочая отправка
+- [ ] 19.3.2 [code] Состояния чата: пустая история → приветствие по центру; есть история → пузыри user/assistant; GET-подхват при открытии/входе; индикатор ожидания; ошибки человеческим текстом у поля
+- [ ] 19.3.3 [code] Wiring POST /api/ai/chat + GET истории через src/shared/api.js (X-Session-Token из sessionStorage); сайдбар/таб-бар, остальные секции и хеш-навигация — без изменений
+- [ ] 19.3.4 [code][tests] Носители в том же цикле (правило Заказчика): tests/web/test_cabinet_page.py — перевод вербатим-гардов «Главной» на новые макеты без ослаблений; tests/web/test_ui_playwright.py — e2e чата (вход→отправка→история; 390×844 и 1440×900) + design-guard перенос
+- [ ] 19.3.5 [P][docs] architecture/map.md — блок AI-чата (модуль backend/ai, контракт, история)
+
+## 19.4 QA
+- [ ] 19.4.1 [tests] Чек-лист test-model/checklists/add-ai-chat-home.md → кейсы TC-S19 (тест-модель) → автоматизация ключевых
+- [ ] 19.4.2 [design] Design check: «Главная» в обеих версиях против макетов (дословные тексты, композер прижат к низу, «+»/«Скоро»), сайдбар/таб-бар не задеты
+- [ ] 19.4.3 [tests] Полный regress (api + web + smoke) green; бюджеты NFR-26 кабинета не тронуты; acceptance-прогон FR-19.1…19.7
+- [ ] 19.4.4 [docs] Приемка Заказчика → PR (волна закрытия, PLAN/tasks статусы — ПМ)
+
+## Рекомендации к нарезке
+
+- Шов 1 (19.2): backend/ai/ + db.py + тесты — один worktree (общая зона
+  файлов, НЕ делить API и его тесты).
+- Шов 2 (19.3): кабинет (App.vue + styles.css + носители) — один worktree;
+  старт только от бэкенд-коммита (волны последовательны).
+- 19.3.5 (карта) — [P]: независимая зона файлов, параллелит с 19.3.1–19.3.4.
+- НЕЛЬЗЯ делить: test_cabinet_page.py между 19.3.1 и 19.3.4 (вербатим-гарды
+  и правки разметки — одна рука, прецедент коллизии worktree 3.2/4.1);
+  19.4 после merge-кандидата обеих волн.
+
+## План тестовых прогонов (J32-легкий)
+
+1. api: tests/api/test_s19_ai_chat.py (+ смежные test_auth/test_db) —
+   pytest, ~2–3 мин, стенд: tmp-БД conftest, hermes CLI на хосте.
+2. web-носители: tests/web/test_cabinet_page.py + test_sidebar_unified.py —
+   ~2 мин, стенд: без браузера (фрагментные гарды).
+3. web e2e (mobile+desktop): tests/web/test_ui_playwright.py — сценарии
+   чата 390×844 и 1440×900, ~5–7 мин, стенд: playwright-браузеры.
+4. regress-full (19.4): полный сьют api+web+smoke, 6–7 мин — фон+notify
+   (T-3: таймаут терминала), стенд: полный (БД+playwright).
