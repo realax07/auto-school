@@ -5197,3 +5197,297 @@ def test_tc_ui_076_pdd_tickets_fines_snav_tabs(page, server):
     page.locator('.snav button[data-tab="Главная"]').click()
     expect(page.locator("#sec-home")).to_be_visible()
     expect(page.locator("#sec-pdd-fines")).to_be_hidden()
+
+
+# ---------------------------------------------------------------------------
+# Спринт 18 (change add-mobile-adaptive, задачи 18.4.2): МОБИЛЬНЫЙ ВЬЮПОРТ
+# 390×844 — вход (модалка bottom-sheet) → кабинет → таб-бар → модалки →
+# ПДД-тренажер. Desktop-сценарии выше (вьюпорты 1440×900 и узкий 380×900
+# С7) не тронуты; desktop-инвариант таб-бара — отдельный сценарий ниже.
+
+def _mobile_page(browser, token=None):
+    """Свежий контекст 390×844 (спека mobile-adaptive); сессия token —
+    до скриптов страницы (паттерн _fresh_page)."""
+    ctx = browser.new_context(viewport={"width": 390, "height": 844})
+    pg = ctx.new_page()
+    if token is not None:
+        pg.add_init_script(
+            "sessionStorage.setItem('session_token','%s');" % token)
+    return pg, ctx
+
+
+def _register_student_api(server):
+    """Регистрация ученика через API (consent обязателен — FR-78);
+    возвращает (email, password) для UI-входа."""
+    email = unique_email("s18stu")
+    status, data = api("POST", "/api/register", base=server, body={
+        "surname": "Смирнова", "name": "Ольга", "patronymic": "Павловна",
+        "email": email, "phone": "+7 901 222-33-44",
+        "password": "S3cretPass!", "password_confirm": "S3cretPass!",
+        "consent": True,
+    })
+    assert status == 200 and data and data["ok"], (status, data)
+    return email, "S3cretPass!"
+
+
+
+
+def test_s18_mobile_login_bottomsheet_tabbar_cabinet(browser, server):
+    """TC-UI-077 (Спринт 18, add-mobile-adaptive 18.4.2): мобильный сценарий
+    390×844 — вход с лендинга (модалка входа — bottom-sheet с grab-хендлом,
+    мокап mobile-login.html .shb/.grab) → кабинет: desktop-сайдбар скрыт,
+    таб-бар 54px снизу (мокапы .tabs); «Записи» → «Мои брони» (хеш,
+    подсветка), «Обучение» → шит с 4 разделами ПДД → «Билеты», «Кошелек» →
+    модалка пополнения — bottom-sheet, «Профиль» → шит с ФИО и «Выйти».
+    Реальный бэкенд.
+    Кейсы партии (approved, coverage.md): TC-S18-001 (таб-бар, сайдбар
+    скрыт), TC-S18-002 (#sec-wallet), TC-S18-003 (#sec-bookings + хеш
+    #/my-bookings), TC-S18-004 (bottom-sheet входа/пополнения, регресс
+    BUG-069)."""
+    email, password = _register_student_api(server)
+    page, ctx = _mobile_page(browser)
+    try:
+        page.goto(f"{server}/")
+        # ВХОД: модалка — bottom-sheet (прижата к низу, во всю ширину 390,
+        # grab-хендл ::before 38×4 — 18.2/мокап mobile-login.html)
+        page.locator('.auth [data-open="login"]').click()
+        expect(page.locator("#m-login.overlay")).to_be_visible()
+        modal = page.locator("#m-login .modal")
+        expect(modal).to_be_visible()
+        vp = page.viewport_size
+        box = modal.bounding_box()
+        assert box["width"] == vp["width"], (box, vp)  # 390 — вся ширина
+        assert box["y"] + box["height"] >= vp["height"] - 2, (box, vp)
+        sheet_css = modal.evaluate(
+            "el => { const s = getComputedStyle(el, '::before');"
+            " const m = getComputedStyle(el);"
+            " return { grabW: s.width, grabH: s.height, content: s.content,"
+            " tl: m.borderTopLeftRadius, bl: m.borderBottomLeftRadius }; }")
+        assert sheet_css["content"] == '""' and sheet_css["grabW"] == "38px", sheet_css
+        assert sheet_css["tl"] == "18px" and sheet_css["bl"] == "0px", sheet_css
+
+        # фактический вход ученика → кабинет
+        page.fill("#login-email", email)
+        page.fill("#login-password", password)
+        page.locator("#login-submit").click()
+        page.wait_for_url("**/cabinet")
+        expect(page.locator(".mtabs")).to_be_visible()
+
+        # КАБИНЕТ на 390px: desktop-сайдбар скрыт, таб-бар 54px снизу
+        assert page.evaluate(
+            "getComputedStyle(document.querySelector('aside.side')).display"
+        ) == "none"
+        assert page.evaluate(
+            "document.querySelector('.mtabs').getBoundingClientRect().height"
+        ) == 54
+        tb = page.locator(".mtabs").bounding_box()
+        assert tb["y"] + tb["height"] <= vp["height"] + 1, (tb, vp)
+        expect(page.locator(".mtab.on span")).to_have_text("Главная")
+
+        # ТАБ «Записи» → «Мои брони»: хеш, подсветка таба (мокап
+        # mobile-bookings.html .tab on)
+        page.locator(".mtab", has_text="Записи").click()
+        expect(page.locator("#sec-bookings")).to_be_visible()
+        assert page.evaluate("location.hash") == "#/my-bookings"
+        expect(page.locator(".mtab.on span")).to_have_text("Записи")
+
+        # ТАБ «Обучение» → шит с 4 разделами ПДД → «Билеты»
+        page.locator(".mtab", has_text="Обучение").click()
+        sheet = page.locator(".mtab-sheet")
+        expect(sheet).to_be_visible()
+        expect(sheet.locator(".mi")).to_have_count(4)
+        sheet.locator(".mi", has_text="Билеты").click()
+        expect(page.locator("#sec-pdd-tickets")).to_be_visible()
+        assert page.evaluate("location.hash") == "#/pdd-tickets"
+
+        # ТАБ «Кошелек» → модалка пополнения — bottom-sheet (мокап
+        # mobile-wallet.html: шиты прижаты к низу)
+        page.locator(".mtab", has_text="Кошелек").click()
+        expect(page.locator("#sec-wallet")).to_be_visible()
+        page.locator("#topup-open").click()
+        expect(page.locator("#m-backdrop.wal-open")).to_be_visible()
+        wal = page.locator("#m-backdrop .wal-modal")
+        wbox = wal.bounding_box()
+        assert wbox["width"] == vp["width"], (wbox, vp)
+        assert wbox["y"] + wbox["height"] >= vp["height"] - 2, (wbox, vp)
+        assert wal.evaluate(
+            "el => getComputedStyle(el, '::before').content") == '""'
+        page.locator("#m-close").click()
+        expect(page.locator("#m-backdrop.wal-open")).to_have_count(0)
+
+        # ТАБ «Профиль» → шит с ФИО (FR-5) и «Выйти»; закрытие крестиком
+        page.locator(".mtab", has_text="Профиль").click()
+        sheet = page.locator(".mtab-sheet")
+        expect(sheet).to_be_visible()
+        expect(sheet.locator(".me b")).to_have_text("Смирнова Ольга Павловна")
+        expect(sheet.locator(".mi.out")).to_contain_text("Выйти")
+        sheet.locator(".x").click()
+        expect(page.locator(".mtab-sheet")).to_have_count(0)
+    finally:
+        ctx.close()
+
+
+def test_s18_mobile_tickets_trainer_grid_390(browser, server):
+    """TC-UI-078 (Спринт 18, add-mobile-adaptive 18.3.1/18.4.2): ПДД-тренажер
+    на 390×844 — выбор билета, exam-bar переносится, вопрос и варианты во
+    всю ширину контента, навигатор вопросов — сетка ровно 10 колонок клеток
+    (мокап mobile-pdd-tickets.html .qnav repeat(10,1fr)), клик верного
+    ответа — пояснение и статус done-g. Реальный бэкенд.
+    Кейс партии (approved): TC-S18-006 (тренажер на 390px)."""
+    token = _student_token(server)
+    page, ctx = _mobile_page(browser, token)
+    try:
+        page.goto(f"{server}/cabinet#/pdd-tickets")
+        expect(page.locator("#sec-pdd-tickets")).to_be_visible()
+        page.locator('[data-test="pdd-tk-ticket-abm-01"]').click()
+        expect(page.locator('[data-test="pdd-exam-bar"]')).to_be_visible()
+
+        # exam-bar переносом (таймер/счет/кнопки не срезаются на 390px)
+        assert page.evaluate(
+            "getComputedStyle(document.querySelector('[data-test=\"pdd-exam-bar\"]')).flexWrap"
+        ) == "wrap"
+
+        # вопрос: карточка и ответы внутри ширины контента (frame 16px)
+        expect(page.locator('[data-test="pdd-q-num"]')).to_have_text("Вопрос 1 из 20")
+        content_w = page.evaluate(
+            "document.querySelector('.frame').getBoundingClientRect().width")
+        qbox = page.locator('[data-test="pdd-q-card"]').bounding_box()
+        assert qbox["width"] <= content_w + 1, (qbox, content_w)
+
+        # навигатор — grid ровно 10 колонок (мокап .qnav repeat(10,1fr)),
+        # клетки 32px высотой
+        qnav = page.locator('[data-test="pdd-q-nav"]')
+        assert qnav.evaluate(
+            "el => getComputedStyle(el).display") == "grid"
+        cols = qnav.evaluate(
+            "el => getComputedStyle(el).gridTemplateColumns.split(' ').length")
+        assert cols == 10, cols
+        assert qnav.evaluate(
+            "el => getComputedStyle(el.querySelector('.qn')).height") == "32px"
+
+        # тренировка работает: верный ответ вопроса 1 — вариант 2
+        page.locator('[data-test="pdd-ans-1"]').click()
+        expect(page.locator('[data-test="pdd-ans-1"]')).to_have_class("ans good")
+        expect(page.locator('[data-test="pdd-tip"]')).to_be_visible()
+        expect(page.locator('[data-test="pdd-qn-1"]')).to_have_class("qn done-g cur")
+    finally:
+        ctx.close()
+
+
+def test_s18_desktop_tabbar_hidden_and_fines_table_intact(browser, server):
+    """TC-UI-079 (Спринт 18, 18.4.1/18.4.2 — desktop-инвариант): на 1440×900
+    таб-бар скрыт (CSS-страховка min-width:761px), desktop-сайдбар с 9
+    пунктами на месте, штрафы — таблица с шапкой из 3 колонок (18.3.1
+    НЕ тронула desktop-фрагменты), сетка знаков — прежний auto-fill.
+    Кейсы партии (approved): TC-S18-008 (desktop-регресс, BUG-070),
+    TC-S18-005 (desktop-грид контента не сжат)."""
+    token = _student_token(server)
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    page = ctx.new_page()
+    page.add_init_script(
+        "sessionStorage.setItem('session_token','%s');" % token)
+    try:
+        page.goto(f"{server}/cabinet")
+        expect(page.locator("#sec-home")).to_be_visible()
+        # таб-бар НЕ рендерится на desktop (v-if по matchMedia), сайдбар
+        # виден (9 пунктов)
+        expect(page.locator(".mtabs")).to_have_count(0)
+        assert page.evaluate(
+            "getComputedStyle(document.querySelector('aside.side')).display"
+        ) != "none"
+        expect(page.locator(".snav button")).to_have_count(9)
+
+        # штрафы: таблица с thead (desktop-фрагмент С17/С18.3 цел); секция —
+        # lazy-чанк: ждём САМУ таблицу (шелл секции появляется раньше
+        # монтирования чанка — под нагрузкой querySelector давал null)
+        page.locator('.snav button[data-tab="Штрафы"]').click()
+        expect(page.locator("#sec-pdd-fines")).to_be_visible()
+        expect(page.locator('[data-test="pdd-fines-table"]')).to_be_visible()
+        assert page.evaluate(
+            "getComputedStyle(document.querySelector('[data-test=\\\"pdd-fines-table\\\"] thead')).display"
+        ) != "none"
+        expect(page.locator('[data-test="pdd-fines-table"] thead th')
+               ).to_have_text(["Пункт КоАП", "Нарушение", "Наказание"])
+
+        # знаки: сетка auto-fill (не мобильные 2 колонки); секция — lazy-чанк
+        page.locator('.snav button[data-tab="Знаки"]').click()
+        expect(page.locator("#sec-pdd-signs")).to_be_visible()
+        expect(page.locator(".zn-grid")).to_be_visible()
+        zn_cols = page.evaluate(
+            "getComputedStyle(document.querySelector('.zn-grid')).gridTemplateColumns.split(' ').length")
+        assert zn_cols > 2, zn_cols
+    finally:
+        ctx.close()
+
+
+def test_mobile_topbar_initials_visible(page, server):
+    """TC-S18-001/005 (правочный носитель MAJ-1 — плановый TC-UI ID не имеет,
+    coverage.md). MAJ-1 итер.003: top-bar с инициалами пользователя на мобильной
+    ширине (спека mobile-adaptive: «top-bar (инициалы)»; мокапы class="tb")."""
+    _seed_session(page, "session_token", _student_token(server))
+    page.set_viewport_size({"width": 390, "height": 844})
+    page.goto(f"{server}/cabinet#/pdd-signs")
+    page.wait_for_timeout(1800)
+    ava = page.locator('[data-test="mtop-ava"]')
+    assert ava.count() == 1, "top-bar с инициалами отсутствует"
+    assert ava.is_visible(), "инициалы в top-bar не видны"
+    txt = ava.text_content().strip()
+    assert len(txt) >= 2, f"инициалы пусты: {txt!r}"
+
+def test_s18_mobile_geometry_hit_targets(page, server):
+    """TC-S18-002/003/005/007 (правочный носитель MIN-4/MAJ-3 — плановый
+    TC-UI ID не имеет, coverage.md). MIN-4 CR rev 001 (исправлен по ре-ревью: прежний тест был вакуумным —
+    мерил скрытые элементы). Геометрия меряется на ВИДИМЫХ элементах после
+    переключения на соответствующий раздел: кнопки ≥44px, таб-бар ≤64px."""
+    _seed_session(page, "session_token", _student_token(server))
+    page.set_viewport_size({"width": 390, "height": 844})
+    page.goto(f"{server}/cabinet")
+    page.reload()  # изоляция: сброс DOM после соседних тестов (общая page-группа)
+    page.wait_for_timeout(1800)
+
+    # Кошелек: .wal-btn видима на активной вкладке (клик по мобильному табу)
+    page.click('.mtab:has-text("Кошелек")')
+    page.wait_for_timeout(600)
+    wal = page.locator(".wal-btn").first
+    wal.scroll_into_view_if_needed()
+    assert wal.bounding_box()["height"] >= 44, "wal-btn < 44px"
+
+    # Таб-бар: реальный контейнер .mtabs (не .mtab-root, дети fixed)
+    mtabs = page.locator(".mtabs")
+    box = mtabs.bounding_box()
+    assert box and 44 <= box["height"] <= 64, f"таб-бар высотой {box['height'] if box else '?'}"
+
+    # Мои заявки: .act кнопки повторить/отзыв (в конце — данные-зависимая
+    # проверка: в пустом состоянии .act нет, skip в середине обрывал носители)
+    page.click('.mtab:has-text("Главная")')
+    page.wait_for_timeout(600)
+    acts = page.locator(".act")
+    if acts.count():
+        first = acts.first
+        first.scroll_into_view_if_needed()
+        assert first.bounding_box()["height"] >= 44, ".act < 44px"
+
+    # ФИО не отображается в сайдбаре на мобиле (сайдбар скрыт — BUG-070)
+    assert page.locator(".side-user").is_hidden()
+    # MAJ-3: sticky top-bar — при прокрутке контента остается прилипшим сверху
+    page.mouse.wheel(0, 400)
+    page.wait_for_timeout(300)
+    mtop_box = page.locator(".mtop").bounding_box()
+    assert mtop_box and abs(mtop_box["y"]) <= 1, f"mtop не прилип: y={mtop_box['y'] if mtop_box else '?'}"
+
+    # MIN-4 а (e2e-замеры итер.004): scrollWidth instructor-choice ≤390.
+    # Изоляция: соседние тесты могут оставить сохраненные фильтры — чистим
+    # стореджи и перезагружаем в чистое состояние каталога.
+    page.evaluate("localStorage.clear(); sessionStorage.clear()")
+    page.evaluate(f"sessionStorage.setItem('session_token', '{_student_token(server)}')")
+    page.goto(f"{server}/instructor-choice")
+    page.reload()
+    page.wait_for_timeout(1200)
+    assert page.evaluate("document.documentElement.scrollWidth") <= 390, "горизонтальный скролл на choice (длинные тексты карточек каталога обрезаются ellipsis — XSS-пейлоад-имя из тестов безопасности не распирает)"
+    # choice: контент поднят к верху с отступом логотипа (спека MUST ~25–26px
+    # на всех ширинах; top-bar на choice-каталоге отсутствует — в кабинете)
+    pad = page.evaluate("(()=>{const f=document.querySelector('.frame');return f?Math.round(parseFloat(getComputedStyle(f).paddingTop)):-1})()")
+    assert 20 <= pad <= 30, f"choice content top pad={pad}"
+    # MIN-4 б: геометрия видимых кнопок на разделах с данными
+    # (.act/.bk-act — меряются при наличии данных; wal-btn — в
+    #  geometry-проверке выше по этой же функции)

@@ -418,3 +418,187 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
 .zn-modal .fine .fine-line.fine-item{margin-left:26px;padding-left:12px;position:relative}
 .zn-modal .fine .fine-line.fine-item::before{content:"▸";position:absolute;left:0;color:#1c6b3c}
 .zn-modal .fine .fine-line:last-child{margin-bottom:0}
+
+/* =========================================================================
+   Спринт 18 (change add-mobile-adaptive, задачи 18.1.1/18.1.2): МОБИЛЬНАЯ
+   АДАПТАЦИЯ кабинета (≤760px). Правила ТОЛЬКО добавлены в конце файла
+   (design-guard test_cabinet_page: строки мокапа не изменяются); desktop
+   (>760px) не меняется — носители e2e 84 защищают.
+   - desktop-сайдбар скрыт (media в StudentSidebar.vue) — прячется и пустой
+     pre-boot <aside class="side"> носителя (флеша/дырки в гриде нет);
+   - вместо сайдбара снизу — таб-бар MobileTabBar.vue (высота 54px):
+     резервируем место под ним в конце страницы;
+   - верхний отступ контента сохранен = паддинг .frame 26px (отступ
+     логотипа сайдбара ~25px — С17/С18-бриф, «на всех ширинах»). */
+@media(max-width:760px){
+  aside.side{display:none}
+  .frame{padding:84px 16px 88px} /* 84 = fixed top-bar 58px + отступ логотипа 26px */
+  footer{padding-bottom:6px}
+}
+
+/* --- 18.2.1: «Главная» — одноколоночные плитки, компактный чат-бар;
+     отступ сверху сохранен (.frame 26px = отступ логотипа, см. выше) --- */
+@media(max-width:760px){
+  .tiles{grid-template-columns:1fr;gap:13px}
+  .tile{min-height:0;padding:18px 18px 16px;border-radius:20px}
+  .tile-icon{width:48px;height:48px;border-radius:14px;font-size:23px;margin-bottom:12px}
+  .tile b{font-size:17px}
+  .greet b{font-size:23px}
+  .assistant{margin:18px 0 24px;padding:15px 15px 13px;border-radius:24px}
+  .ai-head{gap:12px;margin:0 2px 12px}
+  .avatar{width:44px;height:44px}
+  .prompt{height:54px;font-size:14px;padding:0 10px 0 16px;border-radius:28px}
+  .send{width:40px;height:40px;font-size:24px;flex:none}
+  .quick{gap:8px;margin-top:12px}
+  .quick button{height:48px;padding:0 14px;font-size:12px}
+  .services-title{margin:0 0 12px}
+}
+/* подпись слота — только на мобильной неделе-полосе (ниже); desktop
+   показывает прежнюю пустую ячейку со статусом в :after */
+.bk-slot-lab{display:none}
+
+/* --- 18.2.2: «Мои заявки» — компактные карточки; пустое состояние —
+     кнопка под текстом (.no-req уже вертикальный блок — сверено) --- */
+@media(max-width:760px){
+  .filters{flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px}
+  .filters button{flex:0 0 auto}
+  .req{padding:14px;border-radius:15px}
+  .req-top{gap:10px}
+  .status{margin-left:0;order:3}
+  .actions{gap:8px}
+  .act{flex:1 1 auto;padding:13px 16px;min-height:44px !important;font-size:12.5px}
+  .no-req{padding:38px 14px}
+}
+/* --- 18.2.3: «Мои брони» — неделя-полоса (пн–вс видима целиком) +
+     слоты вертикальным списком с состояниями (мокап mobile-bookings.html
+     .week/.day/.slot); навигация недель сохраняется (bk-nav) --- */
+@media(max-width:760px){
+  .bk-pair{padding:13px 14px}
+  .bk-cal{padding:14px;border-radius:16px}
+  .bk-cal-head{flex-direction:column;align-items:stretch}
+  .bk-nav{flex-wrap:wrap}
+  .bk-grid{display:flex;flex-wrap:wrap;gap:6px}
+  .bk-corner,.bk-tlabel{display:none}
+  .bk-dh{flex:1 1 0;min-width:0;padding:7px 2px}
+  .bk-dh b{font-size:13px}
+  .bk-dh small{font-size:8px}
+  .bk-week-empty{flex:1 1 100%}
+  .bk-slot{flex:1 1 100%;height:auto;min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;font-size:12px;text-align:left}
+  .bk-slot.off{display:none}          /* пустые ячейки матрицы в список не выводятся */
+  .bk-slot .bk-slot-lab{display:inline;font-weight:650}
+  .bk-slot:after{margin-left:auto;white-space:nowrap}
+  .bk-slot.free:after{content:"свободно — тап для брони"}
+  .bk-slot.taken:after{content:"занято"}
+  .bk-slot.mine:after{content:"ваш запрос"}
+  .bk-legend{gap:10px}
+  .bk-hint{font-size:10px}
+  .bk-sect-head{margin:20px 0 11px}
+  .bk-car-card{padding:12px}
+  .bk-car-photo{width:100%}
+  .bk-req{padding:14px;border-radius:15px}
+  .bk-actions .bk-act{flex:1 1 auto;padding:13px 16px;min-height:44px !important}
+}
+/* --- 18.2.1 (Кошелек): балансы — карточки столбиком, история транзакций —
+     карточки вместо таблицы (мокап mobile-wallet.html .li/.amt: бейдж типа
+     + сумма в строке, ниже описание и дата; без горизонтального скролла) --- */
+@media(max-width:760px){
+  .wal-balances{gap:10px;margin:14px 0 4px}
+  .wal-bal{padding:15px 16px 13px;border-radius:15px}
+  .wal-bal b{font-size:28px;margin-top:7px}
+  .wal-actions{gap:8px}
+  .wal-actions .wal-btn{flex:1 1 auto;padding:13px 16px;min-height:44px !important}
+  .wal-table{display:block}
+  .wal-table thead{display:none}
+  .wal-table tbody{display:grid;gap:10px}
+  .wal-table tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;border:1px solid rgba(234,255,249,.16);border-radius:14px;background:linear-gradient(150deg,rgba(28,43,52,.78),rgba(15,25,32,.8));box-shadow:inset 0 1px #ffffff08;padding:12px 14px}
+  .wal-table td{display:block;padding:0;border:0;font-size:12.5px}
+  .wal-table tbody tr:nth-child(odd) td{background:transparent}
+  .wal-table td:nth-child(2){order:1}
+  .wal-table td.wal-amount{order:2;text-align:right;font-size:14px}
+  .wal-table td:nth-child(3){order:3;grid-column:1/-1;line-height:1.5}
+  .wal-table td.wal-when{order:4;grid-column:1/-1;white-space:normal;font-size:11px}
+  .wal-table td.wal-empty{order:0;grid-column:1/-1;color:#7f929d}
+}
+/* --- спека mobile-adaptive: модалки (пополнение, бронь, оспорить, деталь
+     знака) на мобильных ширинах — bottom-sheet с grab-хендлом (::before)
+     и блюром фона (мокапы mobile-book-slot/mobile-dispute/mobile-pdd-
+     sign-detail .shb/.grab); поля и кнопки — без изменений --- */
+@media(max-width:760px){
+  /* BUG-069: модалки кабинета НЕ пробивали таб-бар повышением z-index
+     бэкдропа (30→70): .frame — стекинг-контекст (position:relative;
+     z-index:1), бэкдроп paints на УРОВНЕ .frame (1 < 60 таб-бара) — .mtab
+     перехватывал клики по кнопкам шита (e2e TC-UI-077). Вариант «поднять
+     сам .frame до 70» отвергнут рантайм-проверкой: ВЕСЬ контент frame
+     (без общего bottom-padding) начинал перехватывать клики ТАБОВ при
+     скролле. Решение — в ≤760px снять контекст (.frame{z-index:auto})
+     и поднять бэкдропы над таб-баром в КОРНЕВОМ контексте (70 > 60):
+     шит ПОКРЫВАЕТ таб-бар (мокапы mobile-*.html: sheet поверх tabs).
+     Другие z-слои .frame на mobile: zn-overlay 80 (> 60 — деталь знака
+     поверх таб-бара), тост 20 (геометрически выше таб-бара, bottom:70px).
+     Desktop не меняется (.frame z-index:1 сохранен). */
+  .frame{z-index:auto}
+  .backdrop,.wal-backdrop{place-items:end center;padding:0;z-index:70}
+  .wal-modal,.bk-modal,.zn-modal{width:100%;max-width:none;border-radius:18px 18px 0 0;border-left:0;border-right:0;border-bottom:0;padding:10px 18px 26px}
+  .wal-modal:before,.bk-modal:before,.zn-modal:before{content:"";display:block;width:38px;height:4px;border-radius:4px;background:#2d3d49;margin:6px auto 14px}
+  .zn-overlay{align-items:flex-end;padding:0}
+  .toast{bottom:70px;left:12px;right:12px;max-width:none}
+}
+
+/* =========================================================================
+   Спринт 18 (change add-mobile-adaptive, задача 18.3.1): ПДД-разделы ≤760px —
+   полировка одноколоночной компоновки по мокапам design/mocks/mobile/
+   pdd-*.html: группы знаков и оглавление правил — горизонтальные ленты-chips
+   (мокапы .chips/.chip: overflow-x, скрытый скроллбар), сетка знаков —
+   2 колонки компактных карточек (.zgrid/.zc), штрафы — карточки вместо
+   таблицы (.c: пункт + наказание в строке, нарушение ниже), навигатор
+   билетов — сетка 10 в ряд (.qnav/.qn 32px). Desktop (>760px) не меняется —
+   носители e2e 84 + test_cabinet_page/test_pdd_sections защищают. */
+@media(max-width:760px){
+  /* Знаки (mobile-pdd-signs.html): лента групп + сетка 2 колонки */
+  .chips{flex-wrap:nowrap;overflow-x:auto;gap:7px;padding-bottom:10px;margin-bottom:16px;scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{flex:0 0 auto;white-space:nowrap;padding:8px 13px;border-radius:10px;font-size:12px}
+  .zn-grid{grid-template-columns:1fr 1fr;gap:10px}
+  .zn{padding:10px 8px;border-radius:14px}
+  .zn img{height:56px;max-width:92px;border-radius:8px;padding:4px}
+  .zn figcaption{margin-top:6px;font-size:11.5px}
+  /* Правила (mobile-pdd-rules.html): оглавление — лента-chips над главой */
+  .prav-wrap{gap:0}
+  .toc{position:static;flex-direction:row;overflow-x:auto;gap:7px;padding-bottom:10px;margin-bottom:16px;scrollbar-width:none}
+  .toc::-webkit-scrollbar{display:none}
+  .toc-item{flex:0 0 auto;white-space:nowrap;padding:9px 13px;border-radius:10px;font-size:12px}
+  .chapter{padding:16px;border-radius:14px}
+  .chapter h2{font-size:19px;margin:6px 0 14px}
+  /* Билеты (mobile-pdd-tickets.html): exam-bar переносом, навигатор —
+     сетка 10 в ряд из клеток 32px, выбор билета — плотнее */
+  .exam-bar{flex-wrap:wrap;gap:10px;padding:12px 14px}
+  .timer{margin-left:0}
+  .q-card{padding:16px;border-radius:14px}
+  .q-text{font-size:15px}
+  .ans{padding:13px 14px;font-size:13.5px}
+  .q-nav{display:grid;grid-template-columns:repeat(10,1fr);gap:5px;margin-top:14px}
+  .qn{width:auto;height:32px;border-radius:9px;font-size:11px}
+  .tk-tickets{grid-template-columns:repeat(auto-fill,minmax(56px,1fr))}
+  .tk-cat b{font-size:14px}
+  .tk-result{padding:18px;border-radius:14px}
+  .tk-actions{flex-wrap:wrap}
+  .tk-btn{flex:1 1 auto;padding:12px 16px}
+  /* Штрафы (mobile-pdd-fines.html .c): поиск столбиком, таблица — карточки:
+     пункт (слева, зеленый) + наказание (справа), нарушение строкой ниже */
+  .search{flex-direction:column}
+  .search input{width:100%;padding:13px 16px}
+  .search button{padding:13px 16px;font-size:14px}
+  .fines{display:block;max-width:none}
+  .fines thead{display:none}
+  .fines tbody{display:grid;gap:10px}
+  .fines tr{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;border:1px solid rgba(234,255,249,.16);border-radius:14px;background:rgba(9,22,28,.9);padding:12px 14px}
+  .fines td{display:block;padding:0;border:0;font-size:13px;line-height:1.5}
+  .fines tbody tr:nth-child(odd) td{background:transparent}
+  .fines tr:hover td{background:transparent}
+  .fines td:first-child{grid-column:1;grid-row:1;font-weight:700;white-space:nowrap}
+  .fines td:nth-child(3){grid-column:2;grid-row:1;text-align:right;color:#f7fbfa}
+  .fines td:nth-child(2){grid-column:1/-1;grid-row:2;font-weight:600;color:#dcebe9}
+  .fines-empty{grid-column:1/-1;grid-row:1}
+}
+
+

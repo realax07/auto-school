@@ -183,7 +183,12 @@ export default {
 .logout{padding:9px 24px;border:1px solid rgba(238,249,249,.4);border-radius:999px;background:rgba(4,12,17,.28);font-size:14px}
 .logout:hover{border-color:#49ec9a}
 .side-user .logout{padding:7px 18px;font-size:12px}
-/* мобильная вертикаль сайдбара — 1:1 из @media кабинета (строка 205);
-   сетка страницы (.app) остается в page-CSS носителя */
-@media(max-width:760px){.side{flex-direction:row;align-items:center;padding:10px 14px;border-right:0;border-bottom:1px solid rgba(234,255,249,.12)}.snav{display:flex;overflow:auto;gap:5px}.snav button{white-space:nowrap;padding:9px 10px;font-size:11px}.snav button .ico{display:none}}
+/* Спринт 18 (add-mobile-adaptive, задача 18.1.2): на мобильных ширинах
+   (≤760px) desktop-сайдбар СКРЫВАЕТСЯ — вместо него снизу появляется
+   компактный таб-бар MobileTabBar.vue (5 разделов, matchMedia ≤760px).
+   ФИО и «Выйти» — в шите «Профиль» таб-бара (спека mobile-adaptive).
+   Прежняя мобильная вертикаль сайдбара (горизонтальная полоса сверху)
+   удалена вместе с самим сайдбаром; сетка страницы (.app) остается
+   в page-CSS носителя. */
+@media(max-width:760px){.side{display:none}}
 </style>

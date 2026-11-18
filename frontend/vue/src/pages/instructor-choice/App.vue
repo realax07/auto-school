@@ -26,6 +26,11 @@
      (#/… роутятся App.vue кабинета при загрузке); ФИО/«Выйти» — wiring
      внутри компонента (GET /api/auth/me, POST /api/auth/logout). -->
 <student-sidebar active-tab="Выбрать инструктора"></student-sidebar>
+<!-- Спринт 18 (add-mobile-adaptive, 18.1.1): мобильный таб-бар снизу —
+     показ ≤760px (matchMedia внутри компонента); активный «Главная»
+     (мокап mobile-choice.html); вне кабинета таб-бар сам ведет на
+     /cabinet#<хеш раздела> (паттерн StudentSidebar.go). -->
+<mobile-tab-bar active-tab="Выбрать инструктора"></mobile-tab-bar>
 <div class="frame">
 
 
@@ -143,12 +148,15 @@ import { toast, expWord } from '../../shared/utils.js';
 // «Выйти» — wiring ВНУТРИ StudentSidebar (страница больше не тянет /me и
 // logout сама — ClearSession ушел вместе с ними)
 import StudentSidebar from '../../components/StudentSidebar.vue';
+// Спринт 18 (add-mobile-adaptive, 18.1.1): мобильный таб-бар (общий чанк
+// shared — vite.config.mjs manualChunks /src/components/)
+import MobileTabBar from '../../components/MobileTabBar.vue';
 
 export default {
   name: 'InstructorChoiceApp',
   // Единый сайдбар ученика (физически один элемент, активный — «Выбрать
-  // инструктора»)
-  components: { StudentSidebar },
+  // инструктора») + мобильный таб-бар (≤760px, Спринт 18)
+  components: { StudentSidebar, MobileTabBar },
   setup: function () {
     // --- поля карточки (реальный шейп GET /api/student/instructors,
     //     backend/student_marketplace.py; code-review review-001 #2/#5:

@@ -7,3 +7,12 @@
    (закрытие: крестик, «Отмена», Esc). */
 .overlay{position:fixed;inset:0;z-index:60;display:none;place-items:center;background:rgba(1,7,11,.72);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}.overlay.open{display:grid}.overlay .actions .btn{width:auto;flex:1;margin-top:0}.overlay .err{margin:0 0 12px;font-size:13px;color:#ff9c9c}.login-close{position:absolute;top:18px;right:22px;width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.35);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid #ffffff22;color:#fff;font-size:22px;line-height:1;display:grid;place-items:center;padding:0;cursor:pointer}.login-close:hover{background:rgba(0,0,0,.55)}
 @media(max-width:850px){.nav{display:none}.hero-grid{grid-template-columns:1fr;gap:0}.hero{padding-top:50px}.visual{height:380px;max-width:520px;width:100%;margin:0 auto}.section-head{display:block}.section-head p{margin-top:14px}.features{grid-template-columns:1fr 1fr}}@media(max-width:560px){.wrap{width:calc(100% - 32px)}header{height:70px}.header-cta{font-size:11px;padding:10px}.hero{padding-top:40px}h1{font-size:45px}.lead{font-size:15px}.actions{display:grid}.btn{width:100%}.visual{height:335px;transform:scale(.9);transform-origin:top center;margin-bottom:-25px}.profile{right:0;top:8px;width:190px}.car{left:-7px;top:117px;width:190px}.schedule{right:-3px;bottom:23px;width:208px}.route{width:350px;left:-10px;top:72px}.orbit{width:350px;height:350px}.pin{left:45%;top:145px}.pin-label{top:204px;left:34%}.section{padding:46px 0}.choice-grid,.features{grid-template-columns:1fr}.choice{min-height:225px;padding:21px}.choice h3{font-size:21px}.bottom-cta{align-items:stretch;flex-direction:column;padding:23px}.bottom-cta h2{font-size:24px}.footer-row{flex-direction:column}}
+
+/* Спринт 18 (add-mobile-adaptive, спека mobile-adaptive): модалка входа
+   на мобильных ширинах — bottom-sheet с grab-хендлом (::before) и блюром
+   фона (мокап mobile-login.html .shb/.grab); desktop без изменений */
+@media(max-width:760px){
+  .overlay{place-items:end center}
+  .overlay .modal{width:100%;max-width:none;border-radius:18px 18px 0 0;border-left:0;border-right:0;border-bottom:0;padding:22px 18px 28px;max-height:86vh;overflow:auto}
+  .overlay .modal:before{content:"";display:block;width:38px;height:4px;border-radius:4px;background:#2d3d49;margin:0 auto 16px}
+}
