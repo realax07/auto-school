@@ -34,6 +34,7 @@
   <div class="eyebrow">СОВРЕМЕННАЯ АВТОШКОЛА ОТ СБЕРА</div>
   <h1>Права —<span>без лишнего пути.</span></h1>
   <p>Весь путь — от первого занятия<br>до экзамена — в одном месте.</p>
+  <div class="m-cta"><button class="login solid" data-open="register">Зарегистрироваться</button><button class="login" data-open="login">Войти</button></div>
 </section>
 <div class="side">
 <section class="steps">

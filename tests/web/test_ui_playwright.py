@@ -4438,13 +4438,13 @@ def test_bug056_landing_login_modal_close_semantics(page, server):
     overlay-close); Esc и крестик #login-close (data-close) закрывают,
     остаемся на лендинге."""
     page.goto(f"{server}/")
-    page.locator('[data-open="login"]').click()
+    page.locator('[data-open="login"]:visible').click()
     expect(page.locator("#m-login")).to_be_visible()
     page.mouse.click(8, 8)
     expect(page.locator("#m-login")).to_be_visible()
     page.keyboard.press("Escape")
     expect(page.locator("#m-login.open")).to_have_count(0)
-    page.locator('[data-open="login"]').click()
+    page.locator('[data-open="login"]:visible').click()
     expect(page.locator("#m-login")).to_be_visible()
     page.locator("#login-close").click()
     expect(page.locator("#m-login.open")).to_have_count(0)
@@ -5250,7 +5250,7 @@ def test_s18_mobile_login_bottomsheet_tabbar_cabinet(browser, server):
         page.goto(f"{server}/")
         # ВХОД: модалка — bottom-sheet (прижата к низу, во всю ширину 390,
         # grab-хендл ::before 38×4 — 18.2/мокап mobile-login.html)
-        page.locator('.auth [data-open="login"]').click()
+        page.locator('[data-open="login"]:visible').click()
         expect(page.locator("#m-login.overlay")).to_be_visible()
         modal = page.locator("#m-login .modal")
         expect(modal).to_be_visible()
