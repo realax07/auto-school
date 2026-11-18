@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>СберАвтошкола — Главная веб v3 (чат, меню слева)</title>
+<style>
+  :root {
+    --bg: #070c09;
+    --green: #3ddc84;
+    --green-dim: rgba(61, 220, 132, 0.16);
+    --ink: #f2f5f3;
+    --ink-muted: #9aa39d;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "SF Pro Display", -apple-system, "Segoe UI", Roboto, "DejaVu Sans", sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .desktop {
+    width: 1440px;
+    height: 900px;
+    background:
+      radial-gradient(ellipse 900px 560px at 55% 55%, rgba(61,220,132,0.06) 0%, transparent 65%),
+      var(--bg);
+    display: flex;
+    overflow: hidden;
+  }
+  /* ---------- Left sidebar ---------- */
+  .sidebar {
+    width: 248px;
+    height: 100%;
+    background: #0a100c;
+    border-right: 1px solid rgba(255,255,255,0.06);
+    display: flex;
+    flex-direction: column;
+    padding: 24px 16px;
+    flex-shrink: 0;
+  }
+  .logo { font-size: 22px; font-weight: 800; letter-spacing: -0.3px; padding: 0 12px 24px; }
+  .logo .accent { color: var(--green); }
+  .nav { display: flex; flex-direction: column; gap: 4px; }
+  .nav-item {
+    font-size: 15px;
+    font-weight: 600;
+    color: #8a938d;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 12px;
+    border-radius: 12px;
+  }
+  .nav-item svg { width: 22px; height: 22px; }
+  .nav-item.active { color: var(--green); background: var(--green-dim); }
+  .sidebar .spacer { flex: 1; }
+  .sidebar-user {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.06);
+    background: rgba(255,255,255,0.03);
+  }
+  .avatar {
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    background: #0e1d15;
+    border: 2px solid #234534;
+    color: var(--green);
+    font-weight: 700; font-size: 14px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .user-name { font-size: 14px; font-weight: 700; }
+  .user-role { font-size: 12px; color: var(--ink-muted); margin-top: 2px; }
+  /* ---------- Main chat area ---------- */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 0;
+    min-width: 0;
+  }
+  .greeting {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 24px;
+    padding: 0 48px;
+  }
+  .spark { width: 76px; height: 76px; }
+  .hello {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 44px;
+    font-weight: 600;
+    letter-spacing: -0.5px;
+  }
+  .hello-sub {
+    font-size: 17px;
+    color: var(--ink-muted);
+    line-height: 1.5;
+    max-width: 480px;
+  }
+  /* ---------- Composer pinned to bottom ---------- */
+  .composer {
+    width: 760px;
+    max-width: calc(100% - 96px);
+    padding-bottom: 48px;
+  }
+  .input-box {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 32px;
+    padding: 22px 14px 14px 26px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  }
+  .input-box .placeholder {
+    font-size: 17px;
+    color: #8f9a93;
+    line-height: 1.4;
+    min-height: 26px;
+    display: flex;
+    align-items: flex-start;
+  }
+  .input-box .actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .plus-btn {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .send {
+    width: 54px; height: 54px;
+    border-radius: 50%;
+    background: var(--green);
+    display: flex; align-items: center; justify-content: center;
+  }
+</style>
+</head>
+<body>
+<div class="desktop">
+
+  <!-- Left sidebar -->
+  <div class="sidebar">
+    <div class="logo"><span class="accent">Сбер</span>Автошкола</div>
+    <div class="nav">
+      <div class="nav-item active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 10.5L12 3l9 7.5"/>
+          <path d="M5 9.5V21h5v-6h4v6h5V9.5"/>
+        </svg>
+        Главная
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="4" y="5" width="16" height="16" rx="3"/>
+          <path d="M4 10h16"/>
+          <path d="M8 3v4M16 3v4"/>
+        </svg>
+        Записи
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5v-15z"/>
+          <path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20"/>
+        </svg>
+        Обучение
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="6" width="18" height="14" rx="3"/>
+          <path d="M3 10h18"/>
+          <path d="M7 15h4"/>
+        </svg>
+        Кошелек
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="8" r="4"/>
+          <path d="M4 21c1.5-3.5 4.5-5 8-5s6.5 1.5 8 5"/>
+        </svg>
+        Профиль
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <div class="sidebar-user">
+      <div class="avatar">СМ</div>
+      <div>
+        <div class="user-name">Михаил С.</div>
+        <div class="user-role">Ученик</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main: chat -->
+  <div class="main">
+    <div class="greeting">
+      <svg class="spark" viewBox="0 0 24 24" fill="none" stroke="#3ddc84" stroke-width="1.6" stroke-linecap="round">
+        <path d="M12 2v6M12 16v6M2 12h6M16 12h6"/>
+        <path d="M4.9 4.9l4.2 4.2M14.9 14.9l4.2 4.2M19.1 4.9l-4.2 4.2M9.1 14.9l-4.2 4.2"/>
+      </svg>
+      <div class="hello">Добрый день!</div>
+      <div class="hello-sub">Спроси что угодно про обучение, экзамен или ПДД — помогу подготовиться</div>
+    </div>
+
+    <div class="composer">
+      <div class="input-box">
+        <div class="placeholder">Спроси что угодно про обучение, экзамен или ПДД...</div>
+        <div class="actions">
+          <div class="plus-btn">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9aa39d" stroke-width="2" stroke-linecap="round">
+              <path d="M12 5v14M5 12h14"/>
+            </svg>
+          </div>
+          <div class="send">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0a130e" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 19V5"/>
+              <path d="M5 12l7-7 7 7"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
