@@ -36,3 +36,29 @@
 - 18.2 адаптив кабинета: все 8 разделов (карточки/списки/календарь-полоса)
 - 18.3 адаптив ПДД-разделов + инструктор/админ/публичных
 - 18.4 носители + e2e (мобайл-вьюпорт 390: прогон ключевых сценариев) + карта
+
+## Impact
+
+- **Specs**: mobile-adaptive — NEW кейпабилити (ADDED; именование
+  kebab-case по правилам openspec и прецеденту learning С17). Другие
+  спеки НЕ правятся: Frontend/NFR-26 остаётся истинным (бюджеты страниц
+  пересобраны автоматикой check-budgets — 14 страниц OK), booking/lessons
+  — только презентационный слой, контрактные поля не меняются.
+- **Носители**: frontend/vue/src/components/MobileTabBar.vue (новый),
+  src/pages/cabinet/App.vue + styles.css (адаптив ≤760px, добавление в
+  конец), src/pages/instructor-choice/App.vue + styles.css
+  (card-top ellipsis, .frame 26px), src/pages/cabinet/sections/*.vue
+  (точечные адаптивные правки), cabinet.html/instructor-choice.html
+  (подключение бандла), architecture/map.md (карта — раздел «Мобильная
+  адаптивность»).
+- **Тесты-носители**: tests/web/test_mobile_tabbar.py (TC-UI-079,
+  регресс BUG-070), tests/web/test_ui_playwright.py
+  (test_s18_mobile_geometry_hit_targets + мобильные сценарии 390×844),
+  tests/web/test_qa_s18_mobile.py (TC-S18-001…008), tests/web/
+  test_sidebar_unified.py (инварианты сайдбара), unit — без изменений
+  по группе.
+- **Статика**: bump static_v не требуется (Vue-бандлы версионированы
+  именами файлов; IR-03 не задевается).
+- **Deploy-матрица**: новый сервис НЕ вводится; deploy/deploy.sh и
+  RUNBOOK.md не меняются (IR-02 не задевается); миграций нет (IR-04
+  не задевается).
