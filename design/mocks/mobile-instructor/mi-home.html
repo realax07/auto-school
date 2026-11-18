@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Главная — инструктор · мобайл</title><style>*{box-sizing:border-box}html,body{margin:0;background:#060b10;color:#e9eff1;font-family:Inter,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+.app{max-width:390px;margin:0 auto;min-height:100vh;background:#060b10;position:relative;padding-bottom:64px}
+.tb{position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:rgba(6,11,16,.92);backdrop-filter:blur(12px)}
+.tb .lg{font-size:14px;font-weight:700}.tb .lg em{font-style:normal;color:#34d399}
+.tb .av{width:30px;height:30px;border-radius:50%;background:#123524;color:#34d399;display:grid;place-items:center;font-size:11px;font-weight:700;border:1px solid rgba(52,211,153,.35)}
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:60;max-width:390px;margin:0 auto;height:54px;background:rgba(8,14,20,.96);backdrop-filter:blur(14px);border-top:1px solid rgba(148,163,164,.12);display:flex}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:#5b6b76;font-size:9px;font-weight:600;text-decoration:none;min-height:44px}
+.tab svg{opacity:.85}.tab.on{color:#34d399}.tab.on svg{stroke:#34d399;filter:drop-shadow(0 0 6px rgba(52,211,153,.45))}
+.pad{padding:14px 16px 0}
+.h{font-size:20px;font-weight:750;letter-spacing:-.3px;margin:2px 0 12px}
+.se{font-size:11px;font-weight:700;letter-spacing:.08em;color:#64748b;text-transform:uppercase;margin:20px 16px 10px}
+.c{background:#0d151d;border:1px solid rgba(148,163,164,.1);border-radius:14px;padding:14px;margin-bottom:10px}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:44px;padding:13px;border:0;border-radius:12px;background:#10b981;color:#04211a;font-weight:700;font-size:14px;cursor:pointer}
+.btn.gh{background:#13202b;color:#cbd5e1;border:1px solid rgba(148,163,164,.16)}
+.btn.dn{background:#1a1216;color:#f87171;border:1px solid rgba(248,113,113,.35)}
+.pill{display:inline-flex;align-items:center;padding:3px 9px;border-radius:999px;font-size:10.5px;font-weight:700}
+.pill.g{background:rgba(16,185,129,.14);color:#34d399}.pill.y{background:rgba(245,158,11,.13);color:#fbbf24}.pill.r{background:rgba(239,68,68,.12);color:#f87171}.pill.b{background:rgba(96,165,250,.13);color:#60a5fa}.pill.n{background:rgba(100,116,139,.15);color:#94a3b8}
+.mt{color:#64748b;font-size:12px;line-height:1.45}
+.row{display:flex;align-items:center;gap:12px}
+input,textarea,select{width:100%;padding:12px 14px;border-radius:12px;border:1px solid rgba(148,163,164,.16);background:#0d151d;color:#e9eff1;font-size:14px;outline:none;min-height:44px}
+input:focus,textarea:focus{border-color:#10b981}
+label{display:block;margin:14px 2px 6px;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em}
+.li{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(148,163,164,.07)}
+.li:last-child{border-bottom:0;padding-bottom:0}
+.av{flex:0 0 auto;width:40px;height:40px;border-radius:12px;background:#13202b;display:grid;place-items:center;font-size:12px;font-weight:700;color:#94a3b8}
+.li b{font-size:13.5px;font-weight:650}
+.li .m{font-size:11.5px;color:#64748b;margin-top:2px}
+.li .amt{margin-left:auto;font-weight:750;font-size:13.5px}
+.up{color:#34d399}.dn{color:#f87171}.am{color:#fbbf24}
+.st{margin-left:auto}
+.big{font-size:34px;font-weight:800;letter-spacing:-.5px}
+.gr{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.kpi{background:#0d151d;border:1px solid rgba(148,163,164,.1);border-radius:14px;padding:12px}
+.kpi .l{font-size:10px;font-weight:700;letter-spacing:.1em;color:#64748b;text-transform:uppercase}
+.kpi .v{font-size:20px;font-weight:800;margin-top:5px}
+.days{display:flex;gap:6px;padding:0 16px 12px}
+.day{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 0;border-radius:12px;background:#0d151d;border:1px solid rgba(148,163,164,.12);color:#94a3b8;min-height:56px;justify-content:center}
+.day.on{background:rgba(16,185,129,.14);border-color:rgba(16,185,129,.45);color:#34d399}
+.day b{font-size:13px}.day span{font-size:9.5px;font-weight:700;letter-spacing:.06em}
+.two{display:flex;gap:10px}
+.two .btn{flex:1}
+.sheet-w{position:fixed;inset:0;z-index:80;background:rgba(3,7,11,.6);backdrop-filter:blur(10px);display:flex;align-items:flex-end}
+.sheet{width:100%;max-width:390px;margin:0 auto;background:#0d151d;border-radius:18px 18px 0 0;padding:10px 18px 26px}
+.grab{width:38px;height:4px;border-radius:4px;background:#2d3d49;margin:6px auto 12px}
+.stars{display:flex;gap:6px}
+.stars button{width:44px;height:44px;border:0;background:#0d151d;border-radius:10px;color:#fbbf24;font-size:20px;cursor:pointer}
+.stars button.on{background:rgba(245,158,11,.14)}</style></head><body>
+<div class="app">
+<div class="tb"><div class="lg"><em>Сбер</em>Автошкола · инструктор</div><div class="av">ДС</div></div>
+
+<div class="pad">
+  <div class="mt">Вторник, 18 ноября</div>
+  <div class="h">Добрый день, Данил!</div>
+  <div class="c">
+    <div class="row"><div class="pill g">Сегодня 2 занятия</div><div class="pill n">1 свободный слот</div></div>
+    <div style="height:10px"></div>
+    <div class="li"><div class="av" style="background:rgba(16,185,129,.14);color:#34d399">14:00</div><div><b>Кузьмин Игнат</b><div class="m">Lada Vesta · ул. Ленина, 12</div></div><span class="st pill b">подтверждено</span></div>
+    <div class="li"><div class="av" style="background:rgba(96,165,250,.14);color:#60a5fa">17:30</div><div><b>Ефремова Майя</b><div class="m">Kia Rio · площадка ГИБДД</div></div><span class="st pill y">ожидает</span></div>
+  </div>
+  <div class="se">Заработок</div>
+  <div class="gr">
+    <div class="kpi"><div class="l">За неделю</div><div class="v up">12 600 ₽</div></div>
+    <div class="kpi"><div class="l">За месяц</div><div class="v">54 200 ₽</div></div>
+  </div>
+  <div class="gr" style="margin-top:10px">
+    <div class="kpi"><div class="l">Рейтинг</div><div class="v am">★ 4.9</div></div>
+    <div class="kpi"><div class="l">Учеников</div><div class="v">14</div></div>
+  </div>
+  <div style="height:12px"></div>
+  <button class="btn gh">Моя неделя →</button>
+</div>
+<div class="tabs"><a class="tab on" href="mi-home.html"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#5b6b76" stroke-width="1.6" stroke-linecap="round"><path d="M3 10.5 10 4l7 6.5"/><path d="M5 9.5V16h4v-4h2v4h4V9.5"/></svg>Главная</a><a class="tab" href="mi-requests.html"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#5b6b76" stroke-width="1.6" stroke-linecap="round"><rect x="4" y="4" width="12" height="14" rx="2"/><path d="M7 8h6M7 11h6M7 14h3"/></svg>Заявки</a><a class="tab" href="mi-calendar.html"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#5b6b76" stroke-width="1.6" stroke-linecap="round"><rect x="4" y="5" width="12" height="13" rx="2"/><path d="M4 9h12M8 3v3M12 3v3"/></svg>Неделя</a><a class="tab" href="mi-wallet.html"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#5b6b76" stroke-width="1.6" stroke-linecap="round"><rect x="3" y="6" width="14" height="11" rx="2"/><path d="M13 11h4v3h-4a1.5 1.5 0 0 1 0-3z"/></svg>Кошелёк</a><a class="tab" href="mi-profile.html"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#5b6b76" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="7" r="3.2"/><path d="M4 17c1.2-3 3.4-4.2 6-4.2S14.8 14 16 17"/></svg>Профиль</a></div>
+</div></body></html>
