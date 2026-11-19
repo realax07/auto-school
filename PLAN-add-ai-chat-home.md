@@ -26,6 +26,21 @@
   tests/api/** — политика ролей текущей фабрики; уточнение ПМ поверх
   arch-review 001/002, процессное: dev-зона = tests/unit/** только).
 
+## Итог волн (факты, верифицировано ПМ)
+
+- 19.2 backend: 4 коммита (efb46de/9d0bfef/3331c2c/aed2fb3), юнит-носитель
+  14 passed (TC-S19-001…012), CR approve (review-19.2-001→фиксы→005).
+- 19.3 frontend: 3 коммита (9dafce1/0cc091c/df64d0a), сборка OK,
+  скрин-пробы 390/1280 с компьютед-доказательствами, CR approve
+  (review-19.3-001→фикс гэпа 18px→002).
+- 19.4 QA: кейсы (9 TC, review-001→фикс MAN-001→002 approve → approved
+  партия verbatim), носители + API-носитель + отчет маппинга
+  (test-model/reports/qa-auto-report-add-ai-chat-home.md), design approve
+  (review-001-design), regress-final PASS (перепрогон после T-флака
+  nfr001/latency — класс T-4 техраздела BACKLOG).
+- Верификация ПМ: юнит 14 passed, браузерные 94 passed (LD_LIBRARY_PATH
+  pw-libs), полный сьют 533 passed + regress PASS, strict 28/0.
+
 ## Волны
 
 Последовательно: 19.2 (backend) → 19.3 (frontend от backend-коммита,
