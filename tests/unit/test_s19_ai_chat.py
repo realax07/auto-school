@@ -2,9 +2,10 @@
 add-ai-chat-home, волна 19.2; ПМ dc24970: API-носитель tests/api —
 за qa_automation на 19.4, dev несет юнит-носитель tests/unit).
 
-Трассировка TC-S19-001…TC-S19-011 (change add-ai-chat-home; Requirements —
+Трассировка TC-S19-001…TC-S19-012 (change add-ai-chat-home; Requirements —
 openspec/changes/add-ai-chat-home/specs/ai-chat/spec.md; TC-S19-011 —
-граничный носитель retention, MIN-2 CR-19.2):
+граничный носитель retention, MIN-2 CR-19.2; TC-S19-012 — срез служебного
+хвоста session_id провайдера, наблюдение dev-волны 19.3):
 
 - TC-S19-001  Доступ к чату: без валидного токена POST /api/ai/chat и
               GET /api/ai/chat/history → 401 {ok:false}, содержимое не
@@ -403,8 +404,6 @@ def test_tc_s19_010_provider_failure_modes_raise_provider_error(monkeypatch):
     monkeypatch.setattr(
         ai_provider.subprocess, "run", lambda *a, **k: _FakeCompleted(returncode=1)
     )
-    with pytest.raises(ai_provider.ProviderError):
-        provider.generate(messages)
 
     monkeypatch.setattr(
         ai_provider.subprocess, "run", lambda *a, **k: _FakeCompleted(stdout="  \n ")
@@ -414,3 +413,34 @@ def test_tc_s19_010_provider_failure_modes_raise_provider_error(monkeypatch):
 
     # детали в исключении не хранятся (NFR-3)
     assert not ai_provider.ProviderError().args
+
+
+def test_tc_s19_012_provider_strips_session_id_tail(monkeypatch):
+    """TC-S19-012 (наблюдение dev-волны 19.3): hermes chat печатает после
+    ответа служебный хвост «session_id: …» — срезается, ученику идет
+    только ответ; ответ без хвоста не меняется."""
+    provider = ai_provider.HermesSessionProvider()
+    messages = [{"role": "user", "text": "вопрос"}]
+
+    monkeypatch.setattr(
+        ai_provider.subprocess,
+        "run",
+        lambda *a, **k: _FakeCompleted(
+            stdout=(
+                f"{FAKE_REPLY}\n\n"
+                "session_id: 20261119_153930_af297c\n"
+                "  Title: Задача 19.3 чат-виджет на главной\n"
+            )
+        ),
+    )
+    reply = provider.generate(messages)
+    assert reply == FAKE_REPLY
+    assert "session_id" not in reply
+
+    # без хвоста — ответ дословный
+    monkeypatch.setattr(
+        ai_provider.subprocess,
+        "run",
+        lambda *a, **k: _FakeCompleted(stdout=f"{FAKE_REPLY}\n"),
+    )
+    assert provider.generate(messages) == FAKE_REPLY

@@ -30,6 +30,7 @@ change add-ai-chat-home, задача 19.2.1; design.md «Решение 1»).
 запросах на 19.4 НЕ проверяется).
 """
 
+import re
 import subprocess
 
 # Исполняемый файл провайдера (arch-review 001 п.8: which hermes →
@@ -42,6 +43,17 @@ _RUN_BUDGET_SECONDS = 25
 
 # Собственный таймаут ≤30 с (NFR; design.md «Решение 1»).
 PROVIDER_TIMEOUT_SECONDS = 30
+
+# Наблюдение dev-волны 19.3: hermes chat в этом окружении печатает после
+# ответа служебный хвост «session_id: …» — он НЕ часть ответа ученика.
+# Срезаем от первой строки «session_id:» до конца stdout; без хвоста
+# ответ не меняем (легитимная строка «session_id:» в тексте ответа
+# ассистента о ПДД невозможна по системному промпту — темы ПДД/ГИБДД).
+_SESSION_TAIL_RE = re.compile(r"\n*session_id:\s*\S.*$", re.DOTALL)
+
+
+def _strip_session_tail(stdout: str) -> str:
+    return _SESSION_TAIL_RE.sub("", stdout).strip()
 
 # Сколько последних сообщений истории отдается провайдеру как контекст
 # («последние две недели он помнит» — решение Заказчика; глубина 14 дней
@@ -119,7 +131,7 @@ class HermesSessionProvider:
             raise ProviderError
         if completed.returncode != 0:
             raise ProviderError
-        reply = (completed.stdout or "").strip()
+        reply = _strip_session_tail(completed.stdout or "")
         if not reply:
             raise ProviderError
         return reply
