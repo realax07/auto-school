@@ -5,10 +5,10 @@
 - [ ] 19.1.2 Ревью архитектора → return→фиксы→approve (по факту приемки ПМ ставит галочку и PLAN)
 
 ## 19.2 Backend: API чата, история, retention, тесты
-- [ ] 19.2.1 [code] Доменный модуль backend/ai/ (адаптер-провайдер за контрактом): POST /api/ai/chat (auth X-Session-Token, 401, {message}→{reply}), GET /api/ai/chat/history (14 дней); include_router в backend/app.py
+- [x] 19.2.1 [code] Доменный модуль backend/ai/ (адаптер-провайдер за контрактом): POST /api/ai/chat (auth X-Session-Token, 401, {message}→{reply}), GET /api/ai/chat/history (14 дней); include_router в backend/app.py
 - [x] 19.2.2 [code] История чата в SQLite: таблица ai_messages (user_id, role, text, created_at) в схеме backend/core/db.py; параметризованный SQL; изоляция по user_id
 - [x] 19.2.3 [code] Временная реализация ассистента — сессия hermes (`hermes chat -q`, oneshot): системный промпт «ГигаЧат — помощник по обучению ПДД» + темы (ПДД, дорожные ситуации в России, ГИБДД), знания content/pdd + интернет; таймаут ≤30 с, ошибка/таймаут → человеческий текст; секреты/argv не в логах
-- [ ] 19.2.4 [code] Retention 14 дней — серверная механика: DELETE старше 14 дней при чтении истории (опционально — чистка на lifespan)
+- [x] 19.2.4 [code] Retention 14 дней — серверная механика: DELETE старше 14 дней при чтении истории (опционально — чистка на lifespan)
 - [ ] 19.2.5 [tests] Тесты tests/api/test_s19_ai_chat.py: TC-S19-001… в docstring с трассировкой на Requirements specs/ai-chat/spec.md (API/401/изоляция/retention/темы) — прецедент test_s16_backend.py
 
 ## 19.3 Frontend: «Главная» = ИИ-чат по макетам (от бэкенд-коммита 19.2)
