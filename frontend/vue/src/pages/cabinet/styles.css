@@ -614,14 +614,17 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
    «+» неактивна + подпись «Скоро» (FR-19.7 — требование Заказчика, в
    макете подписи нет); кнопка отправки — зеленая, стрелка вверх.
    Лейаут: #sec-home — flex-колонка высотой в остаток вьюпорта (100svh
-   минус паддинги .frame 26/40 и футер ~80 — футер мокапа Спринта 1
-   остается на всех разделах, носитель сверяет его дословно); приветствие
-   центрируется (flex:1), переписка .ai-msgs — внутренний скролл
-   (композер всегда виден), композер прижат к низу контентной области
-   (в макете 48/16px — отступ до низа вьюпорта, здесь — до футера). */
+   минус паддинги .frame 26/40 и футер — футер мокапа Спринта 1
+   остается на всех разделах, носитель сверяет его дословно); состояние
+   «Главной» — класс на #sec-home из App.vue: ai-empty (нет истории —
+   приветствие flex:1 по центру, .ai-msgs только на контент) /
+   ai-has-msgs (переписка .ai-msgs — внутренний скролл, композер всегда
+   виден), композер прижат к низу контентной области (в макете 48/16px —
+   отступ до низа вьюпорта, здесь — до футера). */
 
-#sec-home{display:flex;flex-direction:column;height:calc(100svh - 148px);min-height:420px}
-.ai-greet{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:24px;padding:0 48px;min-height:0}
+#sec-home{display:flex;flex-direction:column;height:calc(100svh - 142px);min-height:420px}
+.ai-greet{flex:0 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:24px;padding:0 48px;min-height:0}
+.ai-empty .ai-greet{flex:1 1 auto} /* пустой чат: приветствие по центру всего остатка */
 .ai-spark{width:76px;height:76px;flex:none}
 .ai-hello{font-family:Georgia,"Times New Roman",serif;font-size:44px;font-weight:600;letter-spacing:-.5px;color:#f2f5f3}
 .ai-hello-sub{font-size:17px;color:#9aa39d;line-height:1.5;max-width:480px}
@@ -629,8 +632,9 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
    — min-width:0 (flex-переполнение), текст — перенос по словам
    (overflow-wrap:anywhere); ellipsis — на однострочной строке ошибки
    у поля (.ai-error): обрезка текста сообщения теряла бы содержимое */
-.ai-msgs{flex:1 1 auto;min-height:0;overflow-y:auto;display:flex;flex-direction:column;padding:10px 2px 6px;scrollbar-width:thin}
-.ai-msgs > :first-child{margin-top:auto} /* переписка прижата к композеру; без клиппинга сверху (вариант justify-content:flex-end режет скролл) */
+.ai-msgs{flex:0 1 auto;min-height:0;overflow-y:auto;display:flex;flex-direction:column;padding:10px 2px 6px;scrollbar-width:thin}
+.ai-has-msgs .ai-msgs{flex:1 1 auto}
+.ai-msgs > :first-child{margin-top:auto} /* переписка прижата к композеру; вариант justify-content:flex-end режет скролл сверху */
 .ai-msg{display:flex;min-width:0;margin:0 0 8px}
 .ai-msg-user{justify-content:flex-end}
 .ai-msg-bot{justify-content:flex-start}
@@ -665,7 +669,7 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
    «Добрый день!» 30px, композер во всю ширину (минус 20px, как в макете),
    над таб-баром 54px (без перекрытия — футер/резерв .frame ниже) --- */
 @media(max-width:760px){
-  #sec-home{height:calc(100svh - 262px);min-height:360px}
+  #sec-home{height:calc(100svh - 269px);min-height:360px} /* 84 шапка+паддинг · 40 margin футера · 57 футер (2 строки) · 88 резерв таб-бара — по измерению 390x844 */
   .ai-greet{gap:20px;padding:0 32px}
   .ai-spark{width:64px;height:64px}
   .ai-hello{font-size:30px;letter-spacing:-.3px}

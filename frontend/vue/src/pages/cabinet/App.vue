@@ -63,7 +63,7 @@
      POST /api/ai/chat {message} → {reply} и GET /api/ai/chat/history
      (X-Session-Token из sessionStorage). Сайдбар/таб-бар — без изменений
      (FR-19.2); навигация «Найти водителя»/«Мои заявки» — через них. -->
-<div id="sec-home">
+<div id="sec-home" :class="aiMessages.length ? 'ai-has-msgs' : 'ai-empty'">
 <div class="ai-greet" id="ai-greet" v-show="!aiMessages.length">
   <svg class="ai-spark" viewBox="0 0 24 24" fill="none" stroke="#3ddc84" stroke-width="1.6" stroke-linecap="round">
     <path d="M12 2v6M12 16v6M2 12h6M16 12h6"/>
