@@ -404,6 +404,8 @@ def test_tc_s19_010_provider_failure_modes_raise_provider_error(monkeypatch):
     monkeypatch.setattr(
         ai_provider.subprocess, "run", lambda *a, **k: _FakeCompleted(returncode=1)
     )
+    with pytest.raises(ai_provider.ProviderError):
+        provider.generate(messages)
 
     monkeypatch.setattr(
         ai_provider.subprocess, "run", lambda *a, **k: _FakeCompleted(stdout="  \n ")
