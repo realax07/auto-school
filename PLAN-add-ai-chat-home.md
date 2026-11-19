@@ -17,6 +17,7 @@
   tests/unit/test_s19_ai_chat.py (юнит-носитель, TC-трассировка),
   openspec/changes/add-ai-chat-home/tasks.md.
 - 19.3 dev-frontend: frontend/vue/src/pages/cabinet/**,
+  frontend/vue/cabinet.html (pre-boot разметка — правило двух копий),
   tests/web/test_cabinet_page.py (перевод вербатим-гардов на новые макеты),
   tests/web/test_ui_playwright.py (вкл. носитель TC-UI-060), design/mocks
   (правки только при каноне), openspec/changes/add-ai-chat-home/tasks.md.
