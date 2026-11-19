@@ -43,7 +43,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from conftest import admin_headers, db_path
-from test_auth_route import _apply, _application_id, _set_status
+from api.test_auth_route import _apply, _application_id, _set_status  # пакет api (S19.4)
 
 ROOT = Path(__file__).resolve().parents[2]
 AUTH_FAIL = {"ok": False, "error": "Неверный email или пароль"}
