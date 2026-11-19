@@ -3813,6 +3813,13 @@ def test_s8_student_my_bookings_car_card_with_photo(browser, server):
 
     _route_json(page, server, "/api/auth/me", lambda req: (
         200, {"ok": True, "user": {"surname": "Смирнова", "name": "Ольга"}}))
+    # Спринт 19 (add-ai-chat-home, 19.3.2): кабинет при открытии грузит
+    # историю чата (App.vue aiLoadHistory → GET /api/ai/chat/history). На
+    # мок-сессии (фейковый токен) реальный backend ответил бы 401 →
+    # handleAuthFail → toLogin (редирект на лендинг) — сценарий терял
+    # #sec-bookings. Мок пустой истории сохраняет изоляцию сценария.
+    _route_json(page, server, "/api/ai/chat/history", lambda req: (
+        200, {"ok": True, "messages": []}))
     _route_json(page, server, "/api/student/requests", lambda req: (
         200, {"ok": True, "requests": [
             {"id": 301, "status": "accepted",

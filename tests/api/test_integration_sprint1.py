@@ -36,12 +36,30 @@ from fastapi.testclient import TestClient
 
 from conftest import admin_headers, register
 
-# Маркеры frontend/cabinet.html (тексты мокапа, задача 2.1)
+# Маркеры frontend/vue/cabinet.html — входа каркаса Vue. Спринт 19
+# (change add-ai-chat-home, 19.3.1, волна 19.4 qa_automation): «Главная» —
+# ИИ-чат по утвержденным макетам (аппрув Заказчика 2026-11-18); маркеры
+# переведены со старой «Главной» («ЛИЧНЫЙ КАБИНЕТ», чат-бар «Гига ГАИшник»)
+# на тексты pre-boot-зеркала чата — ДОСЛОВНО из
+# design/mocks/home-chat-web.html / mobile/mobile-home-chat.html
+# (те же фрагменты, что в вербатим-гарде test_cabinet_page.py).
 CABINET_MARKERS = (
     "СберАвтошкола",
+    '<div class="ai-hello">Добрый день!</div>',
+    '<div class="ai-hello-sub">Спроси что угодно про обучение, экзамен или ПДД — помогу подготовиться</div>',
+    'placeholder="Спроси что угодно про обучение, экзамен или ПДД..."',
+    '<span class="ai-soon">Скоро</span>',  # FR-19.7
+    '<footer><span>СберАвтошкола · кабинет ученика</span><span>Спринт 1 · визуал</span></footer>',
+)
+
+# Негативные маркеры (решение Заказчика 2026-11-18: быстрые кнопки и блок
+# «СЕРВИСЫ» удалены — в отдаваемой странице их НЕТ)
+CABINET_ABSENT_MARKERS = (
     "ЛИЧНЫЙ КАБИНЕТ",
     "Гига ГАИшник",
-    "Выйти",
+    '<div class="tiles">',
+    "Когда экзамен?",
+    "СЕРВИСЫ",
 )
 
 # Маркеры wiring cabinet.html (единственные отличия от мокапа)
@@ -89,13 +107,17 @@ def test_login_via_create_app(client):
 
 
 def test_cabinet_page_served(client):
-    """Готовность 3.1: GET /cabinet → 200 и содержит маркеры cabinet.html
-    (тексты мокапа 2.1 + wiring)."""
+    """Готовность 3.1 → Спринт 19 (19.3.4/19.4): GET /cabinet → 200 и
+    содержит маркеры входа каркаса (тексты «Главной»-чата дословно из
+    утвержденных макетов + wiring); удаленные элементы «Главной»
+    (решение Заказчика 2026-11-18) — носители absence."""
     resp = client.get("/cabinet")
     assert resp.status_code == 200
     assert "text/html" in resp.headers["content-type"]
     for marker in CABINET_MARKERS + CABINET_WIRING_MARKERS:
         assert marker in resp.text, marker
+    for absent in CABINET_ABSENT_MARKERS:
+        assert absent not in resp.text, absent
 
 
 def test_cabinet_page_is_cabinet_html_file(client):

@@ -309,6 +309,23 @@ def test_tc_s19_007_wrong_type_message_422_detail_shape(client):
     assert ai_rows() == []
 
 
+def test_tc_s19_fr196_topics_system_prompt_guard():
+    """TC-S19-API-001 нога «темы» (FR-19.6, Scenario «Ограничение тем»,
+    объем 19.2.5): ограничение тем на API-носителе — контроль константы
+    SYSTEM_PROMPT провайдера (содержательный отказ боевого hermes —
+    ручной TC-S19-MAN-001; механика stdin-канала — юнит TC-S19-009).
+    Промпт обязан ограничивать темы: ПДД, дорожные ситуации в России,
+    ГИБДД; опора на content/pdd и интернет; посторонние вопросы —
+    вежливый отказ без ответа по существу."""
+    prompt = ai_provider.SYSTEM_PROMPT
+    assert "ГигаЧат — помощник по обучению ПДД" in prompt
+    assert "Правила дорожного движения" in prompt
+    assert "дорожные ситуации в России" in prompt
+    assert "ГИБДД" in prompt
+    assert "content/pdd" in prompt and "интернет" in prompt
+    assert "вежливо отклони" in prompt  # посторонние темы — отказ по существа
+
+
 def test_tc_s19_008_provider_error_503_human_text(client):
     """TC-S19-008: сбой провайдера → 503 {ok:false, error} — человеческий
     текст, без кодов/стеков/механики; обмен НЕ сохраняется (история —
