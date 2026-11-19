@@ -1,9 +1,19 @@
-<!-- Мокап: Личный кабинет ученика (Спринт 1). Стиль референса, чат-бар как на лендинге.
-     Плитки-сервисы — заглушки (визуал). Кнопка выхода -> admin/учетка сессии.
+<!-- Мокап: Личный кабинет ученика (Спринт 1). Стиль референса. Кнопка выхода ->
+     admin/учетка сессии. Спринт 19 (add-ai-chat-home, 19.3.1): «Главная» —
+     ИИ-чат по утвержденным макетам (design/mocks/mobile/mobile-home-chat.html
+     ≤760px, design/mocks/home-chat-web.html >760px, аппрув Заказчика
+     2026-11-18 «Вот теперь отлично. Так и делай»): .greet/.assistant/.quick/
+     .services-title/.tiles удалены по решению Заказчика 2026-11-18 («Да,
+     убираем все кнопки с этого экрана и оставь только гигагаишника. Не
+     только в могилке, но и на веб версии тоже» — requirements-19,
+     «Решения Заказчика»); ставший мертвым wiring заглушек (alert-обработчики
+     .tile/.quick button/.send, App.vue onMounted) удален (arch-review 002
+     MIN-3 — чтобы вербатим-гарды не считали его живым). ФИО остается
+     в блоке учетки сайдбара и в «Профиле» таб-бара (MODIFIED cabinet, FR-5).
      Wiring (единственные отличия от мокапа): GET /api/auth/me с X-Session-Token
      из sessionStorage (401 -> редирект на главную, к модалке входа), 200 ->
      подстановка ФИО; «Выйти» -> POST /api/auth/logout -> очистка sessionStorage ->
-     редирект на главную. Плитки/чат-бар/quick — заглушки (alert из мокапа).
+     редирект на главную.
      BUG-047 (решение Заказчика 2026-10-17): кабинет ученика — ЕДИНЫЙ лейаут
      (сайдбар слева, контент справа, шапка сверху). Раздел «Мои заявки»
      перенесен из frontend/my-requests.html внутрь кабинета как таб.
@@ -42,43 +52,53 @@
      у верха, отступ = паддинг .frame (26px, синхронно с мокапом). -->
 <div class="hero"><div class="frame">
 
-<!-- раздел «Главная» (единственный контент кабинета до BUG-047) -->
+<!-- раздел «Главная» (Спринт 19, add-ai-chat-home 19.3.1: ИИ-чат по макетам
+     design/mocks/home-chat-web.html >760px / mobile/mobile-home-chat.html
+     ≤760px — тексты и визуал дословно, FR-19.1). Пустой чат → приветствие
+     по центру (spark/«Добрый день!»/подсказка); есть история → пузыри
+     user/assistant вместо приветствия (FR-19.4). Композер прижат к низу:
+     плейсхолдер дословно, «+» видима/неактивна с честной подписью «Скоро»
+     (FR-19.7 — требование Заказчика, в макете подписи нет), рабочая кнопка
+     отправки (стрелка вверх, как в макете). Wiring — 19.3.2/19.3.3:
+     POST /api/ai/chat {message} → {reply} и GET /api/ai/chat/history
+     (X-Session-Token из sessionStorage). Сайдбар/таб-бар — без изменений
+     (FR-19.2); навигация «Найти водителя»/«Мои заявки» — через них. -->
 <div id="sec-home">
-<div class="greet">ЛИЧНЫЙ КАБИНЕТ<b>Добро пожаловать, Иван!</b></div>
-
-<!-- чат-бар (как на главной) -->
-<section class="assistant">
-  <div class="ai-head"><div class="avatar"></div><div><b>Гига ГАИшник</b><span>Твой AI-помощник в обучении и на дороге</span></div></div>
-  <div class="prompt"><span>Спроси что угодно про обучение, экзамен или ПДД...</span><button class="send" title="Открыть чат с AI">↑</button></div>
-  <div class="quick">
-    <button>▢ <span>Когда экзамен?</span></button>
-    <button>☷ <span>Мой прогресс</span></button>
-    <button>♧ <span>Готов ли я<br>к экзамену?</span></button>
+<div class="ai-greet" id="ai-greet" v-show="!aiMessages.length">
+  <svg class="ai-spark" viewBox="0 0 24 24" fill="none" stroke="#3ddc84" stroke-width="1.6" stroke-linecap="round">
+    <path d="M12 2v6M12 16v6M2 12h6M16 12h6"/>
+    <path d="M4.9 4.9l4.2 4.2M14.9 14.9l4.2 4.2M19.1 4.9l-4.2 4.2M9.1 14.9l-4.2 4.2"/>
+  </svg>
+  <div class="ai-hello">Добрый день!</div>
+  <div class="ai-hello-sub">Спроси что угодно про обучение, экзамен или ПДД — помогу подготовиться</div>
+</div>
+<div class="ai-msgs" id="ai-msgs">
+  <div class="ai-msg" v-for="(m, i) in aiMessages" :key="i" :class="m.role === 'user' ? 'ai-msg-user' : 'ai-msg-bot'">
+    <div class="ai-bubble">{{ m.text }}</div>
   </div>
-</section>
-
-<p class="services-title">СЕРВИСЫ</p>
-<div class="tiles">
-  <button class="tile"><span class="soon">СКОРО</span>
-    <div class="tile-icon">◈</div><b>Обучение ПДД</b>
-    <p>Теория по блокам, тренировочные вопросы и разбор ошибок перед экзаменом.</p>
-    <span class="go">→</span>
-  </button>
-  <button class="tile"><span class="soon">СКОРО</span>
-    <div class="tile-icon">◉</div><b>Онлайн экзамен</b>
-    <p>Пробный экзамен в формате ГИБДД: 20 вопросов, те же правила оценки.</p>
-    <span class="go">→</span>
-  </button>
-  <button class="tile" id="tile-instructor">
-    <div class="tile-icon">▤</div><b>Найти водителя</b>
-    <p>Подбор инструктора: рейтинги, отзывы и свободные окна расписания.</p>
-    <span class="go">→</span>
-  </button>
-  <button class="tile" id="tile-requests">
-    <div class="tile-icon">✉</div><b>Мои заявки</b>
-    <p>Статусы заявок инструкторам, комментарий отказа и повторная подача.</p>
-    <span class="go">→</span>
-  </button>
+  <div class="ai-typing" id="ai-typing" v-if="aiBusy" aria-label="Ассистент печатает"><i></i><i></i><i></i></div>
+</div>
+<div class="ai-composer" id="ai-composer">
+  <div class="ai-input-box">
+    <input class="ai-input" id="ai-input" type="text" placeholder="Спроси что угодно про обучение, экзамен или ПДД..." v-model="aiDraft" :disabled="aiBusy" @keydown.enter.prevent="aiSend">
+    <div class="ai-error" id="ai-error" v-if="aiError">{{ aiError }}</div>
+    <div class="ai-actions">
+      <span class="ai-plus-wrap">
+        <button class="ai-plus" id="ai-plus" type="button" disabled aria-label="Вложения — скоро">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9aa39d" stroke-width="2" stroke-linecap="round">
+            <path d="M12 5v14M5 12h14"/>
+          </svg>
+        </button>
+        <span class="ai-soon">Скоро</span>
+      </span>
+      <button class="ai-send" id="ai-send" type="button" aria-label="Отправить" :disabled="aiBusy" @click="aiSend">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0a130e" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 19V5"/>
+          <path d="M5 12l7-7 7 7"/>
+        </svg>
+      </button>
+    </div>
+  </div>
 </div>
 </div>
 
@@ -413,7 +433,7 @@
 // как legacy); toast/fmtDate/nowMoscow — из vue/src/shared/utils.js
 // (дословные переносы С14/С15; fioOf переехал в StudentSidebar вместе с
 // ФИО-замечанием 2026-11-16); fetch-логика — локальная (как legacy).
-import { onMounted, ref, computed, defineAsyncComponent } from 'vue';
+import { onMounted, ref, computed, defineAsyncComponent, nextTick } from 'vue';
 import { toast, fmtDate, nowMoscow } from '../../shared/utils.js';
 // Замечание Заказчика 2026-11-16: сайдбар — ОТДЕЛЬНЫЙ МОДУЛЬ (общий чанк
 // shared — vite.config.mjs manualChunks /src/components/)
@@ -482,12 +502,81 @@ export default {
     // событием @tab от компонента (клик по «Выбрать инструктора» компонент
     // обрабатывает сам — переход на /instructor-choice).
     var curTab = ref('Главная');
-    // greet «Добро пожаловать, {name}!» — по событию @me компонента сайдбара
-    // (ФИО/учетка сайдбара компонент тянет сам; FR-5 остался единой точкой
-    // /api/auth/me — дубль запроса страницы убран)
+    // Спринт 19 (19.3.1): greet «ЛИЧНЫЙ КАБИНЕТ / Добро пожаловать, {name}!»
+    // удален вместе с .greet (макеты чата «Главной» его не содержат); ФИО —
+    // в блоке учетки StudentSidebar и в «Профиле» таб-бара (FR-5 сохранен).
+    // Обработчик @me оставлен (сайдбар эмитит его всегда) — безопасный no-op
+    // с null-guard, чтобы не ронять эмиссию компонента.
     function onMe(u) {
       var el = document.querySelector('.greet b');
       if (el) el.textContent = 'Добро пожаловать, ' + u.name + '!';
+    }
+
+    // --- Спринт 19 (add-ai-chat-home, 19.3.1–19.3.3): ИИ-чат «Главной» ------
+    // POST /api/ai/chat {message} → {reply} (19.3.1, рабочая отправка);
+    // GET /api/ai/chat/history — подхват истории за 14 дней при открытии
+    // раздела (19.3.2, FR-19.5). Токен — sessionStorage 'session_token'
+    // (тот же, что у localApi выше); Promise-паттерн — как postJSON из
+    // shared/loginWiring.js, но с заголовком сессии ученика.
+    var aiMessages = ref([]);   // журнал чата: {role:'user'|'assistant', text, created_at}
+    var aiDraft = ref('');
+    var aiBusy = ref(false);    // отправка блокируется на время ответа (FR-19.3)
+    var aiError = ref('');      // человеческий текст ошибки у поля
+
+    function aiApi(path, method, payload) {
+      var opts = {
+        method: method || 'GET',
+        headers: { 'X-Session-Token': token || '', 'Content-Type': 'application/json' },
+      };
+      if (payload !== undefined) opts.body = JSON.stringify(payload);
+      return fetch(path, opts).then(function (r) {
+        return r.json().then(function (d) { return { status: r.status, data: d }; },
+          function () { return { status: r.status, data: null }; });
+      }, function () { return { status: 0, data: null }; });
+    }
+
+    // Ошибки — человеческим текстом у поля, без кодов/стеков (FR-19.3).
+    // Шейпы: контрактный {ok:false, error:"…"} (конвенция Sprint-0) И
+    // машинный FastAPI-дефолт {detail:[…]} на 422 (MIN-3 review-19.2 —
+    // глобального обработчика валидации в app.py нет). Фронт обрабатывает
+    // ОБА: контрактному доверяем текст, машинному/сети — общий человеческий.
+    function aiHumanError(res) {
+      if (res.data && res.data.error) return String(res.data.error);
+      return 'Не получилось отправить сообщение. Попробуйте еще раз чуть позже.';
+    }
+
+    function aiScrollBottom() {
+      nextTick(function () {
+        var box = document.getElementById('ai-msgs');
+        if (box) box.scrollTop = box.scrollHeight;
+      });
+    }
+
+    function aiSend() {
+      if (aiBusy.value) return;
+      var text = (aiDraft.value || '').trim();
+      if (!text) return;
+      aiError.value = '';
+      aiMessages.value.push({ role: 'user', text: text });
+      aiDraft.value = '';
+      aiBusy.value = true; // индикатор ожидания (NFR: не «висит» молча)
+      aiScrollBottom();
+      var at = aiMessages.value.length - 1;
+      aiApi('/api/ai/chat', 'POST', { message: text }).then(function (res) {
+        aiBusy.value = false;
+        if (handleAuthFail(res)) { aiMessages.value.splice(at, 1); return; }
+        if (res.status === 200 && res.data && res.data.ok) {
+          aiMessages.value.push({ role: 'assistant', text: res.data.reply });
+          aiScrollBottom();
+        } else {
+          // Ошибка/таймаут: пузырь пользователя убираем — сервер обмен НЕ
+          // сохранял (история только из состоявшихся обменов); текст
+          // возвращаем в поле для повторной отправки, ошибка — у поля.
+          aiMessages.value.splice(at, 1);
+          aiDraft.value = text;
+          aiError.value = aiHumanError(res);
+        }
+      });
     }
 
     // --- раздел «Мои заявки» — реактивные данные (el()-отрисовка → v-for) ---
@@ -1008,7 +1097,9 @@ export default {
         var isTickets = (name === 'Билеты');
         var isFines = (name === 'Штрафы');
         var isPdd = isSigns || isRules || isTickets || isFines;
-        document.getElementById('sec-home').style.display = (isReq || isBk || isWal || isPdd) ? 'none' : 'block';
+        // Спринт 19 (19.3.1): «Главная» — flex-колонка чата (лейаут #sec-home
+        // в styles.css): приветствие по центру, композер прижат к низу
+        document.getElementById('sec-home').style.display = (isReq || isBk || isWal || isPdd) ? 'none' : 'flex';
         document.getElementById('sec-requests').style.display = isReq ? 'block' : 'none';
         document.getElementById('sec-bookings').style.display = isBk ? 'block' : 'none';
         document.getElementById('sec-wallet').style.display = isWal ? 'block' : 'none';
@@ -1070,15 +1161,11 @@ export default {
         toLogin();
       }
 
-      // Плитка «Найти водителя» (спринт 3, change add-instructor-student-loop):
-      // переход в раздел «Выбор инструктора» (страница /instructor-choice —
-      // по решению BUG-047 остается отдельной целевой страницей)
-      var tileInstructor = document.getElementById('tile-instructor');
-      if (tileInstructor) {
-        tileInstructor.addEventListener('click', function () {
-          location.href = '/instructor-choice';
-        });
-      }
+      // Спринт 19 (19.3.1): плитки «Найти водителя»/«Мои заявки» удалены
+      // (решение Заказчика 2026-11-18, design «Решение 3») вместе с их
+      // клик-wiring и alert-заглушками .tile/.quick button/.send
+      // (arch-review 002 MIN-3: мертвый wiring не оставляем). Навигация
+      // «Найти водителя»/«Мои заявки» — через сайдбар/таб-бар (FR-19.2).
 
       // хеш-бутстрап BUG-047/Спринт 16/17/замечание 2026-11-16: ссылки вида
       // /cabinet#/pdd-* работают И вживую (hashchange), а не только при загрузке
@@ -1101,15 +1188,6 @@ export default {
         document.querySelectorAll('.filters button').forEach(function(x){x.classList.remove('on')});
         b.classList.add('on');cur.value=b.dataset.f;
       })});
-
-      // Плитка «Мои заявки» (BUG-047): открывает раздел внутри кабинета
-      // (отдельной страницы /my-requests больше нет — 301 на /cabinet#/my-requests)
-      var tileRequests = document.getElementById('tile-requests');
-      if (tileRequests) {
-        tileRequests.addEventListener('click', function () {
-          navTo('Мои заявки');
-        });
-      }
 
       // =====================================================================
       // Спринт 5 (change add-booking-docs): раздел «Мои брони» (мокап
@@ -1212,13 +1290,6 @@ export default {
         closeBookModal();
         navTo('Кошелек');
       });
-
-      // заглушки спринта-1 (как в мокапе, FR-6): плитки и чат не подключены;
-      // .logout выведен из заглушек — у него реальный wiring выше;
-      // плитки «Найти водителя»/«Мои заявки» — реальные переходы/раздел
-      document.querySelectorAll('.tile:not(#tile-instructor):not(#tile-requests),.quick button,.send').forEach(function (b) {
-        b.addEventListener('click', function () { alert('Заглушка: сервис появится в следующем спринте'); });
-      });
     });
 
     return {
@@ -1241,6 +1312,8 @@ export default {
       // Замечание Заказчика 2026-11-16: сайдбар (StudentSidebar) — активный
       // таб + обработчики событий компонента
       curTab: curTab, navTo: navTo, onMe: onMe,
+      // Спринт 19 (add-ai-chat-home): ИИ-чат «Главной»
+      aiMessages: aiMessages, aiDraft: aiDraft, aiBusy: aiBusy, aiError: aiError, aiSend: aiSend,
     };
   },
 };
