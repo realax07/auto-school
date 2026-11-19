@@ -261,11 +261,12 @@ def test_tc_s19_006_retention_window_keeps_recent(client):
 def test_tc_s19_011_retention_exact_boundary(client):
     """TC-S19-011 (MIN-2 CR-19.2): граничное поведение retention —
     строка на 1 секунду старше 14 дней удаляется физически; строка на
-    границе окна (13d23h59m59s) остается. Сон 1.2с до запроса делает
-    «+1 секунду» детерминированно строгим (SQLite datetime — секундная
-    точка; DELETE строго `<`, SELECT строго `>=`)."""
+    границе окна (13d23h59m59s) остается. Детерминизм — прямым контролем
+    БД (конвенция файла: без time.sleep): delete-строка (floored
+    T0−14d−1с) строго старше границы при любом времени запроса,
+    keep-строка (floored T0−14d+1с) строго моложе — при любой реальной
+    латентности запроса < ~1с."""
     import sqlite3
-    import time
 
     email = "s19chat-boundary@example.com"
     headers = student_headers(client, email)
@@ -284,8 +285,6 @@ def test_tc_s19_011_retention_exact_boundary(client):
     )
     conn.commit()
     conn.close()
-
-    time.sleep(1.2)  # «-1 seconds» становится строго старше границы
 
     resp = client.get(HISTORY_URL, headers=headers)
     assert resp.status_code == 200, resp.text
