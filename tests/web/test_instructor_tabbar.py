@@ -7,11 +7,13 @@
 import re
 
 import pytest
-from playwright.sync_api import expect
 
 # Фикстуры page/server — из носителя test_ui_playwright (прецедент С18:
 # общие фикстуры уровня файла; изоляция sessionStorage на тест).
-from test_ui_playwright import browser, page, server  # noqa: F401
+# playwright недоступен в docker-образе (J66): скип до импортов —
+# collection в образе не падает (прецедент test_mobile_tabbar С18).
+pytest.importorskip("playwright", reason="e2e: playwright+chromium (вне docker)")
+from test_ui_playwright import browser, page, server  # noqa: F401,E402
 
 INSTRUCTOR_TABS = ["День", "Неделя", "Кошелёк", "Профиль", "Ещё"]
 
@@ -60,6 +62,8 @@ def test_s20_instructor_tabbar_and_more_sheet(page, server):
     """TC-S20-001/TC-S20-002: на 390×844 таб-бар с 5 позициями; «Ещё»
     открывает bottom-sheet (Календарь/Ученики/Автомобили/Материалы/Выход);
     топ-бар показывает инициалы инструктора; десктопный сайдбар скрыт."""
+    from playwright.sync_api import expect
+
     import json as _json
     import urllib.request
     base = str(server)
@@ -115,6 +119,8 @@ def test_s20_instructor_tabbar_and_more_sheet(page, server):
 def test_s20_instructor_navigation_week(page, server):
     """TC-S20-003: таб «Неделя» открывает «Расписание» (crumb), контент
     без горизонтального переполнения (scrollWidth ≤390)."""
+    from playwright.sync_api import expect
+
     import json as _json
     import urllib.request
     base = str(server)
@@ -164,6 +170,8 @@ def test_s20_instructor_geometry(page, server):
     390×844 — scrollWidth ≤390, контент-паддинг верха 20–30px (отступ
     логотипа, спека С18), hit-targets таб-бара ≥44px,desktop-инвариант:
     1440×900 — сайдбар видим, таб-бар скрыт (регресс BUG-070-класса)."""
+    from playwright.sync_api import expect
+
     import json as _json
     import urllib.request
     base = str(server)
