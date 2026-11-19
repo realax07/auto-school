@@ -2612,7 +2612,11 @@ def test_bug049_car_completeness_badge_wraps_under_car_name(browser, server):
         "sessionStorage.setItem('session_token','%s');" % instr_token)
     try:
         page.goto(f"{server}/instructor/dashboard")
-        page.locator('.nav button[data-tab="Мои автомобили"]').click()
+        # Спринт 20 (add-instructor-mobile 20.0.1): ≤760px сайдбар скрыт —
+        # путь к «Мои автомобили» через таб-бар «Ещё» (bottom-sheet); переход
+        # обновлён ([test-adapted], функциональность 1:1, шаг проверки сохранён)
+        page.locator('.itabs .itab').nth(4).click()
+        page.locator('.isheet .irow', has_text="Мои автомобили").click()
         card = page.locator(".car")
         expect(card).to_have_count(1)
         missing = card.locator(".compl .missing")
