@@ -13,10 +13,18 @@
 - 19.1 СА: openspec/changes/add-ai-chat-home/**, sdd.md — ЗАКРЫТА
   (commit c89c7f4, strict 28/0).
 - 19.2 dev-backend: backend/ai/**, backend/app.py (только регистрация
-  домена/роутов), tests/test_ai_chat*.py, openspec/changes/add-ai-chat-home/tasks.md.
-- 19.3 dev-frontend: frontend/vue/src/pages/cabinet/**, tests/test_ui_playwright.py,
-  design/mocks (правки только при каноне), openspec/changes/add-ai-chat-home/tasks.md.
+  домена/роутов), backend/core/db.py (только миграция ai_messages),
+  tests/api/test_s19_ai_chat.py, openspec/changes/add-ai-chat-home/tasks.md.
+- 19.3 dev-frontend: frontend/vue/src/pages/cabinet/**,
+  tests/web/test_cabinet_page.py (перевод вербатим-гардов на новые макеты),
+  tests/web/test_ui_playwright.py (вкл. носитель TC-UI-060), design/mocks
+  (правки только при каноне), openspec/changes/add-ai-chat-home/tasks.md.
 - 19.4 QA/design/приемка: test-model/**, code-reviews/**, PLAN.md, BACKLOG.md.
+
+Зоны синхронизированы с носителями пакета по arch-review 001 (закрытие
+MAJ-1: + backend/core/db.py, + tests/api/test_s19_ai_chat.py вместо glob
+tests/test_ai_chat*.py, + tests/web/test_cabinet_page.py, уточнен путь
+tests/web/test_ui_playwright.py).
 
 ## Волны
 
