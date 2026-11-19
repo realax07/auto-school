@@ -40,6 +40,11 @@
   nfr001/latency — класс T-4 техраздела BACKLOG).
 - Верификация ПМ: юнит 14 passed, браузерные 94 passed (LD_LIBRARY_PATH
   pw-libs), полный сьют 533 passed + regress PASS, strict 28/0.
+- Регресс-наблюдение (T-4): regress-final прогоны 5/7 — FAIL на
+  nfr001_login_latency (bcrypt 500мс бюджет) при соло-прогоне; run6 PASS.
+  Классификация: флак нагрузки хоста (2 FAIL / 1 PASS / 1 FAIL-solo);
+  валидный артефакт — run6 PASS (мета-коммиты после — BUG-023/024).
+  Кандидат решения: вынос latency-NFR в медленный контур / бюджет.
 
 ## Волны
 
