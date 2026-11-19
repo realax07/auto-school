@@ -7,7 +7,7 @@
   - Requirement: Доступ к чату — только валидная сессия ученика (openspec/changes/add-ai-chat-home/specs/ai-chat/spec.md) — TC-S19-001 (401 {ok:false} POST+GET без/с bogus-токеном, содержимое не возвращается), TC-S19-004 (изоляция: две учетки, чужой user_id недоступен)
   - Requirement: Композер отправляет сообщение и показывает ответ ассистента — TC-S19-002 (контракт POST {message}→200 {ok,reply}; обмен user+assistant в ai_messages), TC-S19-007 (422 пустое/пробельное, провайдер не вызывался), TC-S19-008 (503 человеческий текст без «ProviderError»/«Traceback»/«hermes»/«subprocess»/«503»; обмен НЕ сохранен), TC-S19-009 (адаптер: текст через --query-file '-' (stdin), НЕ argv — MIN-2; --run-budget и таймаут ≤30 с; SYSTEM_PROMPT содержит «ГигаЧат — помощник по обучению ПДД»/«ГИБДД»), TC-S19-010 (таймаут/ненулевой код/пустой ответ → ProviderError без деталей), TC-S19-012 (срез хвоста «session_id: …» провайдера — наблюдение dev-волны 19.3)
   - Requirement: Серверная история чата, подхват и retention 14 дней — TC-S19-003 (shape {ok, messages:[{role,text,created_at}]}, хронопорядок; пусто → []), TC-S19-005 (старше 14 дней — скрыты и удалены физически; DELETE в BEGIN IMMEDIATE с SELECT — ОВ-2 review-001), TC-S19-006 (13 дней — остается), TC-S19-011 (граница ±1 с от 14 дней — MIN-2 CR-19.2)
-  - Носитель: tests/unit/test_s19_ai_chat.py (план прогонов №1)
+  - Носитель: tests/unit/test_s19_ai_chat.py (план прогонов №4 — regress-full, полный сьют)
 
 ## GIVEN / WHEN / THEN
 - GIVEN create_app() над tmp-БД (схема ai_messages создана при старте), провайдер моккится на шве, ученики регистрируются/логинятся базовым набором conftest
