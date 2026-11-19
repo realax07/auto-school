@@ -2,8 +2,9 @@
 add-ai-chat-home, волна 19.2; ПМ dc24970: API-носитель tests/api —
 за qa_automation на 19.4, dev несет юнит-носитель tests/unit).
 
-Трассировка TC-S19-001…TC-S19-010 (change add-ai-chat-home; Requirements —
-openspec/changes/add-ai-chat-home/specs/ai-chat/spec.md):
+Трассировка TC-S19-001…TC-S19-011 (change add-ai-chat-home; Requirements —
+openspec/changes/add-ai-chat-home/specs/ai-chat/spec.md; TC-S19-011 —
+граничный носитель retention, MIN-2 CR-19.2):
 
 - TC-S19-001  Доступ к чату: без валидного токена POST /api/ai/chat и
               GET /api/ai/chat/history → 401 {ok:false}, содержимое не
@@ -255,6 +256,43 @@ def test_tc_s19_006_retention_window_keeps_recent(client):
     messages = resp.json()["messages"]
     assert [m["text"] for m in messages] == ["Свежее сообщение 13 дней"]
     assert len(ai_rows()) == 1
+
+
+def test_tc_s19_011_retention_exact_boundary(client):
+    """TC-S19-011 (MIN-2 CR-19.2): граничное поведение retention —
+    строка на 1 секунду старше 14 дней удаляется физически; строка на
+    границе окна (13d23h59m59s) остается. Сон 1.2с до запроса делает
+    «+1 секунду» детерминированно строгим (SQLite datetime — секундная
+    точка; DELETE строго `<`, SELECT строго `>=`)."""
+    import sqlite3
+    import time
+
+    email = "s19chat-boundary@example.com"
+    headers = student_headers(client, email)
+    user_id = fetch_user(email)["id"]
+    conn = sqlite3.connect(db_path())
+    conn.execute(
+        "INSERT INTO ai_messages (user_id, role, text, created_at)"
+        " VALUES (?, ?, ?, datetime('now', '-14 days', '-1 seconds'))",
+        (user_id, "user", "За границей на 1 секунду"),
+    )
+    conn.execute(
+        "INSERT INTO ai_messages (user_id, role, text, created_at)"
+        " VALUES (?, ?, ?, datetime('now', '-13 days', '-23 hours'"
+        ", '-59 minutes', '-59 seconds'))",
+        (user_id, "assistant", "На границе окна"),
+    )
+    conn.commit()
+    conn.close()
+
+    time.sleep(1.2)  # «-1 seconds» становится строго старше границы
+
+    resp = client.get(HISTORY_URL, headers=headers)
+    assert resp.status_code == 200, resp.text
+    messages = resp.json()["messages"]
+    assert [m["text"] for m in messages] == ["На границе окна"]
+    remaining = [r["text"] for r in ai_rows()]
+    assert remaining == ["На границе окна"]
 
 
 # --- TC-S19-007/008: ошибки ----------------------------------------------------------

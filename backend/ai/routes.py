@@ -41,6 +41,13 @@ router = APIRouter()
 # «последние две недели он помнит»). Окно считается сервером по created_at.
 _RETENTION_DAYS = 14
 
+
+def _retention_modifier() -> str:
+    """Модификатор SQLite-даты для окна retention: '-14 days' при
+    _RETENTION_DAYS = 14. Значение идет ?-параметром (MIN-1 CR-19.2:
+    никакого f-string SQL, даже с константой)."""
+    return f"-{_RETENTION_DAYS} days"
+
 # Контекст диалога, отдаваемый провайдеру (provider._CONTEXT_MESSAGE_LIMIT
 # берет свои последние; здесь — срез того же окна 14 дней).
 _CONTEXT_WINDOW_ROWS = 50
@@ -74,9 +81,9 @@ def _recent_messages(conn: db, user_id: int, limit: int) -> list[dict]:
     rows = conn.execute(
         "SELECT role, text FROM ai_messages"
         " WHERE user_id = ?"
-        f" AND created_at >= datetime('now', '-{_RETENTION_DAYS} days')"
+        " AND created_at >= datetime('now', ?)"
         " ORDER BY created_at DESC, id DESC LIMIT ?",
-        (user_id, limit),
+        (user_id, _retention_modifier(), limit),
     ).fetchall()
     return [dict(row) for row in reversed(rows)]
 
@@ -153,14 +160,15 @@ def ai_chat_history(
             # SELECT строго по user_id сессии).
             conn.execute(
                 "DELETE FROM ai_messages"
-                f" WHERE created_at < datetime('now', '-{_RETENTION_DAYS} days')"
+                " WHERE created_at < datetime('now', ?)",
+                (_retention_modifier(),),
             )
             rows = conn.execute(
                 "SELECT role, text, created_at FROM ai_messages"
                 " WHERE user_id = ?"
-                f" AND created_at >= datetime('now', '-{_RETENTION_DAYS} days')"
+                " AND created_at >= datetime('now', ?)"
                 " ORDER BY created_at ASC, id ASC",
-                (user_id,),
+                (user_id, _retention_modifier()),
             ).fetchall()
             conn.execute("COMMIT")
         except Exception:
