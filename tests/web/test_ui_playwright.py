@@ -63,7 +63,6 @@ _PROVIDER_MOCK_BOOT = '''\
 # ИИ-чата на шве set_provider (backend/ai/provider.py) ДО старта uvicorn —
 # детерминизм e2e (TC-S19-WEB-002), реальных hermes-вызовов нет.
 import os
-import time
 
 _reply = os.environ.get("AI_CHAT_FAKE_REPLY")
 if _reply:
@@ -75,7 +74,6 @@ if _reply:
         name = "qa-fake"
 
         def generate(self, messages):
-            time.sleep(float(os.environ.get("AI_CHAT_FAKE_DELAY") or 0))
             return _reply
 
     _ai_provider.set_provider(_QaFakeProvider())
