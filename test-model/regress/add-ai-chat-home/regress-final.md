@@ -1,16 +1,16 @@
 # Regress add-ai-chat-home — regress-final.md
 
 - change: add-ai-chat-home
-- date: 2026-11-19T19:58:53+00:00
-- commit: 8af83fbe36eba8e704ccd593a259986f2ae2bf09
+- date: 2026-11-19T20:26:04+00:00
+- commit: 15bac52b94b443185444cc99cc20d3183ca1a70f
 - worktree: /home/hermes-bot/.hermes/cache/scratch/wt-s19-ai-chat
 - verdict: PASS
 - tier: domain (эшелон 1: доменный regress)
-- duration: 731.5s
+- duration: 806.9s
 - diff source: git diff main...HEAD
 - domain map: project map test-model/regress-domains.json задана, правил нет — применен дефолт
-- changed files: 75
-- changed files: 75
+- changed files: 77
+- changed files: 77
   - BACKLOG.md
   - PLAN-add-ai-chat-home.md
   - PLAN.md
@@ -45,6 +45,8 @@
   - code-reviews/add-ai-chat-home/review-19.4-001.md
   - code-reviews/add-ai-chat-home/review-19.4-001.md.provenance.json
   - code-reviews/add-ai-chat-home/review-19.4-002.md
+  - code-reviews/add-ai-chat-home/review-19.4.1-001.md
+  - code-reviews/add-ai-chat-home/review-19.4.3-001.md
   - design/mocks/home-chat-web.html
   - design/mocks/mobile/mobile-home-chat.html
   - frontend/vue/cabinet.html
@@ -59,9 +61,7 @@
   - openspec/changes/add-ai-chat-home/specs/cabinet/spec.md
   - openspec/changes/add-ai-chat-home/tasks.md
   - sdd.md
-  - test-model/approved/add-ai-chat-home/TC-S19-API-001.md
-  - test-model/approved/add-ai-chat-home/TC-S19-MAN-001.md
-  - … и еще 25
+  - … и еще 27
 - suites: tests
 - pytest exit code: 0
 
@@ -77,5 +77,5 @@
 ........................................................................ [ 82%]
 ........................................................................ [ 93%]
 ......................................                                   [100%]
-614 passed in 729.88s (0:12:09)
+614 passed in 805.09s (0:13:25)
 ```
