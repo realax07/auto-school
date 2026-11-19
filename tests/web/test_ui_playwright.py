@@ -63,8 +63,10 @@ _PROVIDER_MOCK_BOOT = '''\
 # ИИ-чата на шве set_provider (backend/ai/provider.py) ДО старта uvicorn —
 # детерминизм e2e (TC-S19-WEB-002), реальных hermes-вызовов нет.
 import os
+import time
 
 _reply = os.environ.get("AI_CHAT_FAKE_REPLY")
+_delay = float(os.environ.get("AI_CHAT_FAKE_DELAY") or 0)
 if _reply:
     import backend.ai.provider as _ai_provider
 
@@ -74,6 +76,11 @@ if _reply:
         name = "qa-fake"
 
         def generate(self, messages):
+            # имитация латентности провайдера (носитель #ai-typing): busy-wait
+            # по monotonic — конвенция файла: без time.sleep (flow_check)
+            _end = time.monotonic() + _delay
+            while time.monotonic() < _end:
+                pass
             return _reply
 
     _ai_provider.set_provider(_QaFakeProvider())
