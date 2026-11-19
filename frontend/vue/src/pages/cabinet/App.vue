@@ -552,6 +552,21 @@ export default {
       });
     }
 
+    // Подхват истории при открытии/входе (FR-19.5): GET за последние 14 дней
+    // (глубина — серверная, клиентской глубине не доверяем). Есть история →
+    // пузыри вместо приветствия; пусто → приветствие из макета (FR-19.4).
+    // Фоновый запрос: не-200/сеть — история просто не подхватилась, ошибку
+    // у поля не ставим (она — про отправку, FR-19.3).
+    function aiLoadHistory() {
+      aiApi('/api/ai/chat/history').then(function (res) {
+        if (handleAuthFail(res)) return;
+        if (res.status === 200 && res.data && res.data.ok) {
+          aiMessages.value = res.data.messages || [];
+          aiScrollBottom();
+        }
+      });
+    }
+
     function aiSend() {
       if (aiBusy.value) return;
       var text = (aiDraft.value || '').trim();
@@ -1138,6 +1153,8 @@ export default {
         if (isReq) loadRequests();
         if (isBk) loadBookingsSection();
         if (isWal) loadWallet();
+        // Спринт 19 (19.3.2): возврат на «Главную» — подхват истории чата
+        if (!isReq && !isBk && !isWal && !isPdd) aiLoadHistory();
         // Спринт 17 (NFR-26): чанк секции грузится при ПЕРВОМ открытии
         if (isSigns) pddSignsVisited.value = true;
         if (isRules) pddRulesVisited.value = true;
@@ -1180,6 +1197,10 @@ export default {
       }
       routeHash();
       window.addEventListener('hashchange', routeHash);
+
+      // Спринт 19 (19.3.2): «Главная» — раздел по умолчанию, история чата
+      // подхватывается при входе (GET /api/ai/chat/history, 14 дней — FR-19.5)
+      aiLoadHistory();
 
       // --- Раздел «Мои заявки»: bootstrap-привязки (данные/функции —
       //     setup-область выше: loadRequests/renderFilters/retry) ---
