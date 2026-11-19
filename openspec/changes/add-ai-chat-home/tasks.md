@@ -24,6 +24,7 @@
 - [x] 19.4.3 [tests] Полный regress (api + web + smoke) green; бюджеты NFR-26 кабинета не тронуты; acceptance-прогон FR-19.1…19.7
 - [x] 19.4.4 [docs] Приемка Заказчика → PR (волна закрытия, PLAN/tasks статусы — ПМ)
 - [x] 19.4.5 [review] Финальная code_review-верификация спринта: bindings подзадач (19.4.1 носители/кейсы, 19.4.3 regress) + regress-final на HEAD
+- [ ] 19.5 [review] Финальная независимая верификация спринта code_reviewer (bindings + regress) — подпись перед PR
 
 ## Рекомендации к нарезке
 
