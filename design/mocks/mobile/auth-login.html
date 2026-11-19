@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>СберАвтошкола — Вход (роли) — мокап, утвержден Заказчиком 2026-11-19</title>
+<style>
+  :root {
+    --bg: #070c09;
+    --green: #3ddc84;
+    --green-dim: rgba(61, 220, 132, 0.14);
+    --ink: #f2f5f3;
+    --ink-muted: #9aa39d;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "SF Pro Display", -apple-system, "Segoe UI", Roboto, "DejaVu Sans", sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .phone {
+    width: 390px;
+    height: 844px;
+    background:
+      radial-gradient(ellipse 480px 340px at 50% 38%, rgba(61,220,132,0.07) 0%, transparent 65%),
+      var(--bg);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .logo {
+    font-size: 22px; font-weight: 800; letter-spacing: -0.3px;
+    text-align: center;
+    padding: 34px 0 8px;
+  }
+  .logo .accent { color: var(--green); }
+  .screen-title {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 26px; font-weight: 600; letter-spacing: -0.3px;
+    text-align: center;
+    padding: 6px 0 4px;
+  }
+  .screen-sub {
+    font-size: 14px; color: var(--ink-muted);
+    text-align: center;
+    padding-bottom: 24px;
+  }
+  .switch {
+    margin: 0 20px 22px;
+    display: flex;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 16px;
+    padding: 4px;
+    gap: 4px;
+  }
+  .switch .opt {
+    flex: 1;
+    min-height: 44px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 12px;
+    font-size: 15px; font-weight: 700;
+    color: var(--ink-muted);
+  }
+  .switch .opt.on {
+    background: var(--green-dim);
+    border: 1px solid rgba(61,220,132,0.35);
+    color: var(--green);
+  }
+  .switch-note {
+    margin: -12px 20px 20px;
+    font-size: 12px; color: #6f7a74; text-align: center;
+  }
+  .form { padding: 0 20px; display: flex; flex-direction: column; gap: 14px; }
+  .field label {
+    display: block;
+    font-size: 12px; font-weight: 700; letter-spacing: 0.4px;
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .field .box {
+    min-height: 52px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.12);
+    display: flex; align-items: center;
+    padding: 0 16px;
+    font-size: 15px;
+    color: #8f9a93;
+  }
+  .field .box.filled { color: var(--ink); }
+  .btn-main {
+    margin-top: 8px;
+    min-height: 52px;
+    border-radius: 16px;
+    background: var(--green);
+    color: #0a130e;
+    font-size: 16px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .alt-row { text-align: center; font-size: 14px; color: var(--ink-muted); padding: 6px 0 0; }
+  .alt-row b { color: var(--green); font-weight: 700; }
+  .spacer { flex: 1; }
+  .foot-note {
+    font-size: 12px; color: #6f7a74;
+    text-align: center;
+    padding: 0 32px 30px;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="logo"><span class="accent">Сбер</span>Автошкола</div>
+  <div class="screen-title">Вход</div>
+  <div class="screen-sub">Продолжите обучение там, где остановились</div>
+
+  <div class="switch">
+    <div class="opt on">Я ученик</div>
+    <div class="opt">Я инструктор</div>
+  </div>
+  <div class="switch-note">Кабинет откроется в выбранной роли</div>
+
+  <div class="form">
+    <div class="field">
+      <label>Email</label>
+      <div class="box filled">m.samoilov@example.ru</div>
+    </div>
+    <div class="field">
+      <label>Пароль</label>
+      <div class="box filled">••••••••••</div>
+    </div>
+    <div class="btn-main">Войти</div>
+    <div class="alt-row">Нет аккаунта? <b>Зарегистрироваться</b></div>
+  </div>
+
+  <div class="spacer"></div>
+  <div class="foot-note">Ученик попадает в кабинет ученика, инструктор — в кабинет инструктора. Роль определяется аккаунтом.</div>
+</div>
+</body>
+</html>
