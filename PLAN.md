@@ -59,8 +59,8 @@ design/mocks/home-chat-web.html (вебка). Change-id: add-ai-chat-home.
 | # | Задача | Статус |
 |---|---|---|
 | 19.0 | Артефакты спринта: решение (decisions/), требования, макеты в design/mocks, PLAN | [x] |
-| 19.1 | СА→арх: пакет add-ai-chat-home (proposal/design/specs/tasks) + ревью архитектора | [ ] |
-| 19.2 | Backend: POST /api/ai/chat (временная реализация — сессия ассистента с системным промптом, знания content/pdd + интернет), история чата, retention 14 дней, тесты | [ ] |
+| 19.1 | СА→арх: пакет add-ai-chat-home (proposal/design/specs/tasks) + ревью архитектора | [x] return→фиксы→approve |
+| 19.2 | Backend: POST /api/ai/chat (временная реализация — сессия ассистента с системным промптом, знания content/pdd + интернет), история чата, retention 14 дней, тесты | [x] ревью 19.2 — отдельным файлом |
 | 19.3 | Frontend: раздел «Главная» = ИИ-чат по макетам (мобилка+вебка), удаление быстрых кнопок и «СЕРВИСЫ», wiring на /api/ai/chat, e2e-носители в том же цикле | [ ] |
 | 19.4 | QA: чек-лист → кейсы → автоматизация, design check, полный regress, приемка, PR | [ ] |
 
