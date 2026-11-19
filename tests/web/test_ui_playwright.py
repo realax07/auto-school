@@ -4757,11 +4757,23 @@ def test_tc_ui_059_student_cabinet_single_logo_no_crumbs(page, server):
     assert bottom_gap < 40, f"учётка не у нижнего края сайдбара (зазор {bottom_gap}px)"
 
 
-def test_tc_ui_060_cabinet_tiles_no_v_kabinete_tag(page, server):
-    """TC-UI-060 (BUG-060, решение Заказчика 2026-11-06): на главной
-    кабинета ученика плитки «Найти водителя» и «Мои заявки» без тега
-    «В КАБИНЕТЕ»; плитки кликабельны (навигация сохранена)."""
-    stu_email = unique_email("tilestu")
+def test_tc_ui_060_cabinet_navigation_sidebar_requests_choice(page, server):
+    """TC-UI-060 (ПЕРЕПИСАН, FR-19.2 / spec ai-chat «Навигация не потеряна»,
+    TC-S19-WEB-004 десктопная нога). Решение BUG-060 (решение Заказчика
+    2026-11-06: плитки «Найти водителя»/«Мои заявки» кликабельны) ЗАМЕНЕНО
+    решением Заказчика 2026-11-18 — дословно (requirements-ai-chat-home.md,
+    «Решения Заказчика»; decisions/2026-11-18-s19-ai-chat-home.md):
+    «Да, убираем все кнопки с этого экрана и оставь только гигагаишника.
+    Не только в могилке, но и на веб версии тоже»
+    — плитки удалены, инвариант BUG-060 (тег «В КАБИНЕТЕ» отсутствует)
+    сохраняется отсутствием плиток; навигация к «Выбрать инструктора»
+    (пункт сайдбара, ведущий в выбор инструктора — бывшая «Найти
+    водителя») и «Мои заявки» идет через САЙДБАР. НОВАЯ проверка без
+    ослабления: оба перехода обязаны работать (молчаливая потеря раздела
+    = дефект). Мобильная нога (таб-бар ≤760px) — НАХОДКА TC-S19-WEB-004
+    (в таб-баре 5 табов, пунктов нет; вопрос ПМ/СА) — не автоматизируется
+    в этом носителе."""
+    stu_email = unique_email("navstu")
     status, data = api("POST", "/api/register", base=server, body={
         "surname": "Сидоров", "name": "Сидор", "patronymic": "Сидорович",
         "email": stu_email, "phone": "+7 905 555-44-33",
@@ -4776,14 +4788,23 @@ def test_tc_ui_060_cabinet_tiles_no_v_kabinete_tag(page, server):
     page.locator("#login-submit").click()
     page.wait_for_url("**/cabinet")
 
+    # инвариант BUG-060 сохраняется: тега «В КАБИНЕТЕ» и самих плиток нет
     assert page.get_by_text("В КАБИНЕТЕ").count() == 0
-    tile_instructor = page.locator("#tile-instructor")
-    expect(tile_instructor).to_be_visible()
-    tile_requests = page.locator("#tile-requests")
-    expect(tile_requests).to_be_visible()
-    # навигация плиток жива: «Найти водителя» ведет в выбор инструктора
-    tile_instructor.click()
+    assert page.locator("#tile-instructor").count() == 0
+    assert page.locator("#tile-requests").count() == 0
+
+    # сайдбар: «Выбрать инструктора» (data-goto, отдельная страница —
+    # BUG-047-прецедент) → /instructor-choice; переход обязан работать
+    page.locator('.snav button[data-goto="/instructor-choice"]').click()
     page.wait_for_url("**/instructor-choice")
+
+    # сайдбар: «Мои заявки» → SPA-раздел кабинета #sec-requests (хеш)
+    page.goto(f"{server}/cabinet")
+    page.locator('.snav button[data-tab="Мои заявки"]').click()
+    expect(page.locator("#sec-requests")).to_be_visible()
+    assert page.evaluate("location.hash") == "#/my-requests"
+    expect(page.locator('.snav button[data-tab="Мои заявки"]')).to_have_class(
+        "on")
 
 
 # ------------------------------------------------- Спринт 19: ИИ-чат «Главной»
