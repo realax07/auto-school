@@ -42,6 +42,45 @@ ROOT = Path(__file__).resolve().parents[2]
 ADMIN_LOGIN = "ui-admin"
 ADMIN_PASSWORD = "ui-admin-pass-2026"
 
+# Спринт 19 (add-ai-chat-home, задача 19.4 / TC-S19-WEB-002): детерминированный
+# ответ фейк-провайдера ИИ-чата на тест-стенде. Провайдер МОККАЕТСЯ тем же
+# швом, что в юнит/API-носителях — set_provider (backend/ai/provider.py):
+# uvicorn-процесс стенда при старте (ДО любых запросов) выполняет
+# sitecustomize-хук (см. _PROVIDER_MOCK_BOOT ниже), который подменяет
+# активного провайдера. Реальных hermes-вызовов из e2e НЕТ; боевой smoke —
+# отдельный ручной пункт (TC-S19-MAN-001), не автотест.
+AI_CHAT_FAKE_REPLY = (
+    "Снизьте скорость перед пешеходным переходом и будьте готовы уступить "
+    "дорогу пешеходу."
+)
+AI_CHAT_FAKE_DELAY = "0.8"  # сек: окно, в котором e2e видит индикатор ожидания
+
+# env-хук тест-стенда: пишется в tmp-каталог стенда, каталог добавляется в
+# PYTHONPATH процесса uvicorn — Python импортирует sitecustomize на старте
+# (TC-S19-WEB-002: «in-process uvicorn.Server в фикстуре или env-хук»).
+_PROVIDER_MOCK_BOOT = '''\
+# QA-хук тест-стенда (change add-ai-chat-home, волна 19.4): мок провайдера
+# ИИ-чата на шве set_provider (backend/ai/provider.py) ДО старта uvicorn —
+# детерминизм e2e (TC-S19-WEB-002), реальных hermes-вызовов нет.
+import os
+import time
+
+_reply = os.environ.get("AI_CHAT_FAKE_REPLY")
+if _reply:
+    import backend.ai.provider as _ai_provider
+
+    class _QaFakeProvider:
+        """QA-fake: фиксированный ответ без служебного хвоста session_id."""
+
+        name = "qa-fake"
+
+        def generate(self, messages):
+            time.sleep(float(os.environ.get("AI_CHAT_FAKE_DELAY") or 0))
+            return _reply
+
+    _ai_provider.set_provider(_QaFakeProvider())
+'''
+
 SERVER_STARTUP_TIMEOUT = 60  # секунды на ожидание /api/health
 PORT_START_ATTEMPTS = 2  # retry с новым портом (TOCTOU, F-2 review-001)
 
@@ -196,6 +235,14 @@ def server():
     proc: subprocess.Popen | None = None
     stderr_file = None
     try:
+        # Спринт 19 (add-ai-chat-home, 19.4 / TC-S19-WEB-002): env-хук мока
+        # провайдера — каталог с sitecustomize.py в PYTHONPATH процесса
+        # uvicorn (set_provider-шов, ДО любых запросов; hermes не вызывается).
+        boot_dir = os.path.join(tmpdir, "pyboot")
+        os.mkdir(boot_dir)
+        with open(os.path.join(boot_dir, "sitecustomize.py"), "w",
+                  encoding="utf-8") as boot:
+            boot.write(_PROVIDER_MOCK_BOOT)
         base = None
         for attempt in range(1, PORT_START_ATTEMPTS + 1):
             port = _free_port()
@@ -208,8 +255,13 @@ def server():
                 "ADMIN_PASSWORD_HASH": bcrypt.hashpw(
                     ADMIN_PASSWORD.encode(), bcrypt.gensalt(rounds=12)).decode(),
                 "SECRET": "ui-tests-secret",
-                # дописываем к унаследованному, а не затираем (F-6 review-001)
-                "PYTHONPATH": str(ROOT) + os.pathsep + env.get("PYTHONPATH", ""),
+                "AI_CHAT_FAKE_REPLY": AI_CHAT_FAKE_REPLY,
+                "AI_CHAT_FAKE_DELAY": AI_CHAT_FAKE_DELAY,
+                # дописываем к унаследованному, а не затираем (F-6 review-001);
+                # pyboot — ПЕРВЫМ (sitecustomize импортируется со старта)
+                "PYTHONPATH": os.pathsep.join(
+                    [boot_dir, str(ROOT)]
+                    + ([env["PYTHONPATH"]] if env.get("PYTHONPATH") else [])),
             })
             stderr_path = os.path.join(tmpdir, "uvicorn-stderr.log")
             stderr_file = open(stderr_path, "wb")
@@ -4732,6 +4784,219 @@ def test_tc_ui_060_cabinet_tiles_no_v_kabinete_tag(page, server):
     # навигация плиток жива: «Найти водителя» ведет в выбор инструктора
     tile_instructor.click()
     page.wait_for_url("**/instructor-choice")
+
+
+# ------------------------------------------------- Спринт 19: ИИ-чат «Главной»
+def test_s19_home_chat_empty_history_greeting_and_composer(page, server):
+    """TC-S19-WEB-001 (FR-19.1/FR-19.4, веб 1440×900): пустая история чата —
+    приветствие по макету (spark, «Добрый день!», подсказка) БЕЗ ФИО
+    ученика (CHK-5) и композер с плейсхолдером дословно; переписки нет
+    (#sec-home в состоянии ai-empty); быстрые кнопки и «СЕРВИСЫ»
+    отсутствуют (count == 0, решение Заказчика 2026-11-18). Мобильная нога
+    390×844 — test_s19_home_chat_mobile_layout_390."""
+    stu_email = unique_email("chatstu")
+    status, data = api("POST", "/api/register", base=server, body={
+        "surname": "Чатовых", "name": "Чат", "patronymic": "Чатович",
+        "email": stu_email, "phone": "+7 905 111-22-33",
+        "password": "S3cretPass!", "password_confirm": "S3cretPass!",
+        "consent": True,
+    })
+    assert status == 200 and data and data["ok"], (status, data)
+    page.goto(f"{server}/")
+    page.locator('.auth [data-open="login"]').click()
+    page.fill("#login-email", stu_email)
+    page.fill("#login-password", "S3cretPass!")
+    page.locator("#login-submit").click()
+    page.wait_for_url("**/cabinet")
+
+    # пустой чат (новая учетка — истории нет): приветствие по центру
+    home = page.locator("#sec-home")
+    expect(home).to_have_class("ai-empty")
+    expect(page.locator("#ai-greet")).to_be_visible()
+    expect(page.locator("#ai-greet .ai-spark")).to_be_visible()
+    expect(page.locator(".ai-hello")).to_have_text("Добрый день!")
+    expect(page.locator(".ai-hello-sub")).to_have_text(
+        "Спроси что угодно про обучение, экзамен или ПДД — помогу подготовиться"
+    )
+    # приветствие по центру контентной области (правее сайдбара — как в
+    # веб-макете .main) и без ФИО ученика (CHK-5)
+    hello_box = page.locator(".ai-hello").bounding_box()
+    home_box = page.locator("#sec-home").bounding_box()
+    assert abs(
+        hello_box["x"] + hello_box["width"] / 2
+        - (home_box["x"] + home_box["width"] / 2)) < 60
+    assert "Чатовых" not in page.locator("#ai-greet").inner_text()
+    # переписки нет
+    assert page.locator(".ai-msg").count() == 0
+
+    # композер с дословным плейсхолдером макета
+    expect(page.locator("#ai-composer")).to_be_visible()
+    assert page.locator("#ai-input").get_attribute(
+        "placeholder"
+    ) == "Спроси что угодно про обучение, экзамен или ПДД..."
+
+    # удаленные элементы — носители absence (count == 0): быстрые кнопки,
+    # «СЕРВИСЫ», старое приветствие (решение Заказчика 2026-11-18)
+    for text in ("Когда экзамен?", "Мой прогресс",
+                 "Готов ли я к экзамену?", "СЕРВИСЫ", "В КАБИНЕТЕ"):
+        assert page.get_by_text(text).count() == 0, text
+    for selector in (".tile", ".quick button", ".greet",
+                     "section.assistant", ".services-title"):
+        assert page.locator(selector).count() == 0, selector
+
+
+def test_s19_home_chat_send_message_bubbles_no_session_tail(page, server):
+    """TC-S19-WEB-002 (FR-19.3/FR-19.4): отправка сообщения на ЖИВОЙ backend
+    тест-стенда — пузырь user появляется сразу, на время ответа индикатор
+    #ai-typing и поле/кнопка disabled (UI не «висит» молча), ответ — пузырь
+    assistant с текстом фейк-провайдера ДОСЛОВНО и БЕЗ служебного хвоста
+    session_id/Title (срез хвоста — юнит TC-S19-012). Провайдер изолирован
+    тем же швом, что в юнит/API-носителях — set_provider
+    (backend/ai/provider.py): env-хук sitecustomize подменяет провайдера в
+    uvicorn-процессе ДО запросов — реальных hermes-вызовов нет (боевой
+    smoke — ручной TC-S19-MAN-001). Обмен сохранен на сервере (ai_messages):
+    проверка GET /api/ai/chat/history тем же токеном."""
+    token = _student_token(server)
+    _seed_session(page, "session_token", token)
+    page.goto(f"{server}/cabinet")
+    expect(page.locator("#ai-greet")).to_be_visible()
+
+    page.fill("#ai-input", "Как проехать круг?")
+    page.locator("#ai-send").click()
+
+    # оптимистичный пузырь пользователя появляется сразу; приветствие скрыто
+    expect(page.locator(".ai-msg-user .ai-bubble")).to_have_text(
+        "Как проехать круг?")
+    expect(page.locator("#sec-home")).to_have_class("ai-has-msgs")
+    expect(page.locator("#ai-greet")).not_to_be_visible()
+    # состояние ожидания: индикатор + блокировка поля/кнопки (не молча)
+    expect(page.locator("#ai-typing")).to_be_visible()
+    expect(page.locator("#ai-input")).to_be_disabled()
+    expect(page.locator("#ai-send")).to_be_disabled()
+
+    # ответ ассистента — пузырь assistant, текст фейк-провайдера дословно
+    # (равенство целиком = без хвоста «session_id: …»/«Title: …»)
+    expect(page.locator(".ai-msg-bot .ai-bubble")).to_have_text(
+        AI_CHAT_FAKE_REPLY)
+    assert "session_id" not in page.locator("#ai-msgs").inner_text()
+    expect(page.locator("#ai-input")).to_be_enabled()
+
+    # обмен дошел до ЖИВОГО backend и сохранен: история по API содержит пару
+    status, data = api("GET", "/api/ai/chat/history", base=server, token=token)
+    assert status == 200 and data and data["ok"], (status, data)
+    assert [(m["role"], m["text"]) for m in data["messages"]] == [
+        ("user", "Как проехать круг?"),
+        ("assistant", AI_CHAT_FAKE_REPLY),
+    ]
+
+
+def test_s19_home_chat_history_survives_reload(page, server):
+    """TC-S19-WEB-002 нога подхвата / FR-19.5 (CHK-8): переписка, созданная
+    на живом backend (POST /api/ai/chat тем же токеном), подхватывается при
+    открытии «Главной» и переживает перезагрузку страницы — пузыри
+    user/assistant в хронологическом порядке вместо приветствия (одна и та
+    же серверная история, ai-has-msgs)."""
+    token = _student_token(server)
+    for message in ("Где сдают экзамен?", "Что брать с собой?"):
+        status, data = api("POST", "/api/ai/chat", base=server, token=token,
+                           body={"message": message})
+        assert status == 200 and data and data["ok"], (status, data)
+
+    _seed_session(page, "session_token", token)
+    page.goto(f"{server}/cabinet")
+    expect(page.locator("#sec-home")).to_have_class("ai-has-msgs")
+    expect(page.locator("#ai-greet")).not_to_be_visible()
+    bubbles = page.locator(".ai-bubble")
+    expect(bubbles).to_have_count(4)
+    expect(bubbles.nth(0)).to_have_text("Где сдают экзамен?")
+    expect(bubbles.nth(1)).to_have_text(AI_CHAT_FAKE_REPLY)
+    expect(bubbles.nth(2)).to_have_text("Что брать с собой?")
+    expect(bubbles.nth(3)).to_have_text(AI_CHAT_FAKE_REPLY)
+
+    # перезагрузка → история подхвачена с сервера снова (FR-19.5)
+    page.reload()
+    expect(page.locator("#sec-home")).to_have_class("ai-has-msgs")
+    expect(page.locator("#ai-greet")).not_to_be_visible()
+    expect(page.locator(".ai-bubble")).to_have_count(4)
+    expect(page.locator(".ai-bubble").nth(3)).to_have_text(AI_CHAT_FAKE_REPLY)
+
+
+def test_s19_home_chat_plus_disabled_soon_label(page, server):
+    """TC-S19-WEB-003 (FR-19.7): «+» в композере видима, НЕАКТИВНА с честной
+    подписью «Скоро» (в макетах подписи нет — требование Заказчика), клик
+    ничего не открывает (нет модалок/шитов); кнопка отправки рабочая."""
+    token = _student_token(server)
+    _seed_session(page, "session_token", token)
+    page.goto(f"{server}/cabinet")
+
+    plus = page.locator("#ai-plus")
+    expect(plus).to_be_visible()
+    expect(plus).to_be_disabled()
+    assert plus.get_attribute("aria-label") == "Вложения — скоро"
+    expect(page.locator(".ai-soon")).to_have_text("Скоро")
+    expect(page.locator("#ai-send")).to_be_enabled()
+
+    # клик по неактивной «+» ничего не открывает (disabled — click через
+    # dispatch_event, actionability-правила не блокируют проверку):
+    # модалок/шитов нет
+    plus.dispatch_event("click")
+    assert page.locator(".backdrop.open").count() == 0
+    assert page.locator(".wal-backdrop.wal-open").count() == 0
+    assert page.locator(".mtab-sheet").count() == 0
+
+
+def test_s19_home_chat_mobile_layout_390(browser, server):
+    """TC-S19-WEB-001 (мобилка 390×844) + TC-S19-WEB-003 (геометрия, 19.3.3):
+    на 390×844 пустой чат — приветствие по макету; композер НИЖЕ приветствия
+    и НЕ перекрыт таб-баром 54px (bounding_box без пересечения — клики по
+    «+»/отправке доходят: реальная отправка проходит); hit-targets ≥44px
+    («+» 44×44, отправка 48×48); горизонтального скролла нет."""
+    token = _student_token(server)
+    page, ctx = _mobile_page(browser, token)
+    try:
+        page.goto(f"{server}/cabinet")
+        vp = page.viewport_size
+        assert (vp["width"], vp["height"]) == (390, 844)
+
+        # пустая история — приветствие из макета (мобильная нога WEB-001)
+        expect(page.locator("#sec-home")).to_have_class("ai-empty")
+        expect(page.locator(".ai-hello")).to_have_text("Добрый день!")
+        expect(page.locator(".ai-hello-sub")).to_be_visible()
+        expect(page.locator("#ai-greet .ai-spark")).to_be_visible()
+
+        # таб-бар 54px снизу (desktop-сайдбар скрыт — канон Спринта 18)
+        tb = page.locator(".mtabs").bounding_box()
+        assert tb["y"] + tb["height"] <= vp["height"] + 1, (tb, vp)
+
+        # композер НИЖЕ приветствия (верх композера ниже низа приветствия)
+        greet = page.locator("#ai-greet").bounding_box()
+        composer = page.locator("#ai-composer").bounding_box()
+        assert composer["y"] >= greet["y"] + greet["height"] - 1, (greet, composer)
+
+        # НЕ перекрыт таб-баром: низ композера и его кнопок выше верха бара
+        assert composer["y"] + composer["height"] <= tb["y"] + 1, (composer, tb)
+        plus = page.locator("#ai-plus").bounding_box()
+        send = page.locator("#ai-send").bounding_box()
+        assert plus["y"] + plus["height"] <= tb["y"] + 1, (plus, tb)
+        assert send["y"] + send["height"] <= tb["y"] + 1, (send, tb)
+
+        # hit-targets ≥44px на 390px (факт реализации: «+» 44, отправка 48)
+        assert plus["width"] >= 44 and plus["height"] >= 44, plus
+        assert send["width"] >= 44 and send["height"] >= 44, send
+        assert page.evaluate(
+            "document.documentElement.scrollWidth") <= 390
+
+        # клики до композера доходят (не перехватываются таб-баром):
+        # реальная отправка с мобилки проходит до ответа ассистента
+        page.fill("#ai-input", "Кто главный на круге?")
+        page.locator("#ai-send").click()
+        expect(page.locator(".ai-msg-user .ai-bubble")).to_have_text(
+            "Кто главный на круге?")
+        expect(page.locator(".ai-msg-bot .ai-bubble")).to_have_text(
+            AI_CHAT_FAKE_REPLY)
+    finally:
+        ctx.close()
+
 
 
 # ----------------------------------------------------- Спринт 16: экономика

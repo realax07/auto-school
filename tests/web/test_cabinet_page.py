@@ -28,6 +28,30 @@ ADR-008), кабинет обслуживается входом каркаса 
 Покрытие браузерных сценариев 401-редиректа, подстановки ФИО и
 logout-редиректа — контролями wiring-фрагментов (по паттерну
 test_static.py: тест TC-REG-018, шаг 3, контроль wiring).
+
+Спринт 19 (change add-ai-chat-home, задача 19.3.4/19.4 — «Главная» = ИИ-чат):
+гарды «Главной» ПЕРЕВЕДЕНЫ на новые макеты-эталоны (аппрув Заказчика
+2026-11-18 «Вот теперь отлично. Так и делай»):
+- MOCKUP_MOBILE = design/mocks/mobile/mobile-home-chat.html (≤760px) и
+  MOCKUP_WEB = design/mocks/home-chat-web.html (>760px) — фрагменты
+  разметки/CSS/текстов «Главной» сверяются с ними ДОСЛОВНО (дизайн.md
+  «Решение 4»: «фрагменты дословно; сами мокапы не синхронизируются»).
+  Реализация переносит тексты/SVG макетов дословно (App.vue), а CSS —
+  адаптированно (классы ai-*: .spark→.ai-spark и т.п., база веб-макета +
+  @media ≤760px переопределения мобилки), поэтому CSS-строки сверяются
+  ПАРАМИ «фрагмент макета ↔ фрагмент styles.css» с дословными значениями
+  (прецедент side_fragments: мокап-фрагмент в макете, компонентный — в
+  модуле); отброшенные при переносе классы .greet/.assistant/.quick/
+  .services-title/.tiles — носители absence (решение Заказчика 2026-11-18
+  «Да, убираем все кнопки с этого экрана и оставь только гигагаишника.
+  Не только в могилке, но и на веб версии тоже»);
+- MOCKUP = design/mocks/cabinet-student.html — ОСТАЕТСЯ эталоном разделов
+  ВНЕ «Главной» (прецедент CHK-29: «Мои заявки», «Мои брони», «Кошелек»,
+  ПДД; футер/hero-оболочка) — whole-line CSS-гард мокапа сохранен без
+  ослаблений (строки легаси-стилей в styles.css не изменялись).
+Осознанное отступление (вопрос Заказчику, waves 19.3): на вебе композер
+стоит над футером с зазором 40px — не 48px padding-bottom макета (футер
+мокапа Спринта 1 остается на всех разделах; styles.css, шапка блока S19).
 """
 from pathlib import Path
 
@@ -38,6 +62,9 @@ SIDEBAR = ROOT / "frontend" / "vue" / "src" / "components" / "StudentSidebar.vue
 UTILS = ROOT / "frontend" / "vue" / "src" / "shared" / "utils.js"
 STYLES = ROOT / "frontend" / "vue" / "src" / "pages" / "cabinet" / "styles.css"
 MOCKUP = ROOT / "design" / "mocks" / "cabinet-student.html"
+# Спринт 19: макеты-эталоны «Главной» (ИИ-чат) — БЕЗ ПРАВОК
+MOCKUP_MOBILE = ROOT / "design" / "mocks" / "mobile" / "mobile-home-chat.html"
+MOCKUP_WEB = ROOT / "design" / "mocks" / "home-chat-web.html"
 
 
 def cabinet_html() -> str:
@@ -58,70 +85,150 @@ def cabinet_source() -> str:
     ])
 
 
-# --- FR-9: перенос мокапа дословно -------------------------------------------
+# --- FR-19.1: «Главная» = ИИ-чат по новым макетам (перевод гардов 19.3.4) ----
 
 
 def test_cab_page_exists_and_marker_texts():
-    """Готовность 2.1: файл существует; дословные тексты мокапа присутствуют
-    (бренд, крошка, приветствие-пример, чат-бар, плитки, футер)."""
+    """Готовность 19.3.4 (FR-19.1, TC-S19-WEB-001 статическая нога): файл
+    существует; дословные тексты/маркеры «Главной»-чата из утвержденных
+    макетов присутствуют (приветствие, подсказка, плейсхолдер, «Скоро»,
+    футер, бренд сайдбара); удаленные по решению Заказчика 2026-11-18
+    элементы (.greet/.assistant/.quick/.services-title/.tiles, тег
+    «В КАБИНЕТЕ») — носители absence (в разметке страницы их НЕТ)."""
     html = cabinet_source()
     for marker in (
-        "СберАвтошкола",
-        "<em>Сбер</em>Автошкола",
-        "ЛИЧНЫЙ КАБИНЕТ",
-        "Гига ГАИшник",
-        "Твой AI-помощник в обучении и на дороге",
-        "Спроси что угодно про обучение, экзамен или ПДД...",
-        "Когда экзамен?",
-        "Мой прогресс",
-        "Готов ли я<br>к экзамену?",
-        "СЕРВИСЫ",
-        "Обучение ПДД",
-        "Онлайн экзамен",
-        "Найти водителя",
-        "СКОРО",
-        "СберАвтошкола · кабинет ученика",
+        "<title>СберАвтошкола — Кабинет ученика (мокап)</title>",
+        "<em>Сбер</em>Автошкола",  # бренд — только в сайдбаре (BUG-059)
+        '<div class="ai-hello">Добрый день!</div>',
+        '<div class="ai-hello-sub">Спроси что угодно про обучение, экзамен или ПДД — помогу подготовиться</div>',
+        'placeholder="Спроси что угодно про обучение, экзамен или ПДД..."',
+        '<span class="ai-soon">Скоро</span>',  # FR-19.7
+        'aria-label="Вложения — скоро"',
+        'aria-label="Ассистент печатает"',  # NFR: ожидание не молча
+        '<footer><span>СберАвтошкола · кабинет ученика</span><span>Спринт 1 · визуал</span></footer>',
         "Выйти",
     ):
         assert marker in html, marker
-    # BUG-059/060 (решение Заказчика 2026-11-06): дубль логотипа в шапке
-    # контента убран (логотип — только в сайдбаре), крошки нет, тегов
-    # «В КАБИНЕТЕ» на плитках нет.
+    # удаленные элементы «Главной» (решение Заказчика 2026-11-18) — absence:
+    # фрагменты РАЗМЕТКИ не встречаются нигде в единице страницы
+    # (включая wiring-модули; комментарии без этих дословных фрагментов)
     for absent in (
+        '<div class="greet">ЛИЧНЫЙ КАБИНЕТ',
+        '<section class="assistant">',
+        '<div class="ai-head"><div class="avatar">',
+        '<div class="quick">',
+        '<div class="services-title">',
+        '<div class="tiles">',
+        'id="tile-instructor"',
+        'id="tile-requests"',
+        "В КАБИНЕТЕ",
+        "Когда экзамен?",
+        "Мой прогресс",
+        "Готов ли я",
+        "Гига ГАИшник",
+        "Твой AI-помощник в обучении и на дороге",
+        "Заглушка: сервис появится в следующем спринте",
+        # BUG-059/060 (решение Заказчика 2026-11-06): инвариант сохраняется —
+        # дубля логотипа в шапке контента нет, крошки нет
         '<div class="brand">',
         "Личный кабинет · Ученик",
-        "В КАБИНЕТЕ",
     ):
         assert absent not in html, absent
 
 
 def test_cab_page_structure_matches_mockup_verbatim():
-    """FR-9: структурные фрагменты мокапа перенесены дословно — заголовок,
-    разметка hero/frame, крошка, футер (посимвольно); все строки стилей
-    мокапа — дословно (носитель — styles.css страницы каркаса, прецедент
-    С14 §TC-FR19D-007); плитки — дословно (три <button class="tile">).
-    Замечание Заказчика 2026-11-16: фрагменты САЙДБАРА переехали в модуль
-    StudentSidebar.vue — сверяются с модулем (структура 1:1: статичное
-    «Иван Иванов» мокапа стало реактивным {{ uname }}, у кнопки —
-    type/@click wiring; прецедент «Границы правок тестов», перенос
-    носителя без ослабления — мокап-фрагмент остается сверенным)."""
+    """FR-19.1/FR-19.2 (TC-S19-WEB-001): фрагменты «Главной» перенесены
+    дословно из утвержденных макетов — разметка приветствия/композера
+    (тексты и SVG — посимвольно, ПАРАМИ «макет ↔ страница»: классы чата
+    ai-* против макетных hello/spark), CSS-значения — парами «фрагмент
+    макета ↔ фрагмент styles.css» (база = home-chat-web.html >760px,
+    переопределения ≤760px = mobile-home-chat.html; перенос адаптированный,
+    значения сверяются дословно — design.md «Решение 4»: «фрагменты
+    дословно»). Разделы ВНЕ «Главной» и оболочка страницы (hero/frame,
+    футер, сайдбар) остались на мокапе cabinet-student.html — их вербатим-
+    фрагменты и whole-line CSS-гард сохранены БЕЗ ослаблений; вербатим-
+    фрагмент плиток ЗАМЕНЕН носителем absence (решение Заказчика
+    2026-11-18, дословно: «Да, убираем все кнопки с этого экрана и оставь
+    только гигагаишника. Не только в могилке, но и на веб версии тоже»)."""
     html = cabinet_source()
     sidebar = SIDEBAR.read_text(encoding="utf-8")
     mockup = MOCKUP.read_text(encoding="utf-8")
+    mockup_mobile = MOCKUP_MOBILE.read_text(encoding="utf-8")
+    mockup_web = MOCKUP_WEB.read_text(encoding="utf-8")
+
+    # оболочка страницы и футер — как в мокапе кабинета (вне «Главной»)
     fragments = [
         "<!doctype html>",
         '<html lang="ru">',
         "<title>СберАвтошкола — Кабинет ученика (мокап)</title>",
         '<div class="hero"><div class="frame">',
-        '<div class="greet">ЛИЧНЫЙ КАБИНЕТ<b>Добро пожаловать, Иван!</b></div>',
-        '<section class="assistant">',
-        '<div class="ai-head"><div class="avatar"></div><div><b>Гига ГАИшник</b><span>Твой AI-помощник в обучении и на дороге</span></div></div>',
-        '<div class="prompt"><span>Спроси что угодно про обучение, экзамен или ПДД...</span><button class="send" title="Открыть чат с AI">↑</button></div>',
         '<footer><span>СберАвтошкола · кабинет ученика</span><span>Спринт 1 · визуал</span></footer>',
     ]
     for fragment in fragments:
         assert fragment in html, fragment
         assert fragment in mockup, f"фрагмент не из мокапа: {fragment}"
+
+    # --- «Главная»: разметка чата дословно из ОБОИХ новых макетов ----------
+    # общие фрагменты SVG (посимвольно в мобильном и веб-макетах и на
+    # странице — классы у контейнеров отличаются, содержимое дословно)
+    chat_common = [
+        'viewBox="0 0 24 24" fill="none" stroke="#3ddc84" stroke-width="1.6" stroke-linecap="round">',
+        '<path d="M12 2v6M12 16v6M2 12h6M16 12h6"/>',
+        '<path d="M4.9 4.9l4.2 4.2M14.9 14.9l4.2 4.2M19.1 4.9l-4.2 4.2M9.1 14.9l-4.2 4.2"/>',
+        '<path d="M12 5v14M5 12h14"/>',
+        'stroke="#9aa39d" stroke-width="2"',
+        '<path d="M12 19V5"/>',
+        '<path d="M5 12l7-7 7 7"/>',
+        'stroke="#0a130e" stroke-width="2.4"',
+    ]
+    for fragment in chat_common:
+        assert fragment in mockup_mobile, f"фрагмент не из мокапа (мобилка): {fragment}"
+        assert fragment in mockup_web, f"фрагмент не из мокапа (веб): {fragment}"
+        assert fragment in html, fragment
+
+    # тексты — дословно (пары: класс макета ↔ класс чата страницы)
+    chat_pairs = [
+        ('<div class="hello">Добрый день!</div>',
+         '<div class="ai-hello">Добрый день!</div>'),
+        ('<div class="hello-sub">Спроси что угодно про обучение, экзамен или ПДД — помогу подготовиться</div>',
+         '<div class="ai-hello-sub">Спроси что угодно про обучение, экзамен или ПДД — помогу подготовиться</div>'),
+        ('<div class="placeholder">Спроси что угодно про обучение, экзамен или ПДД...</div>',
+         'placeholder="Спроси что угодно про обучение, экзамен или ПДД..."'),
+    ]
+    for mock_frag, page_frag in chat_pairs:
+        for mockup_text in (mockup_mobile, mockup_web):
+            assert mock_frag in mockup_text, mock_frag
+        assert page_frag in html, page_frag
+
+    # --- «Главная»: CSS-значения дословно (пары «макет ↔ styles.css») ------
+    page_css = STYLES.read_text(encoding="utf-8")
+    css_pairs = [
+        # база (>760px) — home-chat-web.html ↔ корневые правила ai-*
+        ("width: 76px; height: 76px;", "width:76px;height:76px"),      # .spark
+        ("font-size: 44px;", "font-size:44px;"),                       # .hello
+        ("max-width: 480px;", "max-width:480px"),                      # .hello-sub
+        ("width: 760px;", "width:760px"),                              # .composer
+        ("max-width: calc(100% - 96px);", "max-width:calc(100% - 96px)"),
+        ("border-radius: 32px;", "border-radius:32px;"),               # .input-box
+        ("padding: 22px 14px 14px 26px;", "padding:22px 14px 14px 26px;"),
+        ("gap: 18px;", "gap:18px;"),
+        ("box-shadow: 0 24px 60px", "box-shadow:0 24px 60px"),
+        ("width: 48px; height: 48px;", "width:48px;height:48px"),      # .plus-btn
+        ("width: 54px; height: 54px;", "width:54px;height:54px"),      # .send
+        ("--green: #3ddc84;", "background:#3ddc84;"),
+        # мобилка (≤760px) — mobile-home-chat.html ↔ @media-переопределения
+        ("width: 64px; height: 64px;", "width:64px;height:64px"),      # .spark
+        ("font-size: 30px;", "font-size:30px;"),                       # .hello
+        ("max-width: 280px;", "max-width:280px"),                      # .hello-sub
+        ("border-radius: 28px;", "border-radius:28px;"),               # .input-box
+        ("padding: 18px 10px 12px 20px;", "padding:18px 10px 12px 20px;"),
+        ("width: 44px; height: 44px;", "width:44px;height:44px"),      # .plus-btn
+    ]
+    for mock_frag, css_frag in css_pairs:
+        source = mockup_mobile if mock_frag in mockup_mobile else mockup_web
+        assert mock_frag in source, f"CSS-фрагмент не из макета: {mock_frag}"
+        assert mock_frag in mockup_mobile or mock_frag in mockup_web, mock_frag
+        assert css_frag in page_css, f"CSS-значение макета изменено/удалено: {css_frag}"
 
     # сайдбар: мокап-фрагменты — в мокапе, компонентные — в модуле 1:1
     side_fragments = [
@@ -135,12 +242,11 @@ def test_cab_page_structure_matches_mockup_verbatim():
         assert mock_frag in mockup, mock_frag
         assert comp_frag in sidebar, comp_frag
 
-    # все CSS-правила мокапа — дословно (блочные строки <style>;
+    # все CSS-правила мокапа кабинета — дословно (разделы ВНЕ «Главной»;
     # носитель — styles.css страницы каркаса, перенос 1:1 из легаси).
     # Замечание Заказчика 2026-11-16: CSS-строки САЙДБАРА (.side*/.snav*)
     # переехали в модуль StudentSidebar.vue (scoped, 1:1) — сверяются с ним.
     mockup_css = mockup.split("<style>", 1)[1].split("</style>", 1)[0]
-    page_css = STYLES.read_text(encoding="utf-8")
     for line in mockup_css.splitlines():
         if not line.strip():
             continue
@@ -149,18 +255,22 @@ def test_cab_page_structure_matches_mockup_verbatim():
         else:
             assert line in page_css, f"CSS-строка мокапа изменена/удалена: {line[:60]}"
 
-    # плитки — дословно (три <button class="tile"> из мокапа)
-    mockup_tiles = mockup.split('<div class="tiles">', 1)[1].split("</div>", 1)[0]
-    assert mockup_tiles in html, "разметка плиток отличается от мокапа"
 
-
-def test_cab_page_keeps_mockup_stub_alert():
-    """FR-6: плитки/чат — заглушки без сервисных действий; alert из мокапа
-    сохранен (поведение клика — как в мокапе, design.md поток 2).
-    Спринт 15: JS — плоский wiring в App.vue (см. cabinet_source)."""
+def test_cab_page_removes_stub_tiles_and_dead_wiring():
+    """FR-19.1 (негатив, CHK-3; решение Заказчика 2026-11-18 — замена
+    носителя test_cab_page_keeps_mockup_stub_alert): быстрые кнопки и блок
+    «СЕРВИСЫ» удалены ВМЕСТЕ со ставшим мертвым wiring заглушек
+    (arch-review 002 MIN-3 — alert-обработчики .tile/.quick button/.send
+    удалены, чтобы вербатим-гарды не считали его живым). Живой wiring
+    «Главной» — только чат: #ai-input/#ai-send/#ai-plus."""
     html = cabinet_source()
-    assert ".tile" in html and ".quick button" in html and ".send" in html
-    assert "Заглушка: сервис появится в следующем спринте" in cabinet_source()
+    assert "Заглушка: сервис появится в следующем спринте" not in html
+    assert "alert(" not in html  # заглушечного JS больше нет
+    for dead in ('<div class="tiles">', '<div class="quick">', '<section class="assistant">'):
+        assert dead not in html, dead
+    # живые якоря композера на месте (wiring отправки — e2e TC-S19-WEB-002)
+    for anchor in ('id="ai-input"', 'id="ai-send"', 'id="ai-plus"'):
+        assert anchor in html, anchor
 
 
 # --- Wiring (единственные отличия от мокапа) ---------------------------------
