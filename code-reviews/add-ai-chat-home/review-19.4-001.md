@@ -1,4 +1,4 @@
-<!-- Reviewer-Delegation: deleg-s19-accept — приемка ПМ (верификация каждой волны детерминированными прогонами; ревью-верdictы волн: CR-19.2 approve (001→005), CR-19.3 approve (001→002), arch approve (001 return→002, 003-карта), cases approve (001 return→002), design approve (001) | дата: 2026-11-19 -->
+<!-- Reviewer-Delegation: hermes:20261119_170213_c31bed — spawned hermes chat session (role=qa_automation); источник проверяемого состояния волны | приемка ПМ (sidecar-провениенс) | дата: 2026-11-19 -->
 
 # Review-19.4-001 — приемка Спринта 19 (add-ai-chat-home)
 

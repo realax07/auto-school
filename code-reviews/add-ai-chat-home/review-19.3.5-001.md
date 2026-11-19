@@ -1,4 +1,4 @@
-<!-- Reviewer-Delegation: deleg-s19-map19 — spawned hermes chat session 20261119_163205_a50f94 (role=architect); сборочная задача [P][docs]: карта обновлена исполнителем зоны architecture/** | ПМ-указатель: факт-прогонова нет (docs-задача), вердикт по факту коммита | дата: 2026-11-19 -->
+<!-- Reviewer-Delegation: hermes:20261119_163205_a50f94 — spawned hermes chat session (role=architect); сборочная задача [P][docs]: карта обновлена исполнителем зоны architecture/**; sidecar-провениенс от ПМ | дата: 2026-11-19 -->
 
 # Review-19.3.5-001 — задача 19.3.5 (карта architecture/map.md, [P][docs])
 
