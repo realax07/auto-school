@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>СберАвтошкола — Выбор типа регистрации — мокап, утвержден Заказчиком 2026-11-19</title>
+<style>
+  :root {
+    --bg: #070c09;
+    --green: #3ddc84;
+    --green-dim: rgba(61, 220, 132, 0.14);
+    --ink: #f2f5f3;
+    --ink-muted: #9aa39d;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "SF Pro Display", -apple-system, "Segoe UI", Roboto, "DejaVu Sans", sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .phone {
+    width: 390px;
+    height: 844px;
+    background:
+      radial-gradient(ellipse 480px 340px at 50% 38%, rgba(61,220,132,0.07) 0%, transparent 65%),
+      var(--bg);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .logo {
+    font-size: 22px; font-weight: 800; letter-spacing: -0.3px;
+    text-align: center;
+    padding: 34px 0 8px;
+  }
+  .logo .accent { color: var(--green); }
+  .screen-title {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 26px; font-weight: 600; letter-spacing: -0.3px;
+    text-align: center;
+    padding: 6px 0 4px;
+  }
+  .screen-sub {
+    font-size: 14px; color: var(--ink-muted);
+    text-align: center;
+    padding-bottom: 24px;
+  }
+  .cards { padding: 0 20px; display: flex; flex-direction: column; gap: 14px; }
+  .card {
+    border-radius: 20px;
+    background: linear-gradient(165deg, #10231a 0%, #0b1712 100%);
+    border: 1px solid rgba(61,220,132,0.16);
+    padding: 20px;
+    display: flex; gap: 16px; align-items: flex-start;
+  }
+  .card .ic {
+    width: 52px; height: 52px;
+    border-radius: 16px;
+    background: var(--green-dim);
+    border: 1px solid rgba(61,220,132,0.35);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .card b { font-size: 17px; font-weight: 800; display: block; margin-bottom: 6px; }
+  .card p { font-size: 13.5px; color: var(--ink-muted); line-height: 1.5; }
+  .card .go { margin-left: auto; color: var(--green); font-size: 18px; align-self: center; }
+  .badge {
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
+    color: var(--green);
+    background: var(--green-dim);
+    border: 1px solid rgba(61,220,132,0.3);
+    border-radius: 999px;
+    padding: 4px 10px;
+  }
+  .spacer { flex: 1; }
+  .foot-note {
+    font-size: 12px; color: #6f7a74;
+    text-align: center;
+    padding: 0 32px 30px;
+    line-height: 1.5;
+  }
+  .foot-note b { color: var(--green); }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="logo"><span class="accent">Сбер</span>Автошкола</div>
+  <div class="screen-title">Регистрация</div>
+  <div class="screen-sub">Кем вы хотите зарегистрироваться?</div>
+
+  <div class="cards">
+    <div class="card">
+      <div class="ic">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#3ddc84" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 4L2 9l10 5 10-5-10-5z"/>
+          <path d="M6 11.5V16c0 1.5 2.7 3 6 3s6-1.5 6-3v-4.5"/>
+        </svg>
+      </div>
+      <div>
+        <b>Ученик</b>
+        <p>Создайте аккаунт, чтобы начать обучение: занятия, расписание, прогресс и платежи.</p>
+        <span class="badge">Доступ сразу</span>
+      </div>
+      <div class="go">→</div>
+    </div>
+
+    <div class="card">
+      <div class="ic">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#3ddc84" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="8"/>
+          <path d="M12 12L15.5 8.5"/>
+          <path d="M4 12h3M17 12h3"/>
+        </svg>
+      </div>
+      <div>
+        <b>Инструктор</b>
+        <p>Анкета с профессиональными данными и документами. После проверки — ваш профиль и расписание.</p>
+        <span class="badge">Проверка анкеты</span>
+      </div>
+      <div class="go">→</div>
+    </div>
+  </div>
+
+  <div class="spacer"></div>
+  <div class="foot-note">Уже есть аккаунт? <b>Войти</b> — и вы попадете в свой кабинет.</div>
+</div>
+</body>
+</html>
