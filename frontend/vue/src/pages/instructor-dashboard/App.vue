@@ -473,6 +473,7 @@
 
   <footer><span>СберАвтошкола · Кабинет инструктора</span><span>Демонстрационный интерфейс · Все данные вымышлены</span></footer>
 </main>
+<instructor-tab-bar :active-tab="itab" @tab="navTo"></instructor-tab-bar>
 </div>
 <div class="toast" id="toast"></div>
 </template>
@@ -487,17 +488,21 @@
 // MIN-2 С11). Единственные правки: (а) window.*-блок → бридж setup-скоупа
 // (onclick → @click); (б) модульный top-level → onMounted (DOM существует
 // после монтирования шаблона). Контракты /api/* — без изменений (NFR-27).
-import { onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
 import { toast as baseToast, nowMoscow } from '../../shared/utils.js';
 import { apiGet, apiSend, clearSession } from '../../shared/api.js';
+// Спринт 20 (add-instructor-mobile, 20.0.1): мобильный таб-бар инструктора
+import InstructorTabBar from '../../components/InstructorTabBar.vue';
 
 export default {
   name: 'InstructorDashboardApp',
+  components: { 'instructor-tab-bar': InstructorTabBar },
   setup: function () {
     // бридж для @click-обработчиков шаблона (см. конец onMounted):
     var bridge = {};
     function toast(msg){return bridge.toast(msg)}
-    function navTo(name){return bridge.navTo(name)}
+    var itab = ref('День'); // активная позиция таб-бара (add-instructor-mobile)
+    function navTo(name){ itab.value = name === 'Расписание' ? 'Неделя' : name === 'Доходы и выплаты' ? 'Кошелёк' : name === 'Профиль и документы' ? 'Профиль' : (name === 'Мой день') ? 'День' : 'Ещё'; return bridge.navTo(name) }
     function changeWeek(dir){return bridge.changeWeek(dir)}
     function logout(){return bridge.logout()}
 
@@ -2349,7 +2354,7 @@ bridge.logout = logout;
 
     return {
       toast: toast,
-      navTo: navTo,
+      itab: itab, navTo: navTo,
       changeWeek: changeWeek,
       logout: logout,
     };
