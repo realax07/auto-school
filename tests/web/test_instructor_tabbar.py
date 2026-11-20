@@ -15,7 +15,7 @@ import pytest
 pytest.importorskip("playwright", reason="e2e: playwright+chromium (вне docker)")
 from test_ui_playwright import browser, page, server  # noqa: F401,E402
 
-INSTRUCTOR_TABS = ["День", "Неделя", "Кошелёк", "Профиль", "Ещё"]
+INSTRUCTOR_TABS = ["День", "Календарь", "Кошелёк", "Профиль", "Ещё"]
 
 
 def _login(page, server):
@@ -60,7 +60,7 @@ def _login(page, server):
 
 def test_s20_instructor_tabbar_and_more_sheet(page, server):
     """TC-S20-001/TC-S20-002: на 390×844 таб-бар с 5 позициями; «Ещё»
-    открывает bottom-sheet (Календарь/Ученики/Автомобили/Материалы/Выход);
+    открывает bottom-sheet (Календарь/Ученики/Автомобили/Выход);
     топ-бар показывает инициалы инструктора; десктопный сайдбар скрыт."""
     from playwright.sync_api import expect
 
@@ -111,14 +111,15 @@ def test_s20_instructor_tabbar_and_more_sheet(page, server):
 
     page.locator(".itabs .itab").nth(4).click()
     expect(page.locator(".isheet")).to_be_visible()
-    expect(page.locator(".isheet .irow")).to_have_count(5)
+    expect(page.locator(".isheet .irow")).to_have_count(4)
     page.locator(".isheet .irow").first.click()  # Календарь
     expect(page.locator(".isheet")).to_have_count(0)
 
 
 def test_s20_instructor_navigation_week(page, server):
-    """TC-S20-003: таб «Неделя» открывает «Расписание» (crumb), контент
-    без горизонтального переполнения (scrollWidth ≤390)."""
+    """TC-S20-003: таб «Календарь» открывает раздел «Календарь» (crumb), контент
+    без горизонтального переполнения (scrollWidth ≤390). Решение Заказчика
+    2026-11-20: демо-раздел «Расписание» удалён."""
     from playwright.sync_api import expect
 
     import json as _json
@@ -161,7 +162,7 @@ def test_s20_instructor_navigation_week(page, server):
     page.locator(".itabs .itab").nth(1).click()
     page.wait_for_timeout(700)
     crumb = page.evaluate("document.getElementById('crumb') ? document.getElementById('crumb').textContent : ''")
-    assert crumb == "Расписание", crumb
+    assert crumb == "Календарь", crumb
     sw = page.evaluate("document.documentElement.scrollWidth")
     assert sw <= 390, f"scrollWidth={sw}"
 
@@ -211,7 +212,10 @@ def test_s20_instructor_geometry(page, server):
     sw = page.evaluate("document.documentElement.scrollWidth")
     assert sw <= 390, f"scrollWidth={sw} — горизонтальное переполнение"
     pad = page.evaluate("Math.round(parseFloat(getComputedStyle(document.querySelector('main')).paddingTop))")
-    assert 20 <= pad <= 30, f"content top pad={pad} (спека: ~26px отступ логотипа)"
+    # Инструкторский top-bar fixed ~57px → контент начинается ниже бара
+    # (57+13=70px); выше 57px контент физически перекрыт полупрозрачным баром.
+    # Учебный паттерн «26px без бара» здесь неприменим (20.1, скрин-проба).
+    assert 60 <= pad <= 80, f"content top pad={pad} (top-bar 57px + воздух)"
     hit = page.evaluate("""(() => {
       const bad = [];
       document.querySelectorAll('.itabs .itab').forEach(el => {

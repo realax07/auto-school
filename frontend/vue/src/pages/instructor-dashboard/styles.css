@@ -460,9 +460,15 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
    (54px + 12px). Таб-бар/top-bar — InstructorTabBar.vue (fixed). */
 @media(max-width:760px){
   .sidebar{display:none}
-  main{padding:26px 16px 78px}
+  /* top-bar fixed ~57px: контент начинается НИЖЕ бара (57+13=70px),
+     иначе первый заголовок уезжает под полупрозрачный top-bar */
+  main{padding:70px 16px 78px}
   .topbar{display:none}
-  .hello{margin-top:4px}
+  .hello{margin-top:0}
+  .hello h2{font-size:24px}
+  /* перенасыщенные блоки — воздух: KPI/виджеты уже колонкой (20.1) */
+  .panel{padding:16px;margin-bottom:12px}
+  .quick-actions{grid-template-columns:1fr}
 }
 
 /* 20.1: виджеты «Мой день» в колонку; hit-targets ≥44 для текстовых
