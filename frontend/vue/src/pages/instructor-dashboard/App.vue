@@ -33,7 +33,6 @@
   <div class="nav-label">Рабочее пространство</div>
   <nav class="nav">
     <button class="active" data-tab="Мой день"><span class="ico">⌂</span>Мой день</button>
-    <button data-tab="Расписание"><span class="ico">▦</span>Расписание<small class="demo-tag">демо</small></button>
     <button data-tab="Календарь"><span class="ico">▦</span>Календарь</button>
     <button data-tab="Мои ученики"><span class="ico">♧</span>Мои ученики</button>
     <button data-tab="Мои автомобили"><span class="ico">▰</span>Мои автомобили</button>
@@ -41,7 +40,6 @@
          раздел (#sec-earnings, мокап instructor-earnings.html); пометка
          «демо» снята, data-tab НЕ переименован (якорь e2e TC-UI-005) -->
     <button data-tab="Доходы и выплаты"><span class="ico">₽</span>Доходы и выплаты</button>
-    <button data-tab="Материалы и обучение"><span class="ico">◈</span>Материалы и обучение<small class="demo-tag">демо</small></button>
     <button data-tab="Профиль и документы"><span class="ico">▤</span>Профиль и документы</button>
     <button data-tab="__logout__"><span class="ico">⎋</span>Выход</button>
   </nav>
@@ -50,7 +48,7 @@
 
 <main>
   <div class="topbar"><div><div class="crumb">Рабочее пространство / <span id="crumb">Мой день</span></div><h1 id="page-title">Мой день</h1></div><div class="top-actions"><div class="date-chip">◷ &nbsp; Пн, 12 октября 2026</div><button class="icon-btn" @click="toast('Новых уведомлений нет')">♧</button><div class="user"><div class="avatar" id="avatar">—</div><div><b id="user-fio">…</b><small>Инструктор</small></div></div><button class="icon-btn" @click="logout()" title="Выйти">⎋</button></div></div>
-  <div class="hello"><div><div class="kicker">Понедельник · 12 октября</div><h2 id="hello-name">Добрый день, Михаил</h2><p>Вот что у тебя сегодня. Всё под контролем.</p></div><div class="online"><i></i> Профиль активен</div></div>
+  <div class="hello day-content"><div><div class="kicker">Понедельник · 12 октября</div><h2 id="hello-name">Добрый день, Михаил</h2><p>Вот что у тебя сегодня. Всё под контролем.</p></div><div class="online"><i></i> Профиль активен</div></div>
   <!-- Виджеты главной (мокап calendar-availability-a, change add-instructor-student-loop):
        данные GET /api/instructor/summary + GET /api/instructor/requests; до ответа —
        честные пустые состояния (демо-данных виджеты больше не показывают).
@@ -69,7 +67,7 @@
     </div>
     <div class="w" id="w-today">
       <div class="w-head"><b>Занятия на сегодня</b></div>
-      <div class="w-empty" id="w-today-empty"><b>Сегодня занятий нет</b>Расписание занятий появится в следующих версиях школы.</div>
+      <div class="w-empty" id="w-today-empty"><b>Сегодня занятий нет</b>Откройте слоты в Календаре — ученики смогут записаться.</div>
       <div id="w-today-list" style="display:none"></div>
     </div>
   </section>
@@ -92,7 +90,7 @@
         <div class="day"><div class="dname">ВС</div><div class="dnum">18</div><div class="dots"></div></div>
       </div>
       <div class="legend"><span><i class="green"></i>Занятие подтверждено</span><span><i class="blue"></i>Ожидает подтверждения</span><span><i class="orange"></i>Свободное окно</span></div>
-      <div class="panel-head"><div class="panel-title" id="today-count">Сегодня · 4 занятия</div><button class="text-btn" @click="navTo('Расписание')">Весь календарь ↗</button></div>
+      <div class="panel-head"><div class="panel-title" id="today-count">Сегодня · 4 занятия</div><button class="text-btn" @click="navTo('Календарь')">Весь календарь ↗</button></div>
       <div class="appointments">
         <div class="appointment"><div><div class="time">10:00</div><div class="duration">60 минут</div></div><div class="bar"></div><div><div class="appt-name">Александр Иванов</div><div class="appt-meta">Практика · Городской маршрут</div></div><span class="status">Подтверждено</span></div>
         <div class="appointment"><div><div class="time">12:00</div><div class="duration">90 минут</div></div><div class="bar bluebar"></div><div><div class="appt-name">Екатерина Смирнова</div><div class="appt-meta">Практика · Манёвры и парковка</div></div><span class="status blue-status">Ожидает</span></div>
@@ -123,7 +121,7 @@
       </div>
     </section>
     <section class="card panel"><div class="panel-head"><div><div class="panel-title">Быстрые действия</div><div class="panel-sub">Самое нужное — в один клик</div></div></div>
-      <div class="quick-actions"><button class="quick" @click="navTo('Расписание')"><span>＋</span>Открыть время<br>для записи</button><button class="quick" @click="navTo('Ученики')"><span>♧</span>Посмотреть<br>учеников</button><button class="quick" @click="navTo('Доходы и выплаты')"><span>₽</span>Мои доходы<br>и выплаты</button></div>
+      <div class="quick-actions"><button class="quick" @click="navTo('Календарь')"><span>＋</span>Открыть время<br>для записи</button><button class="quick" @click="navTo('Ученики')"><span>♧</span>Посмотреть<br>учеников</button><button class="quick" @click="navTo('Доходы и выплаты')"><span>₽</span>Мои доходы<br>и выплаты</button></div>
     </section>
   </div>
 
@@ -502,7 +500,7 @@ export default {
     var bridge = {};
     function toast(msg){return bridge.toast(msg)}
     var itab = ref('День'); // активная позиция таб-бара (add-instructor-mobile)
-    function navTo(name){ itab.value = name === 'Расписание' ? 'Неделя' : name === 'Доходы и выплаты' ? 'Кошелёк' : name === 'Профиль и документы' ? 'Профиль' : (name === 'Мой день') ? 'День' : 'Ещё'; return bridge.navTo(name) }
+    function navTo(name){ itab.value = name === 'Календарь' ? 'Календарь' : name === 'Доходы и выплаты' ? 'Кошелёк' : name === 'Профиль и документы' ? 'Профиль' : (name === 'Мой день') ? 'День' : 'Ещё'; return bridge.navTo(name) }
     function changeWeek(dir){return bridge.changeWeek(dir)}
     function logout(){return bridge.logout()}
 

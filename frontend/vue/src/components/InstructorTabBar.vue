@@ -19,9 +19,9 @@
     <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h5v-6h4v6h5V9.5"/></svg>
     <span>День</span>
   </button>
-  <button type="button" class="itab" :class="{ on: active === 'Неделя' }" @click="go('Расписание')">
+  <button type="button" class="itab" :class="{ on: active === 'Календарь' }" @click="go('Календарь')">
     <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
-    <span>Неделя</span>
+    <span>Календарь</span>
   </button>
   <button type="button" class="itab" :class="{ on: active === 'Кошелёк' }" @click="go('Доходы и выплаты')">
     <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M16 11h5v3h-5a1.5 1.5 0 0 1 0-3z"/></svg>
@@ -43,7 +43,6 @@
     <button type="button" class="irow" @click="go('Календарь')">▦ Календарь</button>
     <button type="button" class="irow" @click="go('Мои ученики')">♧ Мои ученики</button>
     <button type="button" class="irow" @click="go('Мои автомобили')">▰ Мои автомобили</button>
-    <button type="button" class="irow" @click="go('Материалы и обучение')">◈ Материалы и обучение</button>
     <button type="button" class="irow out" @click="logout">⎋ Выйти</button>
   </div>
 </div>
@@ -102,7 +101,7 @@ export default {
     function openMore() { sheet.value = true; }
     function go(name) {
       closeSheet();
-      active.value = name === 'Расписание' ? 'Неделя'
+      active.value = name === 'Календарь' ? 'Календарь'
         : name === 'Доходы и выплаты' ? 'Кошелёк'
         : name === 'Профиль и документы' ? 'Профиль'
         : (name === 'Мой день') ? 'День' : 'Ещё';
