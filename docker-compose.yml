@@ -52,9 +52,15 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    extra_hosts:
+      # Reality-VPN (3x-ui, network=host) доступен nginx-stream-апстриму
+      # по host-gateway (route через SNI www.microsoft.com, nginx-main.conf)
+      - "host.docker.internal:host-gateway"
     volumes:
       # Конфиг и TLS — монтирования, НЕ в образе (INC-006, NFR-14).
       # TLS_DIR задается в .env (каталог на хосте, по умолчанию ./deploy/tls)
+      # Спринт 20 follow-up: полный main-конфиг со stream-мультиплексом 443
+      - ./deploy/container/nginx-main.conf:/etc/nginx/nginx.conf:ro
       - ./deploy/container/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ${TLS_DIR:-./deploy/tls}:/etc/nginx/tls:ro
     depends_on:
