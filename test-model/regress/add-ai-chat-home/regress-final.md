@@ -2,7 +2,7 @@
 
 - change: add-ai-chat-home
 - date: 2026-11-21T15:40:15+00:00
-- commit: 158654abc24e07fffc72ced73973e2ef2ec94f08
+- commit: 52e0bf53cb319dace8487b70a1ab9f6f2b2312a5
 - worktree: /home/hermes-bot/.hermes/cache/scratch/wt-s19-ai-chat
 - verdict: PASS
 - tier: domain (эшелон 1: доменный regress)
