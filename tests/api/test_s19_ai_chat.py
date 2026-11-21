@@ -50,6 +50,7 @@ qa-pipeline) — старые записи создаются прямым INSER
 created_at = datetime('now', '-N days').
 """
 
+import importlib
 import sqlite3
 
 import pytest
@@ -352,3 +353,61 @@ def test_tc_s19_008_provider_error_503_human_text(client):
     for fragment in ("ProviderError", "Traceback", "hermes", "subprocess", "503"):
         assert fragment not in error
     assert ai_rows() == []
+
+
+# --- Волна 19.6: HTTPBridgeProvider (env AI_PROVIDER_URL) ---
+
+def test_tc_s19_009_http_bridge_provider_generate(tmp_path, monkeypatch):
+    """TC-S19-009: HTTPBridgeProvider ходит POST'ом на мост и возвращает
+    reply; ответ моста без reply / не-JSON / сеть → ProviderError
+    (NFR-3: без деталей). Трассировка: impact add-ai-chat-home §ADDED
+    ai-chat (провайдер-адаптер, волна 19.6)."""
+    import json as _json
+    import threading
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    seen: dict = {}
+
+    class Fake(BaseHTTPRequestHandler):
+        def do_POST(self):  # noqa: N802
+            length = int(self.headers.get("Content-Length", "0"))
+            seen["body"] = _json.loads(
+                self.rfile.read(length).decode("utf-8"))
+            code = 200
+            body = seen.get("stub_reply", {"reply": "Знак 3.20"})
+            data = _json.dumps(body).encode("utf-8")
+            self.send_response(code)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        def log_message(self, *args):  # NFR-3
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Fake)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        provider = ai_provider.HTTPBridgeProvider(
+            f"http://127.0.0.1:{server.server_port}/chat")
+        reply = provider.generate([{"role": "user", "text": "Привет"}])
+        assert reply == "Знак 3.20"
+        assert "query" in seen["body"] and "Привет" in seen["body"]["query"]
+
+        seen["stub_reply"] = {"reply": ""}
+        with pytest.raises(ai_provider.ProviderError):
+            provider.generate([{"role": "user", "text": "Привет"}])
+    finally:
+        server.shutdown()
+
+
+def test_tc_s19_010_bridge_provider_env_activation(monkeypatch):
+    """TC-S19-010: env AI_PROVIDER_URL активирует HTTPBridgeProvider
+    при импорте модуля; отсутствие переменной — провайдер v1
+    (hermes-session). Шов — данные модуля, не роутер."""
+    monkeypatch.setenv("AI_PROVIDER_URL", "http://127.0.0.1:1/chat")
+    reloaded = importlib.reload(ai_provider)
+    assert reloaded.active_provider().name == "http-bridge"
+    monkeypatch.delenv("AI_PROVIDER_URL", raising=False)
+    reloaded = importlib.reload(ai_provider)
+    assert reloaded.active_provider().name == "hermes-session"

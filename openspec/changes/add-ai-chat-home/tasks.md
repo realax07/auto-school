@@ -47,3 +47,8 @@
    чата 390×844 и 1440×900, ~5–7 мин, стенд: playwright-браузеры.
 4. regress-full (19.4): полный сьют api+web+smoke, 6–7 мин — фон+notify
    (T-3: таймаут терминала), стенд: полный (БД+playwright).
+
+## 19.6 Волна: HTTP-мост провайдера (бой: контейнер без hermes CLI)
+- [x] 19.6.1 [code] backend/ai/provider.py: HTTPBridgeProvider (POST {query}→{reply}, таймаут ≤30s, ошибки → ProviderError без деталей); активация env AI_PROVIDER_URL (без переменной — провайдер v1 hermes-session); импорт/роутер не тронуты
+- [x] 19.6.2 [code] scripts/ai_bridge.py — хост-мост (stdlib): POST /chat {query}→{reply}, bind docker-bridge IP (снаружи недоступен), subprocess hermes chat (stdin, MIN-2), OSError/Timeout → пустой reply; user-systemd юнит ai-bridge.service (PATH + .local/bin), enable --now, ПДД-проверка 23.5s
+- [x] 19.6.3 [tests] TC-S19-009 (мост: generate/ошибки через локальный HTTP-фейк), TC-S19-010 (env-активация провайдера)
