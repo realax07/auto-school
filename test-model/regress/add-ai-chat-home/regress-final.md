@@ -1,16 +1,16 @@
 # Regress add-ai-chat-home — regress-final.md
 
 - change: add-ai-chat-home
-- date: 2026-11-19T20:26:04+00:00
-- commit: 15bac52b94b443185444cc99cc20d3183ca1a70f
+- date: 2026-11-21T15:40:15+00:00
+- commit: 158654abc24e07fffc72ced73973e2ef2ec94f08
 - worktree: /home/hermes-bot/.hermes/cache/scratch/wt-s19-ai-chat
 - verdict: PASS
 - tier: domain (эшелон 1: доменный regress)
-- duration: 806.9s
+- duration: 908.6s
 - diff source: git diff main...HEAD
 - domain map: project map test-model/regress-domains.json задана, правил нет — применен дефолт
-- changed files: 77
-- changed files: 77
+- changed files: 79
+- changed files: 79
   - BACKLOG.md
   - PLAN-add-ai-chat-home.md
   - PLAN.md
@@ -47,6 +47,8 @@
   - code-reviews/add-ai-chat-home/review-19.4-002.md
   - code-reviews/add-ai-chat-home/review-19.4.1-001.md
   - code-reviews/add-ai-chat-home/review-19.4.3-001.md
+  - code-reviews/add-ai-chat-home/review-19.4.5-001.md
+  - code-reviews/add-ai-chat-home/review-19.5-001.md
   - design/mocks/home-chat-web.html
   - design/mocks/mobile/mobile-home-chat.html
   - frontend/vue/cabinet.html
@@ -59,9 +61,7 @@
   - openspec/changes/add-ai-chat-home/research.md
   - openspec/changes/add-ai-chat-home/specs/ai-chat/spec.md
   - openspec/changes/add-ai-chat-home/specs/cabinet/spec.md
-  - openspec/changes/add-ai-chat-home/tasks.md
-  - sdd.md
-  - … и еще 27
+  - … и еще 29
 - suites: tests
 - pytest exit code: 0
 
@@ -77,5 +77,11 @@
 ........................................................................ [ 82%]
 ........................................................................ [ 93%]
 ......................................                                   [100%]
-614 passed in 805.09s (0:13:25)
+=============================== warnings summary ===============================
+tests/api/test_s9_backend.py::test_tc_s9be_007_parallel_exchanges_exactly_one_200
+  /home/hermes-bot/.hermes/installs/bc3c7f3f7c048e26/environments/4b83f5f31e1241558bbf5d735879fde0/venv/lib/python3.14/site-packages/pydantic/_internal/_generate_schema.py:2274: UnsupportedFieldAttributeWarning: The 'alias' attribute with value 'filename' was provided to the `Field()` function, which has no effect in the context it was used. 'alias' is field-specific metadata, and can only be attached to a model field using `Annotated` metadata or by assignment. This may have happened because an `Annotated` type alias using the `type` statement was used, or if the `Field()` function was attached to a single member of a union type.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+614 passed, 1 warning in 905.99s (0:15:05)
 ```
