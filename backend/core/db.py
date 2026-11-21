@@ -293,6 +293,23 @@ CREATE TABLE IF NOT EXISTS booking_disputes (
 -- uq_student_requests_active/uq_payouts_one_pending).
 CREATE UNIQUE INDEX IF NOT EXISTS uq_disputes_open
   ON booking_disputes(booking_id) WHERE resolution IS NULL;
+
+-- Спринт 19 (add-ai-chat-home, задача 19.2.2): журнал ИИ-чата «Главной»
+-- кабинета (ГигаЧат). role — говорящий: 'user' (ученик) | 'assistant'
+-- (ГигаЧат); isolation — выборки/вставки строго по user_id сессии
+-- (design.md «Решение 2»); retention 14 дней — серверная механика
+-- (DELETE старше 14 дней при чтении истории, backend/ai/routes.py),
+-- клиентской глубине не доверять (NFR). Прецедент С16: CREATE TABLE
+-- IF NOT EXISTS в _SCHEMA, только параметризованные ?-запросы (NFR-2).
+CREATE TABLE IF NOT EXISTS ai_messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('user','assistant')),
+  text TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_ai_messages_user
+  ON ai_messages(user_id, created_at);
 """
 
 # Спринт 0–1: users.role (add-instructor-flow, задача 1.2, sdd.md §16).

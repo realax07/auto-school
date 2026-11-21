@@ -1,0 +1,16 @@
+{
+  "author_delegation": "deleg-bc04a66d11bd4e98",
+  "change": "add-ai-chat-home",
+  "diff_base": null,
+  "diff_digest": "819a2b2bd3023e8901d02e95669f80870ee5e074004f714966bad112dd9a8a20",
+  "project": "auto-school",
+  "review_path": "/home/hermes-bot/.hermes/cache/scratch/wt-s19-ai-chat/code-reviews/add-ai-chat-home/review-19.3-001.md",
+  "reviewed_commit_sha": "177ae2f3af9eea30b7b05d23ffa2d5ba356eb751",
+  "reviewer_delegation": "deleg-s19-cr193",
+  "schema_version": "review-provenance/1",
+  "task_ids": [
+    "19.3"
+  ],
+  "timestamp": "2026-11-19T16:30:59+00:00",
+  "verdict": "approve"
+}

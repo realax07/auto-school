@@ -12,6 +12,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 
 import backend.core.db as db
+from backend.ai.routes import router as ai_router
 from backend.auth.admin import router as admin_router
 from backend.auth.application_status import router as application_status_router
 from backend.auth.auth import router as auth_router
@@ -160,6 +161,10 @@ def create_app() -> FastAPI:
     # PersonalData — GET /api/policy публичный, БЕЗ префикса роли
     # (политика читается гостями до любой регистрации, механика /api/health)
     app.include_router(policy_router)
+    # Спринт 19 (add-ai-chat-home, задача 19.2.3): ИИ-чат «Главной»
+    # кабинета ученика (/api/ai/* — контур ученика, правило префиксов;
+    # генерация — только через адаптер backend/ai/provider.py)
+    app.include_router(ai_router)
 
     @app.get("/api/health")
     def health():

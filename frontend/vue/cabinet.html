@@ -1,10 +1,16 @@
 <!doctype html>
-<!-- Мокап: Личный кабинет ученика (Спринт 1). Стиль референса, чат-бар как на лендинге.
-     Плитки-сервисы — заглушки (визуал). Кнопка выхода -> admin/учетка сессии.
+<!-- Мокап: Личный кабинет ученика (Спринт 1). Стиль референса. Кнопка выхода ->
+     admin/учетка сессии. Спринт 19 (add-ai-chat-home, 19.3.1): «Главная» —
+     ИИ-чат по утвержденным макетам (design/mocks/mobile/mobile-home-chat.html
+     ≤760px, design/mocks/home-chat-web.html >760px): .greet/.assistant/.quick/
+     .services-title/.tiles удалены по решению Заказчика 2026-11-18 («Да,
+     убираем все кнопки с этого экрана и оставь только гигагаишника. Не
+     только в могилке, но и на веб версии тоже»); разметка — pre-boot-зеркало
+     #sec-home из App.vue («правило двух копий», синхронно до гидрации).
      Wiring (единственные отличия от мокапа): GET /api/auth/me с X-Session-Token
      из sessionStorage (401 -> редирект на главную, к модалке входа), 200 ->
      подстановка ФИО; «Выйти» -> POST /api/auth/logout -> очистка sessionStorage ->
-     редирект на главную. Плитки/чат-бар/quick — заглушки (alert из мокапа).
+     редирект на главную.
      BUG-047 (решение Заказчика 2026-10-17): кабинет ученика — ЕДИНЫЙ лейаут
      (сайдбар слева, контент справа, шапка сверху). Раздел «Мои заявки»
      перенесен из frontend/my-requests.html внутрь кабинета как таб (бейджи
@@ -45,43 +51,41 @@
 <aside class="side" aria-hidden="true"></aside>
 <div class="hero"><div class="frame">
 
-<!-- раздел «Главная» (единственный контент кабинета до BUG-047) -->
-<div id="sec-home">
-<div class="greet">ЛИЧНЫЙ КАБИНЕТ<b>Добро пожаловать, Иван!</b></div>
-
-<!-- чат-бар (как на главной) -->
-<section class="assistant">
-  <div class="ai-head"><div class="avatar"></div><div><b>Гига ГАИшник</b><span>Твой AI-помощник в обучении и на дороге</span></div></div>
-  <div class="prompt"><span>Спроси что угодно про обучение, экзамен или ПДД...</span><button class="send" title="Открыть чат с AI">↑</button></div>
-  <div class="quick">
-    <button>▢ <span>Когда экзамен?</span></button>
-    <button>☷ <span>Мой прогресс</span></button>
-    <button>♧ <span>Готов ли я<br>к экзамену?</span></button>
+<!-- раздел «Главная» (Спринт 19, add-ai-chat-home 19.3.1: ИИ-чат по макетам
+     design/mocks/home-chat-web.html >760px / mobile/mobile-home-chat.html
+     ≤760px — pre-boot-зеркало #sec-home из App.vue, «правило двух копий»;
+     до гидрации виден тот же пустой чат: приветствие + композер. Wiring
+     чата (POST /api/ai/chat, GET истории) — в App.vue после монтирования) -->
+<div id="sec-home" class="ai-empty">
+<div class="ai-greet" id="ai-greet">
+  <svg class="ai-spark" viewBox="0 0 24 24" fill="none" stroke="#3ddc84" stroke-width="1.6" stroke-linecap="round">
+    <path d="M12 2v6M12 16v6M2 12h6M16 12h6"/>
+    <path d="M4.9 4.9l4.2 4.2M14.9 14.9l4.2 4.2M19.1 4.9l-4.2 4.2M9.1 14.9l-4.2 4.2"/>
+  </svg>
+  <div class="ai-hello">Добрый день!</div>
+  <div class="ai-hello-sub">Спроси что угодно про обучение, экзамен или ПДД — помогу подготовиться</div>
+</div>
+<div class="ai-msgs" id="ai-msgs"></div>
+<div class="ai-composer" id="ai-composer">
+  <div class="ai-input-box">
+    <input class="ai-input" id="ai-input" type="text" placeholder="Спроси что угодно про обучение, экзамен или ПДД...">
+    <div class="ai-actions">
+      <span class="ai-plus-wrap">
+        <button class="ai-plus" id="ai-plus" type="button" disabled aria-label="Вложения — скоро">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9aa39d" stroke-width="2" stroke-linecap="round">
+            <path d="M12 5v14M5 12h14"/>
+          </svg>
+        </button>
+        <span class="ai-soon">Скоро</span>
+      </span>
+      <button class="ai-send" id="ai-send" type="button" aria-label="Отправить">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0a130e" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 19V5"/>
+          <path d="M5 12l7-7 7 7"/>
+        </svg>
+      </button>
+    </div>
   </div>
-</section>
-
-<p class="services-title">СЕРВИСЫ</p>
-<div class="tiles">
-  <button class="tile"><span class="soon">СКОРО</span>
-    <div class="tile-icon">◈</div><b>Обучение ПДД</b>
-    <p>Теория по блокам, тренировочные вопросы и разбор ошибок перед экзаменом.</p>
-    <span class="go">→</span>
-  </button>
-  <button class="tile"><span class="soon">СКОРО</span>
-    <div class="tile-icon">◉</div><b>Онлайн экзамен</b>
-    <p>Пробный экзамен в формате ГИБДД: 20 вопросов, те же правила оценки.</p>
-    <span class="go">→</span>
-  </button>
-  <button class="tile" id="tile-instructor">
-    <div class="tile-icon">▤</div><b>Найти водителя</b>
-    <p>Подбор инструктора: рейтинги, отзывы и свободные окна расписания.</p>
-    <span class="go">→</span>
-  </button>
-  <button class="tile" id="tile-requests">
-    <div class="tile-icon">✉</div><b>Мои заявки</b>
-    <p>Статусы заявок инструкторам, комментарий отказа и повторная подача.</p>
-    <span class="go">→</span>
-  </button>
 </div>
 </div>
 

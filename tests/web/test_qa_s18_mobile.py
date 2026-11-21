@@ -142,13 +142,20 @@ def test_qa_s18_pdd_sections_media_guard():
 # ------------------------------------------------------------ live 390×844
 def test_qa_s18_mobile_cards_live_390(browser, server):
     """TC-S18-002/006 (live 390×844, реальный бэкенд): media-компоновка
-    РЕАЛЬНО применяется на данных — 18.2.1: плитки «Главной» одной
-    колонкой; 18.2.4: история кошелька карточками вместо таблицы (после
-    API-пополнения: thead скрыт, tbody grid, tr — rounded-карточка, сумма
-    справа order:2); 18.3.1: сетка знаков ровно 2 колонки (мобайл-сторона
-    инварианта TC-UI-079 — на 1440×900 там >2) и таблица штрафов —
-    карточки (thead скрыт). Изоляция — свежий контекст _mobile_page на
-    тест (паттерн TC-UI-077/078)."""
+    РЕАЛЬНО применяется на данных — 18.2.4: история кошелька карточками
+    вместо таблицы (после API-пополнения: thead скрыт, tbody grid, tr —
+    rounded-карточка, сумма справа order:2); 18.3.1: сетка знаков ровно
+    2 колонки (мобайл-сторона инварианта TC-UI-079 — на 1440×900 там >2)
+    и таблица штрафов — карточки (thead скрыт). Изоляция — свежий контекст
+    _mobile_page на тест (паттерн TC-UI-077/078).
+
+    Спринт 19 (add-ai-chat-home, 19.3.1, перевод носителя волной 19.4):
+    нога 18.2.1 «плитки „Главной" одной колонкой» снята — плитки УДАЛЕНЫ
+    по решению Заказчика 2026-11-18 («Да, убираем все кнопки с этого
+    экрана и оставь только гигагаишника. Не только в могилке, но и на веб
+    версии тоже»); заменена носителем absence (плиток/быстрых кнопок на
+    «Главной» НЕТ в live 390px) — без ослабления инвариантов кошелька,
+    знаков и штрафов."""
     token = _student_token(server)
     status, data = api("POST", "/api/wallet/topup", base=server, token=token,
                        body={"amount_kop": 300000})
@@ -160,10 +167,13 @@ def test_qa_s18_mobile_cards_live_390(browser, server):
         expect(page.locator(".mtabs")).to_be_visible()
         expect(page.locator("#sec-home")).to_be_visible()
 
-        # 18.2.1: плитки «Главной» — одна колонка на 390px
-        assert page.evaluate(
-            "getComputedStyle(document.querySelector('.tiles'))"
-            ".gridTemplateColumns.split(' ').length") == 1
+        # 19.3.1 (замена нога 18.2.1): плиток/быстрых кнопок/заглушек на
+        # «Главной» нет — ИИ-чат по утвержденным макетам
+        assert page.locator(".tiles").count() == 0
+        assert page.locator(".quick").count() == 0
+        assert page.locator(".services-title").count() == 0
+        expect(page.locator(".ai-hello")).to_have_text("Добрый день!")
+        expect(page.locator("#ai-composer")).to_be_visible()
 
         # 18.2.4: история кошелька — карточки вместо таблицы (есть 1 topup)
         page.locator(".mtab", has_text="Кошелек").click()
