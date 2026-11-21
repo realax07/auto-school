@@ -1354,9 +1354,11 @@ def test_bug051_sidebar_exact_items_students_subtabs_profile_docs(page, server):
     # Запросы учеников; «Мои документы» переименована в «Профиль и документы») ---
     tabs = page.locator(".nav button").evaluate_all(
         "els => els.map(e => e.dataset.tab)")
-    assert tabs == ["Мой день", "Расписание", "Календарь", "Мои ученики",
+    # Спринт 20 (решение Заказчика 2026-11-20): демо-разделы «Расписание»
+    # и «Материалы и обучение» удалены — канонический перечень сузился
+    assert tabs == ["Мой день", "Календарь", "Мои ученики",
                     "Мои автомобили", "Доходы и выплаты",
-                    "Материалы и обучение", "Профиль и документы",
+                    "Профиль и документы",
                     "__logout__"], tabs
 
     # --- «Мои ученики»: вкладка «Ученики» — карточка привязанного ученика ---
@@ -2669,7 +2671,11 @@ def test_bug049_car_completeness_badge_wraps_under_car_name(browser, server):
         "sessionStorage.setItem('session_token','%s');" % instr_token)
     try:
         page.goto(f"{server}/instructor/dashboard")
-        page.locator('.nav button[data-tab="Мои автомобили"]').click()
+        # Спринт 20 (add-instructor-mobile 20.0.1): ≤760px сайдбар скрыт —
+        # путь к «Мои автомобили» через таб-бар «Ещё» (bottom-sheet); переход
+        # обновлён ([test-adapted], функциональность 1:1, шаг проверки сохранён)
+        page.locator('.itabs .itab').nth(4).click()
+        page.locator('.isheet .irow', has_text="Мои автомобили").click()
         card = page.locator(".car")
         expect(card).to_have_count(1)
         missing = card.locator(".compl .missing")
