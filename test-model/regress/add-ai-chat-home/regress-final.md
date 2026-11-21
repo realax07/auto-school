@@ -1,16 +1,16 @@
 # Regress add-ai-chat-home — regress-final.md
 
 - change: add-ai-chat-home
-- date: 2026-11-21T15:40:15+00:00
-- commit: 52e0bf53cb319dace8487b70a1ab9f6f2b2312a5
+- date: 2026-11-21T16:36:23+00:00
+- commit: df9ff09bf12890b15477130843064d73e6ec65e8
 - worktree: /home/hermes-bot/.hermes/cache/scratch/wt-s19-ai-chat
 - verdict: PASS
 - tier: domain (эшелон 1: доменный regress)
-- duration: 908.6s
+- duration: 882.4s
 - diff source: git diff main...HEAD
 - domain map: project map test-model/regress-domains.json задана, правил нет — применен дефолт
-- changed files: 79
-- changed files: 79
+- changed files: 80
+- changed files: 80
   - BACKLOG.md
   - PLAN-add-ai-chat-home.md
   - PLAN.md
@@ -61,7 +61,7 @@
   - openspec/changes/add-ai-chat-home/research.md
   - openspec/changes/add-ai-chat-home/specs/ai-chat/spec.md
   - openspec/changes/add-ai-chat-home/specs/cabinet/spec.md
-  - … и еще 29
+  - … и еще 30
 - suites: tests
 - pytest exit code: 0
 
@@ -74,14 +74,8 @@
 ........................................................................ [ 46%]
 ........................................................................ [ 58%]
 ........................................................................ [ 70%]
-........................................................................ [ 82%]
+........................................................................ [ 81%]
 ........................................................................ [ 93%]
-......................................                                   [100%]
-=============================== warnings summary ===============================
-tests/api/test_s9_backend.py::test_tc_s9be_007_parallel_exchanges_exactly_one_200
-  /home/hermes-bot/.hermes/installs/bc3c7f3f7c048e26/environments/4b83f5f31e1241558bbf5d735879fde0/venv/lib/python3.14/site-packages/pydantic/_internal/_generate_schema.py:2274: UnsupportedFieldAttributeWarning: The 'alias' attribute with value 'filename' was provided to the `Field()` function, which has no effect in the context it was used. 'alias' is field-specific metadata, and can only be attached to a model field using `Annotated` metadata or by assignment. This may have happened because an `Annotated` type alias using the `type` statement was used, or if the `Field()` function was attached to a single member of a union type.
-    warnings.warn(
-
--- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-614 passed, 1 warning in 905.99s (0:15:05)
+.........................................                                [100%]
+617 passed in 879.38s (0:14:39)
 ```
