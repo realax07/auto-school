@@ -172,6 +172,10 @@ class HTTPBridgeProvider:
         except (OSError, ValueError):
             # сеть/таймаут/не-JSON — наружу без деталей (NFR-3)
             raise ProviderError
+        if not isinstance(payload, dict):
+            # MIN-1 (review-19.6-001): не-dict JSON от моста — не AttributeError
+            # (500), а штатный ProviderError (человеческий текст 503)
+            raise ProviderError
         reply = str(payload.get("reply", "")).strip()
         if not reply:
             raise ProviderError

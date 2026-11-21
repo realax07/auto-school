@@ -57,6 +57,10 @@ class Handler(BaseHTTPRequestHandler):
             length = int(self.headers.get("Content-Length", "0"))
             payload = json.loads(
                 self.rfile.read(length).decode("utf-8") or "{}")
+            if not isinstance(payload, dict):
+                # MIN-2 (review-19.6-001): массив/строка/число — 400, не AttributeError
+                self._code(400)
+                return
             query = str(payload.get("query", "")).strip()
         except (ValueError, UnicodeDecodeError):
             self._code(400)

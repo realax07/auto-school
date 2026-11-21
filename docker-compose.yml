@@ -66,6 +66,15 @@ services:
 
 networks:
   frontend:
+    # MAJ-1 (review-19.6-001): pin subnet+gateway — мост ai_bridge биндит
+    # 172.19.0.1, контейнер ходит на него; пересоздание сети с другой
+    # подсетью станет fail-loud при `docker compose up`, а не молчаливой
+    # деградацией чата. Конфликт с существующей сетью решается
+    # `docker network rm` перед up (сети проекта принадлежат compose).
+    ipam:
+      config:
+        - subnet: 172.19.0.0/24
+          gateway: 172.19.0.1
 
 volumes:
   db:
