@@ -239,3 +239,4 @@ frontend/vue/node_modules/
 # корпус — единственный источник истины (design.md «Решение 1»)
 frontend/vue/src/pages/cabinet/pdd-data/
 
+docker-compose.override.yml

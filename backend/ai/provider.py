@@ -30,8 +30,11 @@ change add-ai-chat-home, задача 19.2.1; design.md «Решение 1»).
 запросах на 19.4 НЕ проверяется).
 """
 
+import json
+import os
 import re
 import subprocess
+import urllib.request
 
 # Исполняемый файл провайдера (arch-review 001 п.8: which hermes →
 # /home/hermes-bot/.local/bin/hermes, oneshot-режим подтвержден).
@@ -137,9 +140,57 @@ class HermesSessionProvider:
         return reply
 
 
+class HTTPBridgeProvider:
+    """Провайдер «http-bridge»: POST на хост-мост (scripts/ai_bridge.py).
+
+    Боевой контейнер не имеет hermes CLI (провайдер v1 «hermes-session»
+    работал только в dev-окружении, где CLI установлен на хосте) — мост
+    поднимается на ХОСТЕ (user-systemd, bind на docker-bridge IP — снаружи
+    недоступен) и вызывает тот же CLI `hermes chat`. Протокол: POST /chat,
+    тело {"query": <готовый текст build_query>} → {"reply": str}; ошибки
+    любого рода (сеть, HTTP != 200, пустой reply) → ProviderError без
+    деталей (NFR-3). Активация: env AI_PROVIDER_URL (без переменной —
+    провайдер v1; app.py/импорт модуля ничего не меняют)."""
+
+    name = "http-bridge"
+
+    def __init__(self, url: str) -> None:
+        self._url = url
+
+    def generate(self, messages: list[dict]) -> str:
+        body = json.dumps({"query": build_query(messages)}).encode("utf-8")
+        request = urllib.request.Request(
+            self._url,
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(
+                    request, timeout=PROVIDER_TIMEOUT_SECONDS) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        except (OSError, ValueError):
+            # сеть/таймаут/не-JSON — наружу без деталей (NFR-3)
+            raise ProviderError
+        if not isinstance(payload, dict):
+            # MIN-1 (review-19.6-001): не-dict JSON от моста — не AttributeError
+            # (500), а штатный ProviderError (человеческий текст 503)
+            raise ProviderError
+        reply = str(payload.get("reply", "")).strip()
+        if not reply:
+            raise ProviderError
+        return reply
+
+
 # Активный провайдер модуля (шов замены: внешний инференс подставляется
 # set_provider без правок роутера и фронтенда — design.md «Решение 1»).
-_provider = HermesSessionProvider()
+# Волна 19.6: env AI_PROVIDER_URL переключает на HTTP-мост (боевой
+# контейнер без hermes CLI); без переменной — провайдер v1 (dev).
+_provider = (
+    HTTPBridgeProvider(os.environ["AI_PROVIDER_URL"])
+    if os.environ.get("AI_PROVIDER_URL")
+    else HermesSessionProvider()
+)
 
 
 def set_provider(provider) -> None:
