@@ -240,3 +240,4 @@ frontend/vue/node_modules/
 frontend/vue/src/pages/cabinet/pdd-data/
 
 docker-compose.override.yml
+ai-bridge-config/

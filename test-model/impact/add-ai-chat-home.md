@@ -66,3 +66,41 @@
 - Инструкторский кабинет (С20, main) не пересекается с дельтой:
   страницы pages/cabinet/ vs pages/instructor-dashboard/ раздельны;
   merge main в ветку прошёл без конфликтов.
+
+## 4. Волна 19.7 — внешний инференс GLM через сервис ai-bridge
+
+- Решение Заказчика 2026-11-21: «сделаем с новым ключом glm… небольшой
+  сервис в контейнере… glm-5.3-flash… отдельным сервисом с конфигом…
+  чтобы ключи в репозиторий не утекли». hermes-мост v1 (user-systemd,
+  латентность 18–38s → 503 по таймаутам) демонтирован из контура боя
+  (юнит disable); репозиторная утилита scripts/ai_bridge.py удалена
+  (история в git).
+- ADDED: services/ai-bridge/ (app.py — сервис-мост {query}→{reply} v2
+  поверх GLM chat-completions, модель строго glm-5.3-flash, RAG-lite
+  по канону content/pdd; Dockerfile python:3.12-slim stdlib-only) +
+  compose-сервис ai-bridge (сеть frontend, БЕЗ ports — снаружи не
+  торчит; конфиг ai-bridge.json монтируется :ro из gitignored
+  ai-bridge-config/; ключ вне репо и вне env app — проверено
+  git grep и pickaxe всей истории, review-19.7.1-19.7.2-001 §секрет).
+- Провайдер бэкенда: боевой путь — HTTPBridgeProvider (env
+  AI_PROVIDER_URL=http://ai-bridge:8790/chat); без переменной — v1
+  hermes-session (dev). Контракт generate(messages)→reply не менялся,
+  роутер/фронтенд не тронуты.
+- Воздействие на тесты: tests/api/test_s19_ai_bridge_glm.py —
+  TC-S19-011 (контракт+RAG через fake GLM, hermetic, путь от __file__),
+  TC-S19-012 (ошибки GLM → пустой reply), TC-S19-013 (404/пустой/не-dict);
+  TC-S19-009/010 (HTTPBridgeProvider) восстановлены — были ошибочно
+  удалены при первой редакции волны (MAJ-1 review-19.7.1-19.7.2-001,
+  исправлено); контейнерный контракт TC-ADD-004 ред. 19.7
+  ({app, nginx, ai-bridge}) + spec-дельта containerization (REM/ADD).
+  Существующие носители не ослаблены: TC-S19-001…008 и носители
+  кабинета без изменений.
+- Живая верификация боя (после deploy волны): app→ai-bridge 200 5.7s;
+  продукт ai/chat 200 9.2s (ответ про знак 3.20); history GET 200
+  (4 сообщения при двух вопросах). Латентность GLM ~5–9s — NFR ≤30s
+  с запасом. Регресс: 620 passed (артефакт regress-final).
+- Рамка: ключ GLM вне репо (gitignored конфиг, chmod 600, pickaxe-чисто);
+  rate-limit ключа → пустой reply → человеческий текст; RAG-lite
+  фрагменты ограничены (1500 симв. × 3 файла), изображения корпуса не
+  индексируются; MIN-2/3/6 (digest/USER/HEALTHCHECK, валидация модели,
+  RUNBOOK) — следующее касание, не блокируют (review-19.7.1-19.7.2-001).

@@ -30,3 +30,4 @@ frontend/vue/dist/
 # stale от ранней итерации) в контекст не попадает — runtime-стадия берет
 # ее одним COPY --from=frontend-builder по каноническому пути потребителя.
 frontend/vue/src/pages/cabinet/pdd-data/
+ai-bridge-config/

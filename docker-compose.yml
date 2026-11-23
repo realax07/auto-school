@@ -29,6 +29,10 @@ services:
       # «Deploy-контур»). Подмена = замена файла на хосте + рестарт app
       # (см. deploy/RUNBOOK.md «Подмена политики»), без пересборки образа.
       POLICY_FILE: /app/deploy/policy/policy.md
+      # Волна 19.7: прямой внешний инференс GLM — отдельный сервис
+      # ai-bridge (ключ в его конфиге, монтируемом :ro и gitignored;
+      # в app ключа нет). AI_PROVIDER_URL ниже.
+      AI_PROVIDER_URL: http://ai-bridge:8790/chat
     volumes:
       - db:/data/db
       - uploads:/data/uploads
@@ -64,13 +68,28 @@ services:
       - frontend
     restart: unless-stopped
 
+  # Волна 19.7: AI-мост «ГигаЧат» v2 — GLM chat-completions (модель строго
+  # glm-5.3-flash — решение Заказчика) + RAG-lite по канону content/pdd.
+  # Отдельный сервис с КОНФИГОМ: ключ/модель/base-url — в ai-bridge.json
+  # (gitignored каталог ai-bridge-config/, монтируется :ro; в репо ключа
+  # нет). Сервис без ports — только внутренняя сеть frontend.
+  ai-bridge:
+    build: ./services/ai-bridge
+    environment:
+      AI_BRIDGE_CONFIG: /app/config/ai-bridge.json
+    volumes:
+      - ${AI_BRIDGE_CONFIG_DIR:-./ai-bridge-config}/ai-bridge.json:/app/config/ai-bridge.json:ro
+      - ./content/pdd:/app/content/pdd:ro
+    networks:
+      - frontend
+    restart: unless-stopped
+
 networks:
   frontend:
-    # MAJ-1 (review-19.6-001): pin subnet+gateway — мост ai_bridge биндит
-    # 172.19.0.1, контейнер ходит на него; пересоздание сети с другой
-    # подсетью станет fail-loud при `docker compose up`, а не молчаливой
-    # деградацией чата. Конфликт с существующей сетью решается
-    # `docker network rm` перед up (сети проекта принадлежат compose).
+    # MAJ-1 (review-19.6-001): pin subnet+gateway — контейнер бэкенда ходит
+    # в ai-bridge; пересоздание сети станет fail-loud при `docker compose
+    # up`, а не молчаливой деградацией чата. Конфликт с существующей сетью
+    # решается `docker network rm` перед up (сети проекта принадлежат compose).
     ipam:
       config:
         - subnet: 172.19.0.0/24

@@ -1,24 +1,30 @@
 # Regress add-ai-chat-home — regress-final.md
 
 - change: add-ai-chat-home
-- date: 2026-11-21T22:21:20+00:00
-- commit: 258434dde7af82be6f3ab6b6c918d8aad9b7334c
+- date: 2026-11-23T10:55:34+00:00
+- commit: 7068b09bb1597b58600043242d0b258d84d7f9a4
 - worktree: /home/hermes-bot/auto-school
 - verdict: PASS
 - tier: domain (эшелон 1: доменный regress)
-- duration: 823.3s
+- duration: 761.6s
 - diff source: git diff main...HEAD
 - domain map: project map test-model/regress-domains.json задана, правил нет — применен дефолт
-- changed files: 8
-- changed files: 8
+- changed files: 14
+- changed files: 14
+  - .dockerignore
   - .gitignore
-  - backend/ai/provider.py
-  - code-reviews/add-ai-chat-home/review-19.6-001.md
+  - code-reviews/add-ai-chat-home/review-19.7.1-19.7.2-001.md
+  - code-reviews/add-ai-chat-home/review-19.7.1-19.7.2-002.md
   - docker-compose.yml
+  - openspec/changes/add-ai-chat-home/specs/containerization/spec.md
   - openspec/changes/add-ai-chat-home/tasks.md
   - scripts/ai_bridge.py
+  - services/ai-bridge/Dockerfile
+  - services/ai-bridge/app.py
+  - test-model/impact/add-ai-chat-home.md
   - test-model/regress/add-ai-chat-home/regress-final.md
-  - tests/api/test_s19_ai_chat.py
+  - tests/api/test_s19_ai_bridge_glm.py
+  - tests/test_container_contract.py
 - suites: tests
 - pytest exit code: 0
 
@@ -29,10 +35,16 @@
 ........................................................................ [ 23%]
 ........................................................................ [ 34%]
 ........................................................................ [ 46%]
-........................................................................ [ 58%]
+........................................................................ [ 57%]
 ........................................................................ [ 69%]
 ........................................................................ [ 81%]
-........................................................................ [ 93%]
-...........................................                              [100%]
-619 passed in 820.61s (0:13:40)
+........................................................................ [ 92%]
+..............................................                           [100%]
+=============================== warnings summary ===============================
+tests/api/test_s9_backend.py::test_tc_s9be_007_parallel_exchanges_exactly_one_200
+  /home/hermes-bot/.hermes/installs/bc3c7f3f7c048e26/environments/4b83f5f31e1241558bbf5d735879fde0/venv/lib/python3.14/site-packages/pydantic/_internal/_generate_schema.py:2274: UnsupportedFieldAttributeWarning: The 'alias' attribute with value 'filename' was provided to the `Field()` function, which has no effect in the context it was used. 'alias' is field-specific metadata, and can only be attached to a model field using `Annotated` metadata or by assignment. This may have happened because an `Annotated` type alias using the `type` statement was used, or if the `Field()` function was attached to a single member of a union type.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+622 passed, 1 warning in 759.05s (0:12:39)
 ```
