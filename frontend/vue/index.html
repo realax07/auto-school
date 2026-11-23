@@ -2,13 +2,15 @@
 <!-- Лендинг «/» — вход каркаса Vue (Спринт 12, change
      add-vue-s12-landing-apply, задача 2.1; ADR-008 — multi-entry MPA,
      НЕ SPA). Статическая разметка страницы — эквивалент legacy
-     frontend/index.html 1:1 (тексты дословно, включая модалки
-     m-login/m-register между комментариями-маркерами «Модалка:
-     Вход/Регистрация» — носитель LOGIN_MODAL_TEXTS). До гидрации Vue
-     видна эта же разметка; App.vue монтируется поверх #app (паттерн
-     пилота/С11). Разметку держать синхронной с App.vue.
+     frontend/index.html 1:1 (тексты дословно; модалка m-login — носитель
+     LOGIN_MODAL_TEXTS; регистровая модалка с волны 21.1 — компонент
+     shared/RegisterModal.vue: choice-шаг выбора роли, статическая копия
+     удалена — id-дубли ломали выбор роли, см. change
+     add-roles-theme-landing). До гидрации Vue видна эта же разметка;
+     App.vue монтируется поверх #app (паттерн пилота/С11). Разметку
+     держать синхронной с App.vue.
      Wiring (открытие/закрытие модалок BUG-055/056, consent FR-78,
-     сабмиты и route-маппинг §15.5, заглушки ai-open/quick/to-teachers) —
+     сабмиты и route-маппинг §15.5, интерактивный блок ГигаЧата) —
      задача 3.2; модалки — shared/LoginModal.vue и RegisterModal.vue. -->
 <html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>СберАвтошкола — Права без лишнего пути</title>
 <!-- Стили — подключаемый css (перенос 1:1 из legacy index.html, без редизайна); Vite бандлит его в /vue/assets с хэш-именем. -->
@@ -16,10 +18,11 @@
 </head><body>
 <!-- Вход лендинга (Спринт 12, задача 2.1; FR-84): статическая разметка
      экрана (эквивалент legacy 1:1, тексты дословно по референсу —
-     включая бренд «Сбер») + модуль-скрипт. Модалки входа/регистрации —
-     дословный носитель LOGIN_MODAL_TEXTS (тесты test_login_modal.py).
-     Задача 3.2 монтирует App.vue (полная разметка-копия + wiring) поверх
-     #app — разметку держать синхронной. -->
+     включая бренд «Сбер») + модуль-скрипт. Модалка входа m-login —
+     дословный носитель LOGIN_MODAL_TEXTS (тесты test_login_modal.py);
+     модалка регистрации — компонент shared/RegisterModal.vue (волна
+     21.1). Задача 3.2 монтирует App.vue (полная разметка-копия + wiring)
+     поверх #app — разметку держать синхронной. -->
 <div id="app">
 <main class="hero"><div class="road"></div><div class="frame">
 <header>
