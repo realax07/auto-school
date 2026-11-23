@@ -131,8 +131,16 @@ def _generate(query: str) -> str:
     with urllib.request.urlopen(
             request, timeout=GLM_TIMEOUT_SECONDS) as response:
         payload = json.loads(response.read().decode("utf-8"))
-    choice = payload["choices"][0]["message"]["content"]
-    return str(choice).strip()
+    try:
+        choice = payload["choices"][0]["message"]["content"]
+        if not isinstance(choice, str):
+            # MIN-4: content=None/не-строка — не «None» ученику
+            return ""
+        reply = choice.strip()
+    except (KeyError, IndexError, TypeError):
+        # MIN-4: неожиданная типизация JSON — без traceback в stderr
+        return ""
+    return reply
 
 
 class Handler(BaseHTTPRequestHandler):

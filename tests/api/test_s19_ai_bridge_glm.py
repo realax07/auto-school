@@ -12,11 +12,15 @@ GLM API мокается локальным HTTP-сервером (hermetic, б�
 import importlib.util
 import json
 import threading
+from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
-MODULE_PATH = "/home/hermes-bot/auto-school/services/ai-bridge/app.py"
+# MAJ-2 (review-19.7.1-19.7.2-001): путь от __file__ — тест hermetic,
+# проверяет СВОЁ дерево (не абсолютный хостовый путь)
+MODULE_PATH = str(Path(__file__).resolve().parents[2]
+                  / "services" / "ai-bridge" / "app.py")
 
 
 def _load_module(glm_url: str, content_dir: str):
