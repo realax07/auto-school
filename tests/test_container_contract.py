@@ -83,13 +83,17 @@ def _compose_structural_ok() -> list:
     return services
 
 
-def test_compose_yaml_valid_and_services_exactly_app_nginx():
-    """TC-ADD-004 (ред. 16.0) — compose YAML валиден; services == {app, nginx}.
+def test_compose_yaml_valid_and_services_exactly_app_nginx_ai_bridge():
+    """TC-ADD-004 (ред. 16.0; ред. 19.7) — compose YAML валиден;
+    services == {app, nginx, ai-bridge}.
 
     Requirement (дельта 16.0, ADDED): Compose-стек app + nginx (Scenario:
     В стеке ровно два сервиса и нет S3-хранилища). Трехсервисный стек
     REMOVED решением Заказчика 2026-11-14 «Закрой minio»: сервис minio
     ЗАПРЕЩЕН (вхождение строки — негатив, см. негативный тест ниже).
+    Ред. 19.7 (решение Заказчика 2026-11-21 «отдельным сервисом с
+    конфигом»): добавлен ai-bridge — GLM-инференс «ГигаЧата» (внутренняя
+    сеть, без ports, ключ в gitignored конфиге).
     """
     doc = _parse_compose()
     if doc is not None:
@@ -99,10 +103,11 @@ def test_compose_yaml_valid_and_services_exactly_app_nginx():
         services = set(_compose_structural_ok())
         volumes = set(re.findall(r"^  ([A-Za-z][A-Za-z0-9_-]*):(?:\s|$)",
                                  _top_level_block(COMPOSE, "volumes"), re.M))
-    assert services == {"app", "nginx"}, (
-        f"compose-стек обязан быть ровно {{app, nginx}}, есть: {sorted(services)}"
+    assert services == {"app", "nginx", "ai-bridge"}, (
+        f"compose-стек обязан быть ровно {{app, nginx, ai-bridge}}, "
+        f"есть: {sorted(services)}"
     )
-    # named volumes — только db/uploads (minio-data снят вместе с сервисом)
+    # named volumes — только db/uploads (ai-bridge/content — bind-mounts)
     assert volumes == {"db", "uploads"}, (
         f"volumes обязан быть ровно {{db, uploads}}, есть: {sorted(volumes)}"
     )
