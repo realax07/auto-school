@@ -54,16 +54,18 @@
     <button type="button" :class="{ on: isActive('Билеты') }" data-tab="Билеты" @click="go('Билеты')"><span class="ico">◉</span>Билеты</button>
     <button type="button" :class="{ on: isActive('Штрафы') }" data-tab="Штрафы" @click="go('Штрафы')"><span class="ico">⚠</span>Штрафы</button>
   </nav>
-  <!-- учётка внизу слева (замечание Заказчика №4); ФИО — из /api/auth/me -->
-  <div class="side-user"><span class="uname">{{ uname }}</span><button class="logout" type="button" @click="logout">Выйти</button></div>
   <!-- Волна 21.4 (add-roles-theme-landing): переключатель тем — сегмент
        Тёмная/Светлая/Авто; data-theme на html (boot cabinet.html),
-       выбор — localStorage 'theme'; «Авто» снимает ключ (prefers). -->
+       выбор — localStorage 'theme'; «Авто» снимает ключ (prefers).
+       Размещён ВЫШЕ учётки — учётка остаётся прижатой к низу сайдбара
+       (носитель TC-UI-059). -->
   <div class="theme-seg" role="group" aria-label="Тема интерфейса">
     <button type="button" :class="{ on: theme === 'dark' }" @click="setTheme('dark')">Тёмная</button>
     <button type="button" :class="{ on: theme === 'light' }" @click="setTheme('light')">Светлая</button>
     <button type="button" :class="{ on: theme === 'auto' }" @click="setTheme('auto')">Авто</button>
   </div>
+  <!-- учётка внизу слева (замечание Заказчика №4); ФИО — из /api/auth/me -->
+  <div class="side-user"><span class="uname">{{ uname }}</span><button class="logout" type="button" @click="logout">Выйти</button></div>
 </aside>
 </template>
 
