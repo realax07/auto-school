@@ -1,38 +1,23 @@
 # Regress add-ai-chat-home — regress-final.md
 
 - change: add-ai-chat-home
-- date: 2026-11-21T22:21:20+00:00
-- commit: 258434dde7af82be6f3ab6b6c918d8aad9b7334c
+- date: 2026-11-23T09:36:03+00:00
+- commit: 8a656c2ebeae43663f4af017f509ecbdde13a105
 - worktree: /home/hermes-bot/auto-school
 - verdict: PASS
 - tier: domain (эшелон 1: доменный regress)
-- duration: 823.3s
+- duration: — (прогон не выполнялся)
 - diff source: git diff main...HEAD
 - domain map: project map test-model/regress-domains.json задана, правил нет — применен дефолт
-- changed files: 8
-- changed files: 8
-  - .gitignore
-  - backend/ai/provider.py
-  - code-reviews/add-ai-chat-home/review-19.6-001.md
-  - docker-compose.yml
-  - openspec/changes/add-ai-chat-home/tasks.md
-  - scripts/ai_bridge.py
-  - test-model/regress/add-ai-chat-home/regress-final.md
-  - tests/api/test_s19_ai_chat.py
-- suites: tests
-- pytest exit code: 0
+- changed files: 0
+- changed files: 0
+- suites: — (нечего гнать)
+- pytest exit code: —
+
+- note: дифф не затронул существующие тестовые домены — прогон не выполнялся
 
 ## Хвост лога (до 50 строк)
 
 ```
-........................................................................ [ 11%]
-........................................................................ [ 23%]
-........................................................................ [ 34%]
-........................................................................ [ 46%]
-........................................................................ [ 58%]
-........................................................................ [ 69%]
-........................................................................ [ 81%]
-........................................................................ [ 93%]
-...........................................                              [100%]
-619 passed in 820.61s (0:13:40)
+(пусто)
 ```
