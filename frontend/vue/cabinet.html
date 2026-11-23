@@ -36,7 +36,11 @@
      До гидрации Vue видна эта же разметка; #toast — вне #app (переживает
      гидрацию); App.vue монтируется поверх #app (паттерн пилота/С11/С12/С14).
      Разметку держать синхронной с App.vue. -->
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>СберАвтошкола — Кабинет ученика (мокап)</title>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>СберАвтошкола — Кабинет ученика (мокап)</title><script>
+/* Волна 21.4 (add-roles-theme-landing): boot темы ДО загрузки CSS —
+   localStorage('theme') | системная схема (prefers-color-scheme). */
+(function(){try{var t=localStorage.getItem('theme');if(!t){t=window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';}document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
 <!-- Стили — дословный перенос <style> легаси (задача 4.2). -->
 <link rel="stylesheet" href="/src/pages/cabinet/styles.css">
 </head><body>

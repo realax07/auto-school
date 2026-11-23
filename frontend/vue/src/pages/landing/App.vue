@@ -46,13 +46,15 @@
 </div>
 <section class="assistant">
   <div class="ai-head"><div class="avatar"></div><div><b>Гига ГАИшник</b><span>Твой AI-помощник в обучении и на дороге</span></div></div>
-  <div class="prompt"><span>Спроси что угодно про обучение, экзамен или ПДД...</span><button class="send" id="ai-open" title="Открыть чат ассистента">↑</button></div>
+  <!-- Волна 21.3 (add-roles-theme-landing): блок интерактивен (синхронно
+       с vue/index.html — правило двух копий). -->
+  <div class="prompt"><input type="text" id="ai-input" placeholder="Спроси что угодно про обучение, экзамен или ПДД..." aria-label="Вопрос ГигаЧату"><button class="send" id="ai-open" title="Отправить вопрос">↑</button></div>
   <div class="quick">
-    <button>▢ <span>Хочу выучиться<br>на права</span></button>
-    <button>☷ <span>Выбрать<br>тариф</span></button>
-    <button>₽ <span>Сколько<br>это стоит?</span></button>
-    <button>♧ <span>Готов ли я<br>к экзамену?</span></button>
-    <button>▢ <span>Разобрать<br>нестандартную ситуацию</span></button>
+    <button data-scenario="Хочу выучиться на права"><span>Хочу выучиться<br>на права</span></button>
+    <button data-scenario="Как выбрать тариф обучения"><span>Выбрать<br>тариф</span></button>
+    <button data-scenario="Сколько стоит обучение в автошколе"><span>Сколько<br>это стоит?</span></button>
+    <button data-scenario="Готов ли я к экзамену в ГИБДД"><span>Готов ли я<br>к экзамену?</span></button>
+    <button data-scenario="Разбор нестандартной дорожной ситуации"><span>Разобрать<br>нестандартную ситуацию</span></button>
   </div>
 </section>
 </div>
@@ -160,6 +162,37 @@ export default {
       document.getElementById('reg-role-instructor').addEventListener('click',function(){
         // инструкторская регистрация — существующая анкета с модерацией
         window.location.href='/instructors/apply';
+      });
+      // Волна 21.3 (add-roles-theme-landing): лендинг-блок ГигаЧата
+      // интерактивен — send незалогиненному открывает регистрацию с
+      // подсказкой (введённый вопрос сохраняется в ai_prefill — чат
+      // «Главной» подхватит после входа); залогиненному — редирект в
+      // чат «Главной» с предзаполнением. quick-сценарии — то же с
+      // контекстом сценария (спека landing-assistant).
+      function aiPrefillAndRegister(question){
+        try { sessionStorage.setItem('ai_prefill', question); } catch (e) {}
+        open('m-register'); regShowChoice();
+        document.getElementById('reg-sub').textContent =
+          'Задайте этот вопрос ГигаЧату после входа';
+      }
+      document.getElementById('ai-open').addEventListener('click',function(){
+        var q = '';
+        try { q = document.getElementById('ai-input').value.trim(); } catch (e) {}
+        try { sessionStorage.setItem('ai_prefill', q); } catch (e) {}
+        var logged = null;
+        try { logged = sessionStorage.getItem('session_token'); } catch (e) {}
+        if (logged) { window.location.href = '/cabinet'; return; }
+        open('m-register'); regShowChoice();
+        document.getElementById('reg-sub').textContent =
+          'Задайте этот вопрос ГигаЧату после входа';
+      });
+      document.getElementById('ai-input').addEventListener('keydown',function(e){
+        if (e.key === 'Enter') document.getElementById('ai-open').click();
+      });
+      document.querySelectorAll('.quick [data-scenario]').forEach(function(b){
+        b.addEventListener('click',function(){
+          aiPrefillAndRegister(b.getAttribute('data-scenario'));
+        });
       });
       document.querySelectorAll('[data-close]').forEach(function(b){b.addEventListener('click',function(){
         closeAll();

@@ -681,3 +681,25 @@ role=student|instructor — существующий контракт, не ме
 единственные post-mount носители). Носители: TC-S21-001…003
 (tests/web/test_ui_playwright.py); существующие регистрационные e2e
 адаптированы кликом «Я ученик» (без ослаблений).
+
+## Спринт 21 (волна 21.3): лендинг-блок ГигаЧата интерактивен
+
+Блок assistant лендинга (index.html + template App.vue — правило двух
+копий): поле ввода #ai-input активно; send (#ai-open) незалогиненному
+открывает модалку регистрации с подсказкой «Задайте этот вопрос
+ГигаЧату после входа» и сохраняет вопрос в sessionStorage ai_prefill;
+залогиненному — редирект в чат «Главной» (/cabinet) с предзаполнением
+поля (cabinet App.vue читает ai_prefill при mount, очищает). quick-кнопки
+(5 сценариев) — интерактивны: ai_prefill + модалка регистрации. Носители:
+TC-S21-004…006 (test_ui_playwright.py).
+
+## Спринт 21 (волна 21.4): темы light/dark/system
+
+Кабинет: boot-скрипт cabinet.html ставит data-theme на html ДО CSS
+(localStorage 'theme' | prefers-color-scheme → dark); light-режим MVP —
+инверсионный (body filter invert+hue-rotate, img/svg/video — обратный
+фильтр; полноценная светлая палитра — следующая волна при потребности).
+Переключатель — сегмент Тёмная/Светлая/Авто в StudentSidebar (setTheme;
+«Авто» снимает localStorage-ключ). Носители: TC-S21-007…009
+(test_ui_playwright.py). Распространение data-theme на лендинг/instructor/
+pdd-страницы — следующее касание (boot-скрипт повторяется на входах).

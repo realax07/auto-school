@@ -56,6 +56,14 @@
   </nav>
   <!-- учётка внизу слева (замечание Заказчика №4); ФИО — из /api/auth/me -->
   <div class="side-user"><span class="uname">{{ uname }}</span><button class="logout" type="button" @click="logout">Выйти</button></div>
+  <!-- Волна 21.4 (add-roles-theme-landing): переключатель тем — сегмент
+       Тёмная/Светлая/Авто; data-theme на html (boot cabinet.html),
+       выбор — localStorage 'theme'; «Авто» снимает ключ (prefers). -->
+  <div class="theme-seg" role="group" aria-label="Тема интерфейса">
+    <button type="button" :class="{ on: theme === 'dark' }" @click="setTheme('dark')">Тёмная</button>
+    <button type="button" :class="{ on: theme === 'light' }" @click="setTheme('light')">Светлая</button>
+    <button type="button" :class="{ on: theme === 'auto' }" @click="setTheme('auto')">Авто</button>
+  </div>
 </aside>
 </template>
 
@@ -77,6 +85,29 @@ export default {
   emits: ['tab', 'me'],
   setup: function (props, ctx) {
     var uname = ref('Иван Иванов');
+    // Волна 21.4: состояние переключателя тем (Тёмная/Светлая/Авто);
+    // стартовое — из data-theme html (boot cabinet.html).
+    var theme = ref(function () {
+      try {
+        var t = document.documentElement.getAttribute('data-theme');
+        return t === 'light' ? 'light' : 'dark';
+      } catch (e) { return 'dark'; }
+    }());
+
+    function setTheme(mode) {
+      theme.value = mode;
+      try {
+        if (mode === 'auto') {
+          localStorage.removeItem('theme');
+          mode = window.matchMedia
+            && window.matchMedia('(prefers-color-scheme: light)').matches
+            ? 'light' : 'dark';
+        } else {
+          localStorage.setItem('theme', mode);
+        }
+        document.documentElement.setAttribute('data-theme', mode);
+      } catch (e) {}
+    }
 
     // Канонические хеши разделов кабинета (роутятся App.vue при загрузке;
     // BUG-047-паттерн: reload/старые ссылки открывают раздел напрямую).
@@ -152,6 +183,8 @@ export default {
       go: go,
       gotoChoice: gotoChoice,
       logout: logout,
+      theme: theme,
+      setTheme: setTheme,
     };
   },
 };
