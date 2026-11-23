@@ -1,8 +1,8 @@
 # Regress add-ai-chat-home — regress-final.md
 
 - change: add-ai-chat-home
-- date: 2026-11-23T09:36:03+00:00
-- commit: 8a656c2ebeae43663f4af017f509ecbdde13a105
+- date: 2026-11-23T09:38:31+00:00
+- commit: 4ec4b1295ab1453e83376936a2ccca713ddce079
 - worktree: /home/hermes-bot/auto-school
 - verdict: PASS
 - tier: domain (эшелон 1: доменный regress)
