@@ -138,8 +138,29 @@ export default {
       var open=function(id){document.getElementById(id).classList.add('open')};
       var closeAll=function(){document.querySelectorAll('.overlay').forEach(function(o){o.classList.remove('open')})};
       document.querySelectorAll('[data-open="login"]').forEach(function(b){b.addEventListener('click',function(){closeAll();open('m-login')})});
-      document.querySelectorAll('[data-open="register"]').forEach(function(b){b.addEventListener('click',function(){closeAll();open('m-register')})});
-      document.getElementById('to-register').addEventListener('click',function(){closeAll();open('m-register')});
+      document.querySelectorAll('[data-open="register"]').forEach(function(b){b.addEventListener('click',function(){closeAll();open('m-register');regShowChoice()})});
+      document.getElementById('to-register').addEventListener('click',function(){closeAll();open('m-register');regShowChoice()});
+      // Волна 21.1 (add-roles-theme-landing): двухшаговая регистрация по
+      // мокапу auth-register-choice — выбор роли → форма ученика / анкета
+      // инструктора (/instructors/apply, модерация существующим контуром).
+      function regShowChoice(){
+        document.getElementById('reg-choice').style.display='flex';
+        document.getElementById('reg-student-form').style.display='none';
+        document.getElementById('reg-back').style.display='none';
+        document.getElementById('reg-sub').textContent='Кем вы хотите зарегистрироваться?';
+      }
+      function regShowStudentForm(){
+        document.getElementById('reg-choice').style.display='none';
+        document.getElementById('reg-student-form').style.display='block';
+        document.getElementById('reg-back').style.display='';
+        document.getElementById('reg-sub').textContent='Создайте аккаунт ученика';
+      }
+      document.getElementById('reg-role-student').addEventListener('click',regShowStudentForm);
+      document.getElementById('reg-back').addEventListener('click',regShowChoice);
+      document.getElementById('reg-role-instructor').addEventListener('click',function(){
+        // инструкторская регистрация — существующая анкета с модерацией
+        window.location.href='/instructors/apply';
+      });
       document.querySelectorAll('[data-close]').forEach(function(b){b.addEventListener('click',function(){
         closeAll();
         // BUG-056: закрытие (крестик #login-close / «Отмена») оставляет на

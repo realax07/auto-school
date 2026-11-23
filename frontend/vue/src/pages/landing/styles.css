@@ -40,3 +40,12 @@
 }
 .m-cta{display:none}
 @media(max-width:760px){.m-cta{display:flex}}
+/* Волна 21.1 (add-roles-theme-landing): шаг выбора роли — мокап auth-register-choice (утв. 2026-11-19) */
+.reg-choice{display:flex;flex-direction:column;gap:12px;margin:6px 0 2px}
+.reg-role{display:flex;gap:14px;align-items:center;text-align:left;border-radius:16px;padding:16px;cursor:pointer;background:linear-gradient(165deg,#10231a,#0b1712);border:1px solid rgba(73,236,154,.16);transition:border-color .15s}
+.reg-role:hover,.reg-role:focus-visible{border-color:rgba(73,236,154,.55);outline:none}
+.reg-role b{display:block;font-size:15px;font-weight:650}
+.reg-role span{font-size:12.5px;color:#a9bcc0}
+.reg-role-ic{width:44px;height:44px;border-radius:12px;flex:none;background:rgba(73,236,154,.14);display:grid;place-items:center}
+.reg-role-ic .dot{width:12px;height:12px;border-radius:50%;background:var(--acc)}
+.reg-role-ic .dot.solid{width:14px;height:10px;border-radius:4px}

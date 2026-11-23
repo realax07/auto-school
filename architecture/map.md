@@ -665,3 +665,19 @@ API: /api/wallet, /api/wallet/topup; /api/instructor/price, /api/instructor/econ
   (ADR-001/002), статика без серверной защиты страниц (спринт-1 паттерн),
   нет rate-limit на публичных эндпоинтах, файлы-сироты uploads (cleanup
   вне объема).
+
+## Спринт 21 (add-roles-theme-landing, волна 21.1): выбор роли при регистрации
+
+Модалка регистрации лендинга — двухшаговая по мокапу auth-register-choice
+(утв. 2026-11-19, docs #154): шаг 0 — выбор роли («Я ученик» / «Я
+инструктор»), выбор ученика открывает существующую форму ученика,
+выбор инструктора — переход на существующую анкету /instructors/apply
+(модерация без изменений). Реализация — фронтовая развилка: компонент
+shared/RegisterModal.vue (choice-шаг + кнопка «Выбрать другую роль»),
+wiring App.vue (regShowChoice/regShowStudentForm); backend RegisterRequest
+role=student|instructor — существующий контракт, не менялся. Статические
+легаси-копии модалок m-login/m-register в vue/index.html удалены
+(id-дубли ломали выбор роли; компоненты LoginModal/RegisterModal —
+единственные post-mount носители). Носители: TC-S21-001…003
+(tests/web/test_ui_playwright.py); существующие регистрационные e2e
+адаптированы кликом «Я ученик» (без ослаблений).

@@ -370,6 +370,8 @@ def test_student_register_redirects_to_cabinet(page, server):
     page.goto(f"{server}/")
     page.locator('.auth [data-open="register"]').click()
     expect(page.locator("#m-register.overlay")).to_be_visible()
+    # Волна 21.1: регистрация двухшаговая — выбор роли «Я ученик» перед формой
+    page.locator("#reg-role-student").click()
 
     email = unique_email("student")
     page.fill("#reg-surname", "Иванов")
@@ -4595,6 +4597,8 @@ def test_register_modal_consent_gates_submit_and_links_policy(page, server):
     page.goto(f"{server}/")
     page.locator('.auth [data-open="register"]').click()
     expect(page.locator("#m-register.overlay")).to_be_visible()
+    # Волна 21.1: выбор роли «Я ученик» перед формой согласия
+    page.locator("#reg-role-student").click()
 
     email = unique_email("reg-consent")
     page.fill("#reg-surname", "Гейтингов")
@@ -5795,3 +5799,49 @@ def test_s18_mobile_geometry_hit_targets(page, server):
     # MIN-4 б: геометрия видимых кнопок на разделах с данными
     # (.act/.bk-act — меряются при наличии данных; wal-btn — в
     #  geometry-проверке выше по этой же функции)
+
+
+# --- Спринт 21 (add-roles-theme-landing, волна 21.1): выбор роли при регистрации ---
+
+def test_tc_s21_001_register_modal_shows_role_choice(page, server):
+    """TC-S21-001 (change add-roles-theme-landing): модалка регистрации
+    открывается на экране выбора роли (мокап auth-register-choice,
+    утвержден Заказчиком 2026-11-19); форма ученика скрыта до выбора."""
+    page.goto(f"{server}/")
+    page.locator('.auth [data-open="register"]').click()
+    expect(page.locator("#m-register.overlay")).to_be_visible()
+
+    expect(page.locator("#reg-choice")).to_be_visible()
+    expect(page.locator("#reg-sub")).to_have_text(
+        "Кем вы хотите зарегистрироваться?")
+    expect(page.locator("#reg-role-student")).to_contain_text("Я ученик")
+    expect(page.locator("#reg-role-instructor")).to_contain_text(
+        "Я инструктор")
+    assert page.locator("#reg-student-form").is_hidden()
+
+
+def test_tc_s21_002_register_student_choice_shows_form(page, server):
+    """TC-S21-002: выбор «Я ученик» показывает форму ученика и кнопку
+    возврата к выбору роли; возврат работает."""
+    page.goto(f"{server}/")
+    page.locator('.auth [data-open="register"]').click()
+    page.locator("#reg-role-student").click()
+
+    expect(page.locator("#reg-student-form")).to_be_visible()
+    expect(page.locator("#reg-sub")).to_have_text(
+        "Создайте аккаунт ученика")
+    expect(page.locator("#reg-surname")).to_be_visible()
+    expect(page.locator("#reg-back")).to_be_visible()
+    page.locator("#reg-back").click()
+    expect(page.locator("#reg-choice")).to_be_visible()
+    expect(page.locator("#reg-student-form")).not_to_be_visible()
+
+
+def test_tc_s21_003_register_instructor_choice_goes_to_apply(page, server):
+    """TC-S21-003: выбор «Я инструктор» уводит на анкету инструктора
+    /instructors/apply (существующий контур модерации)."""
+    page.goto(f"{server}/")
+    page.locator('.auth [data-open="register"]').click()
+    page.locator("#reg-role-instructor").click()
+    page.wait_for_url("**/instructors/apply**")
+    assert "/instructors/apply" in page.url
