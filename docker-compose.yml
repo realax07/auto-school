@@ -29,6 +29,10 @@ services:
       # «Deploy-контур»). Подмена = замена файла на хосте + рестарт app
       # (см. deploy/RUNBOOK.md «Подмена политики»), без пересборки образа.
       POLICY_FILE: /app/deploy/policy/policy.md
+      # Волна 19.7: прямой внешний инференс GLM — отдельный сервис
+      # ai-bridge (ключ в его конфиге, монтируемом :ro и gitignored;
+      # в app ключа нет). AI_PROVIDER_URL ниже.
+      AI_PROVIDER_URL: http://ai-bridge:8790/chat
     volumes:
       - db:/data/db
       - uploads:/data/uploads
@@ -64,18 +68,17 @@ services:
       - frontend
     restart: unless-stopped
 
-  # Волна 19.7: AI-мост «ГигаЧат» v2 — GLM chat-completions (glm-5.3-flash,
-  # решение Заказчика) + RAG-lite по канону content/pdd. Тот же контракт
-  # {query}→{reply}, что у провайдера-адаптера. Ключ передаётся через env
-  # (docker-compose.override.yml, вне git). Сервис без ports — только
-  # внутренняя сеть frontend, снаружи не торчит.
+  # Волна 19.7: AI-мост «ГигаЧат» v2 — GLM chat-completions (модель строго
+  # glm-5.3-flash — решение Заказчика) + RAG-lite по канону content/pdd.
+  # Отдельный сервис с КОНФИГОМ: ключ/модель/base-url — в ai-bridge.json
+  # (gitignored каталог ai-bridge-config/, монтируется :ro; в репо ключа
+  # нет). Сервис без ports — только внутренняя сеть frontend.
   ai-bridge:
     build: ./services/ai-bridge
     environment:
-      GLM_API_KEY: ${GLM_API_KEY:-}
-      GLM_MODEL: ${GLM_MODEL:-glm-5.3-flash}
-      CONTENT_DIR: /app/content/pdd
+      AI_BRIDGE_CONFIG: /app/config/ai-bridge.json
     volumes:
+      - ${AI_BRIDGE_CONFIG_DIR:-./ai-bridge-config}/ai-bridge.json:/app/config/ai-bridge.json:ro
       - ./content/pdd:/app/content/pdd:ro
     networks:
       - frontend

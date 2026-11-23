@@ -26,16 +26,23 @@ import time
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-GLM_API_KEY = os.environ.get("GLM_API_KEY", "")
-if not GLM_API_KEY:
-    raise SystemExit("GLM_API_KEY не задан — старт невозможен (fail-loud)")
+# Конфиг — единственный источник параметров моста (ключ НЕ в env и НЕ в
+# git): JSON-файл, монтируемый в контейнер :ro (волна 19.7, требование
+# Заказчика «ключи в репозиторий не утекли; отдельным сервисом с конфигом»).
+_CONFIG_PATH = os.environ.get("AI_BRIDGE_CONFIG", "/app/config/ai-bridge.json")
+with open(_CONFIG_PATH, encoding="utf-8") as _fh:
+    _CFG = json.load(_fh)
 
-GLM_MODEL = os.environ.get("GLM_MODEL", "glm-5.3-flash")
-GLM_BASE_URL = os.environ.get("GLM_BASE_URL", "https://api.z.ai/api/paas/v4")
-GLM_TIMEOUT_SECONDS = float(os.environ.get("GLM_TIMEOUT_SECONDS", "25"))
-_BIND_HOST = os.environ.get("AI_BRIDGE_HOST", "0.0.0.0")
-_BIND_PORT = int(os.environ.get("AI_BRIDGE_PORT", "8790"))
-CONTENT_DIR = os.environ.get("CONTENT_DIR", "/app/content/pdd")
+GLM_API_KEY = str(_CFG["api_key"])
+if not GLM_API_KEY:
+    raise SystemExit("config: api_key пуст — старт невозможен (fail-loud)")
+
+GLM_MODEL = str(_CFG.get("model", "glm-5.3-flash"))
+GLM_BASE_URL = str(_CFG.get("base_url", "https://api.z.ai/api/paas/v4"))
+GLM_TIMEOUT_SECONDS = float(_CFG.get("timeout_seconds", "25"))
+_BIND_HOST = str(_CFG.get("host", "0.0.0.0"))
+_BIND_PORT = int(_CFG.get("port", "8790"))
+CONTENT_DIR = str(_CFG.get("content_dir", "/app/content/pdd"))
 
 # RAG-lite: индекс заголовочной части .md-файлов корпуса (старт-скан,
 # тексты держим как (путь, первые 400 символов)). 116 файлов — миллисекунды.

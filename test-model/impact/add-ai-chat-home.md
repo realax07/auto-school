@@ -66,3 +66,27 @@
 - Инструкторский кабинет (С20, main) не пересекается с дельтой:
   страницы pages/cabinet/ vs pages/instructor-dashboard/ раздельны;
   merge main в ветку прошёл без конфликтов.
+
+## 4. Волна 19.7 — GLM-сервис в контейнере (внешний инференс)
+
+- Решение Заказчика 2026-11-21: «сделаем с новым ключом glm… небольшой
+  сервис в контейнере… glm-5.3-flash». hermes-мост v1 демонтирован из
+  контура боя (user-systemd сервис отключается), его скрипт из services/
+  удалён — контракт {query}→{reply} сохранён, провайдер бэкенда и
+  роутер не тронуты (env AI_PROVIDER_URL теперь http://ai-bridge:8790/chat).
+- ADDED: services/ai-bridge/ (app.py — GLM chat-completions, модель
+  строго glm-5.3-flash, RAG-lite по канону content/pdd: старт-индекс
+  заголовков .md, топ-3 файла фрагментами в system-prompt; Dockerfile
+  python:3.12-slim, stdlib-only) + compose-сервис ai-bridge (сеть
+  frontend, БЕЗ ports — снаружи не торчит; content/pdd volume :ro;
+  GLM_API_KEY через env override вне git — секреты в артефактах
+  отсутствуют, NFR-3).
+- Воздействие на тесты: tests/api/test_s19_ai_bridge_glm.py —
+  TC-S19-011 (контракт + RAG-контекст через fake GLM, hermetic),
+  TC-S19-012 (ошибки GLM → пустой reply), TC-S19-013 (404/400 вход);
+  существующие носители не ослаблены. Живая верификация боя:
+  app→ai-bridge 200 5.7s; продукт ai/chat 200 8.3s (ответ про знак
+  3.20); history GET 200. Латентность GLM ~5–8s — NFR ≤30s с запасом.
+- Рамка: ключ GLM не в git (override gitignored); rate-limit ключа →
+  пустой reply → человеческий текст; RAG-lite фрагменты ограничены
+  (1500 символов × 3 файла), изображения корпуса не индексируются.

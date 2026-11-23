@@ -20,13 +20,24 @@ MODULE_PATH = "/home/hermes-bot/auto-school/services/ai-bridge/app.py"
 
 
 def _load_module(glm_url: str, content_dir: str):
-    """Загрузка модуля моста с подменой env (импорт из services/ вне
-    пакетной раскладки — spec.from_file_location)."""
+    """Загрузка модуля моста с временным конфигом (импорт из services/
+    вне пакетной раскладки — spec.from_file_location). Конфиг —
+    единственный источник параметров моста (ключ НЕ в env)."""
     import os
-    os.environ["GLM_API_KEY"] = "test-key-not-a-secret-fixture"
-    os.environ["GLM_BASE_URL"] = glm_url
-    os.environ["GLM_MODEL"] = "glm-test"
-    os.environ["CONTENT_DIR"] = content_dir
+    import tempfile
+    config = {
+        "api_key": "test-key-not-a-secret-fixture",
+        "model": "glm-test",
+        "base_url": glm_url,
+        "content_dir": content_dir,
+        "host": "127.0.0.1",
+        "port": 0,
+        "timeout_seconds": 5,
+    }
+    fd, cfg_path = tempfile.mkstemp(suffix=".json")
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        json.dump(config, fh)
+    os.environ["AI_BRIDGE_CONFIG"] = cfg_path
     spec = importlib.util.spec_from_file_location("ai_bridge_glm", MODULE_PATH)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
