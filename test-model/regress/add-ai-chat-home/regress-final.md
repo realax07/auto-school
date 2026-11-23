@@ -1,19 +1,20 @@
 # Regress add-ai-chat-home — regress-final.md
 
 - change: add-ai-chat-home
-- date: 2026-11-23T10:33:48+00:00
-- commit: 3f907e5e871fed3ae4a6a3f42983bb8e21cb002d
+- date: 2026-11-23T10:55:34+00:00
+- commit: 7068b09bb1597b58600043242d0b258d84d7f9a4
 - worktree: /home/hermes-bot/auto-school
 - verdict: PASS
 - tier: domain (эшелон 1: доменный regress)
-- duration: 751.6s
+- duration: 761.6s
 - diff source: git diff main...HEAD
 - domain map: project map test-model/regress-domains.json задана, правил нет — применен дефолт
-- changed files: 13
-- changed files: 13
+- changed files: 14
+- changed files: 14
   - .dockerignore
   - .gitignore
   - code-reviews/add-ai-chat-home/review-19.7.1-19.7.2-001.md
+  - code-reviews/add-ai-chat-home/review-19.7.1-19.7.2-002.md
   - docker-compose.yml
   - openspec/changes/add-ai-chat-home/specs/containerization/spec.md
   - openspec/changes/add-ai-chat-home/tasks.md
@@ -45,5 +46,5 @@ tests/api/test_s9_backend.py::test_tc_s9be_007_parallel_exchanges_exactly_one_20
     warnings.warn(
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-622 passed, 1 warning in 749.68s (0:12:29)
+622 passed, 1 warning in 759.05s (0:12:39)
 ```
