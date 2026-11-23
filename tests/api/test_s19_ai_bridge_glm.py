@@ -21,6 +21,12 @@ import pytest
 # проверяет СВОЁ дерево (не абсолютный хостовый путь)
 MODULE_PATH = str(Path(__file__).resolve().parents[2]
                   / "services" / "ai-bridge" / "app.py")
+# Прецедент importorskip (docker-образ без playwright): сервис ai-bridge —
+# отдельный образ (services/), в app-образе его файла нет; в docker-run
+# тестов модуль недоступен — skip вместо FileNotFoundError всей коллекции.
+if not Path(MODULE_PATH).exists():
+    pytest.skip("ai-bridge app вне app-образа (docker-run тестов)",
+                allow_module_level=True)
 
 
 def _load_module(glm_url: str, content_dir: str):
