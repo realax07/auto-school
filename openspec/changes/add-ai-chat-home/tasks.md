@@ -52,3 +52,7 @@
 - [x] 19.6.1 [code] backend/ai/provider.py: HTTPBridgeProvider (POST {query}→{reply}, таймаут ≤30s, ошибки → ProviderError без деталей); активация env AI_PROVIDER_URL (без переменной — провайдер v1 hermes-session); импорт/роутер не тронуты
 - [x] 19.6.2 [code] scripts/ai_bridge.py — хост-мост (stdlib): POST /chat {query}→{reply}, bind docker-bridge IP (снаружи недоступен), subprocess hermes chat (stdin, MIN-2), OSError/Timeout → пустой reply; user-systemd юнит ai-bridge.service (PATH + .local/bin), enable --now, ПДД-проверка 23.5s
 - [x] 19.6.3 [tests] TC-S19-009 (мост: generate/ошибки через локальный HTTP-фейк), TC-S19-010 (env-активация провайдера)
+
+## 19.7 Волна: GLM-сервис в контейнере (внешний инференс, решение Заказчика 2026-11-21)
+- [x] 19.7.1 [code] services/ai-bridge/ (app.py + Dockerfile): POST /chat {query}→{reply} — GLM chat-completions, модель строго glm-5.3-flash (Заказчик); RAG-lite по канону content/pdd (индекс заголовков .md, топ-3 файла в system-prompt); ошибки → пустой reply (NFR-3); compose-сервис ai-bridge (сеть frontend, без ports — снаружи не торчит), content:ro volume; ключ через env override (вне git)
+- [x] 19.7.2 [tests] tests/api/test_s19_ai_bridge_glm.py: TC-S19-011 (контракт+RAG-контекст через fake GLM), TC-S19-012 (ошибки GLM → пустой reply), TC-S19-013 (404/400 гигиена входа); docker-compose.override.yml: AI_PROVIDER_URL=http://ai-bridge:8790/chat

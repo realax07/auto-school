@@ -64,13 +64,29 @@ services:
       - frontend
     restart: unless-stopped
 
+  # Волна 19.7: AI-мост «ГигаЧат» v2 — GLM chat-completions (glm-5.3-flash,
+  # решение Заказчика) + RAG-lite по канону content/pdd. Тот же контракт
+  # {query}→{reply}, что у провайдера-адаптера. Ключ передаётся через env
+  # (docker-compose.override.yml, вне git). Сервис без ports — только
+  # внутренняя сеть frontend, снаружи не торчит.
+  ai-bridge:
+    build: ./services/ai-bridge
+    environment:
+      GLM_API_KEY: ${GLM_API_KEY:-}
+      GLM_MODEL: ${GLM_MODEL:-glm-5.3-flash}
+      CONTENT_DIR: /app/content/pdd
+    volumes:
+      - ./content/pdd:/app/content/pdd:ro
+    networks:
+      - frontend
+    restart: unless-stopped
+
 networks:
   frontend:
-    # MAJ-1 (review-19.6-001): pin subnet+gateway — мост ai_bridge биндит
-    # 172.19.0.1, контейнер ходит на него; пересоздание сети с другой
-    # подсетью станет fail-loud при `docker compose up`, а не молчаливой
-    # деградацией чата. Конфликт с существующей сетью решается
-    # `docker network rm` перед up (сети проекта принадлежат compose).
+    # MAJ-1 (review-19.6-001): pin subnet+gateway — контейнер бэкенда ходит
+    # в ai-bridge; пересоздание сети станет fail-loud при `docker compose
+    # up`, а не молчаливой деградацией чата. Конфликт с существующей сетью
+    # решается `docker network rm` перед up (сети проекта принадлежат compose).
     ipam:
       config:
         - subnet: 172.19.0.0/24
