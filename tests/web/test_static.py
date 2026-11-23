@@ -53,12 +53,21 @@ def test_tc_reg_018_static_pages_return_200_with_mock_texts(client, path, marker
 def test_tc_reg_018_register_modal_has_password_fields_wiring(client):
     """TC-REG-018 (шаг 3, контроль wiring): в модалке регистрации
     присутствуют предписанные отличия от макета — поля Пароль/Подтверждение
-    (id reg-password / reg-password-confirm)."""
-    resp = client.get("/")
-    assert resp.status_code == 200
-    assert 'id="reg-password"' in resp.text
-    assert 'id="reg-password-confirm"' in resp.text
-    assert "Подтверждение" in resp.text
+    (id reg-password / reg-password-confirm).
+
+    Волна 21.1 (add-roles-theme-landing): регистровая модалка — компонент
+    shared/RegisterModal.vue (choice-шаг выбора роли, статическая копия
+    из index.html удалена — id-дубли ломали выбор роли); носитель читает
+    компонент по прецеденту LOGIN_MODAL_TEXTS/LoginModal.vue
+    (test_login_modal.vue_landing_source)."""
+    register_modal = (ROOT / "frontend" / "vue" / "src" / "shared"
+                      / "RegisterModal.vue").read_text(encoding="utf-8")
+    assert 'id="reg-password"' in register_modal
+    assert 'id="reg-password-confirm"' in register_modal
+    assert "Подтверждение" in register_modal
+    # выбор роли присутствует в компоненте (мокап auth-register-choice)
+    assert "Я ученик" in register_modal
+    assert "Я инструктор" in register_modal
 
 
 def test_tc_reg_016_health_and_registered_page_available(client):

@@ -46,13 +46,15 @@
 </div>
 <section class="assistant">
   <div class="ai-head"><div class="avatar"></div><div><b>Гига ГАИшник</b><span>Твой AI-помощник в обучении и на дороге</span></div></div>
-  <div class="prompt"><span>Спроси что угодно про обучение, экзамен или ПДД...</span><button class="send" id="ai-open" title="Открыть чат ассистента">↑</button></div>
+  <!-- Волна 21.3 (add-roles-theme-landing): блок интерактивен (синхронно
+       с vue/index.html — правило двух копий). -->
+  <div class="prompt"><input type="text" id="ai-input" placeholder="Спроси что угодно про обучение, экзамен или ПДД..." aria-label="Вопрос ГигаЧату"><button class="send" id="ai-open" title="Отправить вопрос">↑</button></div>
   <div class="quick">
-    <button>▢ <span>Хочу выучиться<br>на права</span></button>
-    <button>☷ <span>Выбрать<br>тариф</span></button>
-    <button>₽ <span>Сколько<br>это стоит?</span></button>
-    <button>♧ <span>Готов ли я<br>к экзамену?</span></button>
-    <button>▢ <span>Разобрать<br>нестандартную ситуацию</span></button>
+    <button data-scenario="Хочу выучиться на права"><span>Хочу выучиться<br>на права</span></button>
+    <button data-scenario="Как выбрать тариф обучения"><span>Выбрать<br>тариф</span></button>
+    <button data-scenario="Сколько стоит обучение в автошколе"><span>Сколько<br>это стоит?</span></button>
+    <button data-scenario="Готов ли я к экзамену в ГИБДД"><span>Готов ли я<br>к экзамену?</span></button>
+    <button data-scenario="Разбор нестандартной дорожной ситуации"><span>Разобрать<br>нестандартную ситуацию</span></button>
   </div>
 </section>
 </div>
@@ -138,8 +140,69 @@ export default {
       var open=function(id){document.getElementById(id).classList.add('open')};
       var closeAll=function(){document.querySelectorAll('.overlay').forEach(function(o){o.classList.remove('open')})};
       document.querySelectorAll('[data-open="login"]').forEach(function(b){b.addEventListener('click',function(){closeAll();open('m-login')})});
-      document.querySelectorAll('[data-open="register"]').forEach(function(b){b.addEventListener('click',function(){closeAll();open('m-register')})});
-      document.getElementById('to-register').addEventListener('click',function(){closeAll();open('m-register')});
+      document.querySelectorAll('[data-open="register"]').forEach(function(b){b.addEventListener('click',function(){closeAll();open('m-register');regShowChoice()})});
+      document.getElementById('to-register').addEventListener('click',function(){closeAll();open('m-register');regShowChoice()});
+      // Волна 21.1 (add-roles-theme-landing): двухшаговая регистрация по
+      // мокапу auth-register-choice — выбор роли → форма ученика / анкета
+      // инструктора (/instructors/apply, модерация существующим контуром).
+      function regShowChoice(){
+        document.getElementById('reg-choice').style.display='flex';
+        document.getElementById('reg-student-form').style.display='none';
+        document.getElementById('reg-back').style.display='none';
+        document.getElementById('reg-sub').textContent='Кем вы хотите зарегистрироваться?';
+      }
+      function regShowStudentForm(){
+        document.getElementById('reg-choice').style.display='none';
+        document.getElementById('reg-student-form').style.display='block';
+        document.getElementById('reg-back').style.display='';
+        document.getElementById('reg-sub').textContent='Создайте аккаунт ученика';
+      }
+      document.getElementById('reg-role-student').addEventListener('click',regShowStudentForm);
+      document.getElementById('reg-back').addEventListener('click',regShowChoice);
+      document.getElementById('reg-role-instructor').addEventListener('click',function(){
+        // инструкторская регистрация — существующая анкета с модерацией
+        window.location.href='/instructors/apply';
+      });
+      // Волна 21.3 (add-roles-theme-landing): лендинг-блок ГигаЧата
+      // интерактивен — send незалогиненному открывает регистрацию с
+      // подсказкой (введённый вопрос сохраняется в ai_prefill — чат
+      // «Главной» подхватит после входа); залогиненному — редирект в
+      // чат «Главной» с предзаполнением. quick-сценарии — то же с
+      // контекстом сценария (спека landing-assistant).
+      function aiPrefillAndRegister(question){
+        try { sessionStorage.setItem('ai_prefill', question); } catch (e) {}
+        open('m-register'); regShowChoice();
+        document.getElementById('reg-sub').textContent =
+          'Задайте этот вопрос ГигаЧату после входа';
+      }
+      document.getElementById('ai-open').addEventListener('click',function(){
+        var q = '';
+        try { q = document.getElementById('ai-input').value.trim(); } catch (e) {}
+        try { sessionStorage.setItem('ai_prefill', q); } catch (e) {}
+        var logged = null;
+        try { logged = sessionStorage.getItem('session_token'); } catch (e) {}
+        if (logged) { window.location.href = '/cabinet'; return; }
+        open('m-register'); regShowChoice();
+        document.getElementById('reg-sub').textContent =
+          'Задайте этот вопрос ГигаЧату после входа';
+      });
+      document.getElementById('ai-input').addEventListener('keydown',function(e){
+        if (e.key === 'Enter') document.getElementById('ai-open').click();
+      });
+      document.querySelectorAll('.quick [data-scenario]').forEach(function(b){
+        b.addEventListener('click',function(){
+          // MAJ-4 (review-…-001): quick для залогиненного — в чат «Главной»,
+          // как и #ai-open; незалогиненному — регистрация с подсказкой.
+          var logged = null;
+          try { logged = sessionStorage.getItem('session_token'); } catch (e) {}
+          if (logged) {
+            try { sessionStorage.setItem('ai_prefill', b.getAttribute('data-scenario')); } catch (e) {}
+            window.location.href = '/cabinet';
+            return;
+          }
+          aiPrefillAndRegister(b.getAttribute('data-scenario'));
+        });
+      });
       document.querySelectorAll('[data-close]').forEach(function(b){b.addEventListener('click',function(){
         closeAll();
         // BUG-056: закрытие (крестик #login-close / «Отмена») оставляет на
@@ -156,11 +219,12 @@ export default {
       // --- сабмиты модалок ---
       document.getElementById('reg-submit').addEventListener('click',doRegister);
       document.getElementById('login-submit').addEventListener('click',loginWiring.doLogin);
-      // --- ассистент и футер-переход — заглушки спринта-0 (тексты дословно) ---
-      var stub=function(msg){return function(){alert(msg)}};
-      document.getElementById('ai-open').addEventListener('click',stub('Заглушка: чат ассистента (Hermes) будет подключен позже'));
-      document.querySelectorAll('.quick button').forEach(function(b){b.addEventListener('click',stub('Заглушка: сценарии ассистента будут подключены позже'))});
-      document.getElementById('to-teachers').addEventListener('click',stub('Заглушка: лендинг для водителей-учителей — следующая страница'));
+      // Волна 21.3: лендинг-блок ГигаЧата интерактивен — живые листенеры
+      // #ai-open/#ai-input/.quick [data-scenario] выше (заглушки спринта-0
+      // удалены: дублировали обработчики — alert на каждый клик).
+      // to-teachers — легаси-заглушка вне скоупа волны (лендинг водителей).
+      var stubTeachers=function(msg){return function(){alert(msg)}};
+      document.getElementById('to-teachers').addEventListener('click',stubTeachers('Заглушка: лендинг для водителей-учителей — следующая страница'));
     });
 
     return {

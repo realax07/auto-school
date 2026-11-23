@@ -665,3 +665,41 @@ API: /api/wallet, /api/wallet/topup; /api/instructor/price, /api/instructor/econ
   (ADR-001/002), статика без серверной защиты страниц (спринт-1 паттерн),
   нет rate-limit на публичных эндпоинтах, файлы-сироты uploads (cleanup
   вне объема).
+
+## Спринт 21 (add-roles-theme-landing, волна 21.1): выбор роли при регистрации
+
+Модалка регистрации лендинга — двухшаговая по мокапу auth-register-choice
+(утв. 2026-11-19, docs #154): шаг 0 — выбор роли («Я ученик» / «Я
+инструктор»), выбор ученика открывает существующую форму ученика,
+выбор инструктора — переход на существующую анкету /instructors/apply
+(модерация без изменений). Реализация — фронтовая развилка: компонент
+shared/RegisterModal.vue (choice-шаг + кнопка «Выбрать другую роль»),
+wiring App.vue (regShowChoice/regShowStudentForm); backend RegisterRequest
+role=student|instructor — существующий контракт, не менялся. Статические
+легаси-копии модалок m-login/m-register в vue/index.html удалены
+(id-дубли ломали выбор роли; компоненты LoginModal/RegisterModal —
+единственные post-mount носители). Носители: TC-S21-001…003
+(tests/web/test_ui_playwright.py); существующие регистрационные e2e
+адаптированы кликом «Я ученик» (без ослаблений).
+
+## Спринт 21 (волна 21.3): лендинг-блок ГигаЧата интерактивен
+
+Блок assistant лендинга (index.html + template App.vue — правило двух
+копий): поле ввода #ai-input активно; send (#ai-open) незалогиненному
+открывает модалку регистрации с подсказкой «Задайте этот вопрос
+ГигаЧату после входа» и сохраняет вопрос в sessionStorage ai_prefill;
+залогиненному — редирект в чат «Главной» (/cabinet) с предзаполнением
+поля (cabinet App.vue читает ai_prefill при mount, очищает). quick-кнопки
+(5 сценариев) — интерактивны: ai_prefill + модалка регистрации. Носители:
+TC-S21-004…006 (test_ui_playwright.py).
+
+## Спринт 21 (волна 21.4): темы light/dark/system
+
+Кабинет: boot-скрипт cabinet.html ставит data-theme на html ДО CSS
+(localStorage 'theme' | prefers-color-scheme → dark); light-режим MVP —
+инверсионный (body filter invert+hue-rotate, img/svg/video — обратный
+фильтр; полноценная светлая палитра — следующая волна при потребности).
+Переключатель — сегмент Тёмная/Светлая/Авто в StudentSidebar (setTheme;
+«Авто» снимает localStorage-ключ). Носители: TC-S21-007…009
+(test_ui_playwright.py). Распространение data-theme на лендинг/instructor/
+pdd-страницы — следующее касание (boot-скрипт повторяется на входах).

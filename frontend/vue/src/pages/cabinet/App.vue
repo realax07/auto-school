@@ -520,6 +520,14 @@ export default {
     // shared/loginWiring.js, но с заголовком сессии ученика.
     var aiMessages = ref([]);   // журнал чата: {role:'user'|'assistant', text, created_at}
     var aiDraft = ref('');
+    // Волна 21.3 (add-roles-theme-landing): prefill вопроса из лендинг-блока
+    // ГигаЧата (sessionStorage ai_prefill — ставит лендинг при send/quick
+    // незалогиненному; подхват при входе в кабинет, затем очистка).
+    try {
+      var _prefill = sessionStorage.getItem('ai_prefill');
+      if (_prefill) { aiDraft.value = String(_prefill).slice(0, 500);
+        sessionStorage.removeItem('ai_prefill'); }
+    } catch (e) {}
     var aiBusy = ref(false);    // отправка блокируется на время ответа (FR-19.3)
     var aiError = ref('');      // человеческий текст ошибки у поля
 

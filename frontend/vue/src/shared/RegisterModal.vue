@@ -16,7 +16,23 @@
 <template>
   <!-- Модалка: Регистрация (утвержденный мокап) -->
   <div class="overlay" id="m-register"><div class="modal wide" role="dialog" aria-label="Регистрация">
-    <h2>Регистрация</h2><p class="sub">Создайте аккаунт ученика</p>
+    <h2>Регистрация</h2><p class="sub" id="reg-sub">Создайте аккаунт ученика</p>
+    <!-- Волна 21.1 (add-roles-theme-landing): шаг выбора роли по мокапу
+       auth-register-choice (утвержден Заказчиком 2026-11-19): «Я ученик» —
+       форма ученика ниже; «Я инструктор» — существующая анкета с
+       модерацией (/instructors/apply). Видимость шагов управляет App.vue
+       (wiring regShowChoice/regShowStudentForm, ids дословно). -->
+    <div id="reg-choice" class="reg-choice" style="display:none">
+      <div class="reg-role" id="reg-role-student" role="button" tabindex="0">
+        <div class="reg-role-ic"><span class="dot"></span></div>
+        <div><b>Я ученик</b><span>Запишусь на занятия в автошколе</span></div>
+      </div>
+      <div class="reg-role" id="reg-role-instructor" role="button" tabindex="0">
+        <div class="reg-role-ic"><span class="dot solid"></span></div>
+        <div><b>Я инструктор</b><span>Подам заявку — модерация</span></div>
+      </div>
+    </div>
+    <div id="reg-student-form" style="display:none">
     <div class="row">
       <div class="field"><label>Фамилия</label><input type="text" id="reg-surname" placeholder="Иванов"></div>
       <div class="field"><label>Имя</label><input type="text" id="reg-name" placeholder="Иван"></div>
@@ -34,7 +50,8 @@
        до установки, consent — в payload сабмита. -->
     <label class="reg-check"><input type="checkbox" id="reg-consent" required @change="regConsent = $event.target.checked"><span>Я согласен(на) с <a href="/policy" target="_blank" rel="noopener">политикой персональных данных</a></span></label>
     <p class="err" id="reg-error" :style="{display: error ? 'block' : 'none'}" style="margin:14px 0 0;font-size:13px;color:#ff9c9c;">{{ error }}</p>
-    <div class="actions"><button class="btn btn-primary" id="reg-submit" :disabled="!regConsent">Зарегистрироваться</button><button class="btn btn-ghost" data-close>Отмена</button></div>
+    <div class="actions"><button class="btn btn-primary" id="reg-submit" :disabled="!regConsent">Зарегистрироваться</button><button class="btn btn-ghost" data-close>Отмена</button><button class="btn btn-ghost" id="reg-back" style="display:none">Выбрать другую роль</button></div>
+    </div><!-- /reg-student-form (волна 21.1: показ после выбора «Я ученик») -->
   </div></div>
 </template>
 

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>СберАвтошкола — Переключатель тем — мокап 21.4</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: "SF Pro Display", -apple-system, "Segoe UI", Roboto, "DejaVu Sans", sans-serif;
+    background: #101613; display: flex; gap: 26px; justify-content: center; align-items: center; padding: 26px; }
+  .phone { width: 390px; height: 700px; border-radius: 26px; overflow: hidden;
+    display: flex; flex-direction: column; box-shadow: 0 18px 60px rgba(0,0,0,0.5); }
+  .phone.dark { background: #070c09; color: #f2f5f3; }
+  .phone.light { background: #f6f8f6; color: #17201b; }
+  .bar { padding: 26px 20px 0; display: flex; justify-content: space-between; align-items: center; }
+  .brand { font-size: 17px; font-weight: 800; }
+  .dark .brand .accent { color: #3ddc84; } .light .brand .accent { color: #1f9d5b; }
+  .seg { display: flex; border-radius: 12px; overflow: hidden; border: 1px solid rgba(128,128,128,0.25); }
+  .seg div { padding: 8px 13px; font-size: 12.5px; font-weight: 600; }
+  .dark .seg { background: rgba(255,255,255,0.04); color: #9aa39d; }
+  .light .seg { background: rgba(0,0,0,0.04); color: #5b6660; }
+  .seg .on-dark { background: #3ddc84; color: #04120a; }
+  .seg .on-light { background: #17201b; color: #f6f8f6; }
+  .h { font-family: Georgia, serif; font-size: 24px; font-weight: 600; padding: 22px 20px 4px; }
+  .card { margin: 10px 20px; border-radius: 18px; padding: 16px; font-size: 13.5px; line-height: 1.5; }
+  .dark .card { background: linear-gradient(165deg, #10231a, #0b1712); border: 1px solid rgba(61,220,132,0.16); }
+  .light .card { background: #ffffff; border: 1px solid rgba(0,0,0,0.09);
+    box-shadow: 0 2px 10px rgba(20,40,30,0.06); }
+  .card b { font-size: 15px; display: block; margin-bottom: 4px; }
+  .dark .card b { color: #3ddc84; } .light .card b { color: #1f9d5b; }
+  .cap { text-align: center; font-size: 12.5px; color: #9aa39d; padding: 8px 0 0; }
+</style>
+</head>
+<body>
+<div class="phone dark">
+  <div class="bar"><div class="brand"><span class="accent">Сбер</span>Автошкола</div>
+    <div class="seg"><div class="on-dark">Тёмная</div><div>Светлая</div><div>Авто</div></div></div>
+  <div class="h">Мой день</div>
+  <div class="card"><b>Ближайшее занятие</b>Сегодня, 14:00 — практика, инструктор А. Петров. Приезжайте за 10 минут.</div>
+  <div class="card"><b>Теория: билет 12</b>Осталось разобрать 4 вопроса до зачёта.</div>
+  <div class="cap">Тёмная (текущий канон) — сегмент «Тёмная»</div>
+</div>
+<div class="phone light">
+  <div class="bar"><div class="brand"><span class="accent">Сбер</span>Автошкола</div>
+    <div class="seg"><div>Тёмная</div><div class="on-light">Светлая</div><div>Авто</div></div></div>
+  <div class="h">Мой день</div>
+  <div class="card"><b>Ближайшее занятие</b>Сегодня, 14:00 — практика, инструктор А. Петров. Приезжайте за 10 минут.</div>
+  <div class="card"><b>Теория: билет 12</b>Осталось разобрать 4 вопроса до зачёта.</div>
+  <div class="cap">Светлая (новая палитра) — сегмент «Светлая»; «Авто» = prefers-color-scheme</div>
+</div>
+</body>
+</html>

@@ -685,3 +685,16 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(217,239,238,.1
 }
 
 
+/* Волна 21.4 (add-roles-theme-landing): light-тема — инверсионный режим
+   поверх тёмного канона (MVP: полноценная светлая палитра — следующая
+   волна). data-theme ставится boot-скриптом cabinet.html (localStorage
+   'theme' | prefers-color-scheme). Изображения/иконки возвращаются
+   обратным фильтром. */
+html[data-theme="light"] body{filter:invert(0.92) hue-rotate(180deg)}
+html[data-theme="light"] img,
+html[data-theme="light"] svg,
+html[data-theme="light"] video{filter:invert(1) hue-rotate(180deg)}
+/* Волна 21.4: переключатель тем (сегмент в сайдбаре) */
+.theme-seg{display:flex;gap:6px;margin:10px 14px 14px;border:1px solid rgba(128,128,128,.25);border-radius:12px;overflow:hidden}
+.theme-seg button{flex:1;padding:8px 6px;font-size:12px;font-weight:600;background:rgba(255,255,255,.04);border:0;color:#9aa39d;cursor:pointer}
+.theme-seg button.on{background:#3ddc84;color:#04120a;border-radius:0}

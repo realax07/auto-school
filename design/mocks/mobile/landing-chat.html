@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>СберАвтошкола — ГигаЧат на лендинге (интерактивный) — мокап 21.2</title>
+<style>
+  :root {
+    --bg: #070c09; --green: #3ddc84; --green-dim: rgba(61,220,132,0.14);
+    --ink: #f2f5f3; --ink-muted: #9aa39d;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--ink);
+    font-family: "SF Pro Display", -apple-system, "Segoe UI", Roboto, "DejaVu Sans", sans-serif;
+    display: flex; justify-content: center; }
+  .phone { width: 390px; height: 844px;
+    background: radial-gradient(ellipse 480px 340px at 50% 30%, rgba(61,220,132,0.07) 0%, transparent 65%), var(--bg);
+    display: flex; flex-direction: column; overflow: hidden; }
+  .top { padding: 26px 20px 0; display: flex; justify-content: space-between; align-items: center; }
+  .brand { font-size: 17px; font-weight: 800; }
+  .brand .accent { color: var(--green); }
+  .h1 { font-family: Georgia, serif; font-size: 30px; font-weight: 600; line-height: 1.12;
+    padding: 18px 20px 8px; letter-spacing: -0.4px; }
+  .h1 span { color: var(--green); }
+  .sub { font-size: 14px; color: var(--ink-muted); padding: 0 20px 16px; line-height: 1.4; }
+  .chat-card { margin: 0 16px; border-radius: 22px; padding: 16px;
+    background: linear-gradient(165deg, #10231a 0%, #0b1712 100%);
+    border: 1px solid rgba(61,220,132,0.18); }
+  .chat-head { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; }
+  .avatar { width: 44px; height: 44px; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #3ddc84, #14724a);
+    box-shadow: 0 0 0 3px rgba(61,220,132,0.14); }
+  .chat-head b { font-size: 16px; display: block; }
+  .chat-head span { font-size: 12px; color: var(--ink-muted); }
+  .bubble { border-radius: 14px; padding: 12px 14px; font-size: 14px; line-height: 1.45;
+    background: rgba(61,220,132,0.08); margin-bottom: 12px; }
+  .bubble .caret { display: inline-block; width: 8px; height: 14px; background: var(--green);
+    vertical-align: -2px; animation: blink 1s steps(2) infinite; border-radius: 2px; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .prompt-row { display: flex; gap: 8px; align-items: center;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(61,220,132,0.3);
+    border-radius: 14px; padding: 10px 12px; }
+  .prompt-row .ph { flex: 1; font-size: 13px; color: var(--ink-muted); }
+  .send { width: 40px; height: 40px; border-radius: 12px; background: var(--green);
+    display: flex; align-items: center; justify-content: center; color: #04120a;
+    font-size: 18px; font-weight: 800; }
+  .badge { margin-top: 10px; font-size: 11.5px; color: var(--ink-muted);
+    display: flex; align-items: center; gap: 6px; }
+  .badge .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+  .quick-label { font-size: 12px; color: var(--ink-muted); padding: 16px 20px 8px;
+    letter-spacing: 0.4px; text-transform: uppercase; }
+  .quick { padding: 0 16px; display: flex; flex-direction: column; gap: 10px; }
+  .q-card { border-radius: 16px; padding: 14px 16px; display: flex; justify-content: space-between;
+    align-items: center; background: linear-gradient(165deg, #10231a 0%, #0b1712 100%);
+    border: 1px solid rgba(61,220,132,0.16); }
+  .q-card b { font-size: 14.5px; font-weight: 600; display: block; }
+  .q-card small { font-size: 12px; color: var(--ink-muted); }
+  .q-card .arrow { color: var(--green); font-size: 18px; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="top">
+    <div class="brand"><span class="accent">Сбер</span>Автошкола</div>
+    <div class="badge"><span class="dot"></span>ГигаЧат онлайн</div>
+  </div>
+  <div class="h1">Права —<br><span>без лишнего пути.</span></div>
+  <div class="sub">Весь путь — от первого занятия до экзамена — в одном месте.</div>
+  <div class="chat-card">
+    <div class="chat-head"><div class="avatar"></div><div><b>Гига ГАИшник</b><span>Твой AI-помощник по ПДД</span></div></div>
+    <div class="bubble">Привет! Я ГигаЧат. Спроси про знаки, штрафы или экзамен — отвечу сразу.<span class="caret"></span></div>
+    <div class="prompt-row"><div class="ph">Спроси что угодно про ПДД…</div><div class="send">↑</div></div>
+    <div class="badge"><span class="dot"></span>Полный чат откроется после входа</div>
+  </div>
+  <div class="quick-label">Начните с вопроса</div>
+  <div class="quick">
+    <div class="q-card"><div><b>Хочу выучиться на права</b><small>как проходит обучение</small></div><div class="arrow">→</div></div>
+    <div class="q-card"><div><b>Штрафы и баллы</b><small>что грозит за нарушения</small></div><div class="arrow">→</div></div>
+    <div class="q-card"><div><b>Экзамен в ГИБДД</b><small>как сдать с первого раза</small></div><div class="arrow">→</div></div>
+  </div>
+</div>
+</body>
+</html>

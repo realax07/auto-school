@@ -76,7 +76,10 @@ def test_tc_auth_login_modal_texts_verbatim():
     подзаголовок, подписи полей, плейсхолдеры, подписи кнопок)."""
     html = INDEX.read_text(encoding="utf-8")
     start = html.index("<!-- Модалка: Вход (утвержденный мокап) -->")
-    end = html.index("<!-- Модалка: Регистрация (утвержденный мокап) -->")
+    # Волна 21.1: статическая регистровая модалка удалена (компонент
+    # shared/RegisterModal.vue) — её маркер-заместитель стал фактическим
+    # концом среза m-login (index.html:76).
+    end = html.index("<!-- Модалка: Регистрация — компонент shared/RegisterModal.vue")
     modal = html[start:end]
     for text in LOGIN_MODAL_TEXTS:
         assert text in modal, text
@@ -87,7 +90,10 @@ def test_tc_auth_login_modal_no_stub_submit():
     подключен') у кнопки «Войти» отсутствует, сабмит — через id="login-submit"."""
     html = INDEX.read_text(encoding="utf-8")
     start = html.index("<!-- Модалка: Вход (утвержденный мокап) -->")
-    end = html.index("<!-- Модалка: Регистрация (утвержденный мокап) -->")
+    # Волна 21.1: статическая регистровая модалка удалена (компонент
+    # shared/RegisterModal.vue) — её маркер-заместитель стал фактическим
+    # концом среза m-login (index.html:76).
+    end = html.index("<!-- Модалка: Регистрация — компонент shared/RegisterModal.vue")
     modal = html[start:end]
     assert "Заглушка: бэкенд не подключен" not in modal
     assert 'id="login-submit"' in modal

@@ -370,6 +370,8 @@ def test_student_register_redirects_to_cabinet(page, server):
     page.goto(f"{server}/")
     page.locator('.auth [data-open="register"]').click()
     expect(page.locator("#m-register.overlay")).to_be_visible()
+    # Волна 21.1: регистрация двухшаговая — выбор роли «Я ученик» перед формой
+    page.locator("#reg-role-student").click()
 
     email = unique_email("student")
     page.fill("#reg-surname", "Иванов")
@@ -4595,6 +4597,8 @@ def test_register_modal_consent_gates_submit_and_links_policy(page, server):
     page.goto(f"{server}/")
     page.locator('.auth [data-open="register"]').click()
     expect(page.locator("#m-register.overlay")).to_be_visible()
+    # Волна 21.1: выбор роли «Я ученик» перед формой согласия
+    page.locator("#reg-role-student").click()
 
     email = unique_email("reg-consent")
     page.fill("#reg-surname", "Гейтингов")
@@ -5795,3 +5799,186 @@ def test_s18_mobile_geometry_hit_targets(page, server):
     # MIN-4 б: геометрия видимых кнопок на разделах с данными
     # (.act/.bk-act — меряются при наличии данных; wal-btn — в
     #  geometry-проверке выше по этой же функции)
+
+
+# --- Спринт 21 (add-roles-theme-landing, волна 21.1): выбор роли при регистрации ---
+
+def test_tc_s21_001_register_modal_shows_role_choice(page, server):
+    """TC-S21-001 (change add-roles-theme-landing): модалка регистрации
+    открывается на экране выбора роли (мокап auth-register-choice,
+    утвержден Заказчиком 2026-11-19); форма ученика скрыта до выбора."""
+    page.goto(f"{server}/")
+    page.locator('.auth [data-open="register"]').click()
+    expect(page.locator("#m-register.overlay")).to_be_visible()
+
+    expect(page.locator("#reg-choice")).to_be_visible()
+    expect(page.locator("#reg-sub")).to_have_text(
+        "Кем вы хотите зарегистрироваться?")
+    expect(page.locator("#reg-role-student")).to_contain_text("Я ученик")
+    expect(page.locator("#reg-role-instructor")).to_contain_text(
+        "Я инструктор")
+    assert page.locator("#reg-student-form").is_hidden()
+
+
+def test_tc_s21_002_register_student_choice_shows_form(page, server):
+    """TC-S21-002: выбор «Я ученик» показывает форму ученика и кнопку
+    возврата к выбору роли; возврат работает."""
+    page.goto(f"{server}/")
+    page.locator('.auth [data-open="register"]').click()
+    page.locator("#reg-role-student").click()
+
+    expect(page.locator("#reg-student-form")).to_be_visible()
+    expect(page.locator("#reg-sub")).to_have_text(
+        "Создайте аккаунт ученика")
+    expect(page.locator("#reg-surname")).to_be_visible()
+    expect(page.locator("#reg-back")).to_be_visible()
+    page.locator("#reg-back").click()
+    expect(page.locator("#reg-choice")).to_be_visible()
+    expect(page.locator("#reg-student-form")).not_to_be_visible()
+
+
+def test_tc_s21_003_register_instructor_choice_goes_to_apply(page, server):
+    """TC-S21-003: выбор «Я инструктор» уводит на анкету инструктора
+    /instructors/apply (существующий контур модерации)."""
+    page.goto(f"{server}/")
+    page.locator('.auth [data-open="register"]').click()
+    page.locator("#reg-role-instructor").click()
+    page.wait_for_url("**/instructors/apply**")
+    assert "/instructors/apply" in page.url
+
+
+# --- Спринт 21 (add-roles-theme-landing, волны 21.3/21.4): лендинг-блок
+# --- ГигаЧата интерактивен + темы light/dark/system ---
+
+def test_tc_s21_004_landing_chat_send_guest_opens_register(page, server):
+    """TC-S21-004 (спека landing-assistant, Scenario 1): незалогиненный
+    вводит вопрос в лендинг-блоке и жмёт send — открывается модалка
+    регистрации с подсказкой «Задайте этот вопрос ГигаЧату после входа»,
+    вопрос сохранён в sessionStorage ai_prefill (чат «Главной» подхватит
+    после входа)."""
+    page.goto(f"{server}/")
+    html = page.content()
+    print("DIAG ai-input in content:", 'id="ai-input"' in html, "| len:", len(html))
+    print("DIAG title:", page.title())
+    page.fill("#ai-input", "Какой знак запрещает обгон?")
+    page.locator("#ai-open").click()
+
+    expect(page.locator("#m-register.overlay")).to_be_visible()
+    expect(page.locator("#reg-sub")).to_have_text(
+        "Задайте этот вопрос ГигаЧату после входа")
+    prefill = page.evaluate("sessionStorage.getItem('ai_prefill')")
+    assert "знак запрещает обгон" in (prefill or "")
+
+
+def test_tc_s21_005_landing_quick_scenario_opens_register(page, server):
+    """TC-S21-005 (спека landing-assistant, Scenario 2): quick-кнопка
+    сценария интерактивна — открывает регистрацию, контекст сценария
+    уходит в ai_prefill; мёртвых кнопок нет."""
+    page.goto(f"{server}/")
+    page.locator(".quick [data-scenario]").first.click()
+
+    expect(page.locator("#m-register.overlay")).to_be_visible()
+    prefill = page.evaluate("sessionStorage.getItem('ai_prefill')")
+    assert prefill and "выучиться" in prefill
+
+
+def test_tc_s21_006_landing_send_logged_in_redirects_to_chat(page, server):
+    """TC-S21-006 (спека landing-assistant): залогиненный (session_token)
+    send → редирект в кабинет (чат «Главной»); ai_prefill НЕ ставится
+    заново пустым вопросом поверх существующего."""
+    _seed_session(page, "session_token", "seeded-s21-token")
+    page.goto(f"{server}/")
+    page.fill("#ai-input", "Разбор ситуации")
+    page.locator("#ai-open").click()
+    page.wait_for_url("**/cabinet**")
+    assert "/cabinet" in page.url
+
+
+def test_tc_s21_007_theme_toggle_without_reload(page, server):
+    """TC-S21-007 (спека theme, Scenario 1): клик «Светлая» ставит
+    data-theme="light" на html БЕЗ перезагрузки; localStorage сохраняет
+    выбор."""
+    status, data = api("POST", "/api/register", base=server, body={
+        "surname": "Темнов", "name": "Тема", "patronymic": "Темович",
+        "email": "theme-toggle@ui-test.example.ru", "phone": "+7 900 111-22-33",
+        "password": "S3cretPass!", "password_confirm": "S3cretPass!",
+        "consent": True})
+    assert status == 200
+    status, data = api("POST", "/api/auth/login", base=server, body={
+        "email": "theme-toggle@ui-test.example.ru",
+        "password": "S3cretPass!"})
+    assert status == 200 and data.get("token")
+    _seed_session(page, "session_token", data["token"])
+
+    page.goto(f"{server}/cabinet")
+    page.locator(".theme-seg button", has_text="Светлая").click()
+    after = page.evaluate("document.documentElement.getAttribute('data-theme')")
+    assert after == "light"
+    stored = page.evaluate("localStorage.getItem('theme')")
+    assert stored == "light"
+
+
+def test_tc_s21_008_theme_persists_across_reload(page, server):
+    """TC-S21-008 (спека theme, Scenario 3): выбор темы переживает
+    перезагрузку страницы (boot cabinet.html читает localStorage)."""
+    status, data = api("POST", "/api/register", base=server, body={
+        "surname": "Темнов", "name": "Тема", "patronymic": "Темович",
+        "email": "theme-reload@ui-test.example.ru", "phone": "+7 900 111-22-34",
+        "password": "S3cretPass!", "password_confirm": "S3cretPass!",
+        "consent": True})
+    assert status == 200
+    status, data = api("POST", "/api/auth/login", base=server, body={
+        "email": "theme-reload@ui-test.example.ru",
+        "password": "S3cretPass!"})
+    assert status == 200 and data.get("token")
+    _seed_session(page, "session_token", data["token"])
+
+    page.goto(f"{server}/cabinet")
+    page.locator(".theme-seg button", has_text="Светлая").click()
+    page.reload()
+    assert page.evaluate(
+        "document.documentElement.getAttribute('data-theme')") == "light"
+
+
+def test_tc_s21_009_theme_auto_removes_stored_choice(page, server):
+    """TC-S21-009 (спека theme, Scenario 2): «Авто» снимает сохранённый
+    выбор — boot применит системную схему (prefers-color-scheme)."""
+    status, data = api("POST", "/api/register", base=server, body={
+        "surname": "Темнов", "name": "Тема", "patronymic": "Темович",
+        "email": "theme-auto@ui-test.example.ru", "phone": "+7 900 111-22-35",
+        "password": "S3cretPass!", "password_confirm": "S3cretPass!",
+        "consent": True})
+    assert status == 200
+    status, data = api("POST", "/api/auth/login", base=server, body={
+        "email": "theme-auto@ui-test.example.ru",
+        "password": "S3cretPass!"})
+    assert status == 200 and data.get("token")
+    _seed_session(page, "session_token", data["token"])
+
+    page.goto(f"{server}/cabinet")
+    page.evaluate("localStorage.setItem('theme','light')")
+    page.reload()
+    page.locator(".theme-seg button", has_text="Авто").click()
+    stored = page.evaluate("localStorage.getItem('theme')")
+    assert stored is None
+
+
+def test_tc_s21_010_quick_logged_in_redirects_to_chat(page, server):
+    """TC-S21-010 (MIN-5 review-21.2.1-…-001, ветка MAJ-4): quick-сценарий
+    для ЗАЛОГИНЕННОГО ведёт в чат «Главной» (/cabinet), а не в модалку
+    регистрации."""
+    status, data = api("POST", "/api/register", base=server, body={
+        "surname": "Сценариев", "name": "Квик", "patronymic": "Быстрый",
+        "email": "quick-logged@ui-test.example.ru", "phone": "+7 900 555-11-00",
+        "password": "S3cretPass!", "password_confirm": "S3cretPass!",
+        "consent": True})
+    assert status == 200
+    status, data = api("POST", "/api/auth/login", base=server, body={
+        "email": "quick-logged@ui-test.example.ru", "password": "S3cretPass!"})
+    assert status == 200, (status, data)
+    _seed_session(page, "session_token", data["token"])
+
+    page.goto(f"{server}/")
+    page.locator(".quick [data-scenario]").first.click()
+    page.wait_for_url("**/cabinet**")
+    assert "/cabinet" in page.url
