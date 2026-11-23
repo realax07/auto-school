@@ -17,13 +17,18 @@
   (регистрация-модалка: существующие сценарии сохранены, добавлен
   choice-шаг); инструктор-анкета — переход без изменений контракта.
 
-### ADDED theme — light/dark/system
+### ADDED theme — light/dark/system (MVP-инверсия)
 
-- Новая capability theme: CSS-переменные :root / [data-theme="light"],
-  переключатель в кабинете, localStorage, prefers-color-scheme.
-- Воздействие: все страницы через переменные; носители цвета — тёмный
-  канон база, светлая палитра новая; boot в main.js + статических HTML
-  (pre-mount правило).
+- Новая capability theme: boot-скрипт cabinet.html (data-theme на html
+  ДО CSS), light = инверсионный режим (body filter invert+hue-rotate;
+  img/svg/video обратный фильтр) — MVP по решению Заказчика, сегмент
+  Тёмная/Светлая/Авто в StudentSidebar, localStorage 'theme',
+  prefers-color-scheme дефолт. Полноценная светлая палитра — следующая
+  волна (зафиксировано в tasks/impact/design).
+- Воздействие: страницы кабинета через html[data-theme]; носители цвета —
+  тёмный канон база; light-носители (TC-S21-007…009) — механика
+  переключения/сохранения, не палитра. «палитра пересчитана» → заменено
+  на MVP-инверсию (фикс MIN-2 review-…-001).
 
 ### ADDED landing-assistant — интерактивный блок ГигаЧата
 

@@ -191,6 +191,15 @@ export default {
       });
       document.querySelectorAll('.quick [data-scenario]').forEach(function(b){
         b.addEventListener('click',function(){
+          // MAJ-4 (review-…-001): quick для залогиненного — в чат «Главной»,
+          // как и #ai-open; незалогиненному — регистрация с подсказкой.
+          var logged = null;
+          try { logged = sessionStorage.getItem('session_token'); } catch (e) {}
+          if (logged) {
+            try { sessionStorage.setItem('ai_prefill', b.getAttribute('data-scenario')); } catch (e) {}
+            window.location.href = '/cabinet';
+            return;
+          }
           aiPrefillAndRegister(b.getAttribute('data-scenario'));
         });
       });
@@ -210,11 +219,12 @@ export default {
       // --- сабмиты модалок ---
       document.getElementById('reg-submit').addEventListener('click',doRegister);
       document.getElementById('login-submit').addEventListener('click',loginWiring.doLogin);
-      // --- ассистент и футер-переход — заглушки спринта-0 (тексты дословно) ---
-      var stub=function(msg){return function(){alert(msg)}};
-      document.getElementById('ai-open').addEventListener('click',stub('Заглушка: чат ассистента (Hermes) будет подключен позже'));
-      document.querySelectorAll('.quick button').forEach(function(b){b.addEventListener('click',stub('Заглушка: сценарии ассистента будут подключены позже'))});
-      document.getElementById('to-teachers').addEventListener('click',stub('Заглушка: лендинг для водителей-учителей — следующая страница'));
+      // Волна 21.3: лендинг-блок ГигаЧата интерактивен — живые листенеры
+      // #ai-open/#ai-input/.quick [data-scenario] выше (заглушки спринта-0
+      // удалены: дублировали обработчики — alert на каждый клик).
+      // to-teachers — легаси-заглушка вне скоупа волны (лендинг водителей).
+      var stubTeachers=function(msg){return function(){alert(msg)}};
+      document.getElementById('to-teachers').addEventListener('click',stubTeachers('Заглушка: лендинг для водителей-учителей — следующая страница'));
     });
 
     return {

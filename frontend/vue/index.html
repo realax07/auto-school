@@ -42,10 +42,6 @@
 </section>
 <section class="assistant">
   <div class="ai-head"><div class="avatar"></div><div><b>Гига ГАИшник</b><span>Твой AI-помощник в обучении и на дороге</span></div></div>
-  <!-- Волна 21.3 (add-roles-theme-landing): блок интерактивен — ввод
-       активен; send незалогиненному открывает регистрацию с подсказкой
-       (спека landing-assistant); залогиненному — редирект в чат «Главной»
-       с предзаполнением (sessionStorage ai_prefill, читает cabinet). -->
   <div class="prompt"><input type="text" id="ai-input" placeholder="Спроси что угодно про обучение, экзамен или ПДД..." aria-label="Вопрос ГигаЧату"><button class="send" id="ai-open" title="Отправить вопрос">↑</button></div>
   <div class="quick">
     <button data-scenario="Хочу выучиться на права"><span>Хочу выучиться<br>на права</span></button>
@@ -68,19 +64,18 @@
   <!-- BUG-055/056: overlay — замутненная
      страница (blur 8px + затемнение); крестик #login-close ВНЕ карточки
      (закрытие: крестик/«Отмена»/Esc; клик по фону НЕ закрывает) -->
-<!-- Волна 21.1: модалки входа/регистрации — компоненты LoginModal/RegisterModal (shared/), статические легаси-копии удалены (id-дубли ломали выбор роли) -->
-  <div class="row">
-    <div class="field"><label>Пароль</label><input type="password" id="reg-password" placeholder="••••••••"></div>
-    <div class="field"><label>Подтверждение</label><input type="password" id="reg-password-confirm" placeholder="••••••••"></div>
-  </div>
-  <!-- Спринт 9 (change add-personal-data-policy, задача 5.2, FR-78):
-       обязательный чекбокс согласия с политикой персональных данных
-       со ссылкой на /policy (target="_blank"); #reg-submit недоступен
-       до установки (landing.js), consent — в payload сабмита. -->
-  <label class="reg-check"><input type="checkbox" id="reg-consent" required><span>Я согласен(на) с <a href="/policy" target="_blank" rel="noopener">политикой персональных данных</a></span></label>
-  <p class="err" id="reg-error" style="display:none;margin:14px 0 0;font-size:13px;color:#ff9c9c;"></p>
-  <div class="actions"><button class="btn btn-primary" id="reg-submit" disabled>Зарегистрироваться</button><button class="btn btn-ghost" data-close>Отмена</button><button class="btn btn-ghost" id="reg-back" style="display:none">Выбрать другую роль</button></div>
-  </div><!-- /reg-student-form -->
+<div class="overlay" id="m-login"><button class="login-close" id="login-close" type="button" data-close aria-label="Закрыть" title="Закрыть">×</button><div class="modal" role="dialog" aria-label="Вход">
+  <h2>Вход</h2><p class="sub">Войдите в личный кабинет</p>
+  <div class="field"><label>Логин</label><input type="text" id="login-email" placeholder="email или телефон"></div>
+  <div class="field"><label>Пароль</label><input type="password" id="login-password" placeholder="••••••••"></div>
+  <p class="err" id="login-error" style="display:none;margin:14px 0 0;font-size:13px;color:#ff9c9c;"></p>
+  <div class="actions"><button class="btn btn-primary" id="login-submit">Войти</button><button class="btn btn-ghost" data-close>Отмена</button></div>
+  <p class="alt">Нет аккаунта? <button id="to-register">Зарегистрироваться</button></p>
 </div></div>
+
+<!-- Модалка: Регистрация — компонент shared/RegisterModal.vue
+     (волна 21.1 add-roles-theme-landing: choice-шаг выбора роли
+     «Я ученик/Я инструктор» внутри компонента; статическая копия
+     удалена — id-дубли ломали выбор роли). Wiring — App.vue. -->
 </div>
 <script type="module" src="/src/pages/landing/main.js"></script></body></html>

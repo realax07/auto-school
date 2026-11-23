@@ -5810,14 +5810,6 @@ def test_tc_s21_001_register_modal_shows_role_choice(page, server):
     page.goto(f"{server}/")
     page.locator('.auth [data-open="register"]').click()
     expect(page.locator("#m-register.overlay")).to_be_visible()
-    html = page.content()
-    open("/tmp/diag-page3.html", "w", encoding="utf-8").write(html)
-    print("DIAG count reg-choice:", page.locator("#reg-choice").count())
-    print("DIAG m-register count:", page.locator("#m-register").count())
-    print("DIAG reg-choice display:", page.evaluate(
-        "document.getElementById('reg-choice') ? "
-        "getComputedStyle(document.getElementById('reg-choice')).display : 'NO ELEMENT'"))
-    print("DIAG overlay html head:", html[:300].replace("\n", " "))
 
     expect(page.locator("#reg-choice")).to_be_visible()
     expect(page.locator("#reg-sub")).to_have_text(
@@ -5969,3 +5961,24 @@ def test_tc_s21_009_theme_auto_removes_stored_choice(page, server):
     page.locator(".theme-seg button", has_text="Авто").click()
     stored = page.evaluate("localStorage.getItem('theme')")
     assert stored is None
+
+
+def test_tc_s21_010_quick_logged_in_redirects_to_chat(page, server):
+    """TC-S21-010 (MIN-5 review-21.2.1-…-001, ветка MAJ-4): quick-сценарий
+    для ЗАЛОГИНЕННОГО ведёт в чат «Главной» (/cabinet), а не в модалку
+    регистрации."""
+    status, data = api("POST", "/api/register", base=server, body={
+        "surname": "Сценариев", "name": "Квик", "patronymic": "Быстрый",
+        "email": "quick-logged@ui-test.example.ru", "phone": "+7 900 555-11-00",
+        "password": "S3cretPass!", "password_confirm": "S3cretPass!",
+        "consent": True})
+    assert status == 200
+    status, data = api("POST", "/api/auth/login", base=server, body={
+        "email": "quick-logged@ui-test.example.ru", "password": "S3cretPass!"})
+    assert status == 200, (status, data)
+    _seed_session(page, "session_token", data["token"])
+
+    page.goto(f"{server}/")
+    page.locator(".quick [data-scenario]").first.click()
+    page.wait_for_url("**/cabinet**")
+    assert "/cabinet" in page.url
