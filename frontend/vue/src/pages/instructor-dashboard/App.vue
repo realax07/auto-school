@@ -71,55 +71,7 @@
       <div id="w-today-list" style="display:none"></div>
     </div>
   </section>
-  <section class="stats day-content">
-    <article class="card stat"><div class="stat-head">Заработано за месяц <span class="stat-icon">₽</span></div><div class="value">84 600 <small>₽</small></div><div class="stat-foot"><span class="trend">↗ +12%</span> <span>к прошлому месяцу</span></div></article>
-    <article class="card stat"><div class="stat-head">Отработано часов <span class="stat-icon">◷</span></div><div class="value">62 <small>ч</small></div><div class="stat-foot"><span class="trend neutral">из 80 ч</span><span>план на месяц</span></div></article>
-    <article class="card stat"><div class="stat-head">Мои ученики <span class="stat-icon">♧</span></div><div class="value">12</div><div class="stat-foot"><span class="trend">+3</span><span>новых за неделю</span></div></article>
-    <article class="card stat"><div class="stat-head">Занятия сегодня <span class="stat-icon">▦</span></div><div class="value">4</div><div class="stat-foot"><span class="trend neutral">Первое в 10:00</span></div></article>
-  </section>
-  <div class="content-grid day-content">
-    <section class="card panel">
-      <div class="panel-head"><div><div class="panel-title">Расписание занятий</div><div class="panel-sub">Загруженность и свободные окна на неделе</div></div><div class="calendar-tools"><button @click="changeWeek(-1)">‹</button><button @click="toast('Показана текущая неделя')">Эта неделя</button><button @click="changeWeek(1)">›</button></div></div>
-      <div class="week" id="week">
-        <div class="day"><div class="dname">ПН</div><div class="dnum">12</div><div class="dots"><i></i><i></i><i class="blue"></i></div></div>
-        <div class="day"><div class="dname">ВТ</div><div class="dnum">13</div><div class="dots"><i></i><i></i></div></div>
-        <div class="day"><div class="dname">СР</div><div class="dnum">14</div><div class="dots"><i></i><i></i><i></i></div></div>
-        <div class="day"><div class="dname">ЧТ</div><div class="dnum">15</div><div class="dots"><i class="blue"></i><i></i></div></div>
-        <div class="day"><div class="dname">ПТ</div><div class="dnum">16</div><div class="dots"><i></i><i></i><i class="orange"></i></div></div>
-        <div class="day"><div class="dname">СБ</div><div class="dnum">17</div><div class="dots"><i></i></div></div>
-        <div class="day"><div class="dname">ВС</div><div class="dnum">18</div><div class="dots"></div></div>
-      </div>
-      <div class="legend"><span><i class="green"></i>Занятие подтверждено</span><span><i class="blue"></i>Ожидает подтверждения</span><span><i class="orange"></i>Свободное окно</span></div>
-      <div class="panel-head"><div class="panel-title" id="today-count">Сегодня · 4 занятия</div><button class="text-btn" @click="navTo('Календарь')">Весь календарь ↗</button></div>
-      <div class="appointments">
-        <div class="appointment"><div><div class="time">10:00</div><div class="duration">60 минут</div></div><div class="bar"></div><div><div class="appt-name">Александр Иванов</div><div class="appt-meta">Практика · Городской маршрут</div></div><span class="status">Подтверждено</span></div>
-        <div class="appointment"><div><div class="time">12:00</div><div class="duration">90 минут</div></div><div class="bar bluebar"></div><div><div class="appt-name">Екатерина Смирнова</div><div class="appt-meta">Практика · Манёвры и парковка</div></div><span class="status blue-status">Ожидает</span></div>
-        <div class="appointment"><div><div class="time">14:30</div><div class="duration">60 минут</div></div><div class="bar"></div><div><div class="appt-name">Дмитрий Волков</div><div class="appt-meta">Практика · Город</div></div><span class="status">Подтверждено</span></div>
-        <div class="appointment"><div><div class="time">16:00</div><div class="duration">60 минут</div></div><div class="bar orangebar"></div><div><div class="appt-name">Свободное окно</div><div class="appt-meta">Можно открыть запись для ученика</div></div><span class="status gray">Свободно</span></div>
-      </div>
-      <div class="today-empty" id="today-empty">Сегодня занятий нет</div>
-    </section>
-    <div class="right-col">
-      <section class="card panel next"><div class="panel-head"><div><div class="panel-title">Ближайшее занятие</div><div class="panel-sub">Сегодня, через 30 минут</div></div><span class="status">Скоро</span></div>
-        <div class="next-time"><div class="timebox"><b>10:00</b><small>60 минут</small></div><div class="next-person"><b>Александр Иванов</b><small>Практика · Город</small></div></div>
-        <div class="next-details"><div class="detail"><span>Автомобиль</span><b>Škoda Rapid · А123АА</b></div><div class="detail"><span>Точка встречи</span><b>Согласованная локация</b></div><div class="detail"><span>Цель занятия</span><b>Движение в потоке</b></div></div>
-        <button class="full-btn" @click="toast('Открыта карточка занятия — демонстрация')">Открыть занятие ↗</button>
-      </section>
-      <section class="card panel"><div class="panel-head"><div><div class="panel-title">Мой автомобиль</div><div class="panel-sub">Данные подключённого авто</div></div><button class="text-btn" @click="navTo('Автомобиль')">Подробнее</button></div>
-        <div class="vehicle-top"><div class="vehicle-icon">▰</div><div><b>Škoda Rapid</b><small>2020 · Автомат</small></div><span class="vehicle-status">● Активен</span></div>
-        <div class="vehicle-line"></div><div class="vehicle-data"><div><span>Госномер</span><b>А123АА 777</b></div><div><span>Тип владения</span><b>Свой автомобиль</b></div></div>
-        <div class="progress-label"><span>Проверка документов</span><b style="color:#7beaa3">Завершена</b></div><div class="progress"><span></span></div>
-      </section>
-    </div>
-  </div>
   <div class="bottom-grid day-content">
-    <section class="card panel"><div class="panel-head"><div><div class="panel-title">Последние операции</div><div class="panel-sub">Начисления и выплаты</div></div><button class="text-btn" @click="navTo('Доходы и выплаты')">Все операции ↗</button></div>
-      <div class="activity">
-        <div class="activity-row"><div class="activity-icon">↗</div><div class="activity-copy"><b>Занятие · Александр Иванов</b><small>Сегодня, 09:00 · Начисление</small></div><div class="amount plus">+2 000 ₽</div></div>
-        <div class="activity-row"><div class="activity-icon">↗</div><div class="activity-copy"><b>Занятие · Мария Петрова</b><small>Вчера, 16:00 · Начисление</small></div><div class="amount plus">+2 000 ₽</div></div>
-        <div class="activity-row"><div class="activity-icon" style="background:#34251f;color:#ffb18c">↙</div><div class="activity-copy"><b>Расходы на автомобиль</b><small>10 октября · Учёт расходов</small></div><div class="amount minus">−1 450 ₽</div></div>
-      </div>
-    </section>
     <section class="card panel"><div class="panel-head"><div><div class="panel-title">Быстрые действия</div><div class="panel-sub">Самое нужное — в один клик</div></div></div>
       <div class="quick-actions"><button class="quick" @click="navTo('Календарь')"><span>＋</span>Открыть время<br>для записи</button><button class="quick" @click="navTo('Ученики')"><span>♧</span>Посмотреть<br>учеников</button><button class="quick" @click="navTo('Доходы и выплаты')"><span>₽</span>Мои доходы<br>и выплаты</button></div>
     </section>
@@ -501,7 +453,6 @@ export default {
     function toast(msg){return bridge.toast(msg)}
     var itab = ref('День'); // активная позиция таб-бара (add-instructor-mobile)
     function navTo(name){ itab.value = name === 'Календарь' ? 'Календарь' : name === 'Доходы и выплаты' ? 'Кошелёк' : name === 'Профиль и документы' ? 'Профиль' : (name === 'Мой день') ? 'День' : 'Ещё'; return bridge.navTo(name) }
-    function changeWeek(dir){return bridge.changeWeek(dir)}
     function logout(){return bridge.logout()}
 
     onMounted(function(){
@@ -529,21 +480,8 @@ fetch('/api/auth/me',{headers:{'X-Session-Token':sessionStorage.getItem('session
     var ini=((u.surname||'')[0]||'')+((u.name||'')[0]||'');
     document.getElementById('avatar').textContent=ini||'—';
     if(u.name){document.getElementById('hello-name').textContent='Добрый день, '+u.name;}
-  }).catch(function(){location.href='/';});
-// Виджет «Занятия на сегодня» (спринт 3): пустой массив занятий в панели
-// расписания -> заглушка «Сегодня занятий нет»; демо-данные остаются как есть.
-(function(){
-  var todayAppointments=Array.prototype.slice.call(document.querySelectorAll('.appointments .appointment'));
-  if(todayAppointments.length!==0)return;
-  var stub=document.getElementById('today-empty');
-  var wrap=document.querySelector('.appointments');
-  var head=document.getElementById('today-count');
-  if(stub)stub.style.display='block';
-  if(wrap)wrap.style.display='none';
-  if(head)head.textContent='Сегодня · занятий нет';
-})();
-let weekShift=0;
-function toast(msg){baseToast(msg,2600)}
+  }).catch(function(){location.href='/'});
+  function toast(msg){baseToast(msg,2600)}
 function navTo(name){
   if(name==='__logout__'){logout();return}
   // BUG-047 (скрины Заказчика 2026-10-17): «Мои автомобили» — раздел этого
@@ -675,7 +613,6 @@ function countNewRequests(){
 }
 
 document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click',()=>navTo(b.dataset.tab)));
-function changeWeek(dir){weekShift+=dir;const days=document.querySelectorAll('#week .day .dnum');days.forEach((el,i)=>el.textContent=String(12+weekShift*7+i));toast(weekShift===0?'Текущая неделя':'Неделя переключена — демонстрационные даты')}
 
 // --- Wiring Спринта 2, часть 2 (change add-instructor-cabinet) ---
 // Токен — sessionStorage, ключ session_token (единый паттерн кабинета
@@ -2346,14 +2283,12 @@ fetch('/api/auth/logout',{method:'POST',headers:{'X-Session-Token':token||''}})
 // setup-скоупа вместо прежней глобальной видимости window.*:
 bridge.toast = toast;
 bridge.navTo = navTo;
-bridge.changeWeek = changeWeek;
 bridge.logout = logout;
     });
 
     return {
       toast: toast,
       itab: itab, navTo: navTo,
-      changeWeek: changeWeek,
       logout: logout,
     };
   },
