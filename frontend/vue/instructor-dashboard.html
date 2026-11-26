@@ -29,7 +29,7 @@
 
 <main>
   <div class="topbar"><div><div class="crumb">Рабочее пространство / <span id="crumb">Мой день</span></div><h1 id="page-title">Мой день</h1></div><div class="top-actions"><div class="date-chip">◷ &nbsp; Пн, 12 октября 2026</div><button class="icon-btn" onclick="toast('Новых уведомлений нет')">♧</button><div class="user"><div class="avatar" id="avatar">—</div><div><b id="user-fio">…</b><small>Инструктор</small></div></div><button class="icon-btn" onclick="logout()" title="Выйти">⎋</button></div></div>
-  <div class="hello"><div><div class="kicker">Понедельник · 12 октября</div><h2 id="hello-name">Добрый день, Михаил</h2><p>Вот что у тебя сегодня. Всё под контролем.</p></div><div class="online"><i></i> Профиль активен</div></div>
+  <div class="hello rd"><div><div class="kicker" id="rd-date">—</div><h2 id="hello-name">Добрый день!</h2><p id="rd-sub">Готовы к занятиям. Заполняйте расписание и отвечайте на заявки учеников.</p></div><div class="online"><i></i> Профиль активен</div></div>
   <!-- Виджеты главной (мокап calendar-availability-a, change add-instructor-student-loop):
        данные GET /api/instructor/summary + GET /api/instructor/requests; до ответа —
        честные пустые состояния (демо-данных виджеты больше не показывают).
@@ -47,13 +47,24 @@
       <div id="w-requests-list"><div class="w-empty" id="w-requests-empty"><b>Новых запросов нет</b>Заявки учеников появятся здесь.</div></div>
     </div>
     <div class="w" id="w-today">
-      <div class="w-head"><b>Занятия на сегодня</b></div>
-      <div class="w-empty" id="w-today-empty"><b>Сегодня занятий нет</b>Расписание занятий появится в следующих версиях школы.</div>
+      <div class="w-head"><b>Расписание на сегодня</b><button class="w-link" onclick="navTo('Календарь')">Весь календарь ↗</button></div>
+      <div class="w-empty" id="w-today-empty"><b>Сегодня занятий нет</b>Откройте слоты в Календаре — ученики смогут записаться.</div>
       <div id="w-today-list" style="display:none"></div>
     </div>
   </section>
+  <section class="stats rd day-content">
+    <article class="card stat rd"><div class="stat-head">Доход за месяц <span class="stat-icon">₽</span></div><div class="value" id="rd-earn-month">… <small>₽</small></div><div class="stat-foot" id="rd-earn-note">net · после комиссии платформы</div></article>
+    <article class="card stat rd"><div class="stat-head">Активных учеников <span class="stat-icon">♧</span></div><div class="value" id="rd-students-n">…</div><div class="stat-foot"><span>привязанных учеников</span></div></article>
+    <article class="card stat rd"><div class="stat-head">Занятий сегодня <span class="stat-icon">▦</span></div><div class="value" id="rd-lessons-n">…</div><div class="stat-foot"><span>по записи учеников</span></div></article>
+  </section>
   <section class="card panel"><div class="panel-head"><div><div class="panel-title">Быстрые действия</div><div class="panel-sub">Самое нужное — в один клик</div></div></div>
       <div class="quick-actions"><button class="quick" onclick="navTo('Расписание')"><span>＋</span>Открыть время<br>для записи</button><button class="quick" onclick="navTo('Ученики')"><span>♧</span>Посмотреть<br>учеников</button><button class="quick" onclick="navTo('Доходы и выплаты')"><span>₽</span>Мои доходы<br>и выплаты</button></div>
+    </section>
+    <section class="card panel rd-tasks day-content"><div class="panel-head"><div><div class="panel-title">Задачи на сегодня</div><div class="panel-sub">Локальный чек-лист дня</div></div></div>
+      <label class="rd-task"><input type="checkbox" checked> Провести запланированные занятия</label>
+      <label class="rd-task"><input type="checkbox"> Заполнить отчёты по занятиям</label>
+      <label class="rd-task"><input type="checkbox"> Подтвердить новых учеников</label>
+      <div class="rd-progress"><span id="rd-progress-bar"></span></div><div class="rd-progress-row"><span>Выполнено</span><span id="rd-progress-n">0 из 3</span></div>
     </section>
 
   <!-- Раздел «Календарь» (мокап calendar-availability-a, вариант A: сетка недели;
