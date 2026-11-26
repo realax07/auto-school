@@ -34,13 +34,13 @@
   <nav class="nav">
     <button class="active" data-tab="Мой день"><span class="ico">⌂</span>Мой день</button>
     <button data-tab="Календарь"><span class="ico">▦</span>Календарь</button>
-    <button data-tab="Мои ученики"><span class="ico">♧</span>Мои ученики</button>
-    <button data-tab="Мои автомобили"><span class="ico">▰</span>Мои автомобили</button>
+    <button data-tab="Мои ученики"><span class="ico">♧</span>Ученики</button>
+    <button data-tab="Мои автомобили"><span class="ico">▰</span>Автопарк</button>
     <!-- Спринт 16 (add-wallet-economy, 16.4.2): «Доходы и выплаты» — реальный
          раздел (#sec-earnings, мокап instructor-earnings.html); пометка
          «демо» снята, data-tab НЕ переименован (якорь e2e TC-UI-005) -->
-    <button data-tab="Доходы и выплаты"><span class="ico">₽</span>Доходы и выплаты</button>
-    <button data-tab="Профиль и документы"><span class="ico">▤</span>Профиль и документы</button>
+    <button data-tab="Доходы и выплаты"><span class="ico">₽</span>Мой доход</button>
+    <button data-tab="Профиль и документы"><span class="ico">▤</span>Документы</button>
     <button data-tab="__logout__"><span class="ico">⎋</span>Выход</button>
   </nav>
   <div class="side-bottom"><strong>Нужна помощь?</strong><p>Поддержка инструкторов поможет разобраться с расписанием, выплатами и подключением.</p><button @click="toast('Раздел поддержки — демонстрационный макет')">Связаться с поддержкой ↗</button></div>
@@ -48,7 +48,7 @@
 
 <main>
   <div class="topbar"><div><div class="crumb">Рабочее пространство / <span id="crumb">Мой день</span></div><h1 id="page-title">Мой день</h1></div><div class="top-actions"><div class="date-chip">◷ &nbsp; Пн, 12 октября 2026</div><button class="icon-btn" @click="toast('Новых уведомлений нет')">♧</button><div class="user"><div class="avatar" id="avatar">—</div><div><b id="user-fio">…</b><small>Инструктор</small></div></div><button class="icon-btn" @click="logout()" title="Выйти">⎋</button></div></div>
-  <div class="hello day-content"><div><div class="kicker">Понедельник · 12 октября</div><h2 id="hello-name">Добрый день, Михаил</h2><p>Вот что у тебя сегодня. Всё под контролем.</p></div><div class="online"><i></i> Профиль активен</div></div>
+  <div class="hello rd day-content"><div><div class="kicker" id="rd-date">—</div><h2 id="hello-name">Добрый день!</h2><p id="rd-sub">Готовы к занятиям. Заполняйте расписание и отвечайте на заявки учеников.</p></div><div class="online"><i></i> Профиль активен</div></div>
   <!-- Виджеты главной (мокап calendar-availability-a, change add-instructor-student-loop):
        данные GET /api/instructor/summary + GET /api/instructor/requests; до ответа —
        честные пустые состояния (демо-данных виджеты больше не показывают).
@@ -66,11 +66,22 @@
       <div id="w-requests-list"><div class="w-empty" id="w-requests-empty"><b>Новых запросов нет</b>Заявки учеников появятся здесь.</div></div>
     </div>
     <div class="w" id="w-today">
-      <div class="w-head"><b>Занятия на сегодня</b></div>
+      <div class="w-head"><b>Расписание на сегодня</b><button class="w-link" @click="navTo('Календарь')">Весь календарь ↗</button></div>
       <div class="w-empty" id="w-today-empty"><b>Сегодня занятий нет</b>Откройте слоты в Календаре — ученики смогут записаться.</div>
       <div id="w-today-list" style="display:none"></div>
     </div>
   </section>
+  <section class="stats rd day-content">
+    <article class="card stat rd"><div class="stat-head">Доход за месяц <span class="stat-icon">₽</span></div><div class="value" id="rd-earn-month">… <small>₽</small></div><div class="stat-foot" id="rd-earn-note">net · после комиссии платформы</div></article>
+    <article class="card stat rd"><div class="stat-head">Активных учеников <span class="stat-icon">♧</span></div><div class="value" id="rd-students-n">…</div><div class="stat-foot"><span>привязанных учеников</span></div></article>
+    <article class="card stat rd"><div class="stat-head">Занятий сегодня <span class="stat-icon">▦</span></div><div class="value" id="rd-lessons-n">…</div><div class="stat-foot"><span>по записи учеников</span></div></article>
+  </section>
+  <section class="card panel rd-tasks day-content"><div class="panel-head"><div><div class="panel-title">Задачи на сегодня</div><div class="panel-sub">Локальный чек-лист дня</div></div></div>
+      <label class="rd-task"><input type="checkbox" checked> Провести запланированные занятия</label>
+      <label class="rd-task"><input type="checkbox"> Заполнить отчёты по занятиям</label>
+      <label class="rd-task"><input type="checkbox"> Подтвердить новых учеников</label>
+      <div class="rd-progress"><span id="rd-progress-bar"></span></div><div class="rd-progress-row"><span>Выполнено</span><span id="rd-progress-n">0 из 3</span></div>
+    </section>
   <div class="bottom-grid day-content">
     <section class="card panel"><div class="panel-head"><div><div class="panel-title">Быстрые действия</div><div class="panel-sub">Самое нужное — в один клик</div></div></div>
       <div class="quick-actions"><button class="quick" @click="navTo('Календарь')"><span>＋</span>Открыть время<br>для записи</button><button class="quick" @click="navTo('Ученики')"><span>♧</span>Посмотреть<br>учеников</button><button class="quick" @click="navTo('Доходы и выплаты')"><span>₽</span>Мои доходы<br>и выплаты</button></div>
@@ -466,6 +477,7 @@ export default {
   var sh=parts({weekday:'short',day:'numeric',month:'long',year:'numeric'});
   var lo=parts({weekday:'long',day:'numeric',month:'long'});
   var chip=document.querySelector('.date-chip');
+  var rdate=document.getElementById('rd-date');
   if(chip)chip.innerHTML='◷ &nbsp; '+cap(sh.weekday)+', '+sh.day+' '+sh.month+' '+sh.year;
   var kick=document.querySelector('.kicker');
   if(kick)kick.textContent=cap(lo.weekday)+' · '+lo.day+' '+lo.month;
@@ -546,6 +558,9 @@ function loadSummary(){
   apiGet('/api/instructor/summary',function(res){
     if(!res||!res.ok)return;
     var students=res.students||[];
+    var sn=document.getElementById('rd-students-n'); if(sn)sn.textContent=String(students.length);
+    var ln=document.getElementById('rd-lessons-n'); if(ln)ln.textContent=String((res.today_lessons||[]).length);
+    var sub=document.getElementById('rd-sub'); if(sub)sub.textContent='Занятий сегодня: '+(res.today_lessons||[]).length+'. Заявки учеников — в разделе «Ученики».';
     el('w-students-n').textContent=students.length;
     var box=el('w-students-list');
     box.innerHTML='';
@@ -613,6 +628,16 @@ function countNewRequests(){
 }
 
 document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click',()=>navTo(b.dataset.tab)));
+// «Задачи на сегодня» — локальный чек-лист (без API): прогресс 0..N
+document.querySelectorAll('.rd-task input').forEach(function(cb){
+  cb.addEventListener('change',function(){
+    var all=document.querySelectorAll('.rd-task input');
+    var done=[...all].filter(function(x){return x.checked}).length;
+    var pct=all.length?Math.round(done*100/all.length):0;
+    var bar=document.getElementById('rd-progress-bar');if(bar)bar.style.width=pct+'%';
+    var n=document.getElementById('rd-progress-n');if(n)n.textContent=done+' из '+all.length;
+  });
+});
 
 // --- Wiring Спринта 2, часть 2 (change add-instructor-cabinet) ---
 // Токен — sessionStorage, ключ session_token (единый паттерн кабинета
@@ -636,6 +661,14 @@ fetch('/api/instructor/dashboard',{headers:{'X-Session-Token':token}})
     var initials=[(i.surname||'').trim()[0],(i.name||'').trim()[0]].filter(Boolean).join('').toUpperCase();
     document.querySelector('.avatar').textContent=initials;
     loadSummary();countNewRequests();
+    // доход текущего месяца — для карточки «Моего дня» (тот же API, что и
+    // раздел «Доходы и выплаты»; пустой месяц — 0 ₽ без ошибки)
+    apiGet('/api/instructor/earnings',function(res){
+      if(!res||!res.ok)return;
+      var kop=res.total_net_kop||0;
+      var elr=document.getElementById('rd-earn-month');
+      if(elr)elr.innerHTML=(kop/100).toLocaleString('ru-RU')+' <small>₽</small>';
+    });
   })
   .catch(function(){toLogin()});
 }
@@ -2134,7 +2167,7 @@ function openEarnings(){
     var mName=ERN_MONTHS[(res.month||1)-1],mNameIn=ERN_MONTHS_IN[(res.month||1)-1];
     el('ern-month-label').textContent=mName.charAt(0).toUpperCase()+mName.slice(1)+' '+res.year;
     el('ern-month-name').textContent=mNameIn+' '+res.year;
-    el('ern-month-net').innerHTML=ernRub(res.total_net_kop)+' <small>₽</small>';
+    el('rd-earn-month') && (document.getElementById('rd-earn-month').textContent = el('ern-month-net').textContent), el('ern-month-net').innerHTML=ernRub(res.total_net_kop)+' <small>₽</small>';
     el('ern-month-gross').innerHTML=ernRub(res.total_gross_kop)+' <small>₽</small>';
     el('ern-month-gross-foot').textContent='gross · комиссия платформы '+ernRub(res.total_fee_kop)+' ₽';
     el('ern-total-note').textContent='Всего за месяц: '+ernRub(res.total_net_kop)+' ₽ net (gross '+ernRub(res.total_gross_kop)+' ₽, комиссия '+ernRub(res.total_fee_kop)+' ₽). Суммы в копейках в журнале — на экране в рублях.';
