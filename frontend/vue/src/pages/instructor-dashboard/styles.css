@@ -478,3 +478,25 @@ footer{margin-top:26px;color:#5f717b;font-size:10px;display:flex;justify-content
   .text-btn{min-height:44px;display:inline-flex;align-items:center}
   .calendar-tools button{min-height:44px;min-width:44px}
 }
+
+
+/* ===== Редизайн «Моего дня» (макет Заказчика, синий-сланец + зеленый) ===== */
+.hello.rd .kicker{color:#85d9a6;font-size:13px;letter-spacing:.4px}
+.hello.rd h2{font-size:clamp(26px,3vw,36px);letter-spacing:-.8px}
+.hello.rd p{color:#aab9c6}
+.stats.rd{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin-bottom:22px}
+.card.stat.rd{padding:21px;border-radius:20px;border:1px solid #263645;background:linear-gradient(145deg,#172432,#101b26);min-height:110px}
+.card.stat.rd .stat-head{color:#a0afbd;font-size:13px;display:flex;justify-content:space-between}
+.card.stat.rd .stat-icon{width:34px;height:34px;border-radius:11px;background:#263544;display:grid;place-items:center;font-size:16px}
+.card.stat.rd .value{font-size:28px;font-weight:750;letter-spacing:-.5px;margin-top:10px;color:#f2f6fa}
+.card.stat.rd .stat-foot{color:#8fa0ad;font-size:12px;margin-top:6px}
+.w-link{margin-left:auto;background:none;border:0;color:#86dba5;font-size:12.5px;cursor:pointer;padding:2px 4px}
+.rd-sched .w-req{display:flex;align-items:center;gap:12px;padding:13px 11px;border-bottom:1px solid #293846}
+.rd-sched .w-req:last-child{border-bottom:0}
+.rd-tasks{max-width:520px}
+.rd-task{display:flex;align-items:center;gap:11px;margin:13px 0;color:#d6e0e8}
+.rd-task input{accent-color:var(--green,#45d477);width:18px;height:18px}
+.rd-progress{height:8px;background:#293a48;border-radius:10px;margin-top:18px;overflow:hidden}
+.rd-progress span{height:100%;width:0;display:block;background:linear-gradient(90deg,#3ed475,#82ec9e);border-radius:10px;transition:width .3s}
+.rd-progress-row{display:flex;justify-content:space-between;color:#8fa0ad;font-size:12px;margin-top:8px}
+@media(max-width:760px){.stats.rd{grid-template-columns:1fr;gap:10px}.card.stat.rd{padding:15px;min-height:0}.rd-tasks{max-width:none}}

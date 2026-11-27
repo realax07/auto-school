@@ -1,0 +1,16 @@
+{
+  "author_delegation": "hermes:20261119_193936_d11264",
+  "change": "BUG-071",
+  "diff_base": null,
+  "diff_digest": "ad9f84c1ebe217d4ea8677e0b70980833ab1d7a2be24ddb4673a73afa349be63",
+  "project": "auto-school",
+  "review_path": "/home/hermes-bot/auto-school/code-reviews/BUG-071/review-BUG-071-001.md",
+  "reviewed_commit_sha": "e990a90d8cb0147770327c02330604ad7e7017ae",
+  "reviewer_delegation": "pm:root-2026-11-23",
+  "schema_version": "review-provenance/1",
+  "task_ids": [
+    "BUG-071"
+  ],
+  "timestamp": "2026-11-26T11:14:29+00:00",
+  "verdict": "approve"
+}
