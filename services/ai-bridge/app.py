@@ -117,7 +117,11 @@ def _generate(query: str) -> str:
         "model": GLM_MODEL,
         "messages": messages,
         "temperature": 0.4,
-        "max_tokens": 800,
+        "max_tokens": int(os.environ.get("GLM_MAX_TOKENS", "3000")),
+        # glm-5.3-flash — thinking-модель: размышления съедали 25s+ и
+        # бюджет токенов (пустой content → 503). ПДД-ответам размышления
+        # не критичны — отключены (фикс латентности, волна 21.5-хотфикс).
+        "thinking": {"type": "disabled"},
     }).encode("utf-8")
     request = urllib.request.Request(
         GLM_BASE_URL + "/chat/completions",
